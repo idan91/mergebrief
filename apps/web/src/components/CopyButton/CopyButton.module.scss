@@ -1,20 +1,30 @@
+@use "mixins";
+
 @layer components {
   // State recolors on top of IconButton's ghost chrome; the resting color
   // stays fainter than the shared --color-text-2 so it recedes inside dense headers.
   .copyButton {
     color: var(--color-text-3);
 
+    &[data-state="copied"] {
+      --copy-result-color: var(--color-positive);
+    }
+
+    &[data-state="failed"] {
+      --copy-result-color: var(--color-negative);
+    }
+
     /* :hover doubled in: the pointer sits on the button for the whole
        feedback window, and IconButton's ghost hover outweighs a bare
        attribute selector. */
-    &[data-state="copied"],
-    &[data-state="copied"]:hover {
-      color: var(--color-positive);
+    &:is([data-state="copied"], [data-state="failed"]) {
+      color: var(--copy-result-color);
     }
 
-    &[data-state="failed"],
-    &[data-state="failed"]:hover {
-      color: var(--color-negative);
+    @include mixins.hover {
+      &:is([data-state="copied"], [data-state="failed"]):hover {
+        color: var(--copy-result-color);
+      }
     }
   }
 }

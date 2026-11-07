@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   // Qualified by the row attribute every diff row carries, to outrank
@@ -48,9 +49,11 @@
     line-height: functions.to-rem(22px);
     cursor: pointer;
 
-    &:hover {
-      color: var(--color-text-1);
-      border-color: var(--color-text-2);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        border-color: var(--color-text-2);
+      }
     }
   }
 

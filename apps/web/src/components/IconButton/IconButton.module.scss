@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .iconButton {
@@ -16,9 +17,11 @@
       color var(--motion-fast),
       transform var(--motion-fast) var(--ease-out);
 
-    &:not([aria-disabled="true"]):hover {
-      background: var(--color-surface-3);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        background: var(--color-surface-3);
+        color: var(--color-text-1);
+      }
     }
 
     @media (prefers-reduced-motion: no-preference) {

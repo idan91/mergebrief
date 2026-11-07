@@ -35,9 +35,11 @@
     cursor: pointer;
     font: inherit;
 
-    &:hover:not([aria-disabled="true"]) {
-      background: var(--color-surface-2);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover:not([aria-disabled="true"]) {
+        background: var(--color-surface-2);
+        color: var(--color-text-1);
+      }
     }
 
     &[aria-current="page"] {

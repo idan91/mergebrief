@@ -14,6 +14,21 @@ function renderChip() {
 }
 
 describe("SelfReviewChip", () => {
+  it("opens the tooltip from the mouse events a touch tap sends", () => {
+    renderChip();
+    const info = screen.getByRole("button", { name: "About self-review" });
+    const wrap = info.parentElement;
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
+
+    if (wrap) {
+      fireEvent.mouseEnter(wrap);
+    }
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
+  });
+
   it("renders the non-dismissible self-review chip with its tooltip", () => {
     renderChip();
     const chip = screen.getByText("Self-review: your draft");
@@ -21,7 +36,7 @@ describe("SelfReviewChip", () => {
     // Non-dismissible: the chip carries no close affordance.
     expect(
       chip
-        .closest("[data-self-review-chip]")
+        .closest('[data-testid="self-review-chip"]')
         ?.querySelector("button[aria-label*='close' i]"),
     ).toBeNull();
     const info = screen.getByRole("button", { name: "About self-review" });
@@ -38,31 +53,34 @@ describe("SelfReviewChip", () => {
     renderChip();
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
 
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
     fireEvent.focus(info);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
     fireEvent.keyDown(info, { key: "Escape" });
     // Dismissed - and the key never reached the page (focus-mode Escape).
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
     expect(onWindowKeyDown).not.toHaveBeenCalled();
     window.removeEventListener("keydown", onWindowKeyDown);
 
     // Blur re-arms it for the next focus/hover…
     fireEvent.blur(info);
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+    fireEvent.focus(info);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
+    fireEvent.blur(info);
 
     // …and so does the pointer leaving after an Escape while hovering.
     if (wrap) {
       fireEvent.mouseEnter(wrap);
     }
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
     if (wrap) {
       fireEvent.mouseLeave(wrap);
+      fireEvent.mouseEnter(wrap);
     }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
   });
 
   it("Escape-dismissal sticks while EITHER hover or focus is still active", () => {
@@ -76,27 +94,29 @@ describe("SelfReviewChip", () => {
     }
     fireEvent.focus(info);
     fireEvent.keyDown(info, { key: "Escape" });
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
 
     // Pointer drifts away while focus remains: must STAY dismissed.
     if (wrap) {
       fireEvent.mouseLeave(wrap);
     }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
 
     // The inverse: re-hover, then blur while the pointer stays - still
     // dismissed (focus left, hover holds).
     if (wrap) {
       fireEvent.mouseEnter(wrap);
     }
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
     fireEvent.blur(info);
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
 
     // Only when BOTH channels go idle does the tooltip re-arm.
     if (wrap) {
       fireEvent.mouseLeave(wrap);
+      fireEvent.mouseEnter(wrap);
     }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
   });
 
   it("Escape dismisses a hovered tooltip without leaking the key", () => {
@@ -111,10 +131,11 @@ describe("SelfReviewChip", () => {
     if (wrap) {
       fireEvent.mouseEnter(wrap);
     }
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(true);
     fireEvent.keyDown(document.body, { key: "Escape" });
     // Dismissed, key claimed: it must NOT fall through to the page's
     // window-level shortcut listener (which would exit focus mode).
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(wrap?.hasAttribute("data-tooltip-open")).toBe(false);
     expect(onWindowKeyDown).not.toHaveBeenCalled();
 
     // Once the tooltip is gone, the claim is released: a second Escape

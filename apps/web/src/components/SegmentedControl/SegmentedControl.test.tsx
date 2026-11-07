@@ -96,4 +96,28 @@ describe("SegmentedControl", () => {
     fireEvent.blur(unavailable);
     expect(wrapper?.getAttribute("data-tip-dismissed")).toBeNull();
   });
+
+  it("opens the reason from the mouse events a touch tap sends", () => {
+    renderControl([
+      OPTIONS[0]!,
+      {
+        value: "changes",
+        label: "Changes Only",
+        unavailableReason: "Needs a baseline",
+      },
+    ]);
+    const unavailable = screen.getByRole("radio", { name: "Changes Only" });
+    const wrapper = unavailable.parentElement;
+    expect(wrapper?.getAttribute("data-tip-open")).toBeNull();
+
+    if (wrapper) {
+      fireEvent.mouseEnter(wrapper);
+    }
+    expect(wrapper?.getAttribute("data-tip-open")).toBe("true");
+
+    if (wrapper) {
+      fireEvent.mouseLeave(wrapper);
+    }
+    expect(wrapper?.getAttribute("data-tip-open")).toBeNull();
+  });
 });

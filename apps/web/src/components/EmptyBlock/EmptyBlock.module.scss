@@ -51,7 +51,7 @@
     vertical-align: -2px;
     border-block-start-color: var(--color-text-2);
     border-radius: var(--radius-circle);
-    animation: empty-block-spin 0.9s linear infinite;
+    animation: empty-block-spin var(--motion-spin) linear infinite;
 
     @media (prefers-reduced-motion: reduce) {
       animation: none;

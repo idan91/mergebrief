@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .row {
@@ -32,8 +33,16 @@
       border-end-end-radius: var(--radius-panel);
     }
 
-    &:hover {
-      --row-bg: var(--color-surface-2);
+    @include mixins.hover {
+      &:hover {
+        --row-bg: var(--color-surface-2);
+
+        background: var(--row-bg);
+      }
+    }
+
+    &:active {
+      --row-bg: var(--color-surface-3);
 
       background: var(--row-bg);
     }

@@ -36,4 +36,12 @@
       transform: translateY(100%);
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes panel-sheet-in {
+      from {
+        opacity: 0;
+      }
+    }
+  }
 }

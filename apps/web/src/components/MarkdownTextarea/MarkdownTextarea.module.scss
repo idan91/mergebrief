@@ -55,8 +55,10 @@
       font-size: var(--font-size-lg);
       font-weight: 500;
 
-      &:hover {
-        color: var(--color-text-2);
+      @include mixins.hover {
+        &:hover {
+          color: var(--color-text-2);
+        }
       }
 
       &[data-state="active"] {

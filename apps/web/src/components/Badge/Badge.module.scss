@@ -19,8 +19,10 @@
   a.badge {
     text-decoration: none;
 
-    &:hover {
-      background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+    @include mixins.hover {
+      &:hover {
+        background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+      }
     }
 
     &:focus-visible {

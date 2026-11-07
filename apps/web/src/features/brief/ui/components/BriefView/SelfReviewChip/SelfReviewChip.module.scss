@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   /* The own-draft state label: non-dismissible, informational. */
@@ -21,22 +22,13 @@
     display: inline-flex;
     flex: none;
 
-    /* Visible on hover and focus, and HOVERABLE (WCAG 1.4.13): pointer events
-       re-enable so the pointer can travel from the trigger onto the tooltip
-       text without it vanishing. */
-    &:hover .chipTooltip,
-    &:focus-within .chipTooltip {
+    /* Driven by state, not `:hover`: an iOS tap fires mouseenter but never
+       focuses the button. HOVERABLE (WCAG 1.4.13): pointer events re-enable
+       so the pointer can travel from the trigger onto the tooltip text. */
+    &[data-tooltip-open] .chipTooltip {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
-    }
-
-    /* DISMISSABLE (WCAG 1.4.13): Escape on the trigger sets this attribute;
-       it must win over the hover/focus rule above (equal specificity, so
-       source order decides). */
-    &[data-tooltip-dismissed] .chipTooltip {
-      opacity: 0;
-      pointer-events: none;
     }
   }
 
@@ -53,9 +45,14 @@
     line-height: 1;
     place-items: center;
 
-    &:hover,
     &:focus-visible {
       border-color: var(--color-text-3);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        border-color: var(--color-text-3);
+      }
     }
   }
 

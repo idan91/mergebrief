@@ -1,12 +1,15 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   a.mention {
     color: var(--color-accent);
     text-underline-offset: functions.to-rem(3px);
 
-    &:hover {
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
   }
 

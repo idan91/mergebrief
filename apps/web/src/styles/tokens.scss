@@ -123,6 +123,11 @@
     // keeps at 4.5:1 over; the number cells paint 24% opaque over the well
     // with their numbers on text-1. The palette contrast test reads both.
     --diff-selected-tint: 14%;
+    --diff-selected-fill: color-mix(
+      in srgb,
+      var(--color-accent) var(--diff-selected-tint),
+      transparent
+    );
     --diff-selected-gutter-tint: 24%;
     --diff-selected-edge-bar: inset 3px 0 0 var(--color-accent);
 
@@ -209,10 +214,13 @@
     --space-9: #{functions.to-rem(64px)};
 
     // ── Motion ───────────────────────────────────────────────────────────
-    // Three durations and two curves; keyboard movement never animates.
+    // Three durations, one spinner period and the curves; keyboard movement
+    // never animates. SIDEBAR_SLIDE_IN_MS and SIDEBAR_SLIDE_OUT_MS in
+    // BriefView/Sidebar/consts.ts copy base and fast.
     --motion-fast: 120ms;
     --motion-base: 180ms;
     --motion-slow: 320ms;
+    --motion-spin: 700ms;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -308,7 +316,9 @@
     // 2.5.8's spacing exception; the gaps that carry it are in the module.
     --header-meta-control-h: #{functions.to-rem(24px)};
     --header-meta-h: var(--header-meta-control-h);
-    --header-collapse-ease: 160ms ease;
+
+    // Tracks COLLAPSE_TIMING in BriefView/Header/useCollapseMotion.ts.
+    --header-collapse-ease: 160ms var(--ease-out);
     --header-identity-min: #{functions.to-rem(52px)};
     --header-comparison-min: #{functions.to-rem(44px)};
 

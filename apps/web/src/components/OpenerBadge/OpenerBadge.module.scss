@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .badge {
     position: absolute;
@@ -17,7 +19,7 @@
       opacity: 1;
     }
 
-    @media (hover: hover) {
+    @include mixins.hover {
       :hover > & {
         opacity: 1;
       }

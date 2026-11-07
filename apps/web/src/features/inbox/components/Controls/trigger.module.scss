@@ -21,8 +21,10 @@
       transform: scale(0.97);
     }
 
-    &:hover {
-      background: var(--color-surface-2);
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-2);
+      }
     }
 
     &[data-state="changed"] {

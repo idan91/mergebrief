@@ -50,18 +50,7 @@
   }
 
   .readingColumn {
-    &[data-sidebar-motion] {
-      transition:
-        opacity var(--motion-fast) ease,
-        padding-inline-end var(--motion-base) var(--ease-in-out),
-        max-inline-size var(--motion-base) var(--ease-in-out);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      &[data-sidebar-motion] {
-        transition: opacity var(--motion-fast) ease;
-      }
-    }
+    transition: opacity var(--motion-fast) ease;
 
     &[data-pending] {
       opacity: 0.6;

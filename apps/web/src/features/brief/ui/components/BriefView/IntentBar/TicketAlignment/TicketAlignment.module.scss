@@ -44,8 +44,10 @@
     text-decoration-color: color-mix(in srgb, currentcolor 40%, transparent);
     text-underline-offset: 2px;
 
-    &:hover {
-      text-decoration-color: currentcolor;
+    @include mixins.hover {
+      &:hover {
+        text-decoration-color: currentcolor;
+      }
     }
 
     &:focus-visible {

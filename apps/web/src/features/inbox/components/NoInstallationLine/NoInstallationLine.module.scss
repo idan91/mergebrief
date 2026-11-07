@@ -12,8 +12,10 @@
     text-decoration: underline;
     text-underline-offset: 0.15em;
 
-    &:hover {
-      color: var(--color-accent);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-accent);
+      }
     }
 
     @include mixins.focus-visible;

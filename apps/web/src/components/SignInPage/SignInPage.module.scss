@@ -76,7 +76,7 @@
     border: 2px solid color-mix(in srgb, currentcolor 25%, transparent);
     border-block-start-color: currentcolor;
     border-radius: var(--radius-pill);
-    animation: spin 700ms linear infinite;
+    animation: spin var(--motion-spin) linear infinite;
   }
 
   .note {
@@ -88,6 +88,12 @@
   @keyframes spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation: none;
     }
   }
 }

@@ -169,6 +169,11 @@ export function Sidebar({
     triggerRef.current?.focus();
   };
 
+  const collapseToChevronInstantly = () => {
+    state.collapseInstantly();
+    triggerRef.current?.focus();
+  };
+
   // Same scroll to target as a group jump on the narrow band: the sheet
   // closes and focus returns to the bar. The column stays as it is.
   const afterRevision = () => {
@@ -208,9 +213,10 @@ export function Sidebar({
 
     event.preventDefault();
     event.stopPropagation();
-    collapseToChevron();
+    collapseToChevronInstantly();
   };
 
+  const motionOn = state.motionReady && state.slideMotion;
   const chevronLabel = expanded
     ? t("brief.sidebar.collapse")
     : t("brief.sidebar.expand");
@@ -265,7 +271,8 @@ export function Sidebar({
     <aside
       aria-label={t("brief.sidebar.ariaLabel")}
       className={styles["sidebar"]}
-      data-motion={state.motionReady ? "on" : undefined}
+      data-motion={motionOn ? "on" : undefined}
+      data-sliding={state.sliding ? "" : undefined}
       data-state={expanded ? "expanded" : "collapsed"}
       data-testid="sidebar"
       data-variant="desktop"
@@ -338,8 +345,12 @@ export function Sidebar({
           </IconButton>
         </div>
       </div>
-      <div className={styles["panel"]} hidden={!expanded} id={SIDEBAR_PANEL_ID}>
-        {expanded ? (
+      <div
+        className={styles["panel"]}
+        hidden={!state.panelShown}
+        id={SIDEBAR_PANEL_ID}
+      >
+        {state.panelShown ? (
           <Tabs value={shownTab} onValueChange={selectTab}>
             <Tabs.List label={t("brief.sidebar.tabs.ariaLabel")}>
               <Tabs.Tab value={SidebarTabs.THIS_PR}>

@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .panel {
@@ -55,10 +56,16 @@
       opacity: 0;
     }
 
-    &:not([aria-disabled="true"]):hover {
-      border-color: var(--color-outline-2);
-      background: color-mix(in oklch, var(--color-surface-2) 80%, transparent);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        border-color: var(--color-outline-2);
+        background: color-mix(
+          in oklch,
+          var(--color-surface-2) 80%,
+          transparent
+        );
+        color: var(--color-text-1);
+      }
     }
   }
 

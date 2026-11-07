@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   // One pill on the chip's own skin, keys inside with no dividers: fill and
@@ -33,9 +34,11 @@
     border-radius: 0;
     color: var(--color-text-read);
 
-    &:not([aria-disabled="true"]):hover {
-      background: var(--stepper-cell-hover);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        background: var(--stepper-cell-hover);
+        color: var(--color-text-1);
+      }
     }
 
     &:first-child {

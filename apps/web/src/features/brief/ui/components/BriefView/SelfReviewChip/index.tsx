@@ -40,11 +40,11 @@ export function SelfReviewChip() {
     }
   }, [focused, hovered]);
   return (
-    <span className={styles["selfReviewChip"]} data-self-review-chip="">
+    <span className={styles["selfReviewChip"]} data-testid="self-review-chip">
       <span>{t("brief.header.selfReviewChip")}</span>
       <span
         className={styles["chipInfo"]}
-        data-tooltip-dismissed={tooltipDismissed ? "" : undefined}
+        data-tooltip-open={tooltipVisible ? "" : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >

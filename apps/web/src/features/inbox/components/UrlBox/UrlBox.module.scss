@@ -71,7 +71,7 @@
         );
         background-repeat: no-repeat;
         background-size: 40% 100%;
-        animation: sweep 1.1s linear infinite;
+        animation: sweep var(--motion-spin) linear infinite;
         content: "";
       }
     }

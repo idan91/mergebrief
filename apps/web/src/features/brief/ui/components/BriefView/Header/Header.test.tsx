@@ -224,6 +224,86 @@ describe("Header identity row", () => {
     }
   });
 
+  it("keeps its resting line when it collapses while a settle waits", async () => {
+    document.documentElement.style.setProperty("--sticky-stack-h", "120px");
+    const sentinel = document.createElement("div");
+    sentinel.setAttribute(CONTENT_START_ATTR, "");
+    document.body.append(sentinel);
+    intersectionObservers.length = 0;
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          resizeCallbacks.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    try {
+      await renderHeader();
+      await waitFor(() => expect(intersectionObservers.length).toBe(1));
+      const header = document.querySelector("header");
+      if (header === null) {
+        throw new Error("expected the header");
+      }
+      const observed = intersectionObservers[0];
+
+      // Read-through shrinks the stack, then the content crosses before the
+      // shrink settles.
+      Object.defineProperty(header, "offsetHeight", { value: 60 });
+      document.documentElement.style.setProperty("--sticky-stack-h", "70px");
+      act(() => {
+        resizeCallbacks[0]?.([], {} as ResizeObserver);
+        observed?.callback([crossingEntry(-1, 0, sentinel)], observed as never);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(intersectionObservers.at(-1)?.rootMargin).toBe(
+        "-120px 0px 0px 0px",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      sentinel.remove();
+      document.documentElement.style.removeProperty("--sticky-stack-h");
+    }
+  });
+
+  it("reads a sentinel the observer counts in view as expanded", async () => {
+    document.documentElement.style.setProperty("--sticky-stack-h", "120px");
+    const sentinel = document.createElement("div");
+    sentinel.setAttribute(CONTENT_START_ATTR, "");
+    document.body.append(sentinel);
+    intersectionObservers.length = 0;
+    try {
+      await renderHeader();
+      await waitFor(() => expect(intersectionObservers.length).toBe(1));
+      const observed = intersectionObservers[0];
+      const onTheLine: IntersectionObserverEntry = {
+        boundingClientRect: new DOMRect(0, 0, 10, 10),
+        intersectionRatio: 0,
+        intersectionRect: new DOMRect(),
+        isIntersecting: true,
+        rootBounds: new DOMRect(0, 0, 100, 100),
+        target: sentinel,
+        time: 0,
+      };
+
+      act(() => {
+        observed?.callback([crossingEntry(-1, 0, sentinel)], observed as never);
+        observed?.callback([onTheLine], observed as never);
+      });
+
+      const header = document.querySelector("header");
+      expect(header?.hasAttribute("data-collapsed")).toBe(false);
+    } finally {
+      sentinel.remove();
+      document.documentElement.style.removeProperty("--sticky-stack-h");
+    }
+  });
+
   it("clears its published bar height when it unmounts", async () => {
     await renderHeader();
     const root = document.documentElement.style;
@@ -420,9 +500,9 @@ describe("state badge", () => {
     const badge = document.querySelector("[data-state-badge]");
     expect(badge?.getAttribute("data-variant")).toBe("draft");
     // The chip must be the badge's immediate DOM sibling.
-    expect(badge?.nextElementSibling?.matches("[data-self-review-chip]")).toBe(
-      true,
-    );
+    expect(
+      badge?.nextElementSibling?.matches('[data-testid="self-review-chip"]'),
+    ).toBe(true);
     // Both ride the title's own line, not the meta line under it.
     const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
     expect(titleLine?.contains(badge!)).toBe(true);

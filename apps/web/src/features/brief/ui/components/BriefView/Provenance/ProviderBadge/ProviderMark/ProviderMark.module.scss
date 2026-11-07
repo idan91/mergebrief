@@ -11,12 +11,6 @@
   .mark {
     inline-size: calc(var(--header-meta-control-h) * 2 / 3);
     block-size: calc(var(--header-meta-control-h) * 2 / 3);
-
-    // Custom properties do not interpolate: the control height snaps at the
-    // collapse boundary, so the lengths derived from it carry the ease.
-    transition:
-      inline-size var(--header-collapse-ease),
-      block-size var(--header-collapse-ease);
   }
 
   .markName {

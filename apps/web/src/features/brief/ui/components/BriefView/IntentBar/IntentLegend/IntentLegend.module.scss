@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .wrap {
@@ -9,9 +10,14 @@
   .trigger {
     color: var(--color-text-2);
 
-    &:hover,
     &[aria-expanded="true"] {
       color: var(--color-text-1);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
   }
 

@@ -29,4 +29,16 @@
       transform: scaleX(0.9);
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes advance {
+      from {
+        transform: scaleX(0.9);
+      }
+
+      to {
+        transform: scaleX(0.9);
+      }
+    }
+  }
 }

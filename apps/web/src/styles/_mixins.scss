@@ -20,6 +20,14 @@
   }
 }
 
+// A touch screen holds :hover after a tap, until the next tap elsewhere. Every
+// rule naming :hover sits inside this.
+@mixin hover {
+  @media (hover: hover) {
+    @content;
+  }
+}
+
 @mixin for-size($size, $limit-type: min, $size-type: width) {
   @if $size-type == width {
     @media (#{$limit-type}-width: $size) {
@@ -196,8 +204,10 @@
     color: var(--color-accent);
     text-underline-offset: functions.to-rem(3px);
 
-    &:hover {
-      color: var(--color-text-1);
+    @include hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
   }
 

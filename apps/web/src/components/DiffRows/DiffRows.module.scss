@@ -120,34 +120,30 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     }
 
     &[data-commentable] {
-      &:hover {
-        background: color-mix(
-          in srgb,
-          var(--row-hue) var(--row-hover-tint),
-          transparent
-        );
+      @include mixins.hover {
+        &:hover {
+          background: color-mix(
+            in srgb,
+            var(--row-hue) var(--row-hover-tint),
+            transparent
+          );
+        }
       }
     }
 
-    &[data-pick="available"]:hover,
-    &[data-pick="available"]:focus-visible {
-      background: color-mix(
-        in srgb,
-        var(--color-accent) var(--diff-selected-tint),
-        transparent
-      );
+    &[data-pick="available"]:focus-visible,
+    &[data-selected] {
+      background: var(--diff-selected-fill);
     }
 
-    // The :hover arm matches the commentable-hover rule's specificity so
-    // the selection tint wins on the row currently under the cursor —
-    // otherwise a drag's newest row reads as unselected until mouseup.
-    &[data-selected],
-    &[data-selected]:hover {
-      background: color-mix(
-        in srgb,
-        var(--color-accent) var(--diff-selected-tint),
-        transparent
-      );
+    // The :hover arms match the commentable-hover rule's specificity, so the
+    // selection tint wins under the cursor: a drag's newest row would
+    // otherwise read as unselected until mouseup.
+    @include mixins.hover {
+      &[data-pick="available"]:hover,
+      &[data-selected]:hover {
+        background: var(--diff-selected-fill);
+      }
     }
 
     &[data-selected] > .code {

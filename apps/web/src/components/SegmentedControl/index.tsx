@@ -55,6 +55,9 @@ export function SegmentedControl<T extends string>({
   // Escape hides the focused option's reason until focus/pointer leaves and
   // re-enters (WAI-ARIA tooltip pattern).
   const [dismissedTip, setDismissedTip] = useState<string | null>(null);
+  // State, not `:hover`: a touch tap on iOS fires mouseenter but never
+  // focuses, so this is the only path to the reason there.
+  const [hoveredTip, setHoveredTip] = useState<T | undefined>(undefined);
 
   return (
     <fieldset className={className ?? styles["fieldset"]}>
@@ -74,7 +77,14 @@ export function SegmentedControl<T extends string>({
               data-tip-dismissed={
                 dismissedTip === option.value ? "true" : undefined
               }
+              data-tip-open={hoveredTip === option.value ? "true" : undefined}
               key={option.value}
+              onMouseEnter={() => {
+                setHoveredTip(option.value);
+              }}
+              onMouseLeave={() => {
+                setHoveredTip(undefined);
+              }}
               onPointerLeave={() => {
                 setDismissedTip(null);
               }}

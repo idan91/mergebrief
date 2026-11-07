@@ -25,6 +25,7 @@
     "src/**/*.tsx",
     "e2e/**/*.ts",
     "scripts/**/*.ts",
+    "stylelint-hover-in-mixin.test.ts",
     "vite.config.ts",
     "vite.demo.config.ts",
     "vite.shared.ts",

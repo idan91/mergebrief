@@ -359,7 +359,6 @@ function BriefViewContent(props: BriefViewProps) {
                       data-pending={pendingShown ? "" : undefined}
                       data-sidebar={regions.sidebar ? sidebarLayout : undefined}
                       data-phone-bar={regions.phoneBar ? "" : undefined}
-                      data-sidebar-motion={sidebar.motionReady ? "" : undefined}
                       aria-busy={pendingShown || undefined}
                       inert={pendingShown || undefined}
                     >

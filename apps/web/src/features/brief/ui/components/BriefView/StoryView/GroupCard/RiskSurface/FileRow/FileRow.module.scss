@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .file {
@@ -59,9 +60,14 @@
       content: "";
     }
 
-    &:hover,
     &[aria-expanded="true"] {
       color: var(--color-text-2);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-2);
+      }
     }
 
     &:focus-visible {
@@ -97,10 +103,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    &:hover {
-      color: var(--color-text-2);
-      text-decoration: underline;
-      text-underline-offset: functions.to-rem(3px);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-2);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
     }
   }
 
@@ -149,10 +157,12 @@
     font-size: var(--font-size-sm);
     text-decoration: none;
 
-    &:hover {
-      color: var(--color-text-1);
-      text-decoration: underline;
-      text-underline-offset: functions.to-rem(3px);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
     }
   }
 }

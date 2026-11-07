@@ -7,6 +7,12 @@ $gap: functions.to-rem(layout.$story-group-gap);
 $line-rest: 3px;
 $line-active: 5px;
 
+@mixin active-line {
+  inline-size: $line-active;
+  background: var(--color-text-2);
+  opacity: 1;
+}
+
 @layer components {
   // Absolutely placed into the card's grid area so the track list keeps its
   // two columns: a third track would break the zen animation and the stacked
@@ -41,12 +47,15 @@ $line-active: 5px;
         inline-size var(--motion-fast) ease;
     }
 
-    &:hover::before,
     &:focus-visible::before,
     &[data-state="dragging"]::before {
-      inline-size: $line-active;
-      background: var(--color-text-2);
-      opacity: 1;
+      @include active-line;
+    }
+
+    @include mixins.hover {
+      &:hover::before {
+        @include active-line;
+      }
     }
 
     // The ring wraps the line, not the full-height hit area: a handle-sized

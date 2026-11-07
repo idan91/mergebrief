@@ -33,6 +33,7 @@ import { PrRef } from "../PrRef";
 import { SelfReviewChip } from "../SelfReviewChip";
 import { StackNav } from "../StackNav";
 import { StateBadge } from "../StateBadge";
+import { useCollapseMotion } from "./useCollapseMotion";
 import { useLargeTitleOut } from "./useLargeTitleOut";
 import { MarkReadyCta } from "../MarkReadyCta";
 import type { OwnDraftHeaderProps } from "../types";
@@ -116,6 +117,8 @@ export function Header({
   // the toolbar too. At rest only, or trigger and result chase each other.
   const [restHeight, setRestHeight] = useState(0);
   const [barHeight, setBarHeight] = useState(0);
+  const motion = useCollapseMotion(headerRef, collapsed);
+  const { captureCollapseStart } = motion;
 
   useEffect(() => {
     const el = headerRef.current;
@@ -136,6 +139,11 @@ export function Header({
       }
       window.clearTimeout(settle);
       settle = window.setTimeout(() => {
+        // A collapse can land while the settle waits; measuring then would
+        // take the collapsed stack as the resting line.
+        if (collapsedRef.current) {
+          return;
+        }
         setRestHeight(readStickyStackHeight());
         setBarHeight(el.offsetHeight);
       }, SETTLE_MS);
@@ -162,7 +170,14 @@ export function Header({
           return;
         }
         const line = entry.rootBounds?.top ?? restHeight;
-        const next = entry.boundingClientRect.top <= line;
+        const aboveLine = entry.boundingClientRect.top <= line;
+        // Only a change in isIntersecting notifies, so a sentinel the
+        // observer counts as in view must read as expanded or the next
+        // crossing never arrives.
+        const next = !entry.isIntersecting && aboveLine;
+        if (next !== collapsedRef.current) {
+          captureCollapseStart();
+        }
         collapsedRef.current = next;
         setCollapsed(next);
       },
@@ -172,7 +187,7 @@ export function Header({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [restHeight]);
+  }, [restHeight, captureCollapseStart]);
 
   const largeTitleOut = useLargeTitleOut(barHeight, largeTitle);
 
@@ -207,7 +222,7 @@ export function Header({
       data-title-out={titleOut}
     >
       {landscapeRow}
-      <div className={styles["identityRow"]}>
+      <div className={styles["identityRow"]} ref={motion.identityRowRef}>
         <Link
           aria-label={t("shell.backToBriefs")}
           className={styles["back"]}
@@ -226,8 +241,16 @@ export function Header({
             {PRODUCT_NAME}
           </Link>
           <div className={styles["titleBlock"]}>
+            <span
+              aria-hidden="true"
+              className={styles["titleGhost"]}
+              data-title={brief.pr.title}
+              ref={motion.titleGhostRef}
+            />
             <div className={styles["titleLine"]}>
-              <h1 className={styles["title"]}>{brief.pr.title}</h1>
+              <h1 className={styles["title"]} ref={motion.titleRef}>
+                {brief.pr.title}
+              </h1>
               <StateBadge live={livePrState} pr={brief.pr} />
               {ownDraft !== undefined ? <SelfReviewChip /> : null}
               <PrRef pr={brief.pr} />
@@ -235,7 +258,7 @@ export function Header({
             {/* PR identity: author, stack, branches. Never wraps above
                 880px: a second wrap would put the block at three lines at
                 rest and two collapsed, which moves --top-bar-h mid-scroll. */}
-            <span className={styles["metaLine"]}>
+            <span className={styles["metaLine"]} ref={motion.metaLineRef}>
               {authorLogin !== undefined ? (
                 <AuthorChip login={authorLogin} />
               ) : null}
@@ -285,7 +308,7 @@ export function Header({
       {/* Tier 2, the comparison toolbar: everything that changes WHAT is on
           screen (Scope, Compare), flattened to one wrappable line, plus the
           quiet stats group parked at the far end. */}
-      <div className={styles["comparisonRow"]}>
+      <div className={styles["comparisonRow"]} ref={motion.comparisonRowRef}>
         {controlsSlot !== undefined ? (
           <div className={styles["comparisonCluster"]}>{controlsSlot}</div>
         ) : (

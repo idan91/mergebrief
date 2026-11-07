@@ -55,12 +55,14 @@
       background-color 0.15s,
       color 0.15s;
 
-    &:hover {
-      background: var(--color-surface-1);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-1);
+        color: var(--color-text-1);
 
-      .node::after {
-        box-shadow: var(--node-ring-hover);
+        .node::after {
+          box-shadow: var(--node-ring-hover);
+        }
       }
     }
 

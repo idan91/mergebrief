@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .marker {
@@ -18,8 +19,10 @@
 
   /* LinkButton's grammar; only the hover token differs. */
   .deltaLink {
-    &:hover {
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .stepper {
@@ -18,8 +19,10 @@
   .stepBtn {
     border-color: var(--color-outline-2);
 
-    &:not([aria-disabled="true"]):hover {
-      background: var(--color-surface-2);
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        background: var(--color-surface-2);
+      }
     }
   }
 

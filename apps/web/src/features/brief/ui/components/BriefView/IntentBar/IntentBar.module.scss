@@ -137,14 +137,16 @@
     letter-spacing: normal;
 
     /* :is(button) matches Chip's hover specificity so the quiet tint wins. */
-    &:is(button):hover {
-      border-color: color-mix(
-        in srgb,
-        var(--color-outline-2) 60%,
-        var(--color-text-1)
-      );
-      background: none;
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:is(button):hover {
+        border-color: color-mix(
+          in srgb,
+          var(--color-outline-2) 60%,
+          var(--color-text-1)
+        );
+        background: none;
+        color: var(--color-text-1);
+      }
     }
 
     &:focus-visible {

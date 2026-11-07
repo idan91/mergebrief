@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .progress {
@@ -37,12 +38,16 @@
         outline-color var(--motion-fast) ease;
     }
 
-    &:hover {
-      --track-h: 5px;
+    @include mixins.hover {
+      &:hover {
+        --track-h: 5px;
+      }
     }
 
-    &:hover::before {
-      background: var(--color-text-3);
+    @include mixins.hover {
+      &:hover::before {
+        background: var(--color-text-3);
+      }
     }
 
     &[data-current] {

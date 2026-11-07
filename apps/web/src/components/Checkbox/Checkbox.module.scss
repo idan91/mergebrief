@@ -15,12 +15,16 @@
     cursor: pointer;
     user-select: none;
 
-    &:hover .box {
-      border-color: var(--color-text-4);
+    @include mixins.hover {
+      &:hover .box {
+        border-color: var(--color-text-4);
+      }
     }
 
-    &:hover .label {
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover .label {
+        color: var(--color-text-1);
+      }
     }
 
     &[data-disabled] {

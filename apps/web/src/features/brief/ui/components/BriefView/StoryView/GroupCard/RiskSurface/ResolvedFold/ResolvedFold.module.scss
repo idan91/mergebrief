@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .fold {
@@ -42,10 +43,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    &:hover {
-      color: var(--color-text-2);
-      text-decoration: underline;
-      text-underline-offset: functions.to-rem(3px);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-2);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
     }
   }
 }

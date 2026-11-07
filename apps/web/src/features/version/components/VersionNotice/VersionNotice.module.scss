@@ -94,9 +94,11 @@
     text-underline-offset: 3px;
     transition: color var(--motion-fast);
 
-    &:hover {
-      color: var(--color-text-1);
-      text-decoration-color: currentcolor;
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        text-decoration-color: currentcolor;
+      }
     }
 
     &:focus-visible {

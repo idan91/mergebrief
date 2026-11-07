@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   // The pair stays transparent; each side's cells carry the kind and hue.
@@ -72,35 +73,31 @@
     }
 
     // :not([data-selected]) keeps the selection tint on a row the drag passes.
-    &:has(> td[data-side="left"][data-commentable]:hover)
-      > td[data-side="left"]:not([data-selected]),
-    &:has(> td[data-side="right"][data-commentable]:hover)
-      > td[data-side="right"]:not([data-selected]) {
-      background: color-mix(
-        in srgb,
-        var(--row-hue) var(--row-hover-tint),
-        transparent
-      );
+    @include mixins.hover {
+      &:has(> td[data-side="left"][data-commentable]:hover)
+        > td[data-side="left"]:not([data-selected]),
+      &:has(> td[data-side="right"][data-commentable]:hover)
+        > td[data-side="right"]:not([data-selected]) {
+        background: color-mix(
+          in srgb,
+          var(--row-hue) var(--row-hover-tint),
+          transparent
+        );
+      }
     }
 
-    &:has(> td[data-side="left"][data-pick="available"]:hover)
-      > td[data-side="left"][data-pick="available"],
-    &:has(> td[data-side="right"][data-pick="available"]:hover)
-      > td[data-side="right"][data-pick="available"],
-    > td[data-pick="available"]:focus-visible {
-      background: color-mix(
-        in srgb,
-        var(--color-accent) var(--diff-selected-tint),
-        transparent
-      );
+    @include mixins.hover {
+      &:has(> td[data-side="left"][data-pick="available"]:hover)
+        > td[data-side="left"][data-pick="available"],
+      &:has(> td[data-side="right"][data-pick="available"]:hover)
+        > td[data-side="right"][data-pick="available"] {
+        background: var(--diff-selected-fill);
+      }
     }
 
+    > td[data-pick="available"]:focus-visible,
     > td[data-selected] {
-      background: color-mix(
-        in srgb,
-        var(--color-accent) var(--diff-selected-tint),
-        transparent
-      );
+      background: var(--diff-selected-fill);
     }
 
     > td[data-selected][class*="code"] {
@@ -122,11 +119,7 @@
 
     // The two washes never stack: a selected cell shows the selection alone.
     > td[data-selected][data-rev="added"] {
-      background: color-mix(
-        in srgb,
-        var(--color-accent) var(--diff-selected-tint),
-        transparent
-      );
+      background: var(--diff-selected-fill);
     }
   }
 

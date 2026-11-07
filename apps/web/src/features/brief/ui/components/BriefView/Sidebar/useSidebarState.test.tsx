@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
+import { REDUCED_MOTION_QUERY } from "@web/utils/motion";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 
@@ -223,5 +225,73 @@ describe("useSidebarState", () => {
     act(() => result.current.toggle());
 
     expect(result.current.expanded).toBe(true);
+  });
+});
+
+describe("useSidebarState slide", () => {
+  async function renderReady() {
+    const rendered = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
+    await waitFor(() => expect(rendered.result.current.motionReady).toBe(true));
+    return rendered;
+  }
+
+  it("marks a slide only while one runs, so a remount never slides", async () => {
+    const { result } = await renderReady();
+    expect(result.current.sliding).toBe(false);
+
+    act(() => result.current.toggle());
+    expect(result.current.sliding).toBe(true);
+
+    await waitFor(() => expect(result.current.sliding).toBe(false));
+  });
+
+  it("keeps the column's reserve until the panel has slid in", async () => {
+    const { result } = await renderReady();
+
+    act(() => result.current.toggle());
+
+    expect(result.current.expanded).toBe(true);
+    expect(result.current.columnExpanded).toBe(false);
+    await waitFor(() => expect(result.current.columnExpanded).toBe(true));
+  });
+
+  it("keeps the panel shown until it has slid out", async () => {
+    const { result } = await renderReady();
+    act(() => result.current.toggleInstantly());
+
+    act(() => result.current.toggle());
+
+    expect(result.current.expanded).toBe(false);
+    expect(result.current.panelShown).toBe(true);
+    expect(result.current.columnExpanded).toBe(true);
+    await waitFor(() => expect(result.current.panelShown).toBe(false));
+    expect(result.current.columnExpanded).toBe(false);
+  });
+
+  it("moves panel and column together on a keyboard toggle", async () => {
+    const { result } = await renderReady();
+
+    act(() => result.current.toggleInstantly());
+
+    expect(result.current.slideMotion).toBe(false);
+    expect(result.current.columnExpanded).toBe(true);
+    expect(result.current.panelShown).toBe(true);
+
+    act(() => result.current.collapseInstantly());
+
+    expect(result.current.columnExpanded).toBe(false);
+    expect(result.current.panelShown).toBe(false);
+  });
+
+  it("does not slide under reduced motion", async () => {
+    setMediaQueryMatches(REDUCED_MOTION_QUERY, true);
+    const { result } = await renderReady();
+
+    act(() => result.current.toggle());
+
+    expect(result.current.columnExpanded).toBe(true);
+    resetMediaQueries();
   });
 });

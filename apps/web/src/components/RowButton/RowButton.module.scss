@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   /* Disclosure rows: full-width buttons, >=44px targets (WCAG 2.5.8 aim).
@@ -65,9 +66,15 @@
 
     /* A borderless row carries no standing click affordance; hover supplies
        it. */
-    &:hover {
-      background: var(--color-surface-2);
-      color: var(--color-text-2);
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-2);
+        color: var(--color-text-2);
+      }
+    }
+
+    &:active {
+      background: var(--color-surface-3);
     }
   }
 

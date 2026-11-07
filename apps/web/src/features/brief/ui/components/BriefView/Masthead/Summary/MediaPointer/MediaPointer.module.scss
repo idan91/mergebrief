@@ -22,8 +22,10 @@
     border-radius: var(--radius-xs);
     text-decoration-color: var(--color-outline-2);
 
-    &:hover {
-      text-decoration-color: currentcolor;
+    @include mixins.hover {
+      &:hover {
+        text-decoration-color: currentcolor;
+      }
     }
 
     &:focus-visible {

@@ -51,7 +51,7 @@ export function useViewShortcuts(input: UseViewShortcutsInput): void {
     jumpToConversation: conversationJumpShown
       ? input.conversationWiring.jumpToConversation
       : undefined,
-    toggleSidebar: regions.sidebar ? sidebar.toggle : undefined,
+    toggleSidebar: regions.sidebar ? sidebar.toggleInstantly : undefined,
     toggleDiffView: input.toggleDiffView,
   });
 }

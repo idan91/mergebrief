@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .button {
@@ -28,17 +29,19 @@
       }
     }
 
-    &:hover {
-      border-color: color-mix(
-        in srgb,
-        var(--color-outline-2) 60%,
-        var(--color-text-1)
-      );
-      background: color-mix(
-        in srgb,
-        var(--color-surface-1) 88%,
-        var(--color-text-1)
-      );
+    @include mixins.hover {
+      &:hover {
+        border-color: color-mix(
+          in srgb,
+          var(--color-outline-2) 60%,
+          var(--color-text-1)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-surface-1) 88%,
+          var(--color-text-1)
+        );
+      }
     }
 
     &[data-variant="accent"] {
@@ -47,17 +50,19 @@
       color: var(--color-on-primary);
       font-weight: 600;
 
-      &:hover {
-        border-color: color-mix(
-          in oklch,
-          var(--color-accent) 85%,
-          var(--color-background)
-        );
-        background: color-mix(
-          in oklch,
-          var(--color-accent) 85%,
-          var(--color-background)
-        );
+      @include mixins.hover {
+        &:hover {
+          border-color: color-mix(
+            in oklch,
+            var(--color-accent) 85%,
+            var(--color-background)
+          );
+          background: color-mix(
+            in oklch,
+            var(--color-accent) 85%,
+            var(--color-background)
+          );
+        }
       }
 
       &:active {
@@ -80,17 +85,19 @@
       color: var(--color-on-primary);
       font-weight: 600;
 
-      &:hover {
-        border-color: color-mix(
-          in srgb,
-          var(--color-negative) 90%,
-          var(--color-background)
-        );
-        background: color-mix(
-          in srgb,
-          var(--color-negative) 90%,
-          var(--color-background)
-        );
+      @include mixins.hover {
+        &:hover {
+          border-color: color-mix(
+            in srgb,
+            var(--color-negative) 90%,
+            var(--color-background)
+          );
+          background: color-mix(
+            in srgb,
+            var(--color-negative) 90%,
+            var(--color-background)
+          );
+        }
       }
 
       &:active {
@@ -115,9 +122,15 @@
       );
       color: var(--color-negative);
 
-      &:hover {
-        border-color: var(--color-negative);
-        background: color-mix(in srgb, var(--color-negative) 12%, transparent);
+      @include mixins.hover {
+        &:hover {
+          border-color: var(--color-negative);
+          background: color-mix(
+            in srgb,
+            var(--color-negative) 12%,
+            transparent
+          );
+        }
       }
     }
 
@@ -135,9 +148,11 @@
       /* Row labels wrap rather than overflow their unwrapped flex rows. */
       white-space: normal;
 
-      &:hover {
-        border-color: var(--color-outline-1);
-        background: none;
+      @include mixins.hover {
+        &:hover {
+          border-color: var(--color-outline-1);
+          background: none;
+        }
       }
     }
 
@@ -157,9 +172,11 @@
       color: var(--color-text-2);
       cursor: default;
 
-      &:hover {
-        border-color: var(--color-outline-1);
-        background: transparent;
+      @include mixins.hover {
+        &:hover {
+          border-color: var(--color-outline-1);
+          background: transparent;
+        }
       }
     }
 
@@ -172,8 +189,10 @@
       background: var(--color-surface-2);
       color: var(--color-text-3);
 
-      &:hover {
-        background: var(--color-surface-2);
+      @include mixins.hover {
+        &:hover {
+          background: var(--color-surface-2);
+        }
       }
     }
   }

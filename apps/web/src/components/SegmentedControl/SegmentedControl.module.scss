@@ -40,8 +40,8 @@
 
     // Sticky sections below stack at 40–120; 150 clears them, under the
     // top bar's 200.
-    &:hover,
-    &:focus-within {
+    &:focus-within,
+    &[data-tip-open="true"] {
       z-index: 150;
     }
   }
@@ -61,9 +61,15 @@
       background var(--motion-fast),
       color var(--motion-fast);
 
-    &:hover:not([data-unavailable]) {
-      background: var(--color-surface-2);
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover:not([data-unavailable]) {
+        background: var(--color-surface-2);
+        color: var(--color-text-1);
+      }
+    }
+
+    &:active:not([data-unavailable]) {
+      background: var(--color-surface-3);
     }
 
     &[data-state="active"] {
@@ -107,8 +113,8 @@
     transform: translateX(-50%);
   }
 
-  .option:hover .tip,
-  .option:focus-within .tip {
+  .option:focus-within .tip,
+  .option[data-tip-open="true"] .tip {
     display: block;
   }
 

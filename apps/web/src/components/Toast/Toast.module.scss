@@ -2,6 +2,9 @@
 
 @layer components {
   .toast {
+    --toast-enter: 240ms;
+    --toast-exit: 160ms;
+
     position: fixed;
     inset-block-end: calc(
       #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom)
@@ -30,8 +33,8 @@
       calc(100% + #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom))
     );
     transition:
-      opacity var(--motion-slow) var(--ease-out),
-      transform var(--motion-slow) var(--ease-out);
+      opacity var(--toast-exit) var(--ease-out),
+      transform var(--toast-exit) var(--ease-out);
 
     // Hidden with opacity, not visibility: the live region inside must stay in
     // the accessibility tree, or it can drop the announcement.
@@ -39,6 +42,7 @@
       opacity: 1;
       pointer-events: auto;
       transform: translate(-50%, 0);
+      transition-duration: var(--toast-enter);
     }
   }
 }

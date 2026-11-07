@@ -51,7 +51,7 @@ $mark-min: functions.to-rem(24px);
     @include mixins.focus-visible;
   }
 
-  @media (hover: hover) {
+  @include mixins.hover {
     .mark:hover::before {
       background: var(--color-text-3);
     }

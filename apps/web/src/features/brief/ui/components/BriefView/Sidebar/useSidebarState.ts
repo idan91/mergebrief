@@ -1,9 +1,17 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
+import { prefersReducedMotion } from "@web/utils/motion";
+import { SIDEBAR_SLIDE_IN_MS, SIDEBAR_SLIDE_OUT_MS } from "./consts";
 import {
   DEFAULT_SIDEBAR_PREFERENCE,
   readSidebarPreference,
@@ -14,9 +22,22 @@ import type { SidebarPreference, SidebarTab } from "./types";
 export interface SidebarState {
   expanded: boolean;
   tab: SidebarTab;
+  /**
+   * The width the reading column reserves: it lags `expanded` until the panel
+   * has finished sliding, so the column re-lays out once.
+   */
+  columnExpanded: boolean;
+  /** The panel keeps its content while it slides out. */
+  panelShown: boolean;
+  /** A slide is running. A panel a revision switch remounts never is, so it does not slide in again. */
+  sliding: boolean;
+  /** False when the last change came from the keyboard: that one never animates. */
+  slideMotion: boolean;
   toggle: () => void;
+  toggleInstantly: () => void;
   expand: () => void;
   collapse: () => void;
+  collapseInstantly: () => void;
   selectTab: (tab: SidebarTab) => void;
   /** False until a frame after the stored preference is applied, so the first paint never animates. */
   motionReady: boolean;
@@ -46,6 +67,11 @@ export function useSidebarState(
   const latest = useRef(preference);
   const [motionReady, setMotionReady] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [slideMotion, setSlideMotion] = useState(true);
+  // The column's reserve while the panel slides; absent at rest.
+  const [slideColumn, setSlideColumn] = useState<boolean | undefined>(
+    undefined,
+  );
   const [lastBand, setLastBand] = useState(band);
   const [lastVisible, setLastVisible] = useState(visible);
   const [lastBriefId, setLastBriefId] = useState(briefId);
@@ -85,23 +111,55 @@ export function useSidebarState(
   }, []);
 
   const setExpanded = useCallback(
-    (expanded: boolean) => {
+    (expanded: boolean, instantly = false) => {
       if (narrow) {
         setSheetOpen(expanded);
         return;
       }
+
+      const slides = motionReady && !instantly && !prefersReducedMotion();
+      const columnAtStart = latest.current.expanded;
+      setSlideMotion(!instantly);
+      setSlideColumn((current) =>
+        slides ? (current ?? columnAtStart) : undefined,
+      );
       update({ expanded });
     },
-    [narrow, update],
+    [motionReady, narrow, update],
   );
 
   const expanded = narrow ? sheetOpen : preference.expanded;
+  const sliding = slideColumn !== undefined;
+
+  useEffect(() => {
+    if (!sliding) {
+      return;
+    }
+    const slideEnd = window.setTimeout(
+      () => setSlideColumn(undefined),
+      expanded ? SIDEBAR_SLIDE_IN_MS : SIDEBAR_SLIDE_OUT_MS,
+    );
+    return () => window.clearTimeout(slideEnd);
+  }, [expanded, sliding]);
+
+  const readNextExpanded = useCallback(
+    () => !(narrow ? sheetOpen : latest.current.expanded),
+    [narrow, sheetOpen],
+  );
   const toggle = useCallback(
-    () => setExpanded(!(narrow ? sheetOpen : latest.current.expanded)),
-    [narrow, setExpanded, sheetOpen],
+    () => setExpanded(readNextExpanded()),
+    [readNextExpanded, setExpanded],
+  );
+  const toggleInstantly = useCallback(
+    () => setExpanded(readNextExpanded(), true),
+    [readNextExpanded, setExpanded],
   );
   const expand = useCallback(() => setExpanded(true), [setExpanded]);
   const collapse = useCallback(() => setExpanded(false), [setExpanded]);
+  const collapseInstantly = useCallback(
+    () => setExpanded(false, true),
+    [setExpanded],
+  );
   const selectTab = useCallback((tab: SidebarTab) => update({ tab }), [update]);
 
   // A ref, not state: the screen keys the Sidebar per brief, and only this
@@ -117,12 +175,20 @@ export function useSidebarState(
     return due;
   }, [sheetClosedByBrief]);
 
+  const columnExpanded = slideColumn ?? expanded;
+  const panelShown = expanded || sliding;
   return {
     expanded,
+    columnExpanded,
+    panelShown,
+    sliding,
+    slideMotion,
     tab: preference.tab,
     toggle,
+    toggleInstantly,
     expand,
     collapse,
+    collapseInstantly,
     selectTab,
     motionReady,
     requestRevisionRefocus,

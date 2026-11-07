@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .stickyWrapper {
@@ -40,9 +41,14 @@
     font-size: var(--font-size-lg);
     transition: border-color var(--motion-base) ease;
 
-    &:hover,
     &:focus-within {
       border-color: var(--color-outline-2);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        border-color: var(--color-outline-2);
+      }
     }
   }
 

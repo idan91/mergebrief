@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .chip {
@@ -13,8 +14,10 @@
     white-space: nowrap;
   }
 
-  a.chip:hover {
-    color: var(--color-text-1);
+  @include mixins.hover {
+    a.chip:hover {
+      color: var(--color-text-1);
+    }
   }
 
   .avatar {

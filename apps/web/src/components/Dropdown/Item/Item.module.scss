@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .item {
@@ -17,8 +18,10 @@
     font-size: var(--font-size-lg);
     text-align: start;
 
-    &:hover {
-      background: color-mix(in srgb, var(--color-outline-2) 40%, transparent);
+    @include mixins.hover {
+      &:hover {
+        background: color-mix(in srgb, var(--color-outline-2) 40%, transparent);
+      }
     }
 
     &[aria-disabled="true"] {

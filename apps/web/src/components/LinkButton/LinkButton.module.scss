@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   /* Text that acts: context font and color, the underline carrying the
@@ -15,8 +16,10 @@
     text-decoration: underline;
     text-underline-offset: functions.to-rem(3px);
 
-    &:hover {
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
 
     &[aria-disabled="true"] {

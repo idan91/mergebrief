@@ -3,14 +3,29 @@
 
 @layer components {
   .header {
+    --header-ground: var(--color-background);
+    --header-edge: var(--color-outline-1);
+
     position: sticky;
     inset-block-start: 0;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    border-block-end: 1px solid var(--color-outline-1);
-    background: var(--color-background);
+    border-block-end: 1px solid transparent;
     container: header / inline-size;
+  }
+
+  // The ground and edge sit on their own layer so a collapse can slide them
+  // while the box already holds its final height. It overhangs the top by more
+  // than the height a collapse moves.
+  .header::before {
+    position: absolute;
+    inset: calc(-1 * var(--space-8)) 0 -1px;
+    z-index: -1;
+    border-block-end: 1px solid var(--header-edge);
+    background: var(--header-ground);
+    content: "";
+    pointer-events: none;
   }
 
   .identityRow {
@@ -19,7 +34,6 @@
     gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
     min-block-size: var(--header-identity-min);
     padding-block: var(--header-pad-block);
-    transition: padding-block var(--header-collapse-ease);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
   }
 
@@ -57,13 +71,36 @@
   }
 
   .titleBlock {
+    position: relative;
     display: flex;
     flex: 0 1000 auto;
     flex-direction: column;
     justify-content: center;
     gap: var(--header-line-gap);
-    transition: row-gap var(--header-collapse-ease);
     min-inline-size: functions.to-rem(112px);
+  }
+
+  // The outgoing title while a collapse runs; its size and width are written
+  // at the start of each one. No width at rest: its nowrap text would otherwise
+  // size the box and overflow the page.
+  .titleGhost {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: 0;
+    pointer-events: none;
+    text-overflow: ellipsis;
+    transform-origin: 0 0;
+    white-space: nowrap;
+
+    &::before {
+      content: attr(data-title);
+    }
   }
 
   .titleLine {
@@ -76,6 +113,8 @@
   // Never wraps above 880px: a second line moves the published --top-bar-h
   // mid-scroll.
   .metaLine {
+    --meta-ring-room: #{functions.to-rem(6px)};
+
     display: flex;
     align-items: center;
     flex-wrap: nowrap;
@@ -83,14 +122,18 @@
     min-inline-size: 0;
     font-size: var(--font-size-sm);
 
+    // --header-meta-h resolves on :root, so the collapsed control height never
+    // reaches it: the line keeps one height while its controls ease inside it.
+    block-size: calc(var(--header-meta-h) + 2 * var(--meta-ring-room));
+
     // clip, not hidden: hidden would make this a scroll container.
     overflow: clip;
 
     // Padding + cancelling margin gives the focus ring room inside the clip
     // box, sized for the 3px ring prefers-contrast raises to.
     // overflow-clip-margin would be the obvious tool; WebKit lacks it.
-    padding-block: functions.to-rem(6px);
-    margin-block: functions.to-rem(-6px);
+    padding-block: var(--meta-ring-room);
+    margin-block: calc(-1 * var(--meta-ring-room));
   }
 
   .title {
@@ -100,10 +143,10 @@
     overflow: hidden;
     color: var(--color-text-1);
     font-size: var(--header-title-font);
-    transition: font-size var(--header-collapse-ease);
     font-weight: 600;
     line-height: 1.2;
     text-overflow: ellipsis;
+    transform-origin: 0 0;
     white-space: nowrap;
   }
 
@@ -122,12 +165,6 @@
       // centres along this line, 25px vertically against the PR link on 24px
       // required. Tightening either gap breaks it.
       --header-meta-control-h: #{functions.to-rem(20px)};
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .header {
-      --header-collapse-ease: 0s;
     }
   }
 
@@ -221,17 +258,29 @@
   }
 
   .header[data-focus] {
-    border-block-end-color: transparent;
-    background: var(--color-focus-ground);
+    --header-ground: var(--color-focus-ground);
+    --header-edge: transparent;
 
     > * {
       opacity: 0.32;
       transition: opacity var(--motion-base) var(--ease-out);
     }
 
-    &:hover > *,
     &:focus-within > * {
       opacity: 1;
+    }
+
+    @include mixins.hover {
+      &:hover > * {
+        opacity: 1;
+      }
+    }
+
+    // Touch has no hover to lift the dim, and WebKit focuses no tapped control.
+    @media (hover: none) {
+      > * {
+        opacity: 1;
+      }
     }
 
     .comparisonRow,
@@ -348,7 +397,7 @@
     border-block-start-color: transparent;
     border-radius: var(--radius-circle);
     opacity: 0.55;
-    animation: revision-spin 0.8s linear infinite;
+    animation: revision-spin var(--motion-spin) linear infinite;
 
     @media (prefers-reduced-motion: reduce) {
       border-block-start-color: currentcolor;
@@ -406,6 +455,14 @@
     from {
       opacity: 0;
       translate: 0 functions.to-rem(4px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes title-in {
+      from {
+        opacity: 0;
+      }
     }
   }
 }

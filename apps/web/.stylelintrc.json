@@ -1,5 +1,6 @@
 {
   "extends": ["stylelint-config-standard-scss"],
+  "plugins": ["./stylelint-hover-in-mixin.mjs"],
   "overrides": [
     {
       "files": ["**/*.module.scss", "src/styles/_layout.scss"],
@@ -12,6 +13,7 @@
     }
   ],
   "rules": {
+    "house/hover-in-mixin": true,
     "custom-property-pattern": null,
     "selector-class-pattern": null,
     "scss/at-rule-no-unknown": [

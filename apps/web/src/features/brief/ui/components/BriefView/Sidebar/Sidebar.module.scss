@@ -11,15 +11,15 @@
     justify-content: flex-end;
     inline-size: var(--sidebar-w-collapsed);
     overflow: hidden;
-    border-inline-start: 1px solid var(--color-outline-1);
-    background: var(--color-background);
+
+    // Stays wide until the panel has slid out; opening widens it at once.
+    &[data-motion="on"] {
+      transition: inline-size 0s linear var(--motion-fast);
+    }
 
     &[data-state="expanded"] {
       inline-size: var(--sidebar-w-expanded);
-    }
-
-    &[data-motion="on"] {
-      transition: inline-size var(--motion-base) var(--ease-in-out);
+      transition: none;
     }
 
     @media (width <= 1120px) {
@@ -42,6 +42,8 @@
   }
 
   .column {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex: none;
     flex-direction: column;
@@ -49,6 +51,9 @@
     order: 2;
     inline-size: var(--sidebar-w-collapsed);
     padding-block: functions.to-rem(10px) functions.to-rem(16px);
+    padding-inline-end: functions.to-rem(1px);
+    border-inline-start: 1px solid var(--color-outline-1);
+    background: var(--color-background);
   }
 
   .foot {
@@ -77,16 +82,30 @@
     flex-direction: column;
     order: 1;
     inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
-    border-inline-end: 1px solid var(--color-outline-1);
+    border-inline-start: 1px solid var(--color-outline-1);
+    background: var(--color-background);
+    transform: translateX(100%);
 
     &[hidden] {
       display: none;
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .sidebar[data-variant="desktop"][data-motion="on"] {
-      transition: none;
+  .sidebar[data-state="expanded"] .panel {
+    transform: none;
+  }
+
+  .sidebar[data-motion="on"] .panel {
+    transition: transform var(--motion-fast) var(--ease-out);
+  }
+
+  .sidebar[data-motion="on"][data-state="expanded"] .panel {
+    transition-duration: var(--motion-base);
+  }
+
+  .sidebar[data-motion="on"][data-sliding][data-state="expanded"] .panel {
+    @starting-style {
+      transform: translateX(100%);
     }
   }
 }

@@ -54,7 +54,7 @@ $on-demand-label-min-width: 640px;
     border: 1.5px solid var(--color-surface-3);
     border-block-start-color: var(--color-accent);
     border-radius: var(--radius-circle);
-    animation: spin 0.7s linear infinite;
+    animation: spin var(--motion-spin) linear infinite;
   }
 
   @keyframes spin {

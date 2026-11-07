@@ -43,7 +43,7 @@
     border: 2px solid var(--color-outline-2);
     border-block-start-color: var(--color-text-2);
     border-radius: var(--radius-circle);
-    animation: mention-list-spin 0.7s linear infinite;
+    animation: mention-list-spin var(--motion-spin) linear infinite;
 
     @media (prefers-reduced-motion: reduce) {
       animation: none;

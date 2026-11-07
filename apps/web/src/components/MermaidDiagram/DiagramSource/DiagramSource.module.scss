@@ -22,8 +22,10 @@
     cursor: pointer;
     transition: color var(--motion-fast);
 
-    &:hover {
-      color: var(--color-text-1);
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
     }
 
     &:focus-visible {

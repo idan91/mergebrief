@@ -20,12 +20,15 @@
   .trigger[data-size="sm"] {
     inline-size: var(--header-meta-control-h);
     block-size: var(--header-meta-control-h);
-    transition:
-      inline-size var(--header-collapse-ease),
-      block-size var(--header-collapse-ease);
   }
 
   .trigger {
+    --trigger-open-edge: color-mix(
+      in srgb,
+      var(--color-outline-2) 60%,
+      var(--color-text-1)
+    );
+
     border-color: var(--color-outline-2);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-sm);
@@ -33,14 +36,16 @@
     vertical-align: middle;
 
     /* :hover doubled in so the open affordance survives the hover-open. */
-    &[aria-expanded="true"],
-    &[aria-expanded="true"]:hover {
-      border-color: color-mix(
-        in srgb,
-        var(--color-outline-2) 60%,
-        var(--color-text-1)
-      );
+    &[aria-expanded="true"] {
+      border-color: var(--trigger-open-edge);
       color: var(--color-text-1);
+    }
+
+    @include mixins.hover {
+      &[aria-expanded="true"]:hover {
+        border-color: var(--trigger-open-edge);
+        color: var(--color-text-1);
+      }
     }
   }
 
@@ -49,6 +54,17 @@
   // Fixed height + middle alignment so the chip can't inflate the identity
   // row; amber label + quieter fill on Chip's warning chrome.
   .warningsChip {
+    --warnings-chip-edge: color-mix(
+      in srgb,
+      var(--color-warning) 40%,
+      transparent
+    );
+    --warnings-chip-fill: color-mix(
+      in srgb,
+      var(--color-warning) 8%,
+      transparent
+    );
+
     flex: none;
     gap: functions.to-rem(5px);
     min-height: 0;
@@ -56,7 +72,6 @@
     // Same box as the ⓘ trigger beside it, which renders at IconButton's sm
     // size; they read as one pair rather than two heights.
     block-size: var(--header-meta-control-h);
-    transition: block-size var(--header-collapse-ease);
     padding-block: 0;
     padding-inline: functions.to-rem(9px);
     color: var(--color-warning);
@@ -68,10 +83,16 @@
 
     /* Re-pins at Chip's tone-selector specificity: the quieter 40/8 amber
        is this chip's look, hover included (it never had one). */
-    &[data-tone="warning"],
-    &[data-tone="warning"]:is(button):hover {
-      border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
-      background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    &[data-tone="warning"] {
+      border-color: var(--warnings-chip-edge);
+      background: var(--warnings-chip-fill);
+    }
+
+    @include mixins.hover {
+      &[data-tone="warning"]:is(button):hover {
+        border-color: var(--warnings-chip-edge);
+        background: var(--warnings-chip-fill);
+      }
     }
   }
 

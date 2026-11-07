@@ -42,10 +42,12 @@
         background-color var(--motion-fast) ease;
     }
 
-    &:hover::before {
-      inline-size: 24px;
-      background: var(--color-text-1);
-      opacity: 1;
+    @include mixins.hover {
+      &:hover::before {
+        inline-size: 24px;
+        background: var(--color-text-1);
+        opacity: 1;
+      }
     }
 
     @include mixins.focus-visible {

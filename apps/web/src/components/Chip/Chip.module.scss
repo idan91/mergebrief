@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .chip {
@@ -24,8 +25,10 @@
     &:is(button) {
       cursor: pointer;
 
-      &:hover {
-        background: color-mix(in srgb, var(--color-text-1) 11%, transparent);
+      @include mixins.hover {
+        &:hover {
+          background: color-mix(in srgb, var(--color-text-1) 11%, transparent);
+        }
       }
     }
 
@@ -40,8 +43,10 @@
       background: color-mix(in srgb, var(--color-warning) 12%, transparent);
       color: var(--color-warning);
 
-      &:is(button):hover {
-        background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+      @include mixins.hover {
+        &:is(button):hover {
+          background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+        }
       }
     }
 
