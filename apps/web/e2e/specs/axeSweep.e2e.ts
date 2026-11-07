@@ -32,6 +32,16 @@ test("the Changes Only span is clean", async ({ page }, testInfo) => {
   await expectNoSeriousAxeViolations(page, testInfo, "changes-only");
 });
 
+test("the brief never scrolls sideways at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    inner: window.innerWidth,
+  }));
+  expect(widths.scroll).toBe(widths.inner);
+});
+
 test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
   await page.keyboard.press("Shift+Slash");

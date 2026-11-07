@@ -19,6 +19,8 @@ export interface VisibleRegions {
   sidebar: boolean;
   /** The carried-forward review bar. */
   carryOver: boolean;
+  /** The phone's bottom bar; CSS shows it only at the mobile breakpoint. */
+  phoneBar: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       conversation: false,
       sidebar: false,
       carryOver: false,
+      phoneBar: false,
     };
   }
   if (modes.scope === "changes") {
@@ -42,6 +45,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       conversation: false,
       sidebar: false,
       carryOver: true,
+      phoneBar: true,
     };
   }
   return {
@@ -50,5 +54,6 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
     conversation: true,
     sidebar: true,
     carryOver: true,
+    phoneBar: true,
   };
 }

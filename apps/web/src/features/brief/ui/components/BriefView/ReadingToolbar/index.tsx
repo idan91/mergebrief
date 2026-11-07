@@ -1,40 +1,20 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
-import type { ValueOf } from "types/utils";
 
-import { IconButton } from "@web/components/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
-import { CompareParams } from "../../../../model/comparison/types";
 import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
+import type { RiskAttrCycle } from "../hooks/useRiskAttrCycle";
 import type { AttributeRail } from "../../../../model/utils/view-model";
 import {
   FilterDisclosure,
   type FilterDisclosureProps,
-} from "./FilterDisclosure";
-import { RiskAttrsDisclosure } from "./RiskAttrsDisclosure";
-import { Icon } from "@web/components/Icon";
-import {
-  IconNames,
-  IconRotations,
-  IconSizes,
-} from "@web/components/Icon/types";
+} from "../FilterDisclosure";
+import { RiskAttrsDisclosure } from "../RiskAttrsDisclosure";
+import { ChangeStepper } from "../ChangeStepper";
+import { COLLAPSE_PRESSED } from "../consts";
+import type { SupportingCollapseState } from "../types";
 import styles from "./ReadingToolbar.module.scss";
-
-/** How many supporting chunks are collapsed; `some` = the mixed state. */
-export const SupportingCollapseStates = {
-  NONE: "none",
-  SOME: "some",
-  ALL: "all",
-} as const;
-
-export type SupportingCollapseState = ValueOf<typeof SupportingCollapseStates>;
-
-const COLLAPSE_PRESSED: Record<SupportingCollapseState, boolean | "mixed"> = {
-  [SupportingCollapseStates.NONE]: false,
-  [SupportingCollapseStates.SOME]: "mixed",
-  [SupportingCollapseStates.ALL]: true,
-};
 
 export interface ReadingToolbarProps {
   /**
@@ -44,6 +24,7 @@ export interface ReadingToolbarProps {
   filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
+  riskAttrCycle: RiskAttrCycle;
   /** Bulk status, never a lock; chunks stay individually expandable. */
   supportingCollapse: SupportingCollapseState;
   /** All collapsed → expand all; otherwise collapse all. */
@@ -66,6 +47,7 @@ export function ReadingToolbar({
   filter,
   rail,
   jumpToGroup,
+  riskAttrCycle,
   supportingCollapse,
   toggleCollapseSupporting,
   comparison,
@@ -122,7 +104,11 @@ export function ReadingToolbar({
         />
       ) : null}
       {rail.entries.length > 0 ? (
-        <RiskAttrsDisclosure jumpToGroup={jumpToGroup} rail={rail} />
+        <RiskAttrsDisclosure
+          cycle={riskAttrCycle}
+          jumpToGroup={jumpToGroup}
+          rail={rail}
+        />
       ) : null}
       <div className={styles["navCluster"]}>
         {startReadThrough !== undefined ? (
@@ -148,43 +134,11 @@ export function ReadingToolbar({
             {t("brief.toolbar.collapseLong")}
           </span>
         </ToolbarButton>
-        {comparison.available && comparison.runCount > 0 ? (
-          <span
-            aria-label={
-              comparison.compare === CompareParams.LAST_REVIEW
-                ? t("brief.toolbar.ariaLabelChangeStepperLastReview")
-                : t("brief.toolbar.ariaLabelChangeStepperRevision")
-            }
-            className={styles["stepper"]}
-            role="group"
-          >
-            <span className={styles["count"]}>
-              {t("brief.toolbar.changes", { count: comparison.runCount })}
-            </span>
-            <IconButton
-              className={styles["stepBtn"]}
-              label={t("brief.toolbar.ariaLabelPreviousChange")}
-              onClick={jumpPrev}
-            >
-              <Icon
-                name={IconNames.CARET_DOWN}
-                rotation={IconRotations.QUARTER}
-                size={IconSizes.MD}
-              />
-            </IconButton>
-            <IconButton
-              className={styles["stepBtn"]}
-              label={t("brief.toolbar.ariaLabelNextChange")}
-              onClick={jumpNext}
-            >
-              <Icon
-                name={IconNames.CARET_DOWN}
-                rotation={IconRotations.THREE_QUARTERS}
-                size={IconSizes.MD}
-              />
-            </IconButton>
-          </span>
-        ) : null}
+        <ChangeStepper
+          comparison={comparison}
+          jumpNext={jumpNext}
+          jumpPrev={jumpPrev}
+        />
       </div>
     </div>
   );

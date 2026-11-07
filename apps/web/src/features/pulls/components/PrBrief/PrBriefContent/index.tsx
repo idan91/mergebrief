@@ -373,6 +373,11 @@ export function PrBriefContent({
       <p className="sr-only" role="status">
         {diffLanding.announcement}
       </p>
+      {/* Here, not in the header's controls: a phone hides that row, and the
+          chip leaves once the brief it asked for lands. */}
+      <p aria-atomic="true" className="sr-only" role="status">
+        {newerCommits.announcement}
+      </p>
       <BriefView
         reading={reading}
         address={address}

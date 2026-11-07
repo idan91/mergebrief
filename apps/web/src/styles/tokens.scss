@@ -371,6 +371,13 @@
       // these widths — the derivation models two lines and the header wraps
       // into more (108.59px derived against 219.27px actual at 375).
       --header-title-font: var(--font-size-lg);
+
+      // The phone header is one 44px row; the derivation above models the
+      // desktop tiers.
+      --top-bar-h: #{functions.to-rem(44px)};
+      --sidebar-bar-h: calc(
+        #{functions.to-rem(56px)} + env(safe-area-inset-bottom)
+      );
     }
   }
 

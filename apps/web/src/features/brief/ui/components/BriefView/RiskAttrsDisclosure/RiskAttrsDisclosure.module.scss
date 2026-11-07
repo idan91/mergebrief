@@ -46,6 +46,14 @@
     }
   }
 
+  .wrap[data-label="long"] .labelShort {
+    display: none;
+  }
+
+  .wrap[data-label="long"] .labelLong {
+    display: inline;
+  }
+
   // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
   // chunk headers (z 10) from inside the bar's own stacking context.
   // radius-md matches the trigger family.

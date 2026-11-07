@@ -1,6 +1,13 @@
 import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { useStore } from "zustand";
 import { DraftCommentStatuses } from "types";
 
@@ -21,6 +28,7 @@ import {
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
 } from "../utils";
+import { focusRescueTarget } from "../focus-rescue";
 
 export interface UseMarkReadyFlowInput {
   /**
@@ -49,6 +57,8 @@ export interface UseMarkReadyFlowInput {
   reviewComments: ReviewComment[];
   reviewerOverlayOpen: boolean;
   showIntentBar: () => void;
+  /** The phone bar's Brief controls, the rescue target where the header CTA is hidden. */
+  phoneControlsRef: RefObject<HTMLButtonElement | null>;
 }
 
 export interface UseMarkReadyFlowValue {
@@ -87,6 +97,7 @@ export function useMarkReadyFlow(
     reviewComments,
     reviewerOverlayOpen,
     showIntentBar,
+    phoneControlsRef,
   } = input;
   const markReadyGateOpen = useStore(
     viewStore,
@@ -118,7 +129,7 @@ export function useMarkReadyFlow(
       if (gateOpenRef.current) {
         const activeAtExit = document.activeElement;
         if (activeAtExit === null || activeAtExit === document.body) {
-          document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+          focusRescueTarget(phoneControlsRef);
         }
         announce(t("pulls.markReady.exited"));
       }
@@ -129,7 +140,7 @@ export function useMarkReadyFlow(
       overlayWasOpenRef.current &&
       (active === null || active === document.body)
     ) {
-      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+      focusRescueTarget(phoneControlsRef);
       announce(t("pulls.markReady.ownDraftEntered"));
     }
     closeReviewerOverlays();
@@ -139,6 +150,7 @@ export function useMarkReadyFlow(
     gateOpenRef,
     overlayWasOpenRef,
     ownDraftActive,
+    phoneControlsRef,
     setMarkReadyGateOpen,
     t,
   ]);
@@ -160,9 +172,9 @@ export function useMarkReadyFlow(
       active.closest('[data-state="closed"]') !== null ||
       active.closest("[inert]") !== null;
     if (stranded) {
-      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+      focusRescueTarget(phoneControlsRef);
     }
-  }, [batchFailureRescue]);
+  }, [batchFailureRescue, phoneControlsRef]);
 
   const unpostedDraftComments = useMemo(
     () =>
@@ -184,7 +196,7 @@ export function useMarkReadyFlow(
     setMarkReadyGateOpen(false);
     const active = document.activeElement;
     if (active === null || active === document.body) {
-      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+      focusRescueTarget(phoneControlsRef);
     }
     announce(t("pulls.markReady.gateClosed"));
   }, [
@@ -192,6 +204,7 @@ export function useMarkReadyFlow(
     gateOpenRef,
     markReadyAvailable,
     ownDraftActive,
+    phoneControlsRef,
     setMarkReadyGateOpen,
     t,
   ]);

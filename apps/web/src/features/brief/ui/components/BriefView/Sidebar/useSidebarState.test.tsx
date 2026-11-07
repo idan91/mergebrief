@@ -26,7 +26,9 @@ describe("useSidebarState at narrow width", () => {
       JSON.stringify({ expanded: true, tab: "this-pr" }),
     );
     const setItem = vi.spyOn(Storage.prototype, "setItem");
-    const { result } = renderHook(() => useSidebarState("narrow", true));
+    const { result } = renderHook(() =>
+      useSidebarState("narrow", true, "brief-a"),
+    );
     expect(result.current.expanded).toBe(false);
 
     act(() => result.current.toggle());
@@ -42,7 +44,9 @@ describe("useSidebarState at narrow width", () => {
       SIDEBAR_STORAGE_KEY,
       JSON.stringify({ expanded: true, tab: "this-pr" }),
     );
-    const { result } = renderHook(() => useSidebarState("narrow", true));
+    const { result } = renderHook(() =>
+      useSidebarState("narrow", true, "brief-a"),
+    );
 
     act(() => result.current.selectTab("revisions"));
 
@@ -51,7 +55,7 @@ describe("useSidebarState at narrow width", () => {
 
   it("crossing to narrow closes the sheet, crossing back restores the choice", () => {
     const { result, rerender } = renderHook(
-      ({ band }) => useSidebarState(band, true),
+      ({ band }) => useSidebarState(band, true, "brief-a"),
       { initialProps: { band: "desktop" as ViewportBand } },
     );
     act(() => result.current.expand());
@@ -72,10 +76,48 @@ describe("useSidebarState at narrow width", () => {
   });
 });
 
+describe("useSidebarState over a brief change", () => {
+  it("closes the sheet and asks the next brief's sidebar for focus", () => {
+    const { result, rerender } = renderHook(
+      ({ briefId }) => useSidebarState("narrow", true, briefId),
+      { initialProps: { briefId: "brief-a" } },
+    );
+    act(() => result.current.expand());
+
+    rerender({ briefId: "brief-b" });
+
+    expect(result.current.expanded).toBe(false);
+    let refocusDue = false;
+    act(() => {
+      refocusDue = result.current.takeRevisionRefocus();
+    });
+    expect(refocusDue).toBe(true);
+    act(() => {
+      refocusDue = result.current.takeRevisionRefocus();
+    });
+    expect(refocusDue).toBe(false);
+  });
+
+  it("asks for no focus when the sheet was already closed", () => {
+    const { result, rerender } = renderHook(
+      ({ briefId }) => useSidebarState("narrow", true, briefId),
+      { initialProps: { briefId: "brief-a" } },
+    );
+
+    rerender({ briefId: "brief-b" });
+
+    let refocusDue = true;
+    act(() => {
+      refocusDue = result.current.takeRevisionRefocus();
+    });
+    expect(refocusDue).toBe(false);
+  });
+});
+
 describe("useSidebarState while the sidebar is hidden", () => {
   it("the sheet closes when the sidebar leaves and stays closed on return", () => {
     const { result, rerender } = renderHook(
-      ({ visible }) => useSidebarState("narrow", visible),
+      ({ visible }) => useSidebarState("narrow", visible, "brief-a"),
       { initialProps: { visible: true } },
     );
     act(() => result.current.expand());
@@ -89,7 +131,7 @@ describe("useSidebarState while the sidebar is hidden", () => {
 
   it("hiding on desktop leaves the stored preference alone", () => {
     const { result, rerender } = renderHook(
-      ({ visible }) => useSidebarState("desktop", visible),
+      ({ visible }) => useSidebarState("desktop", visible, "brief-a"),
       { initialProps: { visible: true } },
     );
     act(() => result.current.expand());
@@ -110,7 +152,9 @@ describe("useSidebarState", () => {
     );
     const setItem = vi.spyOn(Storage.prototype, "setItem");
 
-    const { result } = renderHook(() => useSidebarState("desktop", true));
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     expect(result.current.expanded).toBe(true);
     expect(result.current.tab).toBe("this-pr");
@@ -119,7 +163,9 @@ describe("useSidebarState", () => {
 
   it("reads storage once, not on every render", () => {
     const getItem = vi.spyOn(Storage.prototype, "getItem");
-    const { rerender } = renderHook(() => useSidebarState("desktop", true));
+    const { rerender } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     rerender();
     rerender();
@@ -128,7 +174,9 @@ describe("useSidebarState", () => {
   });
 
   it("toggle flips expanded and writes", () => {
-    const { result } = renderHook(() => useSidebarState("desktop", true));
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     act(() => result.current.toggle());
     expect(result.current.expanded).toBe(true);
@@ -140,7 +188,9 @@ describe("useSidebarState", () => {
   });
 
   it("expand and collapse are idempotent writes", () => {
-    const { result } = renderHook(() => useSidebarState("desktop", true));
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     act(() => result.current.expand());
     act(() => result.current.expand());
@@ -152,7 +202,9 @@ describe("useSidebarState", () => {
   });
 
   it("selectTab keeps expanded and writes the tab", () => {
-    const { result } = renderHook(() => useSidebarState("desktop", true));
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     act(() => result.current.expand());
     act(() => result.current.selectTab("revisions"));
@@ -164,7 +216,9 @@ describe("useSidebarState", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("denied");
     });
-    const { result } = renderHook(() => useSidebarState("desktop", true));
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
 
     act(() => result.current.toggle());
 

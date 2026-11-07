@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
@@ -6,14 +7,17 @@ import styles from "./SubmitReviewCta.module.scss";
 
 export interface SubmitReviewCtaProps {
   count: number;
-  slotRef: Ref<HTMLButtonElement>;
-  onBlur: () => void;
+  /** The caller's placement for the button. */
+  className?: string | undefined;
+  slotRef?: Ref<HTMLButtonElement> | undefined;
+  onBlur?: (() => void) | undefined;
   onClick: () => void;
-  onFocus: () => void;
+  onFocus?: (() => void) | undefined;
 }
 
 export function SubmitReviewCta({
   count,
+  className,
   slotRef,
   onBlur,
   onClick,
@@ -28,7 +32,7 @@ export function SubmitReviewCta({
   return (
     <Button
       aria-label={ariaLabel}
-      className={styles["cta"]}
+      className={clsx(styles["cta"], className)}
       data-terminal-slot=""
       ref={slotRef}
       variant="accent"

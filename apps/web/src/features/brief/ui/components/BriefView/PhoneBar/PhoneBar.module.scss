@@ -1,0 +1,29 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .bar {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: 98;
+    display: none;
+    gap: functions.to-rem(4px);
+    align-items: center;
+    block-size: var(--sidebar-bar-h);
+    padding-block-end: env(safe-area-inset-bottom);
+    padding-inline: functions.to-rem(4px);
+    border-block-start: 1px solid var(--color-outline-1);
+    background: var(--color-background);
+
+    @include mixins.for-breakpoint("mobile", max) {
+      display: flex;
+    }
+  }
+
+  // Nested to outrank IconButton's own size rule: a 44px target.
+  .bar .controls {
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(44px);
+  }
+}

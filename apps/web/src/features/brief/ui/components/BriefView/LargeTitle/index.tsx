@@ -1,7 +1,10 @@
 import type { Ref } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AuthorChip } from "@web/components/AuthorChip";
 import { AuthorChipSizes } from "@web/components/AuthorChip/types";
+import { LocSign, LocSigns } from "@web/components/LocSign";
+import type { ProgressTotals } from "../../../utils/progress";
 import type { Brief, LivePrState } from "../../../../model/types";
 import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { BriefViewModel } from "../../../../model/utils/view-model";
@@ -22,6 +25,8 @@ export interface LargeTitleProps {
   repoId?: string | undefined;
   /** The viewer's own draft: the self-review label rides with the state. */
   ownDraft: boolean;
+  /** The chunk and flag counts the facts row shows. */
+  totals: ProgressTotals;
   /** Hands the block to the header, which watches it scroll under the bar. */
   ref?: Ref<HTMLDivElement>;
 }
@@ -39,8 +44,10 @@ export function LargeTitle({
   authorLogin,
   repoId,
   ownDraft,
+  totals,
   ref,
 }: LargeTitleProps) {
+  const { t } = useTranslation();
   return (
     <div className={styles["largeTitle"]} data-testid="large-title" ref={ref}>
       <p aria-hidden="true" className={styles["title"]}>
@@ -56,6 +63,23 @@ export function LargeTitle({
         <StackNav brief={brief} livePrState={livePrState} repoId={repoId} />
         <BranchPair baseRef={brief.pr.baseRef} headRef={brief.pr.headRef} />
       </div>
+      <dl className={styles["facts"]}>
+        <div className={styles["fact"]}>
+          <dt>{t("brief.mobile.factChunks", { count: totals.chunkTotal })}</dt>
+          <dd>{totals.chunkTotal}</dd>
+        </div>
+        <div className={styles["fact"]}>
+          <dt>{t("brief.mobile.factFlags", { count: totals.flagTotal })}</dt>
+          <dd>{totals.flagTotal}</dd>
+        </div>
+        <div className={styles["fact"]}>
+          <dt>{t("brief.mobile.factCoreLines")}</dt>
+          <dd>
+            <LocSign count={model.totalCoreAdded} sign={LocSigns.ADD} />{" "}
+            <LocSign count={model.totalCoreDeleted} sign={LocSigns.DEL} />
+          </dd>
+        </div>
+      </dl>
       <Provenance brief={brief} model={model} repoConfig={repoConfig} />
     </div>
   );

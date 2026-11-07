@@ -24,6 +24,13 @@
     background: var(--color-background);
   }
 
+  // Hidden, its measured height publishes 0px to the sticky stack.
+  @include mixins.for-breakpoint("mobile", max) {
+    .toolbar {
+      display: none;
+    }
+  }
+
   // Label compression ladder: long label by default, short below 1280px.
   // display toggling also swaps the accessible name with it.
   .labelShort {
@@ -48,28 +55,5 @@
     align-items: center;
     gap: functions.to-rem(10px);
     margin-inline-start: auto;
-  }
-
-  .stepper {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(4px);
-    white-space: nowrap;
-  }
-
-  .count {
-    margin-inline-end: functions.to-rem(4px);
-    color: var(--color-text-2);
-    font-size: var(--font-size-md);
-    font-variant-numeric: tabular-nums;
-  }
-
-  // Visible resting border + tighter radius on IconButton's ghost-sm chrome.
-  .stepBtn {
-    border-color: var(--color-outline-2);
-
-    &:not([aria-disabled="true"]):hover {
-      background: var(--color-surface-2);
-    }
   }
 }

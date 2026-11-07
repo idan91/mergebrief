@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { RefObject } from "react";
 import {
   act,
   cleanup,
@@ -12,6 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
+import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
@@ -34,6 +37,7 @@ if (!firstGroup || firstGroup.kind !== GroupViewKinds.ATTRIBUTED) {
 
 afterEach(() => {
   cleanup();
+  resetMediaQueries();
   window.localStorage.clear();
   document.body.style.overflow = "";
 });
@@ -54,6 +58,7 @@ interface HarnessProps {
   revisions?: RevisionTimelinePlan;
   /** The screen keys the Sidebar per brief; a new key remounts it. */
   sidebarKey?: string;
+  sheetTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
 function noop(): void {}
@@ -72,8 +77,9 @@ function Harness({
   diffToggleWired = true,
   revisions,
   sidebarKey,
+  sheetTriggerRef,
 }: HarnessProps) {
-  const state = useSidebarState(band, true);
+  const state = useSidebarState(band, true, sidebarKey ?? "brief-a");
   return (
     <>
       <Button data-testid="outside-toggle" onClick={state.toggle}>
@@ -94,6 +100,7 @@ function Harness({
         diffView={diffView}
         toggleDiffView={diffToggleWired ? toggleDiffView : undefined}
         revisions={revisions}
+        sheetTriggerRef={sheetTriggerRef}
       />
     </>
   );
@@ -273,6 +280,18 @@ describe("Sidebar", () => {
     expect(jumpToGroupHeading).not.toHaveBeenCalled();
   });
 
+  it("ignores the phone bar's empty trigger off phones", () => {
+    renderSidebar({ sheetTriggerRef: { current: null } });
+    fireEvent.click(chevron());
+    screen.getAllByRole("tab")[0]?.focus();
+
+    fireEvent.keyDown(screen.getAllByRole("tab")[0] as HTMLElement, {
+      key: "Escape",
+    });
+
+    expect(document.activeElement).toBe(chevron());
+  });
+
   it("a collapse the sidebar did not start returns focus to the chevron", () => {
     renderSidebar();
     fireEvent.click(chevron());
@@ -425,6 +444,20 @@ describe("focus after a revision pick", () => {
     );
   });
 
+  it("closes the sheet on a brief change and returns to the chevron", () => {
+    const { view, renderTree } = renderSwitchingSidebar("narrow");
+    const bar = () => screen.getByTestId("sidebar-bar");
+    fireEvent.click(within(bar()).getByRole("button", { name: /sidebar/ }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    view.rerender(renderTree("b", false));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(
+      within(bar()).getByRole("button", { name: /sidebar/ }),
+    );
+  });
+
   it("leaves focus alone when no revision was picked", () => {
     const { view, renderTree } = renderSwitchingSidebar("desktop");
     const outside = screen.getByTestId("outside-toggle");
@@ -448,6 +481,13 @@ describe("Sidebar below the tablet breakpoint", () => {
     expect(screen.getByTestId("sidebar-bar")).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("keeps the bar mounted on phones, where CSS hides it", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    renderSidebar({ band: "narrow" });
+
+    expect(screen.getByTestId("sidebar-bar")).toBeTruthy();
   });
 
   it("the chevron opens the sheet on the active tab, Escape returns focus", () => {

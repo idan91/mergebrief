@@ -24,6 +24,37 @@
     text-wrap: pretty;
   }
 
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    border-block: 1px solid var(--color-outline-1);
+  }
+
+  .fact {
+    display: grid;
+    gap: functions.to-rem(2px);
+    padding-block: functions.to-rem(8px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    line-height: functions.to-rem(16px);
+
+    dd {
+      margin: 0;
+      color: var(--color-text-1);
+      font-size: var(--font-size-lg);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      line-height: functions.to-rem(20px);
+      order: -1;
+    }
+
+    & + & {
+      padding-inline-start: functions.to-rem(12px);
+      border-inline-start: 1px solid var(--color-outline-1);
+    }
+  }
+
   .identity {
     display: flex;
     flex-wrap: wrap;

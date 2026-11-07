@@ -44,11 +44,11 @@ import type { RepoConfigContext } from "../../../../model/utils/repo-config";
 import type { ChunkWindowRegistry } from "./chunk-windows";
 import type { ReadingPositionStore } from "./reading-position";
 import type { BriefViewStore } from "../store";
-import type { ScopeExitOptions } from "../types";
 import {
   SupportingCollapseStates,
+  type ScopeExitOptions,
   type SupportingCollapseState,
-} from "../ReadingToolbar";
+} from "../types";
 import {
   deriveBriefProgress,
   deriveGroupHeadingId,
@@ -407,13 +407,15 @@ export function useReadingSession(
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [briefId]);
 
-  // Leaving focus mode unmounts its chrome; focus that sat on it lands on
-  // the main landmark instead of the body.
+  // Entering focus mode unmounts the phone bar and toolbar, leaving it
+  // unmounts its own chrome; focus that sat on either lands on the main
+  // landmark instead of the body.
   const wasFocusModeRef = useRef(focusMode);
   useEffect(() => {
-    const leftFocusMode = wasFocusModeRef.current && !focusMode;
+    const focusModeChanged = wasFocusModeRef.current !== focusMode;
     wasFocusModeRef.current = focusMode;
-    if (leftFocusMode && document.activeElement === document.body) {
+    const focusOrphaned = document.activeElement === document.body;
+    if (focusModeChanged && focusOrphaned) {
       document.getElementById("main-content")?.focus({ preventScroll: true });
     }
   }, [focusMode]);

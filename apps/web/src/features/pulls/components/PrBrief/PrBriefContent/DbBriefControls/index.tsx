@@ -17,7 +17,7 @@ export interface DbBriefControlsProps {
   note?: string | undefined;
   /** The selected revision is read-only (not the PR's current span). */
   readOnly?: boolean | undefined;
-  /** The newer-commits chip and its announcements; the chip is present only while the brief on screen trails the PR. */
+  /** The newer-commits chip, present only while the brief on screen trails the PR. */
   newerCommits: NewerCommitsChipState;
 }
 
@@ -32,16 +32,6 @@ export function DbBriefControls({
   const showRevisionRegion = readOnly === true || status !== undefined;
   return (
     <>
-      {/* The chip leaves once the brief it asked for lands; its outcomes
-          announce from here, which stays. */}
-      <span
-        aria-atomic="true"
-        aria-live="polite"
-        className="sr-only"
-        role="status"
-      >
-        {newerCommits.announcement}
-      </span>
       <div className={styles["comparisonRegion"]}>
         <DbCompareBar {...compare} />
         {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}

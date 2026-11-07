@@ -13,6 +13,15 @@ export const PrStateBadgeVariants = {
 
 export type PrStateBadgeVariant = ValueOf<typeof PrStateBadgeVariants>;
 
+/** How many supporting chunks are collapsed; `some` = the mixed state. */
+export const SupportingCollapseStates = {
+  NONE: "none",
+  SOME: "some",
+  ALL: "all",
+} as const;
+
+export type SupportingCollapseState = ValueOf<typeof SupportingCollapseStates>;
+
 import type {
   ConversationPlan,
   ThreadComposerWiring,
@@ -113,6 +122,18 @@ export interface OwnDraftPlan {
   readonly markReady?: MarkReadyAction;
   /** Same absence as `markReady`; hides the Post affordance. */
   readonly postComment?: (draftId: string) => Promise<PostCommentResult>;
+}
+
+export interface OwnDraftHeaderProps {
+  markReady: () => void;
+  pending: boolean;
+  unavailable?: boolean;
+}
+
+/** The Chunks and Flags stats as the header prints them. */
+export interface StatFigures {
+  chunks: `${number}/${number}`;
+  flags: `${number}/${number}` | `${number}`;
 }
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
@@ -364,6 +385,7 @@ export interface UseViewLayoutInput {
     "focusMode" | "jumpToGroup" | "jumpToGroupHeading"
   >;
   scope: ViewParam;
+  briefId: string;
 }
 
 export interface ViewLayout {
@@ -487,6 +509,7 @@ export interface UseReviewCommandsInput {
   >;
   riskModalOpen: boolean;
   conversationWiring: Pick<ConversationWiring, "invalidateConversation">;
+  phoneControlsRef: RefObject<HTMLButtonElement | null>;
 }
 
 export interface ReviewCommands {

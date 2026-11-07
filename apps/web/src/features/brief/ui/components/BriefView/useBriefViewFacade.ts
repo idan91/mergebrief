@@ -5,8 +5,10 @@ import { useAddressSync } from "./address/useAddressSync";
 import { useComparison } from "./comparison/useComparison";
 import { useConversation } from "./conversation/useConversation";
 import { useDiffViewPreference } from "./diff-view/useDiffViewPreference";
+import { usePhoneChrome } from "./hooks/usePhoneChrome";
 import { useReviewCommands } from "./hooks/useReviewCommands";
 import { useReviewFlowState } from "./hooks/useReviewFlowState";
+import { useRiskAttrCycle } from "./hooks/useRiskAttrCycle";
 import { useViewLayout } from "./hooks/useViewLayout";
 import { useViewShortcuts } from "./hooks/useViewShortcuts";
 import { useReading } from "./reading/useReading";
@@ -22,6 +24,7 @@ export function useBriefViewFacade(props: BriefViewProps) {
   const [largeTitle, attachLargeTitle] = useState<HTMLDivElement | null>(null);
   const ownDraftActive = props.review?.ownDraft !== undefined;
   const staleHead = props.review?.staleHead === true;
+  const phoneChrome = usePhoneChrome(props.reading.briefId);
 
   const comparison = useComparison(props);
   const scope = comparison.overlay.compareState.view;
@@ -31,8 +34,15 @@ export function useBriefViewFacade(props: BriefViewProps) {
     ownDraftActive,
   });
   const { session, readingPosition } = readingState;
-  const layout = useViewLayout({ viewStore, readingPosition, session, scope });
+  const layout = useViewLayout({
+    viewStore,
+    readingPosition,
+    session,
+    scope,
+    briefId: props.reading.briefId,
+  });
   const { inChangesScope } = layout;
+  const riskAttrCycle = useRiskAttrCycle(viewStore, layout.regions.toolbar);
   const { lineSelection, reanchorArmed, riskModalOpen, ...flow } =
     useReviewFlowState({ t, props, viewStore, session, inChangesScope });
   const { conversationPlan, conversationWiring } = useConversation({
@@ -59,6 +69,7 @@ export function useBriefViewFacade(props: BriefViewProps) {
     flow,
     riskModalOpen,
     conversationWiring,
+    phoneControlsRef: phoneChrome.controlsRef,
   });
   const cardTrack = useStoryCardTrack();
   const diffPreference = useDiffViewPreference({
@@ -105,6 +116,7 @@ export function useBriefViewFacade(props: BriefViewProps) {
     ownDraftActive,
     staleHead,
     chunkFooter,
+    phoneChrome,
     conversationPlan,
     conversationWiring,
     ...comparison,
@@ -119,5 +131,6 @@ export function useBriefViewFacade(props: BriefViewProps) {
     toggleDiffView,
     largeTitle,
     attachLargeTitle,
+    riskAttrCycle,
   };
 }

@@ -1,9 +1,16 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, type FocusEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  type FocusEvent,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { IconButton } from "@web/components/IconButton";
 import { Tabs } from "@web/components/Tabs";
+import { useMobileViewport } from "@web/hooks/useMobileViewport";
 import {
   ViewportBands,
   type ViewportBand,
@@ -61,6 +68,8 @@ export interface SidebarProps {
   toggleDiffView?: (() => void) | undefined;
   /** The PR's revisions and the route's way to one; absent hides the tab. */
   revisions?: RevisionTimelinePlan | undefined;
+  /** The phone bar's indicator, which opens the Sidebar sheet and takes focus back from it. */
+  sheetTriggerRef?: RefObject<HTMLButtonElement | null> | undefined;
 }
 
 /**
@@ -83,14 +92,18 @@ export function Sidebar({
   diffView,
   toggleDiffView,
   revisions,
+  sheetTriggerRef,
 }: SidebarProps) {
   const { t } = useTranslation();
+  const mobile = useMobileViewport();
   const otherDiffView =
     diffView === DiffViews.SPLIT ? DiffViews.UNIFIED : DiffViews.SPLIT;
   const activeGroupId = useReadingPosition(
     (position) => position.activeGroupId,
   );
   const chevronRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef =
+    mobile && sheetTriggerRef !== undefined ? sheetTriggerRef : chevronRef;
   const currentRevisionRef = useRef<HTMLButtonElement | null>(null);
   const { expanded } = state;
   const narrow = band === ViewportBands.NARROW;
@@ -109,9 +122,9 @@ export function Sidebar({
 
     const active = document.activeElement;
     if (active === null || active === document.body || !active.isConnected) {
-      chevronRef.current?.focus();
+      triggerRef.current?.focus();
     }
-  }, [expanded]);
+  }, [expanded, triggerRef]);
 
   const trackFocus = {
     onFocus: () => {
@@ -138,7 +151,7 @@ export function Sidebar({
     if (event.detail !== 0) {
       jumpToGroup(groupId);
       if (narrow) {
-        chevronRef.current?.focus();
+        triggerRef.current?.focus();
       }
       return;
     }
@@ -150,7 +163,7 @@ export function Sidebar({
     const byKeyboard = event.detail === 0;
     jumpToChunk?.(chunkId, byKeyboard);
     if (!byKeyboard) {
-      chevronRef.current?.focus();
+      triggerRef.current?.focus();
     }
   };
   const sheetChunkJump =
@@ -158,7 +171,7 @@ export function Sidebar({
 
   const collapseToChevron = () => {
     state.collapse();
-    chevronRef.current?.focus();
+    triggerRef.current?.focus();
   };
 
   // Same scroll to target as a group jump on the narrow band: the sheet
@@ -189,9 +202,9 @@ export function Sidebar({
     if (pending || !takeRevisionRefocus()) {
       return;
     }
-    const target = narrow ? chevronRef.current : currentRevisionRef.current;
+    const target = narrow ? triggerRef.current : currentRevisionRef.current;
     target?.focus();
-  }, [pending, narrow, takeRevisionRefocus]);
+  }, [pending, narrow, takeRevisionRefocus, triggerRef]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Escape" || !expanded) {

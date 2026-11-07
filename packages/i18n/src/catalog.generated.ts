@@ -273,6 +273,7 @@ export type Catalog = typeof en & {
     };
     mobile: (typeof en)["brief"]["mobile"] & {
       viewedSummary: "{{viewed}} of {{total}} viewed";
+      chunkPosition: "Chunk {{current}} of {{total}}";
     };
   };
   review: (typeof en)["review"] & {

@@ -15,16 +15,16 @@ import type {
 } from "../../../../model/comparison/compare-state";
 import type { ProgressTotals } from "../../../utils/progress";
 import type { Brief, LivePrState } from "../../../../model/types";
-import { GroupViewKinds } from "../../../../model/utils/remainder";
-import {
-  hasChangedLines,
-  type BriefViewModel,
-  type UnattributedRemainderGroupView,
-} from "../../../../model/utils/view-model";
+import type { BriefViewModel } from "../../../../model/utils/view-model";
 import { AuthorChip } from "@web/components/AuthorChip";
+import { Icon } from "@web/components/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
-import { Button } from "@web/components/Button";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
@@ -34,15 +34,12 @@ import { SelfReviewChip } from "../SelfReviewChip";
 import { StackNav } from "../StackNav";
 import { StateBadge } from "../StateBadge";
 import { useLargeTitleOut } from "./useLargeTitleOut";
-import { SubmitReviewCta } from "./SubmitReviewCta";
-import { ComparisonControls } from "./ComparisonControls";
+import { MarkReadyCta } from "../MarkReadyCta";
+import type { OwnDraftHeaderProps } from "../types";
+import { SubmitReviewCta } from "../SubmitReviewCta";
+import { ComparisonControls } from "../ComparisonControls";
+import { deriveStatFigures, findCountedRemainder } from "../stats";
 import styles from "./Header.module.scss";
-
-export interface OwnDraftHeaderProps {
-  markReady: () => void;
-  pending: boolean;
-  unavailable?: boolean;
-}
 
 export interface HeaderProps {
   brief: Brief;
@@ -195,16 +192,8 @@ export function Header({
   const progressStyle: ProgressBarStyle = {
     "--progress-scale": `${progress / 100}`,
   };
-  // The stat counts lines; a remainder holding only flagged files with no
-  // changed line has none to count.
-  const remainderGroup = model.groups.find(
-    (group): group is UnattributedRemainderGroupView => {
-      const isCountedRemainder =
-        group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER &&
-        hasChangedLines(group);
-      return isCountedRemainder;
-    },
-  );
+  const remainderGroup = findCountedRemainder(model);
+  const statFigures = deriveStatFigures(totals, ownDraft !== undefined);
 
   return (
     <header
@@ -215,9 +204,19 @@ export function Header({
       data-title-out={titleOut}
     >
       <div className={styles["identityRow"]}>
+        <Link
+          aria-label={t("shell.backToBriefs")}
+          className={styles["back"]}
+          to="/"
+        >
+          <Icon
+            name={IconNames.CARET_DOWN}
+            rotation={IconRotations.QUARTER}
+            size={IconSizes.LG}
+          />
+        </Link>
         {/* Lead is inert on wide viewports (display: contents, one flex
-            line); at ≤880px it becomes the grid's content row, with the CTA +
-            account menu columns beside it. */}
+            line); at 880px and under it is the row's title cell. */}
         <div className={styles["lead"]}>
           <Link className={styles["wordmark"]} to="/">
             {PRODUCT_NAME}
@@ -250,29 +249,20 @@ export function Header({
         </div>
         <span aria-hidden="true" className={styles["spacer"]} />
         {ownDraft !== undefined ? (
-          /* Caller-owned aria-disabled (not the `disabled` prop): the click
-             stays live so an unavailable/pending press ANNOUNCES its reason,
-             the mark-ready flow's in-flight guard no-ops repeats. */
-          <Button
-            aria-busy={ownDraft.pending || undefined}
-            aria-disabled={ownDraft.pending || ownDraft.unavailable === true}
-            data-terminal-slot=""
-            ref={terminalSlotRef}
-            variant="accent"
+          <MarkReadyCta
+            className={styles["terminalSlot"]}
+            ownDraft={ownDraft}
+            slotRef={terminalSlotRef}
             onBlur={() => {
               terminalSlotFocused.current = false;
             }}
             onFocus={() => {
               terminalSlotFocused.current = true;
             }}
-            onClick={ownDraft.markReady}
-          >
-            {ownDraft.pending
-              ? t("brief.header.markingReady")
-              : t("brief.header.markReady")}
-          </Button>
+          />
         ) : (
           <SubmitReviewCta
+            className={styles["terminalSlot"]}
             count={draftCommentCount}
             slotRef={terminalSlotRef}
             onBlur={() => {
@@ -284,7 +274,9 @@ export function Header({
             }}
           />
         )}
-        <AccountMenu onOpenShortcuts={toggleShortcuts} />
+        <span className={styles["account"]}>
+          <AccountMenu onOpenShortcuts={toggleShortcuts} />
+        </span>
       </div>
       {/* Tier 2, the comparison toolbar: everything that changes WHAT is on
           screen (Scope, Compare), flattened to one wrappable line, plus the
@@ -328,19 +320,11 @@ export function Header({
             ) : null}
             <div className={`stat ${styles["stat"]}`}>
               {t("brief.header.chunks")}
-              <b>
-                {totals.reviewed}/{totals.chunkTotal}
-              </b>
+              <b>{statFigures.chunks}</b>
             </div>
             <div className={`stat ${styles["stat"]}`}>
               {t("brief.header.flags")}
-              {ownDraft !== undefined ? (
-                <b>{totals.flagTotal}</b>
-              ) : (
-                <b>
-                  {totals.flagsResolved}/{totals.flagTotal}
-                </b>
-              )}
+              <b>{statFigures.flags}</b>
             </div>
           </div>
         </div>

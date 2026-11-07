@@ -19,6 +19,8 @@ export interface BriefViewState {
   markReadyGateOpen: boolean;
   postDraftsOnReady: boolean;
   markReadyBatch: MarkReadyBatch | undefined;
+  /** Each risk attribute chip's next carrying-group position, before the wrap. */
+  riskAttrCycle: ReadonlyMap<string, number>;
 }
 
 export interface BriefViewActions {
@@ -33,6 +35,8 @@ export interface BriefViewActions {
   setMarkReadyGateOpen: (open: boolean) => void;
   setPostDraftsOnReady: (checked: boolean) => void;
   setMarkReadyBatch: (batch: MarkReadyBatch | undefined) => void;
+  advanceRiskAttrCycle: (attr: string) => void;
+  clearRiskAttrCycle: () => void;
 }
 
 export interface BriefViewStoreValue extends BriefViewState {
@@ -57,6 +61,7 @@ export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
     markReadyGateOpen: false,
     postDraftsOnReady: false,
     markReadyBatch: undefined,
+    riskAttrCycle: new Map(),
     actions: {
       markScopeShown(scope) {
         set((state) =>
@@ -88,6 +93,19 @@ export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
       },
       setMarkReadyBatch(batch) {
         set({ markReadyBatch: batch });
+      },
+      advanceRiskAttrCycle(attr) {
+        set((state) => {
+          const position = state.riskAttrCycle.get(attr) ?? 0;
+          return {
+            riskAttrCycle: new Map(state.riskAttrCycle).set(attr, position + 1),
+          };
+        });
+      },
+      clearRiskAttrCycle() {
+        set((state) =>
+          state.riskAttrCycle.size === 0 ? state : { riskAttrCycle: new Map() },
+        );
       },
     },
   }));

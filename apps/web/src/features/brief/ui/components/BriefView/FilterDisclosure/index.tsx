@@ -19,6 +19,8 @@ export interface FilterDisclosureProps extends ConversationFilterPanelProps {
    * number, and the live region's text.
    */
   hiddenInlineThreads: number;
+  /** The panel rises as a sheet, for a trigger that already sits in one. */
+  sheet?: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export function FilterDisclosure({
   reviewers,
   hiddenInlineThreads,
   onChange,
+  sheet,
 }: FilterDisclosureProps) {
   const { t } = useTranslation();
   const active = isFilterActive(filter);
@@ -74,7 +77,7 @@ export function FilterDisclosure({
             ))}
           </ToolbarButton>
         </Popover.Trigger>
-        <Popover.Content className={styles["panel"]}>
+        <Popover.Content className={styles["panel"]} sheet={sheet}>
           <ConversationFilterPanel
             filter={filter}
             reviewers={reviewers}

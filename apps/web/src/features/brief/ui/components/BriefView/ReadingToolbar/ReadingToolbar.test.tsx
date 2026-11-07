@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
@@ -7,10 +8,12 @@ import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils";
 import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
 import type { AttributeRail } from "../../../../model/utils/view-model";
+import { useRiskAttrCycle } from "../hooks/useRiskAttrCycle";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
 } from "../reading/reading-position";
+import { createBriefViewStore } from "../store";
 import { ReadingToolbar, type ReadingToolbarProps } from ".";
 
 afterEach(() => {
@@ -53,11 +56,22 @@ function comparisonState(runCount: number): ComparisonOverlayState {
   };
 }
 
+type ToolbarHostProps = Omit<ReadingToolbarProps, "riskAttrCycle">;
+
+/** The toolbar with the per-Brief cycle owner the screen gives it. */
+function ToolbarHost(props: ToolbarHostProps) {
+  const [viewStore] = useState(() =>
+    createBriefViewStore({ openChunkIds: [], focusMode: false }),
+  );
+  const riskAttrCycle = useRiskAttrCycle(viewStore, true);
+  return <ReadingToolbar {...props} riskAttrCycle={riskAttrCycle} />;
+}
+
 function renderToolbar(
-  overrides: Partial<ReadingToolbarProps> = {},
+  overrides: Partial<ToolbarHostProps> = {},
   activeGroupId: string | null = null,
 ) {
-  const props: ReadingToolbarProps = {
+  const props: ToolbarHostProps = {
     rail: RAIL,
     jumpToGroup: () => {},
     supportingCollapse: "none",
@@ -72,7 +86,7 @@ function renderToolbar(
   }
   return render(
     <ReadingPositionProvider store={store}>
-      <ReadingToolbar {...props} />
+      <ToolbarHost {...props} />
     </ReadingPositionProvider>,
   );
 }
@@ -120,7 +134,9 @@ describe("ReadingToolbar clusters", () => {
 
   it("omits the Risk attrs trigger entirely when no attribute fired", () => {
     renderToolbar({ rail: EMPTY_RAIL });
-    expect(screen.queryByRole("button", { name: /Risk attrs/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Risk attributes/ }),
+    ).toBeNull();
   });
 
   it("changes nav renders only when a comparison is active with runs", () => {
@@ -166,7 +182,7 @@ describe("ReadingToolbar collapse-supporting toggle", () => {
 describe("ReadingToolbar risk-attrs disclosure", () => {
   it("shows the fired-attribute count and NEVER auto-opens on floor firing", () => {
     renderToolbar();
-    const trigger = screen.getByRole("button", { name: /Risk attrs/ });
+    const trigger = screen.getByRole("button", { name: /Risk attributes/ });
     expect(trigger.textContent).toContain("2");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
@@ -174,14 +190,14 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
 
   it("floor firing renders the emphasis dot with a screen-reader expansion", () => {
     renderToolbar();
-    const trigger = screen.getByRole("button", { name: /Risk attrs/ });
+    const trigger = screen.getByRole("button", { name: /Risk attributes/ });
     expect(trigger.querySelector("[data-emphasis-dot]")).not.toBeNull();
     expect(trigger.textContent).toContain("floor attribute fired");
     cleanup();
     renderToolbar({ rail: { ...RAIL, floorFired: false } });
     expect(
       screen
-        .getByRole("button", { name: /Risk attrs/ })
+        .getByRole("button", { name: /Risk attributes/ })
         .querySelector("[data-emphasis-dot]"),
     ).toBeNull();
   });
@@ -189,7 +205,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
   it("opens the anchored panel, chips cycle carrying groups in order", () => {
     const jump = vi.fn();
     renderToolbar({ jumpToGroup: jump });
-    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Risk attributes/ }));
     expect(document.querySelector("[data-attribute-jump-rail]")).not.toBeNull();
     const billing = screen.getByRole("button", { name: /Touches billing/ });
     fireEvent.click(billing);
@@ -200,7 +216,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
 
   it("floor chip is pinned first and repo chips carry the source variant", () => {
     renderToolbar();
-    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Risk attributes/ }));
     const panel = document.querySelector("[data-attribute-jump-rail]");
     const chips = [...(panel?.querySelectorAll("button") ?? [])];
     expect(chips[0]?.textContent).toContain("Touches auth");

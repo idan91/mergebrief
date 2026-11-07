@@ -7,7 +7,6 @@ import { BreakablePath } from "@web/components/BreakablePath";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import type { ChunkShare } from "../../../types";
-import { FIRST_ACTION_SELECTOR } from "./consts";
 import { CopyRow } from "./CopyRow";
 import styles from "./ChunkActionsSheet.module.scss";
 
@@ -48,7 +47,6 @@ export function ChunkActionsSheet({
     <BottomSheet
       close={close}
       closeLabel={t("brief.mobile.closeChunkActions")}
-      initialFocusSelector={FIRST_ACTION_SELECTOR}
       label={t("brief.mobile.chunkActions")}
       testId="chunk-actions-sheet"
     >
@@ -64,7 +62,7 @@ export function ChunkActionsSheet({
         {/* oxlint-disable-next-line house/no-raw-button -- a full-width sheet row, which the shared buttons do not model */}
         <button
           className={styles["row"]}
-          data-first-action=""
+          data-sheet-focus=""
           type="button"
           onClick={handleComment}
         >

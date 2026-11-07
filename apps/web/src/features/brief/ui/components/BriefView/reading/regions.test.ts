@@ -14,17 +14,19 @@ describe("deriveVisibleRegions", () => {
       toolbar: true,
       conversation: true,
       sidebar: true,
+      phoneBar: true,
       carryOver: true,
     });
   });
 
-  it("Changes keeps the summary and the carry-over bar", () => {
+  it("Changes keeps the summary, the carry-over bar and the phone bar", () => {
     const regions = deriveVisibleRegions({ scope: "changes", focus: false });
     expect(regions).toEqual({
       summary: true,
       toolbar: false,
       conversation: false,
       sidebar: false,
+      phoneBar: true,
       carryOver: true,
     });
   });
@@ -36,6 +38,7 @@ describe("deriveVisibleRegions", () => {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      phoneBar: false,
       carryOver: false,
     });
   });
@@ -47,6 +50,7 @@ describe("deriveVisibleRegions", () => {
       toolbar: false,
       conversation: false,
       sidebar: false,
+      phoneBar: false,
       carryOver: false,
     });
   });

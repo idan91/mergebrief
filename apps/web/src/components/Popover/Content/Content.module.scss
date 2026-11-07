@@ -1,5 +1,32 @@
+@use "functions";
+@use "mixins";
+
 @layer components {
   .content {
     outline: none;
+  }
+
+  // A sheet inside an animated BottomSheet positions against that sheet, so
+  // 0 lands on its bottom edge; elsewhere it is the viewport's.
+  .content[data-sheet] {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: 1000;
+    max-inline-size: none;
+    max-block-size: 70dvh;
+    overflow-y: auto;
+    padding-block-end: calc(var(--space-2) + env(safe-area-inset-bottom));
+    border: 0;
+    touch-action: pan-y pinch-zoom;
+    animation: panel-sheet-in var(--motion-slow) var(--ease-out) both;
+
+    @include mixins.bottom-sheet-chrome;
+  }
+
+  @keyframes panel-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
   }
 }

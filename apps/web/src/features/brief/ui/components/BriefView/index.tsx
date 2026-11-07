@@ -30,6 +30,8 @@ import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
+import { BriefControlsSheet } from "./BriefControlsSheet";
+import { PhoneBar } from "./PhoneBar";
 import { Toast } from "@web/components/Toast";
 import { ReadingToolbar } from "./ReadingToolbar";
 import { ReanchorBanner } from "./ReanchorBanner";
@@ -154,6 +156,8 @@ function BriefViewContent(props: BriefViewProps) {
     staleHead,
     largeTitle,
     attachLargeTitle,
+    phoneChrome,
+    riskAttrCycle,
   } = useBriefViewFacade(props);
 
   // The provider memoizes on this identity, so it has to be stable itself.
@@ -217,6 +221,41 @@ function BriefViewContent(props: BriefViewProps) {
     ) : null;
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;
+  const toolbarFilter =
+    conversation !== undefined &&
+    conversationWiring.conversationFilterFacets !== undefined
+      ? {
+          filter: conversationWiring.conversationFilterFacets.applied,
+          hiddenInlineThreads:
+            conversationWiring.conversationFilterFacets.hiddenInlineThreads,
+          reviewers: conversationWiring.conversationFilterFacets.reviewers,
+          verdicts: conversationWiring.conversationFilterFacets.verdicts,
+          onChange: conversation.onFilterChange,
+        }
+      : undefined;
+  const toolbarControls = {
+    filter: toolbarFilter,
+    rail: attributeRail,
+    jumpToGroup: session.jumpToGroup,
+    riskAttrCycle,
+    supportingCollapse: session.supportingCollapse,
+    toggleCollapseSupporting: session.toggleCollapseSupporting,
+    startReadThrough: readThroughAvailable
+      ? session.startReadThrough
+      : undefined,
+    comparison: overlay.comparison,
+    revisionNav,
+  };
+  const ownDraftHeader = ownDraftActive
+    ? {
+        markReady: markReady.request,
+        pending: markReady.pending,
+        unavailable: !markReady.available,
+      }
+    : undefined;
+  const sheetToolbarControls = regions.toolbar ? toolbarControls : undefined;
+  const chunksSheetExpanded = regions.sidebar && sidebar.expanded;
+  const openChunksSheet = regions.sidebar ? sidebar.toggle : undefined;
   const focusPanelState = focusPanel.open ? "open" : "closed";
   const focusPanelBeside = focusPanelShown && !focusPanel.sheet;
   const focusPanelAttr = focusPanelBeside ? focusPanelState : undefined;
@@ -258,15 +297,7 @@ function BriefViewContent(props: BriefViewProps) {
                       jumpToGroupHeading={(groupId) =>
                         queueJumpFromChanges(groupId, true)
                       }
-                      ownDraft={
-                        ownDraftActive
-                          ? {
-                              markReady: markReady.request,
-                              pending: markReady.pending,
-                              unavailable: !markReady.available,
-                            }
-                          : undefined
-                      }
+                      ownDraft={ownDraftHeader}
                     />
                     <VersionNotice surface={NoticeSurfaces.BRIEF} />
                     {lineLinkMissed ? (
@@ -301,6 +332,7 @@ function BriefViewContent(props: BriefViewProps) {
                       data-focus-panel={focusPanelAttr}
                       data-pending={pendingShown ? "" : undefined}
                       data-sidebar={regions.sidebar ? sidebarLayout : undefined}
+                      data-phone-bar={regions.phoneBar ? "" : undefined}
                       data-sidebar-motion={sidebar.motionReady ? "" : undefined}
                       aria-busy={pendingShown || undefined}
                       inert={pendingShown || undefined}
@@ -315,6 +347,7 @@ function BriefViewContent(props: BriefViewProps) {
                           ownDraft={ownDraftActive}
                           repoConfig={repoConfig}
                           repoId={pr?.repoId}
+                          totals={session.totals}
                         />
                       ) : null}
                       {regions.carryOver ? (
@@ -341,37 +374,16 @@ function BriefViewContent(props: BriefViewProps) {
                           key={`toolbar-${briefId}`}
                           comparison={overlay.comparison}
                           revisionNav={revisionNav}
-                          startReadThrough={
-                            readThroughAvailable
-                              ? session.startReadThrough
-                              : undefined
+                          startReadThrough={toolbarControls.startReadThrough}
+                          filter={toolbarControls.filter}
+                          jumpToGroup={toolbarControls.jumpToGroup}
+                          rail={toolbarControls.rail}
+                          riskAttrCycle={toolbarControls.riskAttrCycle}
+                          supportingCollapse={
+                            toolbarControls.supportingCollapse
                           }
-                          filter={
-                            conversation !== undefined &&
-                            conversationWiring.conversationFilterFacets !==
-                              undefined
-                              ? {
-                                  filter:
-                                    conversationWiring.conversationFilterFacets
-                                      .applied,
-                                  hiddenInlineThreads:
-                                    conversationWiring.conversationFilterFacets
-                                      .hiddenInlineThreads,
-                                  reviewers:
-                                    conversationWiring.conversationFilterFacets
-                                      .reviewers,
-                                  verdicts:
-                                    conversationWiring.conversationFilterFacets
-                                      .verdicts,
-                                  onChange: conversation.onFilterChange,
-                                }
-                              : undefined
-                          }
-                          jumpToGroup={session.jumpToGroup}
-                          rail={attributeRail}
-                          supportingCollapse={session.supportingCollapse}
                           toggleCollapseSupporting={
-                            session.toggleCollapseSupporting
+                            toolbarControls.toggleCollapseSupporting
                           }
                         />
                       ) : null}
@@ -475,6 +487,37 @@ function BriefViewContent(props: BriefViewProps) {
                         diffView={diffView}
                         toggleDiffView={toggleDiffView}
                         revisions={reading.revisions}
+                        sheetTriggerRef={phoneChrome.indicatorRef}
+                      />
+                    ) : null}
+                    {regions.phoneBar ? (
+                      <PhoneBar
+                        chunkIds={session.chunkIds}
+                        chunksExpanded={chunksSheetExpanded}
+                        controlsRef={phoneChrome.controlsRef}
+                        indicatorRef={phoneChrome.indicatorRef}
+                        jumpToChunk={jumpToChunkUnderStack}
+                        openBriefControls={phoneChrome.openControls}
+                        openChunks={openChunksSheet}
+                        scope={overlay.compareState.view}
+                      />
+                    ) : null}
+                    {phoneChrome.controlsOpen ? (
+                      <BriefControlsSheet
+                        availability={overlay.availability}
+                        brief={brief}
+                        briefId={briefId}
+                        close={phoneChrome.closeControls}
+                        compareState={overlay.compareState}
+                        controlsSlot={pr?.headerControls}
+                        draftCommentCount={draftCommentCount}
+                        model={model}
+                        openSubmit={openSubmit}
+                        ownDraft={ownDraftHeader}
+                        repoConfig={repoConfig}
+                        toggleShortcuts={session.toggleShortcuts}
+                        toolbar={sheetToolbarControls}
+                        totals={session.totals}
                       />
                     ) : null}
                     {ownDraftActive ? null : (

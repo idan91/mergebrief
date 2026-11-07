@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { renderInRouter } from "../../../../../../../test/router";
+import { renderInRouter } from "../../../../../../test/router";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { ComparisonControls } from ".";
 

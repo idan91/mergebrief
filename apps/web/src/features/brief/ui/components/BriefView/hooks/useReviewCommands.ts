@@ -213,6 +213,7 @@ function useMarkReadyWiring(
     reviewComments: session.reviewComments,
     reviewerOverlayOpen,
     showIntentBar,
+    phoneControlsRef: input.phoneControlsRef,
   });
 
   return { markReady, intentBarRef };

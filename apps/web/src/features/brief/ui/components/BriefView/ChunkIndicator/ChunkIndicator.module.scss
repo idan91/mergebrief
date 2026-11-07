@@ -1,0 +1,47 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .indicator {
+    display: inline-flex;
+    flex: 1;
+    gap: functions.to-rem(8px);
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 0;
+    min-block-size: functions.to-rem(44px);
+    padding-block: 0;
+    padding-inline: functions.to-rem(8px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-1);
+    font: inherit;
+    font-size: var(--font-size-lg);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+
+    svg {
+      flex: none;
+      color: var(--color-text-2);
+    }
+  }
+
+  button.indicator {
+    cursor: pointer;
+
+    &:active {
+      background: var(--color-surface-3);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

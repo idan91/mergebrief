@@ -145,7 +145,7 @@
 
   // Pinned to the row's control box rather than Button's own padding, which
   // every other surface uses; the label centres inside whatever it holds.
-  .identityRow > [data-terminal-slot] {
+  .identityRow > .terminalSlot {
     display: inline-flex;
     align-items: center;
     min-block-size: var(--header-control-h);
@@ -263,34 +263,46 @@
     }
   }
 
+  .account {
+    display: contents;
+  }
+
+  .back {
+    display: none;
+  }
+
   @media (width <= 880px) {
     .identityRow {
       display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: functions.to-rem(6px)
-        clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
-      grid-template-areas: "lead cta menu";
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      padding-block: functions.to-rem(10px);
-      padding-inline: functions.to-rem(18px);
+      gap: 0;
+      block-size: functions.to-rem(43px);
+      min-block-size: 0;
+      padding-block: 0;
+      padding-inline: 0 functions.to-rem(16px);
+    }
+
+    .back {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: functions.to-rem(44px);
+      block-size: functions.to-rem(43px);
+      color: var(--color-text-2);
+
+      &:focus-visible {
+        @include mixins.focus-ring;
+
+        outline-offset: -2px;
+      }
     }
 
     .lead {
       display: flex;
       align-items: center;
       gap: functions.to-rem(10px);
-      grid-area: lead;
       min-inline-size: 0;
-    }
-
-    .metaLine {
-      flex-wrap: wrap;
-      overflow: visible;
-    }
-
-    .identityRow > [data-terminal-slot] {
-      align-self: center;
-      grid-area: cta;
     }
 
     .titleBlock {
@@ -298,22 +310,20 @@
       min-inline-size: 0;
     }
 
-    // Grid columns own the spacing; the flex spacer is dead weight here.
-    .spacer {
+    .spacer,
+    .account,
+    .comparisonRow,
+    .identityRow > .terminalSlot {
       display: none;
     }
 
-    .comparisonRow {
-      padding-inline: functions.to-rem(18px);
+    .header[data-focus] .identityRow {
+      grid-template-columns: auto minmax(0, 1fr) auto;
     }
 
-    // Narrow: each region owns its own line instead of competing for one.
-    .comparisonRow > * {
-      flex-basis: 100%;
-    }
-
-    .detailsRegion {
-      margin-inline-start: 0;
+    .header[data-focus] .identityRow > .terminalSlot {
+      display: inline-flex;
+      margin-inline-start: functions.to-rem(8px);
     }
   }
 }
@@ -358,10 +368,6 @@
 
     .title {
       flex: 1 1 auto;
-    }
-
-    .comparisonRow {
-      border-block-start-color: transparent;
     }
 
     .header:not([data-title-out]) .titleBlock {

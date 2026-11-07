@@ -1,7 +1,7 @@
 import type { KeyboardEvent, RefObject } from "react";
 
 // `aria-disabled` controls stay focusable so they keep announcing why they are off.
-const FOCUSABLE =
+export const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -19,7 +19,8 @@ export function useFocusTrap(
     }
 
     const matches =
-      containerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [];
+      containerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ??
+      [];
     // A roving group's off-stop members match the selector but are skipped by Tab.
     const nodes = [...matches].filter((node) => node.tabIndex >= 0);
     if (nodes.length === 0) {

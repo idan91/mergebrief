@@ -37,22 +37,10 @@ const GENERATING: NewerCommitsChipState = {
 };
 
 describe("DbBriefControls", () => {
-  it("announces the chip's outcomes from one live region", () => {
+  it("holds no live region, since a phone hides the header it sits in", () => {
     render(makeControls(GENERATING));
 
-    const regions = screen.getAllByRole("status");
-    expect(regions).toHaveLength(1);
-    expect(regions[0]?.textContent).toBe("New brief queued.");
-  });
-
-  it("keeps the region once the chip leaves", () => {
-    const view = render(makeControls(GENERATING));
-
-    view.rerender(makeControls({ announcement: "The new brief is ready." }));
-
-    expect(screen.queryByTestId("newer-commits-chip")).toBeNull();
-    expect(screen.getByRole("status").textContent).toBe(
-      "The new brief is ready.",
-    );
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByTestId("newer-commits-chip")).toBeTruthy();
   });
 });

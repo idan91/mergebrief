@@ -595,7 +595,7 @@
       "changes_one": "{{count}} change",
       "changes_other": "{{count}} changes",
       "attrsShort": "Attrs",
-      "attrsLong": "Risk attrs",
+      "attrsLong": "Risk attributes",
       "srFloorFired": ", floor attribute fired",
       "filterLabel": "Filter",
       "threadsInDiff_one": " thread in the diff",
@@ -1121,7 +1121,22 @@
     "mobile": {
       "viewedSummary": "{{viewed}} of {{total}} viewed",
       "chunkActions": "Chunk actions",
-      "closeChunkActions": "Close chunk actions"
+      "closeChunkActions": "Close chunk actions",
+      "overview": "Overview",
+      "changesOnly": "Changes only",
+      "chunkPosition": "Chunk {{current}} of {{total}}",
+      "openChunks": "Open chunks",
+      "briefControls": "Brief controls",
+      "closeBriefControls": "Close brief controls",
+      "chunksRead": "Chunks read",
+      "flagsOpen": "Flags open",
+      "factChunks_one": "chunk",
+      "factChunks_other": "chunks",
+      "factFlags_one": "flag",
+      "factFlags_other": "flags",
+      "factCoreLines": "core lines",
+      "filterThreads": "Filter threads",
+      "account": "Account"
     }
   },
   "review": {

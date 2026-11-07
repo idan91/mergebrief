@@ -313,7 +313,7 @@ describe("brief screen characterization", () => {
     // even on floor fire.
     await renderBriefView();
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Risk attributes/ }));
     const section = document.querySelector("[data-attribute-jump-rail]");
     expect(section).not.toBeNull();
     expect(section?.textContent).toContain("No tests");

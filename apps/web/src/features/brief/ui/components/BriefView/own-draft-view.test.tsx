@@ -17,6 +17,8 @@ import {
 import type { DraftCommentStatus } from "types/comments";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 
 const MARK_READY_COPY = {
@@ -975,5 +977,89 @@ describe("own-draft Brief view", () => {
     await waitFor(() =>
       expect(post.getAttribute("aria-disabled")).not.toBe("true"),
     );
+  });
+});
+
+describe("own-draft focus rescue on a phone", () => {
+  afterEach(resetMediaQueries);
+
+  function readPhoneControls(): HTMLElement {
+    return within(screen.getByTestId("phone-bar")).getByRole("button", {
+      name: "Brief controls",
+    });
+  }
+
+  function openGateFromControls(): void {
+    fireEvent.click(readPhoneControls());
+    const sheet = screen.getByRole("dialog", { name: "Brief controls" });
+    fireEvent.click(
+      within(sheet).getByRole("button", { name: "Mark ready for review" }),
+    );
+  }
+
+  it("lands on Brief controls when the PR goes ready under the gate", async () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
+    openGateFromControls();
+    expect(overlayState("Before marking ready")).toBe("open");
+
+    rerenderWith(undefined);
+
+    expect(document.activeElement).toBe(readPhoneControls());
+  });
+
+  it("lands on Brief controls after a failed batch", async () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
+    const postComment = vi.fn((_draftId: string) =>
+      Promise.resolve<PostCommentResult>({ kind: "upstream" }),
+    );
+    await renderBriefView({ markReady: vi.fn(), postComment });
+    openGateFromControls();
+    fireEvent.click(
+      await screen.findByRole("checkbox", {
+        name: /post my 2 draft comments/i,
+      }),
+    );
+    const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
+    confirm.focus();
+    fireEvent.click(confirm);
+
+    expect(
+      await screen.findByText(
+        markReadyBatchFailureCopy(appI18n.t, 0, 2, "indeterminate"),
+      ),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(readPhoneControls()),
+    );
+  });
+
+  it("lands on Brief controls when the head moves under the gate", async () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
+    openGateFromControls();
+    expect(overlayState("Before marking ready")).toBe("open");
+
+    rerenderWith({});
+
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    expect(document.activeElement).toBe(readPhoneControls());
+  });
+
+  it("lands on Brief controls when own-draft closes an open overlay", async () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    const { rerenderWith } = await renderBriefView(undefined);
+    fireEvent.click(readPhoneControls());
+    const sheet = screen.getByRole("dialog", { name: "Brief controls" });
+    fireEvent.click(within(sheet).getByRole("button", { name: /^Submit/ }));
+    expect(overlayState("Before you submit")).toBe("open");
+
+    rerenderWith({ markReady: vi.fn() });
+
+    expect(document.activeElement).toBe(readPhoneControls());
   });
 });

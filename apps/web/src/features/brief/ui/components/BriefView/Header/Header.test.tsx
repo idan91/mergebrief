@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   act,
   cleanup,
@@ -6,6 +9,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { compile } from "sass";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../../model/types";
@@ -15,6 +19,7 @@ import {
   renderStageInRouter,
 } from "../../../../../../test/router";
 import { intersectionObservers } from "../../../../../../test/setup";
+import { TERMINAL_SLOT_SELECTOR } from "../consts";
 import { CONTENT_START_ATTR } from "../utils";
 import { Header, type HeaderProps } from ".";
 
@@ -657,5 +662,75 @@ describe("Header own-draft state", () => {
     // No resolved/total fraction - it would sit at a permanent 0/N.
     expect(stat.textContent).toBe("Flags1");
     expect(stat.textContent).not.toContain("/");
+  });
+});
+
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const PHONE_MEDIA = /@media[^{]*width\s*<=\s*880px[^{]*\{/g;
+
+/** The compiled stylesheet's phone-width blocks, concatenated. */
+function readPhoneCss(): string {
+  const { css } = compile(join(TEST_DIR, "Header.module.scss"), {
+    loadPaths: [join(TEST_DIR, "../../../../../../styles")],
+    style: "compressed",
+  });
+  const blocks: string[] = [];
+  for (const match of css.matchAll(PHONE_MEDIA)) {
+    const open = match.index + match[0].length;
+    let depth = 1;
+    let at = open;
+    while (depth > 0 && at < css.length) {
+      depth += Number(css[at] === "{") - Number(css[at] === "}");
+      at += 1;
+    }
+    blocks.push(css.slice(open, at - 1));
+  }
+
+  return blocks.join("");
+}
+
+/** The declarations of the rule whose whole selector is `selector`. */
+function findDeclarations(css: string, selector: string): string | undefined {
+  const at = css.indexOf(`}${selector}{`);
+  if (at === -1) {
+    return undefined;
+  }
+  const start = at + selector.length + 2;
+  return css.slice(start, css.indexOf("}", start));
+}
+
+describe("Header terminal slot styling", () => {
+  it("styles the terminal CTA by class, never its behavioral attribute", () => {
+    const stylesheet = readFileSync(
+      join(TEST_DIR, "Header.module.scss"),
+      "utf8",
+    );
+
+    expect(stylesheet).not.toContain(TERMINAL_SLOT_SELECTOR);
+    expect(stylesheet).toContain(".identityRow > .terminalSlot");
+  });
+
+  it.each([
+    ["Submit", undefined],
+    ["Mark ready for review", { markReady: vi.fn(), pending: false }],
+  ])("gives the %s CTA the slot's class", async (name, ownDraft) => {
+    await renderHeader({ ownDraft });
+    const ctaClass = screen.getByRole("button", { name }).className;
+
+    expect(ctaClass).toContain("terminalSlot");
+  });
+});
+
+describe("Header on a phone in focus mode", () => {
+  it("keeps the terminal CTA beside Back and the title", () => {
+    const phoneCss = readPhoneCss();
+    const row = findDeclarations(phoneCss, ".header[data-focus] .identityRow");
+    const cta = findDeclarations(
+      phoneCss,
+      ".header[data-focus] .identityRow>.terminalSlot",
+    );
+
+    expect(row).toContain("grid-template-columns:auto minmax(0, 1fr) auto");
+    expect(cta).toContain("display:inline-flex");
   });
 });

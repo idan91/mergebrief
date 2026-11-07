@@ -1,0 +1,41 @@
+@use "functions";
+
+@layer components {
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    white-space: nowrap;
+  }
+
+  .count {
+    margin-inline-end: functions.to-rem(4px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stepBtn {
+    border-color: var(--color-outline-2);
+
+    &:not([aria-disabled="true"]):hover {
+      background: var(--color-surface-2);
+    }
+  }
+
+  .stepper[data-layout="sheet"] {
+    display: flex;
+    font-size: var(--font-size-lg);
+
+    .count {
+      flex: 1;
+      font-size: inherit;
+    }
+
+    // Nested to outrank IconButton's own size rule: 44px targets in a sheet.
+    .stepBtn {
+      inline-size: functions.to-rem(44px);
+      block-size: functions.to-rem(44px);
+    }
+  }
+}

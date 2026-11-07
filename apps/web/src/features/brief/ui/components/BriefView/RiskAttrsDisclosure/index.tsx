@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
 
 import { Popover } from "@web/components/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton";
-import { RiskBadge } from "../../RiskBadge";
-import type { AttributeDisplayMeta } from "../../../../../model/utils/repo-config";
-import type { AttributeRail } from "../../../../../model/utils/view-model";
+import type { RiskAttrCycle } from "../hooks/useRiskAttrCycle";
+import { RiskBadge } from "../RiskBadge";
+import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
+import type { AttributeRail } from "../../../../model/utils/view-model";
 import { DISCLOSURE_OFFSET_PX } from "../consts";
 import styles from "./RiskAttrsDisclosure.module.scss";
 
@@ -14,6 +14,11 @@ export interface RiskAttrsDisclosureProps {
   rail: AttributeRail;
   /** A chip click cycles through the attribute's carrying groups. */
   jumpToGroup: (groupId: string) => void;
+  cycle: RiskAttrCycle;
+  /** The panel rises as a sheet, for a trigger that already sits in one. */
+  sheet?: boolean;
+  /** The long label at every width, where the trigger has the room. */
+  longLabel?: boolean;
 }
 
 /**
@@ -25,12 +30,14 @@ export interface RiskAttrsDisclosureProps {
 export function RiskAttrsDisclosure({
   rail,
   jumpToGroup,
+  cycle,
+  sheet,
+  longLabel,
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
-  const [cycle, setCycle] = useState<ReadonlyMap<string, number>>(new Map());
   const chips = rail.entries.map((entry) => {
     const ids = entry.groupIds;
-    const position = cycle.get(entry.attr) ?? 0;
+    const position = cycle.positions.get(entry.attr) ?? 0;
     const target = ids[position % ids.length];
     const countSuffix = ` ×${String(ids.length)}`;
     const jumpPosition = (position % ids.length) + 1;
@@ -42,11 +49,14 @@ export function RiskAttrsDisclosure({
       entry.source === "repo-policy"
         ? { source: "repo-policy", deEmphasized: false }
         : undefined;
-    return { entry, position, target, countSuffix, jumpLabel, badgeMeta };
+    return { entry, target, countSuffix, jumpLabel, badgeMeta };
   });
 
   return (
-    <span className={styles["wrap"]}>
+    <span
+      className={styles["wrap"]}
+      data-label={longLabel ? "long" : undefined}
+    >
       <Popover offsetPx={DISCLOSURE_OFFSET_PX} portal={false}>
         <Popover.Trigger>
           <ToolbarButton>
@@ -74,17 +84,10 @@ export function RiskAttrsDisclosure({
             ) : null}
           </ToolbarButton>
         </Popover.Trigger>
-        <Popover.Content className={styles["panel"]}>
+        <Popover.Content className={styles["panel"]} sheet={sheet}>
           <div className={styles["chips"]} data-attribute-jump-rail="">
             {chips.map(
-              ({
-                entry,
-                position,
-                target,
-                countSuffix,
-                jumpLabel,
-                badgeMeta,
-              }) => (
+              ({ entry, target, countSuffix, jumpLabel, badgeMeta }) => (
                 // oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it
                 <button
                   className={styles["chipButton"]}
@@ -96,11 +99,7 @@ export function RiskAttrsDisclosure({
                       return;
                     }
                     jumpToGroup(target);
-                    setCycle((previous) => {
-                      const next = new Map(previous);
-                      next.set(entry.attr, position + 1);
-                      return next;
-                    });
+                    cycle.advance(entry.attr);
                   }}
                 >
                   <RiskBadge attribute={entry.attr} meta={badgeMeta}>

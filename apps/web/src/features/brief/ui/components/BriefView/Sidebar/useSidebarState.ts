@@ -22,7 +22,7 @@ export interface SidebarState {
   motionReady: boolean;
   /** Marks a revision pick: the next brief's sidebar takes focus back. */
   requestRevisionRefocus: () => void;
-  /** Answers the mark and clears it. */
+  /** Answers the mark, or a brief change that closed the sheet, and clears it. */
   takeRevisionRefocus: () => boolean;
 }
 
@@ -32,11 +32,13 @@ export interface SidebarState {
  * session only, always starting closed, and writes just the tab, so crossing
  * back to desktop restores what was stored. Hiding force-collapses the sheet
  * but leaves the stored preference untouched; on desktop the caller derives
- * hidden from `expanded` and never writes here.
+ * hidden from `expanded` and never writes here. A brief change closes the
+ * sheet too, and the next brief's sidebar takes focus back.
  */
 export function useSidebarState(
   band: ViewportBand,
   visible: boolean,
+  briefId: string,
 ): SidebarState {
   const [preference, setPreference] = useState<SidebarPreference>(
     DEFAULT_SIDEBAR_PREFERENCE,
@@ -46,6 +48,8 @@ export function useSidebarState(
   const [sheetOpen, setSheetOpen] = useState(false);
   const [lastBand, setLastBand] = useState(band);
   const [lastVisible, setLastVisible] = useState(visible);
+  const [lastBriefId, setLastBriefId] = useState(briefId);
+  const [sheetClosedByBrief, setSheetClosedByBrief] = useState(false);
   const narrow = band === ViewportBands.NARROW;
 
   // Crossing the breakpoint, or the sidebar leaving and returning, starts
@@ -54,6 +58,13 @@ export function useSidebarState(
     setLastBand(band);
     setLastVisible(visible);
     setSheetOpen(false);
+  }
+  if (lastBriefId !== briefId) {
+    setLastBriefId(briefId);
+    if (sheetOpen) {
+      setSheetOpen(false);
+      setSheetClosedByBrief(true);
+    }
   }
 
   // Before paint, so a client-side navigation never flashes the default.
@@ -100,10 +111,11 @@ export function useSidebarState(
     revisionRefocus.current = true;
   }, []);
   const takeRevisionRefocus = useCallback(() => {
-    const due = revisionRefocus.current;
+    const due = revisionRefocus.current || sheetClosedByBrief;
     revisionRefocus.current = false;
+    setSheetClosedByBrief(false);
     return due;
-  }, []);
+  }, [sheetClosedByBrief]);
 
   return {
     expanded,

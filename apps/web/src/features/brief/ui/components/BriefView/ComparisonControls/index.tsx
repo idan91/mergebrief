@@ -9,11 +9,11 @@ import {
   type BriefSearch,
   type CompareOptionFlags,
   type ViewParam,
-} from "../../../../../model/comparison/compare-state";
+} from "../../../../model/comparison/compare-state";
 import {
   CompareParams,
   type CompareParam,
-} from "../../../../../model/comparison/types";
+} from "../../../../model/comparison/types";
 import {
   SegmentedControl,
   SegmentedDensities,

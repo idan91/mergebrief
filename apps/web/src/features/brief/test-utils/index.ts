@@ -2,6 +2,7 @@ export {
   briefFixture,
   briefSummaryFixture,
   makeChunk,
+  makeComparisonState,
   makeRowRefs,
   stubFileRowsCache,
 } from "./fixtures";

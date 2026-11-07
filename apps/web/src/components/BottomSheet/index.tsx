@@ -8,7 +8,8 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
-import { useFocusTrap } from "@web/hooks/useFocusTrap";
+import { FOCUSABLE_SELECTOR, useFocusTrap } from "@web/hooks/useFocusTrap";
+import { SHEET_FOCUS_SELECTOR } from "./consts";
 import { BottomSheetHeights, type BottomSheetHeight } from "./types";
 import styles from "./BottomSheet.module.scss";
 
@@ -19,9 +20,29 @@ export interface BottomSheetProps {
   close: () => void;
   id?: string;
   testId?: string;
-  /** Where focus lands on open; the dialog itself when absent or unmatched. */
+  /**
+   * Where focus lands on open. Defaults to the control marked
+   * `data-sheet-focus`, else the first control after the handle, else the
+   * dialog itself.
+   */
   initialFocusSelector?: string;
   children: ReactNode;
+}
+
+function findInitialFocus(
+  dialog: HTMLElement,
+  selector: string | undefined,
+): HTMLElement | undefined {
+  const marked = dialog.querySelector<HTMLElement>(
+    selector ?? SHEET_FOCUS_SELECTOR,
+  );
+  if (marked !== null) {
+    return marked;
+  }
+  // The handle is the dialog's first control; focus belongs to the content.
+  const [, firstControl] =
+    dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+  return firstControl;
 }
 
 /**
@@ -47,13 +68,12 @@ export function BottomSheet({
   useBodyScrollLock(true);
 
   useEffect(() => {
-    const dialog = dialogRef.current ?? undefined;
-    const target =
-      initialFocusSelector === undefined
-        ? undefined
-        : (dialog?.querySelector<HTMLElement>(initialFocusSelector) ??
-          undefined);
-    (target ?? dialog)?.focus();
+    const dialog = dialogRef.current;
+    if (!dialog) {
+      return;
+    }
+    const target = findInitialFocus(dialog, initialFocusSelector);
+    (target ?? dialog).focus();
     // Focus lands once, on open.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);

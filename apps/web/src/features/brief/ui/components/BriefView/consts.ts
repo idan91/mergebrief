@@ -2,7 +2,12 @@ import type { TranslationKey } from "i18n";
 
 import { IconNames, type IconName } from "@web/components/Icon/types";
 import type { ShortcutSection } from "@web/components/ShortcutsModal";
-import { PrStateBadgeVariants, type PrStateBadgeVariant } from "./types";
+import {
+  PrStateBadgeVariants,
+  SupportingCollapseStates,
+  type PrStateBadgeVariant,
+  type SupportingCollapseState,
+} from "./types";
 
 /** The state glyphs, the same drawings Home's row end uses. */
 export const PR_STATE_BADGE_ICONS: Record<PrStateBadgeVariant, IconName> = {
@@ -75,3 +80,26 @@ export const SESSION_FROZEN_REASON_KEY: TranslationKey =
 
 /** A commit or blob sha as the page abbreviates it. */
 export const SHORT_SHA_LENGTH = 7;
+
+/**
+ * The terminal-action CTA, Submit review or Mark ready, which
+ * `SubmitReviewCta` and `MarkReadyCta` mark with `data-terminal-slot`;
+ * orphaned focus is rescued onto it. Never a styling or test hook.
+ */
+export const TERMINAL_SLOT_SELECTOR = "[data-terminal-slot]";
+
+/**
+ * 14px from the trigger's bottom edge: the trigger sits inside the bar's
+ * 8px inset (+1px border), leaving a ~5px visible gap below the bar.
+ */
+export const DISCLOSURE_OFFSET_PX = 14;
+
+/** The collapse toggle's aria-pressed per collapse state, mixed included. */
+export const COLLAPSE_PRESSED: Record<
+  SupportingCollapseState,
+  boolean | "mixed"
+> = {
+  [SupportingCollapseStates.NONE]: false,
+  [SupportingCollapseStates.SOME]: "mixed",
+  [SupportingCollapseStates.ALL]: true,
+};

@@ -16,6 +16,7 @@ export function useViewLayout({
   readingPosition,
   session,
   scope,
+  briefId,
 }: UseViewLayoutInput): ViewLayout {
   const { focusMode } = session;
 
@@ -26,7 +27,7 @@ export function useViewLayout({
     focusMode,
     band,
   });
-  const sidebar = useSidebarState(band, regions.sidebar);
+  const sidebar = useSidebarState(band, regions.sidebar, briefId);
   const sidebarLayout = resolveSidebarLayout(band, sidebar.expanded);
   useSidebarFocusReturn(regions.sidebar);
 

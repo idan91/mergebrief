@@ -4,6 +4,9 @@ import { Concerns, Roles } from "brief-core/types";
 import { type RowRef, RowRefKinds } from "../model/expansion/types";
 import { type Brief, type BriefChunk } from "../model/types";
 import type { RepoConfigContext } from "../model/utils/repo-config";
+import type { ComparisonOverlayState } from "../model/comparison/comparison-overlay";
+import type { ComparisonSource } from "../model/comparison/runs";
+import { CompareParams, type CompareParam } from "../model/comparison/types";
 import type { FileRowsCache } from "../model/file-rows/cache";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 
@@ -182,4 +185,24 @@ export function stubLazyDiff<Entry extends { diff?: DiffLine[] }>(
     },
   });
   return { entry: lazy, reads: () => reads };
+}
+
+/** The compare overlay at a baseline with this many changed runs; off is unavailable. */
+export function makeComparisonState(
+  compare: CompareParam,
+  runCount: number,
+): ComparisonOverlayState {
+  const source: ComparisonSource =
+    compare === CompareParams.PREVIOUS_BRIEF
+      ? { kind: "previous-brief", brief: briefFixture, narrative: null }
+      : { kind: "last-review", delta: null };
+
+  return {
+    compare,
+    marks: null,
+    source,
+    skipReason: null,
+    available: compare !== CompareParams.OFF,
+    runCount,
+  };
 }
