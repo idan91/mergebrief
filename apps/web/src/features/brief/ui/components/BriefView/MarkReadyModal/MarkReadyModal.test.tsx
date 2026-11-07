@@ -15,6 +15,7 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import modalStyles from "@web/components/Modal/Modal.module.scss";
 import type { RiskFlag } from "@web/features/brief/model/utils/view-model";
 import {
   compileStylesheet,
@@ -98,6 +99,21 @@ describe("MarkReadyModal", () => {
     expect(resolveInheritedDeclaration(attribute, rules, "color")).toBe(
       "var(--color-text-3)",
     );
+  });
+
+  it("scrolls the flag list alone, its header and actions outside", () => {
+    renderModal();
+    const dialog = screen.getByRole("dialog");
+    const list = screen.getByRole("button", {
+      name: /Touches auth/,
+    }).parentElement;
+    const heading = screen.getByRole("heading", { level: 2 });
+    const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
+
+    expect(list?.parentElement).toBe(dialog);
+    expect(list?.className).toBe(modalStyles["unresolvedList"]);
+    expect(list?.contains(heading)).toBe(false);
+    expect(list?.contains(confirm)).toBe(false);
   });
 
   it("names a flagged path with a bidi override by a visible escape", () => {

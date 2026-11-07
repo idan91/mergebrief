@@ -3,7 +3,14 @@ import { fileURLToPath } from "node:url";
 
 import { compile, compileString } from "sass";
 
-const STYLES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../styles");
+import { LANDSCAPE_HEIGHT_PX } from "@web/hooks/useMobileViewport";
+
+const TEST_UTILS_DIR = dirname(fileURLToPath(import.meta.url));
+const STYLES_DIR = join(TEST_UTILS_DIR, "..", "styles");
+
+/** The short-screen query as a CompiledRule's `media` reads it. */
+export const SHORT_SCREEN_MEDIA = `(max-height: ${String(LANDSCAPE_HEIGHT_PX)}px)`;
+
 const CLASS_SELECTOR = /\.([A-Za-z_][\w-]*)/g;
 
 /** A style rule from compiled CSS and the media query it sits under. */
@@ -104,6 +111,24 @@ function findLastDeclaration(
       rule.selectors.some((selector) => node.matches(selector)),
   );
   return matching.at(-1)?.declarations.get(property);
+}
+
+/** What every rule for `selector` under `media` declares, a later rule winning; no media means outside any. */
+export function readDeclarations(
+  rules: readonly CompiledRule[],
+  selector: string,
+  media?: string,
+): Map<string, string> {
+  const declarations = new Map<string, string>();
+  for (const rule of rules) {
+    const matches = rule.selectors.join(", ") === selector;
+    if (matches && rule.media === media) {
+      for (const [property, value] of rule.declarations) {
+        declarations.set(property, value);
+      }
+    }
+  }
+  return declarations;
 }
 
 function buildRule(

@@ -120,11 +120,72 @@
     inline-size: functions.to-rem(560px);
   }
 
+  // Flex margins do not collapse: the lines below the list keep only a top
+  // margin here, restating the gaps .copy's collapsed margins give elsewhere.
+  .box:has(> .unresolvedList) {
+    display: flex;
+    flex-direction: column;
+
+    > .copy,
+    > .postDraftsToggle {
+      margin-block-end: 0;
+    }
+
+    > .copy + .copy,
+    > .copy + .postDraftsToggle {
+      margin-block-start: functions.to-rem(14px);
+    }
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: contain;
+    }
+  }
+
   .unresolvedList {
     display: grid;
+    flex: 0 1 auto;
+    grid-auto-rows: max-content;
+    min-block-size: max-content;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     gap: functions.to-rem(8px);
+
+    // The padding and matching negative margins keep a row's focus ring
+    // inside the list's scrollport, which would otherwise clip it.
+    --ring-room: #{functions.to-rem(5px)};
+
+    padding: var(--ring-room);
     padding-block-end: functions.to-rem(8px);
+    margin-block-start: calc(-1 * var(--ring-room));
+    margin-inline: calc(-1 * var(--ring-room));
+    scroll-padding-block: var(--ring-room);
     border-block-end: 1px solid var(--color-outline-1);
+
+    // A border image, not ::after, so the inset rule stays put on scroll.
+    border-image: linear-gradient(
+        to right,
+        transparent var(--ring-room),
+        var(--color-outline-1) var(--ring-room),
+        var(--color-outline-1) calc(100% - var(--ring-room)),
+        transparent calc(100% - var(--ring-room))
+      )
+      0 0 1 0;
+
+    &:has(> :nth-child(2)) {
+      min-block-size: functions.to-rem(120px);
+    }
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: auto;
+    }
   }
 
   .evidenceOptions {

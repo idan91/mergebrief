@@ -18,6 +18,7 @@ import {
   scopeCompiledRules,
 } from "@web/test/compiled-css";
 import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
+import modalStyles from "@web/components/Modal/Modal.module.scss";
 
 import {
   createReviewFlowStore,
@@ -403,6 +404,21 @@ describe("SubmitModal advisory view", () => {
     renderModal({ unresolvedItems: items, jumpToItem });
     fireEvent.click(screen.getByRole("button", { name: /open risk/i }));
     expect(jumpToItem).toHaveBeenCalledWith(items[0]);
+  });
+
+  it("scrolls the advisory list alone, its header and actions outside", () => {
+    renderModal({ unresolvedItems: items });
+    const dialog = screen.getByRole("dialog", { name: /before you submit/i });
+    const list = screen.getByRole("button", {
+      name: /open risk/i,
+    }).parentElement;
+    const heading = screen.getByRole("heading", { name: /before you submit/i });
+    const continueButton = screen.getByRole("button", { name: /^continue$/i });
+
+    expect(list?.parentElement).toBe(dialog);
+    expect(list?.className).toBe(modalStyles["unresolvedList"]);
+    expect(list?.contains(heading)).toBe(false);
+    expect(list?.contains(continueButton)).toBe(false);
   });
 
   it("captures the items at open: a mid-flow prop change never reshuffles", () => {

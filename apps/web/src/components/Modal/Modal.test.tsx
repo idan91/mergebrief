@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
 import { useRef, useState } from "react";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  compileStylesheet,
+  parseCompiledRules,
+  readDeclarations,
+  SHORT_SCREEN_MEDIA,
+} from "@web/test/compiled-css";
 import { stubExitTransition } from "@web/test/transitions";
 import { Button } from "../Button";
 import { Modal } from ".";
@@ -258,5 +266,46 @@ describe("Modal exit", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     expect(screen.getByText("Delete nothing")).toBeTruthy();
+  });
+});
+
+const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const MODAL_STYLESHEET = join(TEST_DIRECTORY, "Modal.module.scss");
+const MODAL_RULES = parseCompiledRules(compileStylesheet(MODAL_STYLESHEET));
+const LIST_BOX = ".box:has(> .unresolvedList)";
+const LIST = ".unresolvedList";
+const LONG_LIST = ".unresolvedList:has(> :nth-child(2))";
+
+describe("Modal list dialogs", () => {
+  it("scrolls only the list between a fixed header and footer", () => {
+    const box = readDeclarations(MODAL_RULES, LIST_BOX);
+    const list = readDeclarations(MODAL_RULES, LIST);
+    const longList = readDeclarations(MODAL_RULES, LONG_LIST);
+
+    expect(box.get("display")).toBe("flex");
+    expect(box.get("flex-direction")).toBe("column");
+    expect(list.get("flex")).toBe("0 1 auto");
+    expect(list.get("overflow-y")).toBe("auto");
+    expect(list.get("overscroll-behavior")).toBe("contain");
+    expect(longList.get("min-block-size")).toBe("7.5rem");
+  });
+
+  it("keeps a focused row's ring inside the list's scrollport", () => {
+    const list = readDeclarations(MODAL_RULES, LIST);
+    const ringRoom = "var(--ring-room)";
+
+    expect(list.get("--ring-room")).toBe("0.3125rem");
+    expect(list.get("padding")).toBe(ringRoom);
+    expect(list.get("margin-block-start")).toBe(`calc(-1 * ${ringRoom})`);
+    expect(list.get("margin-inline")).toBe(`calc(-1 * ${ringRoom})`);
+    expect(list.get("scroll-padding-block")).toBe(ringRoom);
+  });
+
+  it("hands a drag past the list's end to the box on short screens", () => {
+    const box = readDeclarations(MODAL_RULES, LIST_BOX, SHORT_SCREEN_MEDIA);
+    const list = readDeclarations(MODAL_RULES, LIST, SHORT_SCREEN_MEDIA);
+
+    expect(list.get("overscroll-behavior")).toBe("auto");
+    expect(box.get("overscroll-behavior")).toBe("contain");
   });
 });
