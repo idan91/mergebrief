@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../../../model/types";
@@ -9,6 +9,10 @@ import { GeneratedBar } from ".";
 
 const brief: Brief = {
   ...briefFixture,
+  concernView: [
+    { concern: "implementation", added: 40, deleted: 10 },
+    { concern: "test", added: 30, deleted: 0 },
+  ],
   commitRange: { base: "basebase1111", head: "headhead2222", commitCount: 1 },
   generation: { provider: "anthropic", model: "m-1", effort: "high" },
 };
@@ -24,5 +28,12 @@ describe("GeneratedBar", () => {
     expect(screen.getByTestId("coverage-line").textContent).toBe(
       "Covers basebas..headhea · 1 commit",
     );
+  });
+
+  it("lists each Split share's lines in the details panel", () => {
+    render(<GeneratedBar brief={brief} model={buildBriefViewModel(brief)} />);
+    fireEvent.click(screen.getByRole("button", { name: "Brief details" }));
+
+    expect(screen.getByTestId("details-split").textContent).toContain("+40");
   });
 });

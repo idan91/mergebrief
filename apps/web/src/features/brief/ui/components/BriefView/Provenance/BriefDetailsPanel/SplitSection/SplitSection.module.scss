@@ -1,0 +1,15 @@
+@use "functions";
+
+@layer components {
+  .row {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .percent {
+    margin-inline-start: functions.to-rem(4px);
+    color: var(--color-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+}

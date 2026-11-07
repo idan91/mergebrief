@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ConcernRollup } from "brief-core/types";
 import { describe, expect, it } from "vitest";
 
@@ -57,6 +57,13 @@ describe("StatsCard", () => {
     ]);
     expect(rows[0]?.textContent).toContain("50%");
     expect(rows[2]?.textContent).toContain("Unattributed");
+  });
+
+  it("leaves the Split out of the details panel beside its rows", () => {
+    renderCard(TWO_CONCERNS, { ...brief, concernView: TWO_CONCERNS });
+    fireEvent.click(screen.getByRole("button", { name: "Brief details" }));
+
+    expect(screen.queryByTestId("details-split")).toBeNull();
   });
 
   it("drops the Split below two concerns", () => {

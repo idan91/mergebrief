@@ -143,16 +143,6 @@
   }
 
   .postDraftsToggle {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(8px);
     margin-block: functions.to-rem(2px) functions.to-rem(6px);
-    color: var(--color-text-2);
-    font-size: var(--font-size-lg);
-    cursor: pointer;
-
-    input {
-      flex-shrink: 0;
-    }
   }
 }

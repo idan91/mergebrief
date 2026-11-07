@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
 import { Button } from "@web/components/Button";
+import { Checkbox } from "@web/components/Checkbox";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import {
   MarkdownTextareaFrames,
@@ -148,16 +149,11 @@ export function VerdictView({
           <p id="submit-modal-stale-warning" role="status">
             {t("review.submit.staleWarning")}
           </p>
-          <label className={styles["staleAck"]}>
-            <input
-              checked={stale.acked}
-              onChange={(event) => {
-                stale.setAcked(event.target.checked);
-              }}
-              type="checkbox"
-            />
-            {t("review.submit.staleAck")}
-          </label>
+          <div className={styles["staleAck"]}>
+            <Checkbox checked={stale.acked} onChange={stale.setAcked}>
+              {t("review.submit.staleAck")}
+            </Checkbox>
+          </div>
         </div>
       ) : null}
       <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>

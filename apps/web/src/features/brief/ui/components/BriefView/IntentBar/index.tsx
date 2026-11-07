@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { forwardRef, useId, useImperativeHandle, useState } from "react";
 
 import {
+  AlignmentReads,
+  PrimaryTicketStatuses,
   Specificities,
   type IntentCheck,
   type IntentItem,
@@ -27,6 +29,7 @@ import { ScopeNote } from "./ScopeNote";
 import { TicketAlignment } from "./TicketAlignment";
 import {
   isHttpUrl,
+  listNonZeroIntentCounts,
   partitionIntentCheck,
   type IntentBucketSpec,
 } from "./utils";
@@ -240,9 +243,19 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
     const available = specificity === Specificities.PRECISE;
 
-    const summary = available ? (
+    const statedCounts = listNonZeroIntentCounts(intentCheck, INTENT_COUNTS);
+    const ticketReadAgrees =
+      alignment === undefined || alignment.read === AlignmentReads.ALIGNED;
+    const ticketUnread = primaryTicket?.status === PrimaryTicketStatuses.UNREAD;
+    const nothingToReport =
+      statedCounts.length === 0 && ticketReadAgrees && !ticketUnread;
+    const counts = nothingToReport ? (
+      <span className={styles["nothingFound"]}>
+        {t("brief.intent.nothingFound")}
+      </span>
+    ) : (
       <span className={styles["counts"]}>
-        {INTENT_COUNTS.map(({ field, labelKey }) => (
+        {statedCounts.map(({ field, labelKey }) => (
           <IntentCount
             count={intentCheck[field].length}
             key={field}
@@ -250,6 +263,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           />
         ))}
       </span>
+    );
+    const summary = available ? (
+      counts
     ) : (
       <span className={styles["unavailable"]}>
         {t("brief.intent.unavailable", {

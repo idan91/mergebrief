@@ -38,6 +38,14 @@ export interface IntentBucketSpec {
   alarm: boolean;
 }
 
+/** The counts worth stating: a clean run omits its zeros, the legend names them all. */
+export function listNonZeroIntentCounts(
+  intentCheck: IntentCheck,
+  counts: readonly IntentCountSpec[],
+): IntentCountSpec[] {
+  return counts.filter(({ field }) => intentCheck[field].length > 0);
+}
+
 function hasItems(bucket: IntentBucketSpec): boolean {
   return bucket.items.length > 0;
 }

@@ -35,7 +35,12 @@ export function StatsCard({
     <div className={cardClassName} data-testid="stats-card">
       <section className={styles["section"]}>
         <h2 className={styles["label"]}>{t("brief.masthead.generatedBy")}</h2>
-        <Provenance brief={brief} model={model} repoConfig={repoConfig} />
+        <Provenance
+          brief={brief}
+          listsSplit={false}
+          model={model}
+          repoConfig={repoConfig}
+        />
         <CoverageLine brief={brief} />
       </section>
       {showSplit ? (

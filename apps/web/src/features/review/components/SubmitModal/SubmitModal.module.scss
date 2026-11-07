@@ -100,11 +100,7 @@
   }
 
   .staleAck {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(8px);
     margin-block-start: functions.to-rem(10px);
-    cursor: pointer;
   }
 
   .submitStatus {

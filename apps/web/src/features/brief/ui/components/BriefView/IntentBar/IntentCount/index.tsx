@@ -8,12 +8,10 @@ export interface IntentCountProps {
   labelKey: IntentCountSpec["labelKey"];
 }
 
-/** A neutral, uncoloured count: an alarm count reads like the others. */
+/** A neutral, uncoloured count: an alarm count reads like the others. Zero is never rendered. */
 export function IntentCount({ count, labelKey }: IntentCountProps) {
-  const zero = count === 0 || undefined;
-
   return (
-    <span className={styles["count"]} data-zero={zero}>
+    <span className={styles["count"]}>
       <Trans
         components={[<b className={styles["countNum"]} key="n" />]}
         count={count}

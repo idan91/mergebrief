@@ -516,6 +516,7 @@
       "deviations_one": "<0>{{count}}</0> deviation",
       "deviations_other": "<0>{{count}}</0> deviations",
       "unavailable": "Intent check unavailable: {{reason}}",
+      "nothingFound": "Checked: nothing to report",
       "reasonBroad": "the ticket scope is too broad to check against this PR",
       "reasonNone": "no stated intent was available for this PR",
       "bucketAccomplished": "Accomplished",

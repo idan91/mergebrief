@@ -238,10 +238,13 @@ test("a flag dismissed from a section reads dismissed on the group card", async 
   page,
 }) => {
   await gotoBrief(page, CHANGES);
-  await page
-    .getByRole("checkbox", { name: /Select flags on/ })
-    .first()
-    .click();
+  const fileLabel = page
+    .locator("label")
+    .filter({ has: page.getByRole("checkbox", { name: /Select flags on/ }) })
+    .first();
+  const fileCheckbox = fileLabel.getByRole("checkbox");
+  await fileLabel.click();
+  await expect(fileCheckbox).toBeChecked();
   await page.getByRole("button", { name: "Dismiss selected…" }).click();
   await page
     .getByRole("textbox", { name: "Dismissal reason" })

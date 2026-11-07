@@ -9,6 +9,7 @@ import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { Brief } from "../../../../../model/types";
+import type { ConcernShare } from "../../Masthead/types";
 import {
   getRepoConfigOutcomeLabel,
   type RepoConfigContext,
@@ -21,6 +22,7 @@ import {
   IconSizes,
 } from "@web/components/Icon/types";
 import styles from "./BriefDetailsPanel.module.scss";
+import { SplitSection } from "./SplitSection";
 import { listWarningLines } from "./utils";
 
 export interface BriefDetailsPanelProps {
@@ -33,6 +35,8 @@ export interface BriefDetailsPanelProps {
   totalCoreDeleted: number;
   /** Repo-config snapshot; absent/null → the section reports "no config". */
   repoConfig?: RepoConfigContext | null | undefined;
+  /** The concern Split; the panel lists each share's lines. Absent leaves the section out. */
+  shares?: readonly ConcernShare[] | undefined;
 }
 
 /**
@@ -52,6 +56,7 @@ export function BriefDetailsPanel({
   totalCoreAdded,
   totalCoreDeleted,
   repoConfig,
+  shares,
 }: BriefDetailsPanelProps) {
   const { t } = useTranslation();
   const detailId = useId();
@@ -172,6 +177,7 @@ export function BriefDetailsPanel({
                 totalCoreAdded={totalCoreAdded}
                 totalCoreDeleted={totalCoreDeleted}
               />
+              {shares ? <SplitSection shares={shares} /> : null}
               <GenerationSection
                 brief={brief}
                 warnings={warnings}

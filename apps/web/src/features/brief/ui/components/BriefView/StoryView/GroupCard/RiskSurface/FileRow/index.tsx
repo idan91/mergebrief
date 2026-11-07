@@ -5,6 +5,7 @@ import type {
   Disposition,
   ReviewFlowActions,
 } from "@web/features/review/session";
+import { Checkbox } from "@web/components/Checkbox";
 import { LinkButton } from "@web/components/LinkButton";
 import { RiskBadge } from "../../../../RiskBadge";
 import { RiskChipDisclosure } from "../../../../RiskChipDisclosure";
@@ -57,6 +58,7 @@ export function FileRow({
     selectedFlagSet.has(flagId),
   ).length;
   const allSelected = openIds.length > 0 && selectedCount === openIds.length;
+  const nothingOpen = openIds.length === 0;
   const notes = row.flags.filter((flag) => flag.note !== undefined);
   const mixed = row.resolvedFlags.length > 0 && row.openFlags.length > 0;
   const jumpChunkId = pickPathJumpChunkId(row);
@@ -87,16 +89,15 @@ export function FileRow({
       {flagsReadOnly ? (
         <span aria-hidden="true" className={styles["check"]} />
       ) : (
-        <label className={styles["check"]}>
-          <input
-            aria-label={t("brief.group.selectFile", { file: row.displayFile })}
+        <span className={styles["check"]}>
+          <Checkbox
+            ariaLabel={t("brief.group.selectFile", { file: row.displayFile })}
             checked={allSelected}
-            disabled={openIds.length === 0}
+            disabled={nothingOpen}
             suppressHydrationWarning
-            type="checkbox"
             onChange={() => toggleRiskGroup(openIds)}
           />
-        </label>
+        </span>
       )}
       <div className={styles["identity"]}>
         <LinkButton

@@ -104,35 +104,50 @@ describe("IntentBar", () => {
     ).toBeNull();
   });
 
-  it("shows all five neutral bucket counts in the always-visible header", () => {
+  it.each([
+    { status: "read", read: undefined, reports: true },
+    { status: "read", read: "aligned", reports: true },
+    { status: "read", read: "partial", reports: false },
+    { status: "read", read: "misaligned", reports: false },
+    { status: "unread", read: undefined, reports: false },
+  ] as const)(
+    "decides nothing to report when the ticket is $status, read $read",
+    ({ status, read, reports }) => {
+      const intentCheck: IntentCheck = {
+        ...PRECISE_NO_TICKET,
+        primaryTicket: { ...PRIMARY, status },
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      };
+      if (read !== undefined) {
+        intentCheck.alignment = { ...ALIGNMENT, read };
+      }
+      render(<IntentBar intentCheck={intentCheck} jumpToGroup={() => {}} />);
+
+      const line = screen.queryByText("Checked: nothing to report");
+      expect(line !== null).toBe(reports);
+    },
+  );
+
+  it("states only the non-zero counts in the always-visible header", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     // The count digit renders in its own weighted element, so the pair is
     // asserted on the toggle's full text rather than one text node.
     const toggle = screen.getByRole("button", { name: /intent check/i });
     for (const pair of [
       "1 accomplished",
-      "0 masked fixes",
-      "0 deviations",
       "1 stated but missing",
       "1 done but unstated",
     ]) {
       expect(toggle.textContent).toContain(pair);
     }
+    expect(toggle.textContent).not.toContain("masked fixes");
+    expect(toggle.textContent).not.toContain("deviations");
     // Provenance, not a bucket count: the Ticket alignment card lives in the
     // panel preamble, never the bar.
     expect(toggle.textContent).not.toContain("Ticket alignment");
     expect(toggle.textContent).not.toContain("partial");
-  });
-
-  it("marks only the empty counts so they can recede", () => {
-    const { container } = render(
-      <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
-    );
-
-    const zero = [...container.querySelectorAll("[data-zero]")].map(
-      (count) => count.textContent,
-    );
-    expect(zero).toEqual(["0 masked fixes", "0 deviations"]);
   });
 
   it("starts collapsed, never auto-expands, and turns the twist on open", () => {
@@ -834,14 +849,13 @@ describe("IntentBar alarm buckets", () => {
     expect(html).not.toContain("AI-inferred tension");
     expect(html).not.toContain("Masked fixes");
     expect(html).not.toContain("Deviations acknowledged");
-    // The header counts stay the neutral flat five: same class, no color,
-    // no ordering.
+    // The header counts stay neutral: same class, no color, no ordering.
     const counts = [...container.querySelectorAll("span")].filter((node) =>
       /^\d+ (accomplished|masked fix(?:es)?|deviations|stated but missing|done but unstated)$/.test(
         (node.textContent ?? "").replace(/\s+/g, " ").trim(),
       ),
     );
-    expect(counts).toHaveLength(5);
+    expect(counts).toHaveLength(3);
     const classes = new Set(counts.map((node) => node.className));
     expect(classes.size).toBe(1);
   });

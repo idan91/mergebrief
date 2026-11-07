@@ -2,7 +2,10 @@
 @use "mixins";
 
 @layer components {
+  // The hidden input positions against this: outside a scrolling dialog's
+  // content it would not scroll with it, and tabbing to it would not reveal it.
   .root {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(7px);
@@ -23,6 +26,11 @@
     &[data-disabled] {
       color: var(--color-text-3);
       cursor: default;
+    }
+
+    &[data-variant="bare"] {
+      justify-content: center;
+      min-inline-size: functions.to-rem(24px);
     }
   }
 

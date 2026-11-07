@@ -73,4 +73,19 @@ describe("Checkbox", () => {
     );
     expect(inputRef.current).toBe(screen.getByRole("checkbox"));
   });
+
+  it("names a control with no visible label from its aria label", () => {
+    const onChange = vi.fn();
+    render(
+      <Checkbox
+        ariaLabel="Select app.ts"
+        checked={false}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select app.ts" }));
+
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
 });

@@ -11,7 +11,9 @@ export interface CheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   /** The visible label; also the accessible name (it wraps the input). */
-  children: ReactNode;
+  children?: ReactNode;
+  /** The accessible name of a control with no visible label beside it. */
+  ariaLabel?: string;
   disabled?: boolean | undefined;
   /** A partial set: the control reads mixed and draws a dash. */
   indeterminate?: boolean | undefined;
@@ -19,16 +21,20 @@ export interface CheckboxProps {
   testId?: string | undefined;
   /** The native input, for a caller that moves focus onto it. */
   inputRef?: RefObject<HTMLInputElement | null> | undefined;
+  /** For a state the server cannot render, such as one restored in the browser. */
+  suppressHydrationWarning?: boolean;
 }
 
 export function Checkbox({
   checked,
   onChange,
   children,
+  ariaLabel,
   disabled,
   indeterminate = false,
   testId,
   inputRef,
+  suppressHydrationWarning,
 }: CheckboxProps) {
   const ownRef = useRef<HTMLInputElement>(null);
   // Indeterminate is a DOM property, not an attribute; it is set by hand.
@@ -44,20 +50,29 @@ export function Checkbox({
     }
   }
 
+  const labelled = children !== undefined;
+  const variant = labelled ? undefined : "bare";
+
   return (
-    <label className={styles["root"]} data-disabled={disabled || undefined}>
+    <label
+      className={styles["root"]}
+      data-disabled={disabled || undefined}
+      data-variant={variant}
+    >
       <input
         aria-checked={indeterminate ? "mixed" : undefined}
+        aria-label={ariaLabel}
         checked={checked}
         className={styles["input"]}
         disabled={disabled}
         ref={setInput}
+        suppressHydrationWarning={suppressHydrationWarning}
         type="checkbox"
         {...(testId === undefined ? {} : { "data-testid": testId })}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span aria-hidden className={styles["box"]} />
-      <span className={styles["label"]}>{children}</span>
+      {labelled ? <span className={styles["label"]}>{children}</span> : null}
     </label>
   );
 }

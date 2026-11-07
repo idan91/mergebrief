@@ -10,6 +10,7 @@
 import { useTranslation } from "react-i18next";
 import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Button } from "@web/components/Button";
+import { Checkbox } from "@web/components/Checkbox";
 import { LinkButton } from "@web/components/LinkButton";
 import { RowButton } from "@web/components/RowButton";
 import { Modal } from "@web/components/Modal";
@@ -172,15 +173,15 @@ export function MarkReadyModal({
               {t("pulls.markReadyModal.jumpToDrafts")}
             </LinkButton>
           </p>
-          <label className={styles["postDraftsToggle"]}>
-            <input
-              type="checkbox"
+          <div className={styles["postDraftsToggle"]}>
+            <Checkbox
               checked={postDrafts}
               disabled={busy}
-              onChange={(event) => setPostDrafts?.(event.target.checked)}
-            />
-            <span>{draftLabel}</span>
-          </label>
+              onChange={(checked) => setPostDrafts?.(checked)}
+            >
+              {draftLabel}
+            </Checkbox>
+          </div>
         </>
       ) : null}
       <div className={styles["actions"]}>

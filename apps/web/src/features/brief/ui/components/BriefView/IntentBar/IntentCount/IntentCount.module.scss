@@ -17,19 +17,7 @@
     content: none;
   }
 
-  .count[data-zero] {
-    color: var(--color-text-3);
-
-    .countNum {
-      font-weight: 400;
-    }
-  }
-
   @media (width <= 600px) {
-    .count[data-zero] {
-      display: none;
-    }
-
     .count::after {
       content: none;
     }

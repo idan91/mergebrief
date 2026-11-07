@@ -6,6 +6,7 @@ import { AnchorWarnings } from "brief-core/types";
 
 import { appI18n } from "@web/i18n/I18nProvider";
 import type { Brief } from "../../../../../model/types";
+import { computeConcernShares } from "../../Masthead/utils";
 import { BriefDetailsPanel } from ".";
 
 const baseBrief: Brief = {
@@ -36,6 +37,14 @@ const baseBrief: Brief = {
   concernView: [],
 };
 
+const TWO_CONCERN_SHARES = computeConcernShares(
+  [
+    { concern: "implementation", added: 40, deleted: 10 },
+    { concern: "test", added: 30, deleted: 0 },
+  ],
+  { added: 20, deleted: 0 },
+);
+
 const {
   index: _index,
   commitRange: _commitRange,
@@ -59,6 +68,7 @@ function renderPanel(
     <BriefDetailsPanel
       brief={brief}
       repoConfig={repoConfig}
+      shares={TWO_CONCERN_SHARES}
       totalAdded={137}
       totalDeleted={76}
       totalCoreAdded={104}
@@ -383,5 +393,18 @@ describe("BriefDetailsPanel sections for a delta artifact", () => {
     expect(text).toContain("c".repeat(40));
     expect(text).toContain("a".repeat(40));
     expect(text).not.toContain(appI18n.t("brief.details.commitRange"));
+  });
+});
+
+describe("BriefDetailsPanel split section", () => {
+  it("keeps each share's lines and percent behind the trigger", () => {
+    renderPanel();
+    fireEvent.click(infoTrigger());
+
+    const section = screen.getByTestId("details-split").textContent;
+    expect(section).toContain("Implementation");
+    expect(section).toContain("+40");
+    expect(section).toContain("50%");
+    expect(section).toContain("Unattributed");
   });
 });
