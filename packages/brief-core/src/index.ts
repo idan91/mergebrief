@@ -83,6 +83,7 @@ export { DEFAULT_DETAIL_CONCURRENCY } from "./generation/multi-call/consts";
 export type { MultiCallHooks, PartKey } from "./generation/multi-call/types";
 export { CallPlanKinds } from "./generation/size/types";
 export { countPullRequestSecrets } from "./generation/redaction";
+export { dropNoTestsOnExemptFiles } from "./generation/no-tests-exempt-files";
 export {
   listChangedLockfiles,
   type ChangedLockfile,

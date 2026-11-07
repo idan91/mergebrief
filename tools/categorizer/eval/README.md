@@ -142,7 +142,9 @@ export's both read inside a gzipped fixture, so a key the upstream diff
 carries is replaced by a placeholder, never allowlisted: `next-60530` holds
 one, fences renamed on the removed line because the scanner's rule matches
 across both, so the added line still reads as a key to the redactor and
-`adds-secret`. A gzipped fixture is written with level 9 and mtime 0.
+`adds-secret`. A gzipped case fixture is written with level 9 and mtime 0;
+the harness writes a gzipped pair file (capture, `--record-base-brief`)
+with zlib's default level, also mtime 0.
 
 **Private cases.** A case whose fixture embeds private material (plan or
 internal-doc text, private process) lives in `private-cases/<id>/` or
