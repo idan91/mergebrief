@@ -100,6 +100,22 @@ describe("in-place brief switch through the screen", () => {
     view.rerender({ briefId: "brief-b", brief: briefB });
     expect(getMainContent()?.dataset["zen"]).toBeUndefined();
   });
+
+  it("keeps a chunk's actions sheet closed after leaving and coming back", async () => {
+    const view = await mountBriefView({ briefId: "brief-a" });
+    const getActionsButton = () =>
+      screen.getAllByRole("button", { name: "Chunk actions" })[0];
+    fireEvent.click(getActionsButton() as HTMLElement);
+    expect(screen.getByRole("dialog", { name: "Chunk actions" })).toBeTruthy();
+
+    view.rerender({ briefId: "brief-b", brief: briefB });
+    expect(screen.queryByRole("dialog", { name: "Chunk actions" })).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+
+    view.rerender({ briefId: "brief-a", brief: briefFixture });
+    expect(screen.queryByRole("dialog", { name: "Chunk actions" })).toBeNull();
+    expect(getActionsButton()?.getAttribute("aria-expanded")).toBe("false");
+  });
 });
 
 /** The own-draft gate's Modal state, read off its heading. */

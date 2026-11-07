@@ -2,6 +2,7 @@
 // so they are unit-testable directly, without rendering.
 import type { AttributeDisplayMeta } from "../../../model/utils/repo-config";
 import {
+  DiffLineKinds,
   type DiffSide,
   DiffSides,
   type DispositionEvidenceKind,
@@ -11,6 +12,7 @@ import {
 } from "types";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { formatDisplayPath } from "brief-core/hidden-chars";
+import { FileStatuses, resolveFileStatus } from "brief-core/chunk-layout";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import {
@@ -27,6 +29,7 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
+import { splitPathSegments } from "@web/components/BreakablePath/utils";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
 import {
@@ -54,8 +57,8 @@ import {
   type AnnouncedRevisionNavInput,
   type ConversationReadOnly,
   type DiffViewToggleInput,
-  type FilePathDirectory,
   type FilePathParts,
+  type GithubHeadRef,
   type LinkParamError,
   LinkParamErrors,
   type LinkTarget,
@@ -202,6 +205,40 @@ export function countChangedLines(chunk: Pick<BriefChunk, "loc">): number {
 
 export function isLargeChunk(chunk: Pick<BriefChunk, "loc">): boolean {
   return countChangedLines(chunk) > LARGE_CHUNK_CHANGED_LINES;
+}
+
+/**
+ * The chunk's file on GitHub at head. The hunk header says whether the file
+ * still exists there, a deleted file having no page; before it lands, added
+ * lines already prove the file is there.
+ */
+export function resolveChunkGithubUrl(
+  chunk: Pick<BriefChunk, "file" | "diff" | "loc">,
+  githubHead: GithubHeadRef | undefined,
+): string | undefined {
+  const hasNoPageAtHead = githubHead === undefined || !isFileAtHead(chunk);
+  if (hasNoPageAtHead) {
+    return undefined;
+  }
+  return buildGithubFileUrl(githubHead.repoSlug, githubHead.sha, chunk.file);
+}
+
+function isFileAtHead(chunk: Pick<BriefChunk, "diff" | "loc">): boolean {
+  const rows = chunk.diff ?? [];
+  if (!rows.some((row) => row.kind === DiffLineKinds.HUNK)) {
+    return chunk.loc.added > 0;
+  }
+  return resolveFileStatus(rows) !== FileStatuses.DELETED;
+}
+
+/** A file as GitHub shows it at one commit, each path segment encoded on its own so the slashes stay. */
+function buildGithubFileUrl(
+  repoSlug: string,
+  sha: string,
+  path: string,
+): string {
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  return `https://github.com/${repoSlug}/blob/${sha}/${encodedPath}`;
 }
 
 export function listLargeChunkIds(
@@ -585,18 +622,15 @@ export function hasRemovedLines(narrative: RevisionNarrative | null): boolean {
   );
 }
 
-/** Each directory keeps its trailing slash, so a break can follow it. */
+/** The shown path's directories, each ending at its slash, and its basename. */
 export function splitFilePath(path: string): FilePathParts {
-  const shown = formatDisplayPath(path);
-  const cut = shown.lastIndexOf("/") + 1;
-  const directories: FilePathDirectory[] = [];
-  let key = "";
+  const segments = splitPathSegments(formatDisplayPath(path));
+  const last = segments.at(-1);
+  const endsInFile = last !== undefined && !last.text.endsWith("/");
+  const directories = endsInFile ? segments.slice(0, -1) : segments;
+  const basename = endsInFile ? last.text : "";
 
-  for (const part of shown.slice(0, cut).split("/").slice(0, -1)) {
-    key += `${part}/`;
-    directories.push({ key, text: `${part}/` });
-  }
-  return { directories, basename: shown.slice(cut) };
+  return { directories, basename };
 }
 
 /** A missing review outranks a read-only one, which outranks a frozen session. */

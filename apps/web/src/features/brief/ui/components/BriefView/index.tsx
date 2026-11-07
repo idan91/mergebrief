@@ -416,6 +416,9 @@ function BriefViewContent(props: BriefViewProps) {
                             <ScopePane frozen={inChangesScope}>
                               <StoryView
                                 brief={brief}
+                                chunkActionsFor={session.chunkActionsFor}
+                                openChunkActions={session.openChunkActions}
+                                closeChunkActions={session.closeChunkActions}
                                 diffView={diffView}
                                 model={model}
                                 lineOwnersByFile={lineOwnersByFile}

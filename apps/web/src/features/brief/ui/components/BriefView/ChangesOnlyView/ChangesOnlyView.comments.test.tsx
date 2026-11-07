@@ -481,6 +481,15 @@ describe("Previous Brief narrative cards take comments", () => {
     expect(screen.getByText("−2 lines removed")).toBeTruthy();
   });
 
+  it("offers a break after each slash in the card's file path", () => {
+    renderChanges();
+    const path = screen.getByText("src/a.ts", { selector: "div" });
+
+    const slashBreak = path.querySelector("wbr");
+
+    expect(slashBreak?.previousSibling?.textContent).toBe("src/");
+  });
+
   it("matches the card markup snapshot", () => {
     const { view } = renderChanges();
     const card = view.container.querySelector("[data-index='0']");

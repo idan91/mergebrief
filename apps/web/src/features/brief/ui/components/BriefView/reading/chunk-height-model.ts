@@ -33,6 +33,22 @@ export const CHUNK_CARD_OVERHEAD_PX = 96;
 /** A collapsed card renders its head only. */
 export const COLLAPSED_CARD_HEIGHT_PX = 56;
 
+/** Narrative card chrome: the head with its action, summary paragraph, margins. */
+export const NARRATIVE_CARD_OVERHEAD_PX = 145;
+
+/** The phone head's 56px border box over the desktop's: a 24px row, 11px padding and a 1px border each side. */
+export const PHONE_HEAD_EXTRA_PX = 8;
+
+/** The phone narrative head's counts line under the path: a 2px gap and an 11px line at 1.55, past the 24px jump row. */
+export const PHONE_NARRATIVE_HEAD_EXTRA_PX = 14;
+
+/** Card chrome on one side of the mobile breakpoint, where the head takes two lines. */
+export interface ChunkCardMetrics {
+  overheadPx: number;
+  collapsedPx: number;
+  narrativeOverheadPx: number;
+}
+
 /** The large-diff notice under a closed large card's head. */
 export const LARGE_CHUNK_NOTICE_PX = 52;
 
@@ -42,21 +58,41 @@ export interface ChunkCardSizeInput {
   open: boolean;
   /** Past the large-diff limit: a closed card shows the notice. */
   large?: boolean;
+  metrics: ChunkCardMetrics;
 }
 
 /** The "diff unavailable" note a diff-less open card renders instead of rows. */
 export const EMPTY_DIFF_NOTE_PX = 40;
 
+export const DESKTOP_CARD_METRICS: ChunkCardMetrics = {
+  overheadPx: CHUNK_CARD_OVERHEAD_PX,
+  collapsedPx: COLLAPSED_CARD_HEIGHT_PX,
+  narrativeOverheadPx: NARRATIVE_CARD_OVERHEAD_PX,
+};
+
+export const PHONE_CARD_METRICS: ChunkCardMetrics = {
+  overheadPx: CHUNK_CARD_OVERHEAD_PX + PHONE_HEAD_EXTRA_PX,
+  collapsedPx: COLLAPSED_CARD_HEIGHT_PX + PHONE_HEAD_EXTRA_PX,
+  narrativeOverheadPx:
+    NARRATIVE_CARD_OVERHEAD_PX + PHONE_NARRATIVE_HEAD_EXTRA_PX,
+};
+
+/** The chrome a card draws at or under the mobile breakpoint, else the desktop's. */
+export function resolveChunkCardMetrics(mobile: boolean): ChunkCardMetrics {
+  return mobile ? PHONE_CARD_METRICS : DESKTOP_CARD_METRICS;
+}
+
 export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
+  const { metrics } = input;
   if (!input.open) {
     return input.large === true
-      ? COLLAPSED_CARD_HEIGHT_PX + LARGE_CHUNK_NOTICE_PX
-      : COLLAPSED_CARD_HEIGHT_PX;
+      ? metrics.collapsedPx + LARGE_CHUNK_NOTICE_PX
+      : metrics.collapsedPx;
   }
   if (input.diffRowCount === 0) {
-    return CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX;
+    return metrics.overheadPx + EMPTY_DIFF_NOTE_PX;
   }
-  return input.diffRowCount * DIFF_ROW_HEIGHT_PX + CHUNK_CARD_OVERHEAD_PX;
+  return input.diffRowCount * DIFF_ROW_HEIGHT_PX + metrics.overheadPx;
 }
 
 export interface ReservedChunkSizeInput {
@@ -64,6 +100,7 @@ export interface ReservedChunkSizeInput {
   view: DiffView;
   open: boolean;
   large?: boolean | undefined;
+  metrics: ChunkCardMetrics;
 }
 
 /**
@@ -74,9 +111,9 @@ export interface ReservedChunkSizeInput {
 export function estimateReservedChunkCardHeight(
   input: ReservedChunkSizeInput,
 ): number {
-  const { counts, view, open, large } = input;
+  const { counts, view, open, large, metrics } = input;
   if (!open) {
-    const collapsed: ChunkCardSizeInput = { diffRowCount: 0, open };
+    const collapsed: ChunkCardSizeInput = { diffRowCount: 0, open, metrics };
     if (large !== undefined) {
       collapsed.large = large;
     }
@@ -84,7 +121,7 @@ export function estimateReservedChunkCardHeight(
   }
 
   const cardHeight =
-    estimateReservedRowsHeight(counts, view) + CHUNK_CARD_OVERHEAD_PX;
+    estimateReservedRowsHeight(counts, view) + metrics.overheadPx;
   return cardHeight;
 }
 
@@ -209,9 +246,6 @@ export function listBucketWraps(
   return buckets;
 }
 
-/** Narrative card chrome: the head with its action, summary paragraph, margins. */
-export const NARRATIVE_CARD_OVERHEAD_PX = 145;
-
 /** The removed-lines note under a card's rows. */
 export const REMOVED_NOTE_PX = 24;
 
@@ -219,6 +253,7 @@ export interface NarrativeCardSizeInput {
   /** Rows the card's guest table renders, removed lines included. */
   rowCount: number;
   hasRemovedNote: boolean;
+  metrics: ChunkCardMetrics;
 }
 
 export function estimateNarrativeCardHeight(
@@ -226,7 +261,7 @@ export function estimateNarrativeCardHeight(
 ): number {
   return (
     input.rowCount * DIFF_ROW_HEIGHT_PX +
-    NARRATIVE_CARD_OVERHEAD_PX +
+    input.metrics.narrativeOverheadPx +
     (input.hasRemovedNote ? REMOVED_NOTE_PX : 0)
   );
 }

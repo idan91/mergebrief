@@ -1119,7 +1119,9 @@
     "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.",
     "demoReadOnlyReason": "This brief is a public demo. Commenting, addressing flags and submitting a review are off.",
     "mobile": {
-      "viewedSummary": "{{viewed}} of {{total}} viewed"
+      "viewedSummary": "{{viewed}} of {{total}} viewed",
+      "chunkActions": "Chunk actions",
+      "closeChunkActions": "Close chunk actions"
     }
   },
   "review": {

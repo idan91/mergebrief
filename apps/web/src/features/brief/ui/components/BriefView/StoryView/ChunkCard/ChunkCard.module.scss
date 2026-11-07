@@ -131,59 +131,27 @@
     font-size: var(--font-size-md);
   }
 
-  // Risk chips sit shoulder to shoulder; a tighter gap than the metadata
-  // lane reads them as one group.
-  .riskLane {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(6px);
-  }
-
-  .chip {
-    @include mixins.concern-color;
-
+  .loc {
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(6px);
     color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
     white-space: nowrap;
   }
 
-  .loc {
-    font-family: var(--mono);
-    font-size: var(--font-size-sm);
-  }
-
-  .dot {
-    inline-size: 5px;
-    block-size: 5px;
-    border-radius: var(--radius-circle);
-    background: var(--concern-color);
-  }
-
   .reviewToggle {
-    display: inline-flex;
+    display: grid;
     flex: none;
-    align-items: center;
-    gap: functions.to-rem(6px);
-    color: var(--color-text-3);
-    cursor: pointer;
-    font-size: var(--font-size-md);
-    font-weight: 500;
-    user-select: none;
-
-    input {
-      cursor: pointer;
-      accent-color: var(--color-accent);
-    }
-
-    &:hover {
-      color: var(--color-text-1);
-    }
   }
 
   .fileCommentControl {
     color: var(--color-text-3);
+  }
+
+  .actions {
+    display: none;
   }
 
   .body {
@@ -238,29 +206,63 @@
     }
   }
 
-  @media (width <= 760px) {
+  @include mixins.for-breakpoint("mobile", max) {
     .head {
-      flex-wrap: wrap;
-      align-items: flex-start;
-      row-gap: functions.to-rem(8px);
+      // The twist's width plus the toggle gap, so the counts align under the path.
+      --twist-lane: #{functions.to-rem(22px)};
+
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto functions.to-rem(44px);
+      grid-template-rows: 1fr 1fr;
+      align-items: stretch;
+      block-size: functions.to-rem(56px);
+      gap: 0 functions.to-rem(8px);
+      padding: 0;
+      padding-inline-start: functions.to-rem(12px);
     }
 
     .toggle {
-      flex: 1 1 0;
-      align-items: flex-start;
+      grid-row: 1;
+      grid-column: 1 / 3;
+      gap: functions.to-rem(10px);
     }
 
     .copyPath,
-    .copyLink {
-      flex: none;
+    .copyLink,
+    .fileCommentControl {
+      display: none;
     }
 
     .chips {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: functions.to-rem(8px) functions.to-rem(12px);
-      margin-inline-start: 0;
+      display: contents;
+    }
+
+    .chips > :not(.loc) {
+      display: none;
+    }
+
+    .loc {
+      grid-row: 2;
+      grid-column: 1;
+      padding-inline-start: var(--twist-lane);
+    }
+
+    .reviewToggle {
+      grid-row: 2;
+      grid-column: 2;
+      padding-inline-end: functions.to-rem(4px);
+    }
+
+    // Nested under .head to outrank IconButton's own size rule: a 44px by
+    // 56px target, not the shared 24px glyph box.
+    .head .actions {
+      display: grid;
+      grid-row: 1 / 3;
+      grid-column: 3;
+      inline-size: 100%;
+      block-size: 100%;
+      border-radius: 0;
+      border-start-end-radius: var(--radius-panel);
     }
   }
 }

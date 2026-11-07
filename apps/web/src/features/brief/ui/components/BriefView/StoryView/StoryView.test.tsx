@@ -2,7 +2,7 @@
 import { appI18n } from "@web/i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -28,6 +28,39 @@ import { StoryView } from ".";
 import { STORY_CHUNKS_ATTR } from "./StorySplitter/consts";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
+import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
+import {
+  DESKTOP_CARD_METRICS,
+  estimateChunkCardHeight,
+  PHONE_CARD_METRICS,
+} from "../reading/chunk-height-model";
+import type {
+  GroupWindowOptions,
+  useGroupWindow,
+} from "../reading/useGroupWindow";
+
+const windowEstimates = vi.hoisted(() => new Map<string, number>());
+
+vi.mock("../reading/useGroupWindow", async (importOriginal) => {
+  const original = await importOriginal<{
+    useGroupWindow: typeof useGroupWindow;
+  }>();
+  return {
+    ...original,
+    useGroupWindow: (options: GroupWindowOptions) => {
+      options.chunkKeys.forEach((key, index) => {
+        windowEstimates.set(key, options.estimateChunk(index));
+      });
+      return original.useGroupWindow(options);
+    },
+  };
+});
+
+afterEach(() => {
+  windowEstimates.clear();
+  resetMediaQueries();
+});
 
 const model = buildBriefViewModel(briefFixture);
 
@@ -113,6 +146,9 @@ function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
               <ReadingPositionProvider store={positionStore}>
                 <StoryView
                   brief={setup.brief}
+                  chunkActionsFor={undefined}
+                  openChunkActions={() => undefined}
+                  closeChunkActions={() => undefined}
                   chunkFooter={{ jumpToChunk: vi.fn(), toggleViewed: vi.fn() }}
                   comparison={comparison}
                   focusMode={focusMode}
@@ -195,5 +231,35 @@ describe("remainder stamps", () => {
     expect(
       within(region).queryByText(appI18n.t("brief.chunk.roleCore")),
     ).toBeNull();
+  });
+});
+
+describe("StoryView windowed cards", () => {
+  const collapsedSetup: StorySetup = { ...FIXTURE_SETUP, openChunkIds: [] };
+  const chunkKey = "src/leak.ts#chunk-a";
+
+  it("reserves a collapsed card at the desktop head height", () => {
+    renderStory(false, collapsedSetup);
+
+    expect(windowEstimates.get(chunkKey)).toBe(
+      estimateChunkCardHeight({
+        diffRowCount: 0,
+        open: false,
+        metrics: DESKTOP_CARD_METRICS,
+      }),
+    );
+  });
+
+  it("reserves a collapsed card at the phone's two-line head height", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    renderStory(false, collapsedSetup);
+
+    expect(windowEstimates.get(chunkKey)).toBe(
+      estimateChunkCardHeight({
+        diffRowCount: 0,
+        open: false,
+        metrics: PHONE_CARD_METRICS,
+      }),
+    );
   });
 });

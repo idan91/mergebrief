@@ -49,6 +49,7 @@ import {
   splitFilePath,
   buildAnnouncedRevisionNav,
   resolveChunkView,
+  resolveChunkGithubUrl,
 } from "./utils";
 import {
   NO_REVIEW_REASON_KEY,
@@ -1097,5 +1098,81 @@ describe("resolveChunkView", () => {
     expect(resolveChunkView(DiffViews.UNIFIED, twoSided, false)).toBe(
       DiffViews.UNIFIED,
     );
+  });
+});
+
+describe("resolveChunkGithubUrl", () => {
+  const head = { repoSlug: "acme/widgets", sha: "head1234" };
+  const fileUrl = "https://github.com/acme/widgets/blob/head1234/src/a.ts";
+  const modifiedLoc = { added: 1, deleted: 1 };
+  const deletionLoc = { added: 0, deleted: 2 };
+
+  it("links a modified file once its hunk header landed", () => {
+    const diff = [{ kind: "hunk" as const, content: "@@ -1,2 +1,3 @@" }];
+
+    expect(
+      resolveChunkGithubUrl({ file: "src/a.ts", diff, loc: deletionLoc }, head),
+    ).toBe(fileUrl);
+  });
+
+  it("links a file with added lines before its diff rows land", () => {
+    const rowless = resolveChunkGithubUrl(
+      { file: "src/a.ts", loc: modifiedLoc },
+      head,
+    );
+    const headerless = resolveChunkGithubUrl(
+      {
+        file: "src/a.ts",
+        diff: [{ kind: "add", content: "a", newLine: 1 }],
+        loc: modifiedLoc,
+      },
+      head,
+    );
+
+    expect(rowless).toBe(fileUrl);
+    expect(headerless).toBe(fileUrl);
+  });
+
+  it("links nothing for a deleted file", () => {
+    const diff = [{ kind: "hunk" as const, content: "@@ -1,2 +0,0 @@" }];
+
+    expect(
+      resolveChunkGithubUrl({ file: "src/a.ts", diff, loc: deletionLoc }, head),
+    ).toBe(undefined);
+  });
+
+  it("links nothing for a deletion while the file's status is unknown", () => {
+    const rowless = resolveChunkGithubUrl(
+      { file: "src/a.ts", loc: deletionLoc },
+      head,
+    );
+    const headerless = resolveChunkGithubUrl(
+      {
+        file: "src/a.ts",
+        diff: [{ kind: "del", content: "a", oldLine: 1 }],
+        loc: deletionLoc,
+      },
+      head,
+    );
+
+    expect(rowless).toBe(undefined);
+    expect(headerless).toBe(undefined);
+  });
+
+  it("encodes each path segment and keeps the slashes", () => {
+    const url = resolveChunkGithubUrl(
+      { file: "docs/a b/#notes.md", loc: modifiedLoc },
+      head,
+    );
+
+    expect(url).toBe(
+      "https://github.com/acme/widgets/blob/head1234/docs/a%20b/%23notes.md",
+    );
+  });
+
+  it("links nothing without a head", () => {
+    expect(
+      resolveChunkGithubUrl({ file: "src/a.ts", loc: modifiedLoc }, undefined),
+    ).toBe(undefined);
   });
 });

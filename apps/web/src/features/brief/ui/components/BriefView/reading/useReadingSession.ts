@@ -145,6 +145,10 @@ export interface UseReadingSessionValue {
   shortcutsOpen: boolean;
   toggleShortcuts: () => void;
   closeShortcuts: () => void;
+  /** The chunk whose actions sheet is open; absent = none. */
+  chunkActionsFor: string | undefined;
+  openChunkActions: (chunkId: string) => void;
+  closeChunkActions: () => void;
   // navigation,
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
@@ -227,8 +231,13 @@ export function useReadingSession(
   const openChunks = useStore(viewStore, (state) => state.openChunks);
   const focusMode = useStore(viewStore, (state) => state.focusMode);
   const shortcutsOpen = useStore(viewStore, (state) => state.shortcutsOpen);
-  const { updateOpenChunks, setFocusMode, setShortcutsOpen } =
-    viewStore.getState().actions;
+  const chunkActionsFor = useStore(viewStore, (state) => state.chunkActionsFor);
+  const {
+    updateOpenChunks,
+    setFocusMode,
+    setShortcutsOpen,
+    setChunkActionsFor,
+  } = viewStore.getState().actions;
 
   /** Ensure-open, never a toggle, row-target jumps (conversation threads,
    * revision rails, unresolved submit items) land INSIDE the diff, which
@@ -542,6 +551,10 @@ export function useReadingSession(
     () => setShortcutsOpen(false),
     [setShortcutsOpen],
   );
+  const closeChunkActions = useCallback(
+    () => setChunkActionsFor(undefined),
+    [setChunkActionsFor],
+  );
 
   // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
   // active chunk. Under the stack: see toggleFocusMode.
@@ -642,6 +655,9 @@ export function useReadingSession(
     shortcutsOpen,
     toggleShortcuts,
     closeShortcuts,
+    chunkActionsFor,
+    openChunkActions: setChunkActionsFor,
+    closeChunkActions,
     toggleChunk,
     markReviewed,
     jumpToChunk,

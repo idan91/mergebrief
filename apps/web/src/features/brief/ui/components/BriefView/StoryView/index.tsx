@@ -1,6 +1,7 @@
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import type { ChunkShare } from "../types";
+import type { ChunkShare, GithubHeadRef } from "../types";
 import { useMergedRef } from "@web/hooks/useMergedRef";
+import { useMobileViewport } from "@web/hooks/useMobileViewport";
 import { useSplitWidth } from "./useSplitWidth";
 import {
   useCallback,
@@ -42,6 +43,7 @@ import {
   type FileLineOwners,
   type LineTarget,
 } from "../../../../model/utils/line-owner";
+import { resolveChunkCardMetrics } from "../reading/chunk-height-model";
 import { useChunkWindows } from "../reading/chunk-windows";
 import { useReadingPosition } from "../reading/reading-position";
 import {
@@ -65,6 +67,10 @@ const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
 
 export interface StoryViewProps {
   brief: Brief;
+  /** The chunk whose actions sheet is open; absent = none. */
+  chunkActionsFor: string | undefined;
+  openChunkActions: (chunkId: string) => void;
+  closeChunkActions: () => void;
   diffView?: DiffView;
   model: BriefViewModel;
   /** Per file, so a card frames a sibling's expanded rows with its owner. */
@@ -128,6 +134,7 @@ export function StoryView(props: StoryViewProps) {
   const activeFocusGroupId = useReadingPosition((state) =>
     focusMode ? state.activeGroupId : null,
   );
+  const githubHead = useGithubHead(props.brief);
 
   return (
     <div
@@ -175,6 +182,10 @@ export function StoryView(props: StoryViewProps) {
                     fileThreads={props.lineThreadsByFile?.get(chunk.file)}
                     jumpToLine={props.jumpToLine}
                     shareChunk={props.shareChunk}
+                    githubHead={githubHead}
+                    actionsOpen={props.chunkActionsFor === chunk.id}
+                    openActions={props.openChunkActions}
+                    closeActions={props.closeChunkActions}
                     lineOwners={lineOwnersByFile.get(chunk.file)}
                     markReviewed={props.markReviewed}
                     marksDisabled={props.marksDisabled}
@@ -187,6 +198,7 @@ export function StoryView(props: StoryViewProps) {
                 diffView={groupView}
                 attachWrapper={splitWidth.attachWrapper}
                 addressedReviewComments={addressedReviewComments}
+                githubHead={githubHead}
                 group={group}
                 lineOwnersByFile={lineOwnersByFile}
                 view={props}
@@ -226,9 +238,16 @@ export function StoryView(props: StoryViewProps) {
   );
 }
 
+/** One identity per head, so the memoized cards hold while nothing about the PR moved. */
+function useGithubHead(brief: Brief): GithubHeadRef {
+  const { repo, sha } = brief.pr;
+  return useMemo(() => ({ repoSlug: repo, sha }), [repo, sha]);
+}
+
 interface WindowedChunkListProps {
   group: BriefViewModel["groups"][number];
   view: StoryViewProps;
+  githubHead: GithubHeadRef;
   diffView: DiffView;
   attachWrapper: (node: HTMLElement | null) => (() => void) | undefined;
   addressedReviewComments: AddressedReviewComment[];
@@ -296,6 +315,7 @@ function collectPinnedChunkKeys(
 function WindowedChunkList({
   group,
   view,
+  githubHead,
   diffView,
   attachWrapper,
   addressedReviewComments,
@@ -349,6 +369,8 @@ function WindowedChunkList({
       }),
     [group.chunks, diffView, expandedEdges, fileRowsCache, storedCounts],
   );
+  const mobile = useMobileViewport();
+  const metrics = resolveChunkCardMetrics(mobile);
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
@@ -362,9 +384,10 @@ function WindowedChunkList({
         rows: rowCounts[index] ?? NO_STORY_ROWS,
         open: openChunks.has(chunk.id),
         large: isLargeChunk(chunk),
+        metrics,
       });
     },
-    [group.chunks, openChunks, rowCounts, layout, diffView],
+    [group.chunks, openChunks, rowCounts, layout, diffView, metrics],
   );
 
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
@@ -463,6 +486,10 @@ function WindowedChunkList({
               fileThreads={view.lineThreadsByFile?.get(chunk.file)}
               jumpToLine={view.jumpToLine}
               shareChunk={view.shareChunk}
+              githubHead={githubHead}
+              actionsOpen={view.chunkActionsFor === chunk.id}
+              openActions={view.openChunkActions}
+              closeActions={view.closeChunkActions}
               lineOwners={lineOwnersByFile.get(chunk.file)}
               markReviewed={view.markReviewed}
               marksDisabled={view.marksDisabled}

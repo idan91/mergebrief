@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { act } from "react";
+import { act, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -84,7 +84,25 @@ const comparison: ComparisonOverlayState = {
   runCount: 0,
 };
 
-function renderCard(overrides: Partial<ChunkCardProps> = {}) {
+type HarnessProps = Omit<
+  ChunkCardProps,
+  "actionsOpen" | "openActions" | "closeActions"
+>;
+
+/** Holds the actions sheet's open state the way the Brief's store does. */
+function Harness(props: HarnessProps) {
+  const [actionsFor, setActionsFor] = useState<string | undefined>(undefined);
+  return (
+    <ChunkCard
+      {...props}
+      actionsOpen={actionsFor === props.chunk.id}
+      openActions={setActionsFor}
+      closeActions={() => setActionsFor(undefined)}
+    />
+  );
+}
+
+function renderCard(overrides: Partial<HarnessProps> = {}) {
   const toggleChunk = vi.fn();
   const flowStore = createReviewFlowStore(
     {
@@ -96,7 +114,7 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
     },
     appI18n.t,
   );
-  const props: ChunkCardProps = {
+  const props: HarnessProps = {
     chunk,
     comparison,
     open: false,
@@ -116,7 +134,7 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
           <ExpansionProvider store={createExpansionStore()}>
             <ReviewPostureProvider posture={makeReviewPosture()}>
               <ReadingPositionProvider store={positionStore}>
-                <ChunkCard {...props} />
+                <Harness {...props} />
               </ReadingPositionProvider>
             </ReviewPostureProvider>
           </ExpansionProvider>
@@ -485,5 +503,228 @@ describe("ChunkCard reading position", () => {
       positionStore.getState().actions.setActive("other-chunk", "g1");
     });
     expect(card.getAttribute("data-current")).toBeNull();
+  });
+});
+
+describe("ChunkCard viewed mark", () => {
+  afterEach(cleanup);
+
+  it("marks its own chunk from the Viewed label", () => {
+    const markReviewed = vi.fn();
+    renderCard({ markReviewed });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /viewed/i }));
+
+    expect(markReviewed).toHaveBeenCalledWith(chunk.id);
+  });
+
+  it("names the file in the Viewed mark", () => {
+    renderCard();
+
+    expect(
+      screen.getByRole("checkbox", {
+        name: /^Viewed\s*src\/deeply\/nested\/path\/a\.ts$/,
+      }),
+    ).toBeTruthy();
+  });
+});
+
+describe("ChunkCard chunk actions", () => {
+  afterEach(cleanup);
+
+  function openActions() {
+    const actions = screen.getByRole("button", { name: "Chunk actions" });
+    fireEvent.click(actions);
+    return {
+      actions,
+      dialog: screen.getByRole("dialog", { name: "Chunk actions" }),
+    };
+  }
+
+  it("opens as a modal dialog with focus on the first row", () => {
+    renderCard();
+    const { actions, dialog } = openActions();
+
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(actions.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: "Comment on file" }),
+    );
+  });
+
+  it("shows the chunk's facts and path inside the sheet", () => {
+    renderCard({ chunk: { ...chunk, readAs: "counts-only" } });
+    const { dialog } = openActions();
+
+    expect(dialog.textContent).toContain(chunk.file);
+    expect(within(dialog).getByText("Implementation")).toBeTruthy();
+    expect(within(dialog).getByText("Core")).toBeTruthy();
+    expect(within(dialog).getByText("Read as counts only")).toBeTruthy();
+  });
+
+  it("requests the file comment composer from the menu and closes", () => {
+    const { toggleChunk } = renderCard({ open: false });
+    const { dialog } = openActions();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Comment on file" }),
+    );
+
+    expect(toggleChunk).toHaveBeenCalledWith(chunk.id);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("focuses an open file composer from the menu and keeps its text", () => {
+    renderCard({ open: true });
+    fireEvent.click(
+      within(openActions().dialog).getByRole("button", {
+        name: "Comment on file",
+      }),
+    );
+    const composer = screen.getByRole("textbox");
+    fireEvent.change(composer, { target: { value: "half a thought" } });
+
+    const { dialog } = openActions();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Comment on file" }),
+    );
+
+    const kept = screen.getByRole<HTMLTextAreaElement>("textbox");
+    expect(kept.value).toBe("half a thought");
+    expect(document.activeElement).toBe(kept);
+  });
+
+  it("expands a collapsed chunk whose file composer is still open", () => {
+    const { toggleChunk } = renderCard({ open: false });
+    fireEvent.click(
+      within(openActions().dialog).getByRole("button", {
+        name: "Comment on file",
+      }),
+    );
+
+    fireEvent.click(
+      within(openActions().dialog).getByRole("button", {
+        name: "Comment on file",
+      }),
+    );
+
+    expect(toggleChunk).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns focus to the actions button on close", () => {
+    renderCard();
+    const { actions, dialog } = openActions();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(actions);
+    expect(actions.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("copies the chunk link from the sheet row", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const commit = vi.fn();
+    renderCard({
+      shareChunk: {
+        deriveUrl: (chunkId: string) => `https://brief.test/?l=${chunkId}`,
+        commit,
+      },
+    });
+    const { dialog } = openActions();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Copy link to this chunk" }),
+    );
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://brief.test/?l=${chunk.id}`,
+      ),
+    );
+    expect(commit).toHaveBeenCalledWith(chunk.id);
+    expect(within(dialog).getByText("Copied")).toBeTruthy();
+  });
+
+  it("links the file on GitHub at the brief's head", () => {
+    renderCard({
+      chunk: {
+        ...chunk,
+        diff: [
+          { kind: "hunk", content: "@@ -10,1 +10,2 @@" },
+          { kind: "add", content: "validate(a);", newLine: 11 },
+        ],
+      },
+      githubHead: { repoSlug: "acme/widgets", sha: "head1234" },
+    });
+    const { dialog } = openActions();
+
+    const link = within(dialog).getByRole("link", { name: /open on github/i });
+    expect(link.getAttribute("href")).toBe(
+      "https://github.com/acme/widgets/blob/head1234/src/deeply/nested/path/a.ts",
+    );
+  });
+
+  it("omits Open on GitHub without a head to link", () => {
+    renderCard();
+    const { dialog } = openActions();
+
+    expect(
+      within(dialog).queryByRole("link", { name: /open on github/i }),
+    ).toBeNull();
+  });
+
+  it("omits Open on GitHub for a deleted file", () => {
+    renderCard({
+      chunk: {
+        ...chunk,
+        diff: [
+          { kind: "hunk", content: "@@ -1,1 +0,0 @@" },
+          { kind: "del", content: "validate(a);", oldLine: 1 },
+        ],
+      },
+      githubHead: { repoSlug: "acme/widgets", sha: "head1234" },
+    });
+    const { dialog } = openActions();
+
+    expect(
+      within(dialog).queryByRole("link", { name: /open on github/i }),
+    ).toBeNull();
+  });
+
+  it("links the file on GitHub before its diff rows land", () => {
+    const { diff: _rows, ...rowless } = chunk;
+    renderCard({
+      chunk: { ...rowless, loc: { added: 2, deleted: 0 } },
+      githubHead: { repoSlug: "acme/widgets", sha: "head1234" },
+    });
+    const { dialog } = openActions();
+
+    const link = within(dialog).getByRole("link", { name: /open on github/i });
+    expect(link.getAttribute("href")).toBe(
+      "https://github.com/acme/widgets/blob/head1234/src/deeply/nested/path/a.ts",
+    );
+  });
+
+  it("omits Open on GitHub for a deleted file whose rows never landed", () => {
+    const { diff: _rows, ...rowless } = chunk;
+    renderCard({
+      chunk: {
+        ...rowless,
+        loc: { added: 0, deleted: 1 },
+        addedRanges: [],
+        removedRanges: [{ start: 1, end: 1 }],
+      },
+      githubHead: { repoSlug: "acme/widgets", sha: "head1234" },
+    });
+    const { dialog } = openActions();
+
+    expect(
+      within(dialog).queryByRole("link", { name: /open on github/i }),
+    ).toBeNull();
   });
 });

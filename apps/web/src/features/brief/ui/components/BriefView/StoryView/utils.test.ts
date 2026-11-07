@@ -4,6 +4,7 @@ import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
 import { DiffViews } from "@web/components/DiffRows/types";
 import {
   COLLAPSED_CARD_HEIGHT_PX,
+  DESKTOP_CARD_METRICS,
   DIFF_ROW_HEIGHT_PX,
   estimateChunkCardHeight,
   estimateReservedChunkCardHeight,
@@ -40,17 +41,20 @@ describe("estimateStoryChunkHeight", () => {
       counts: MID_WIDTH_COUNTS,
       rows: NO_EXPANDED,
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
       large: false,
     });
     const unified = estimateReservedChunkCardHeight({
       counts: MID_WIDTH_COUNTS,
       view: DiffViews.UNIFIED,
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
     });
     const split = estimateReservedChunkCardHeight({
       counts: MID_WIDTH_COUNTS,
       view: DiffViews.SPLIT,
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
     });
 
     expect(split).toBeGreaterThan(unified);
@@ -64,6 +68,7 @@ describe("estimateStoryChunkHeight", () => {
       counts: MID_WIDTH_COUNTS,
       rows: NO_EXPANDED,
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
       large: false,
     });
 
@@ -72,6 +77,7 @@ describe("estimateStoryChunkHeight", () => {
         counts: MID_WIDTH_COUNTS,
         view: DiffViews.SPLIT,
         open: true,
+        metrics: DESKTOP_CARD_METRICS,
       }),
     );
   });
@@ -84,11 +90,13 @@ describe("estimateStoryChunkHeight", () => {
       counts: MID_WIDTH_COUNTS,
       rows,
       large: false,
+      metrics: DESKTOP_CARD_METRICS,
     };
     const reservedOpen = estimateReservedChunkCardHeight({
       counts: MID_WIDTH_COUNTS,
       view: DiffViews.UNIFIED,
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
     });
 
     expect(estimateStoryChunkHeight({ ...input, open: true })).toBe(
@@ -106,11 +114,17 @@ describe("estimateStoryChunkHeight", () => {
       counts: undefined,
       rows: { diff: 7, expanded: 0 },
       open: true,
+      metrics: DESKTOP_CARD_METRICS,
       large: false,
     });
 
     expect(height).toBe(
-      estimateChunkCardHeight({ diffRowCount: 7, open: true, large: false }),
+      estimateChunkCardHeight({
+        diffRowCount: 7,
+        open: true,
+        large: false,
+        metrics: DESKTOP_CARD_METRICS,
+      }),
     );
   });
 });

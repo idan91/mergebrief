@@ -37,6 +37,7 @@ import type {
   SubmitReviewAction,
   UnresolvedItem,
 } from "@web/features/review/utils";
+import type { PathSegment } from "@web/components/BreakablePath/types";
 import type { DiffView } from "@web/components/DiffRows/types";
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import type {
@@ -180,6 +181,12 @@ export interface ChunkShare {
   commit: (chunkId: string) => void;
 }
 
+/** The commit a brief's files are read at on GitHub; the chunk menu links a file there. */
+export interface GithubHeadRef {
+  repoSlug: string;
+  sha: string;
+}
+
 /** How a scope exit writes the URL: a gesture pushes, an arrival replaces. */
 export interface ScopeExitOptions {
   replace: boolean;
@@ -286,14 +293,8 @@ export interface FocusPanelControl {
   close: () => void;
 }
 
-export interface FilePathDirectory {
-  /** The path up to and including this directory; unique within one path. */
-  key: string;
-  text: string;
-}
-
 export interface FilePathParts {
-  directories: FilePathDirectory[];
+  directories: PathSegment[];
   basename: string;
 }
 

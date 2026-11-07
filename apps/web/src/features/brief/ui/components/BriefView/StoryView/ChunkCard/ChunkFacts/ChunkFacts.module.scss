@@ -1,0 +1,35 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .facts {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    font-size: var(--font-size-md);
+  }
+
+  .riskLane {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+  }
+
+  .chip {
+    @include mixins.concern-color;
+
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    color: var(--color-text-3);
+    white-space: nowrap;
+  }
+
+  .dot {
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: var(--radius-circle);
+    background: var(--concern-color);
+  }
+}

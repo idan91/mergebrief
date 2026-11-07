@@ -6,6 +6,7 @@
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(7px);
+    min-block-size: functions.to-rem(24px);
     color: var(--color-text-2);
     font-size: var(--font-size-md);
     cursor: pointer;

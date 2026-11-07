@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useId } from "react";
+import { useId, type RefObject } from "react";
 
 import { LinkButton } from "@web/components/LinkButton";
 import {
@@ -23,6 +23,8 @@ import styles from "./FileCommentBand.module.scss";
 const noJump = () => undefined;
 
 export interface FileCommentBandProps {
+  /** Lets the card's menu reach an open composer. */
+  bandRef?: RefObject<HTMLElement | null> | undefined;
   chunk: BriefChunk;
   composerOpen: boolean;
   onCancelComposer: () => void;
@@ -31,6 +33,7 @@ export interface FileCommentBandProps {
 }
 
 export function FileCommentBand({
+  bandRef,
   chunk,
   composerOpen,
   onCancelComposer,
@@ -67,6 +70,7 @@ export function FileCommentBand({
       className={styles["band"]}
       data-state={bandState}
       data-testid="file-comment-band"
+      ref={bandRef}
     >
       {band.hasSaved ? (
         <div className={styles["head"]}>

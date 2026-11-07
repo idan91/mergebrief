@@ -187,6 +187,9 @@ function renderCard(options: RenderOptions = {}) {
     appI18n.t,
   );
   const props: ChunkCardProps = {
+    actionsOpen: false,
+    openActions: vi.fn(),
+    closeActions: vi.fn(),
     chunk,
     comparison,
     open: options.open ?? true,
@@ -322,7 +325,10 @@ describe("FileCommentBand", () => {
               <ReviewPostureProvider posture={makeReviewPosture()}>
                 <ReadingPositionProvider store={createReadingPositionStore()}>
                   <ChunkCard
+                    actionsOpen={false}
                     addressedReviewComments={[]}
+                    closeActions={vi.fn()}
+                    openActions={vi.fn()}
                     chunk={chunk}
                     comparison={comparison}
                     markReviewed={vi.fn()}
@@ -330,7 +336,10 @@ describe("FileCommentBand", () => {
                     toggleChunk={toggleChunk}
                   />
                   <ChunkCard
+                    actionsOpen={false}
                     addressedReviewComments={[]}
+                    closeActions={vi.fn()}
+                    openActions={vi.fn()}
                     chunk={second}
                     comparison={comparison}
                     markReviewed={vi.fn()}

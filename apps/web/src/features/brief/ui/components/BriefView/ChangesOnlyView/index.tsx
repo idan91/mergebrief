@@ -8,13 +8,19 @@ import {
   type RevisionNarrative,
   type RevisionNarrativeChunk,
 } from "brief-core/types";
+import { BreakablePath } from "@web/components/BreakablePath";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
+import { LocSign, LocSigns } from "@web/components/LocSign";
 import { Markdown } from "@web/components/Markdown";
+import { useMobileViewport } from "@web/hooks/useMobileViewport";
 import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
-import { estimateNarrativeCardHeight } from "../reading/chunk-height-model";
+import {
+  estimateNarrativeCardHeight,
+  resolveChunkCardMetrics,
+} from "../reading/chunk-height-model";
 import { useChunkWindows } from "../reading/chunk-windows";
 import { useGroupWindow } from "../reading/useGroupWindow";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
@@ -344,6 +350,8 @@ function WindowedNarrativeList({
     const key = hostedIndex === -1 ? undefined : chunkKeys[hostedIndex];
     return key === undefined ? undefined : new Set([key]);
   }, [chunkKeys, hostedIndex]);
+  const mobile = useMobileViewport();
+  const metrics = resolveChunkCardMetrics(mobile);
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = chunks[index];
@@ -355,9 +363,10 @@ function WindowedNarrativeList({
       return estimateNarrativeCardHeight({
         rowCount: countLines(chunk.addedRanges) + (spanLanded ? removed : 0),
         hasRemovedNote: !spanLanded && removed > 0,
+        metrics,
       });
     },
-    [chunks, spanRows],
+    [chunks, metrics, spanRows],
   );
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
   const { holdScrollCompensation } = window;
@@ -460,9 +469,9 @@ function NarrativeChunkCard({
     (index: number) => narrative.origins[index],
     [narrative.origins],
   );
+  const removedLines = countLines(chunk.removedRanges);
   // The count stands in until the span diff supplies the removed lines.
-  const removedCount =
-    narrative.removedShown > 0 ? 0 : countLines(chunk.removedRanges);
+  const removedCount = narrative.removedShown > 0 ? 0 : removedLines;
   // The chunk the card's first row came from is the exact owner; the
   // resolver covers a card with no rendered head row.
   const firstOrigin = narrative.origins.find((origin) => origin !== undefined);
@@ -475,12 +484,17 @@ function NarrativeChunkCard({
       chunk.briefChangeGroupId,
     );
   const summaryId = `${host.id}-summary`;
+  const headLoc = {
+    added: countLines(chunk.addedRanges),
+    deleted: removedLines,
+  };
   return (
     <div className={styles["chunk"]}>
       <CardHead
         describedBy={summaryId}
         file={chunk.file}
         jumpToChunk={jumpToChunk}
+        loc={headLoc}
         ownerId={ownerId}
       />
       <p className={styles["chunkSummary"]} id={summaryId}>
@@ -509,16 +523,30 @@ export interface CardHeadProps {
   describedBy: string | undefined;
   file: string;
   jumpToChunk: (chunkId: string) => void;
+  /** The lines the card stands for; the phone head shows them under the path. */
+  loc: BriefChunk["loc"];
   /** The full brief chunk the card stands for; absent leaves the file line alone. */
   ownerId: string | undefined;
 }
 
-function CardHead({ describedBy, file, jumpToChunk, ownerId }: CardHeadProps) {
+function CardHead({
+  describedBy,
+  file,
+  jumpToChunk,
+  loc,
+  ownerId,
+}: CardHeadProps) {
   const { t } = useTranslation();
   const displayFile = formatDisplayPath(file);
   return (
     <div className={styles["chunkHead"]}>
-      <div className={styles["chunkFile"]}>{displayFile}</div>
+      <div className={styles["chunkFile"]}>
+        <BreakablePath path={displayFile} />
+      </div>
+      <span className={styles["chunkCounts"]}>
+        <LocSign count={loc.added} sign={LocSigns.ADD} />{" "}
+        <LocSign count={loc.deleted} sign={LocSigns.DEL} />
+      </span>
       {ownerId === undefined ? null : (
         <IconButton
           aria-describedby={describedBy}
@@ -683,6 +711,7 @@ function DeltaCard({
         describedBy={summaryId}
         file={chunk.file}
         jumpToChunk={jumpToChunk}
+        loc={chunk.loc}
         ownerId={ownerId}
       />
       {chunk.summary ? (

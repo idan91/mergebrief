@@ -3,6 +3,7 @@ import { memo, useMemo, useRef } from "react";
 import { resolveFileStatus } from "brief-core/chunk-layout";
 import { formatDisplayPath } from "brief-core/hidden-chars";
 
+import { Checkbox } from "@web/components/Checkbox";
 import { CopyButton } from "@web/components/CopyButton";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
@@ -11,14 +12,10 @@ import {
   reviewCommentsForChunk,
 } from "../../../../../model/utils/review-comments";
 import { buildChunkComparisonView } from "../../../../../model/comparison/runs";
-import {
-  hasNoChangedLines,
-  isUnattributedRemainderChunk,
-} from "../../../../../model/utils/remainder";
+import { hasNoChangedLines } from "../../../../../model/utils/remainder";
 import type {
   AddressedReviewComment,
   BriefChunk,
-  RiskKey,
 } from "../../../../../model/types";
 import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
 import { useChunkWithRows } from "../../../../../model/file-rows/useFileRows";
@@ -33,16 +30,9 @@ import {
   useChunkReviewComments,
   useReviewSession,
 } from "@web/features/review/session";
-import {
-  getConcernLabel,
-  getRiskAttributeLabel,
-  riskChipView,
-} from "../../../../../model/utils/view-model";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import { RiskBadge } from "../../RiskBadge";
-import { RiskChipDisclosure } from "../../RiskChipDisclosure";
-import { RiskDetailList } from "../../RiskDetailList";
-import { RoleBadge } from "./RoleBadge";
+import { ChunkActionsSheet } from "./ChunkActionsSheet";
+import { ChunkFacts } from "./ChunkFacts";
 import { FileCommentBand } from "./FileCommentBand";
 import { useFileCommentComposer } from "./useFileCommentComposer";
 import { Icon } from "@web/components/Icon";
@@ -51,9 +41,7 @@ import {
   IconRotations,
   IconSizes,
 } from "@web/components/Icon/types";
-import { FileStatusBadge } from "./FileStatusBadge";
 import { LargeChunkNotice } from "./LargeChunkNotice";
-import { ReadAsBadge } from "./ReadAsBadge";
 import {
   splitInlineRows,
   type DigestRow,
@@ -66,10 +54,14 @@ import { DiffTable } from "../../DiffTable";
 import { useChunkTokens } from "@web/hooks/useChunkTokens";
 import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import type { ChunkShare } from "../../types";
+import type { ChunkShare, GithubHeadRef } from "../../types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../reading/reading-position";
-import { countChangedLines, isLargeChunk } from "../../utils";
+import {
+  countChangedLines,
+  isLargeChunk,
+  resolveChunkGithubUrl,
+} from "../../utils";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
@@ -77,6 +69,10 @@ export interface ChunkCardProps {
   diffView?: DiffView;
   comparison: ComparisonOverlayState;
   open: boolean;
+  /** Held by the Brief, not the card: chunk ids repeat across Briefs and a switch reuses the card. */
+  actionsOpen: boolean;
+  openActions: (chunkId: string) => void;
+  closeActions: () => void;
   addressedReviewComments: AddressedReviewComment[];
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
@@ -100,37 +96,8 @@ export interface ChunkCardProps {
   jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
   /** Writes the chunk's hash and answers the URL to copy; absent hides the glyph. */
   shareChunk?: ChunkShare | undefined;
-}
-
-/**
- * The "+N" chip for risk attributes beyond the header's two-chip budget.
- * The full list opens in the shared anchored Callout (portal-rendered, so
- * the sticky head's stacking context can't cap it) and stays open while the
- * pointer is inside it. Screen readers get the list inline via the hidden span.
- */
-function OverflowRiskChip({
-  attrs,
-  riskMeta,
-}: {
-  attrs: RiskKey[];
-  riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
-}) {
-  const { t } = useTranslation();
-  const spokenAttributes = attrs
-    .map((attr) => getRiskAttributeLabel(t, attr))
-    .join(", ");
-  return (
-    <RiskChipDisclosure
-      detail={
-        <RiskDetailList attrs={attrs} metaFor={(attr) => riskMeta?.get(attr)} />
-      }
-    >
-      <RiskBadge>
-        +{attrs.length}
-        <ScreenReaderOnly>{` ${spokenAttributes}`}</ScreenReaderOnly>
-      </RiskBadge>
-    </RiskChipDisclosure>
-  );
+  /** The commit the chunk's file is read at on GitHub; absent hides Open on GitHub. */
+  githubHead?: GithubHeadRef | undefined;
 }
 
 /** Identity of a non-collapsed selection, for change detection across a gesture. */
@@ -174,6 +141,9 @@ export const ChunkCard = memo(function ChunkCard({
   diffView = DiffViews.UNIFIED,
   comparison,
   open,
+  actionsOpen,
+  openActions,
+  closeActions,
   addressedReviewComments,
   toggleChunk,
   markReviewed,
@@ -186,6 +156,7 @@ export const ChunkCard = memo(function ChunkCard({
   lineOwners,
   jumpToLine,
   shareChunk,
+  githubHead,
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const chunk = useChunkWithRows(briefChunk);
@@ -207,6 +178,7 @@ export const ChunkCard = memo(function ChunkCard({
   // pair actually did, not infer it from selection presence.
   const togglesThisPair = useRef(0);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
+  const actionsRef = useRef<HTMLButtonElement | null>(null);
   const large = isLargeChunk(chunk);
   const changedLines = countChangedLines(chunk);
   // Selected per chunk so this card re-renders only when ITS slice changes,
@@ -221,7 +193,6 @@ export const ChunkCard = memo(function ChunkCard({
   const tokenPlan = useTokenPlan();
   const diffRows = chunk.diff ?? NO_ROWS;
   const fileStatus = useMemo(() => resolveFileStatus(diffRows), [diffRows]);
-  const concernLabel = getConcernLabel(t, chunk.concern);
   const expansion = useExpandedRows({
     chunkId: chunk.id,
     path: chunk.file,
@@ -249,7 +220,6 @@ export const ChunkCard = memo(function ChunkCard({
     file: displayFile,
   });
 
-  const riskChips = riskChipView(chunk.riskSurface);
   const showsNoLinesNote = hasNoChangedLines(chunk);
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
@@ -281,6 +251,23 @@ export const ChunkCard = memo(function ChunkCard({
     : chunkReviewComments.filter(
         (comment) => !comment.outdated && comment.line !== undefined,
       );
+
+  const facts = (
+    <ChunkFacts
+      addressesComments={hasLinkedAddressedComments}
+      chunk={chunk}
+      draftCount={comments.length}
+      fileStatus={fileStatus}
+      reviewCommentCount={chunkReviewComments.length}
+      riskMeta={riskMeta}
+    />
+  );
+  const githubUrl = resolveChunkGithubUrl(chunk, githubHead);
+  const closeActionsToTrigger = () => {
+    closeActions();
+    actionsRef.current?.focus();
+  };
+
   return (
     <article
       className={styles["chunk"]}
@@ -371,81 +358,22 @@ export const ChunkCard = memo(function ChunkCard({
           />
         ) : null}
         <span className={styles["chips"]}>
-          {riskChips.shown.length > 0 ? (
-            <span className={styles["riskLane"]}>
-              {riskChips.shown.map((risk) => {
-                const meta = riskMeta?.get(risk);
-                if (meta?.source === "repo-policy" || meta?.deEmphasized) {
-                  // Repo-defined and de-emphasized chips carry a visible
-                  // expansion (source, implication, de-emphasis note)
-                  // reachable by keyboard/touch, not just title-hover.
-                  return (
-                    <RiskChipDisclosure
-                      detail={
-                        <RiskDetailList attrs={[risk]} metaFor={() => meta} />
-                      }
-                      key={risk}
-                    >
-                      <RiskBadge attribute={risk} meta={meta} />
-                    </RiskChipDisclosure>
-                  );
-                }
-                return <RiskBadge attribute={risk} key={risk} meta={meta} />;
-              })}
-              {riskChips.overflow.length > 0 ? (
-                <OverflowRiskChip
-                  attrs={riskChips.overflow}
-                  riskMeta={riskMeta}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          {isUnattributedRemainderChunk(chunk) ? null : (
-            <>
-              <span className={styles["chip"]} data-concern={chunk.concern}>
-                <span className={styles["dot"]} />
-                {concernLabel}
-              </span>
-              <RoleBadge role={chunk.role} />
-              {fileStatus !== undefined ? (
-                <FileStatusBadge status={fileStatus} />
-              ) : null}
-              {chunk.readAs !== undefined ? (
-                <ReadAsBadge readAs={chunk.readAs} />
-              ) : null}
-            </>
-          )}
-          {comments.length > 0 ? (
-            <span className={styles["chip"]}>
-              {t("brief.chunk.drafts", { count: comments.length })}
-            </span>
-          ) : null}
-          {chunkReviewComments.length > 0 ? (
-            <span className={styles["chip"]}>
-              {hasLinkedAddressedComments
-                ? t("brief.chunk.addressedCount", {
-                    count: chunkReviewComments.length,
-                  })
-                : t("brief.chunk.reviewCount", {
-                    count: chunkReviewComments.length,
-                  })}
-            </span>
-          ) : null}
-          <span className={`${styles["chip"]} ${styles["loc"]}`}>
+          {facts}
+          <span className={styles["loc"]}>
             <LocSign sign={LocSigns.ADD} count={chunk.loc.added} />{" "}
             <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
           </span>
         </span>
-        <label className={styles["reviewToggle"]}>
-          <input
-            type="checkbox"
+        <span className={styles["reviewToggle"]}>
+          <Checkbox
             checked={reviewed}
             disabled={marksDisabled === true}
             onChange={() => markReviewed(chunk.id)}
-          />
-          <span>{t("brief.chunk.viewed")}</span>
-          <ScreenReaderOnly>{` ${displayFile}`}</ScreenReaderOnly>
-        </label>
+          >
+            {t("brief.chunk.viewed")}
+            <ScreenReaderOnly>{` ${displayFile}`}</ScreenReaderOnly>
+          </Checkbox>
+        </span>
         <IconButton
           aria-label={addFileCommentLabel}
           aria-pressed={fileComposer.composerOpen}
@@ -456,7 +384,29 @@ export const ChunkCard = memo(function ChunkCard({
         >
           <Icon name={IconNames.CHAT_TEXT} size={IconSizes.MD} />
         </IconButton>
+        <IconButton
+          aria-expanded={actionsOpen}
+          aria-haspopup="dialog"
+          className={styles["actions"]}
+          label={t("brief.mobile.chunkActions")}
+          ref={actionsRef}
+          onClick={() => openActions(chunk.id)}
+        >
+          <Icon name={IconNames.DOTS_THREE} size={IconSizes.LG} />
+        </IconButton>
       </div>
+      {actionsOpen ? (
+        <ChunkActionsSheet
+          chunkId={chunk.id}
+          close={closeActionsToTrigger}
+          displayFile={displayFile}
+          facts={facts}
+          filePath={chunk.file}
+          githubUrl={githubUrl}
+          requestComment={fileComposer.revealComposer}
+          shareChunk={shareChunk}
+        />
+      ) : null}
       {!open ? (
         <ScreenReaderOnly>{t("brief.chunk.collapsed")}</ScreenReaderOnly>
       ) : null}
@@ -474,6 +424,7 @@ export const ChunkCard = memo(function ChunkCard({
       {open ? (
         <div className={styles["body"]}>
           <FileCommentBand
+            bandRef={fileComposer.bandRef}
             chunk={chunk}
             composerOpen={fileComposer.composerOpen}
             conversationComposer={conversationComposer}

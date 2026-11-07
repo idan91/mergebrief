@@ -14,6 +14,8 @@ export interface BriefViewState {
   openChunks: ReadonlySet<string>;
   focusMode: boolean;
   shortcutsOpen: boolean;
+  /** The chunk whose actions sheet is open; the sheet is modal, so one at most. */
+  chunkActionsFor: string | undefined;
   markReadyGateOpen: boolean;
   postDraftsOnReady: boolean;
   markReadyBatch: MarkReadyBatch | undefined;
@@ -27,6 +29,7 @@ export interface BriefViewActions {
   ) => void;
   setFocusMode: (on: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
+  setChunkActionsFor: (chunkId: string | undefined) => void;
   setMarkReadyGateOpen: (open: boolean) => void;
   setPostDraftsOnReady: (checked: boolean) => void;
   setMarkReadyBatch: (batch: MarkReadyBatch | undefined) => void;
@@ -50,6 +53,7 @@ export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
     openChunks: new Set(seed.openChunkIds),
     focusMode: seed.focusMode,
     shortcutsOpen: false,
+    chunkActionsFor: undefined,
     markReadyGateOpen: false,
     postDraftsOnReady: false,
     markReadyBatch: undefined,
@@ -72,6 +76,9 @@ export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
       },
       setShortcutsOpen(open) {
         set({ shortcutsOpen: open });
+      },
+      setChunkActionsFor(chunkId) {
+        set({ chunkActionsFor: chunkId });
       },
       setMarkReadyGateOpen(open) {
         set({ markReadyGateOpen: open });
