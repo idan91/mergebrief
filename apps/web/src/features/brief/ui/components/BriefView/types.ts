@@ -339,9 +339,69 @@ export const PostDraftOutcomes = {
 } as const;
 export type PostDraftOutcome = ValueOf<typeof PostDraftOutcomes>;
 
-export interface MarkReadyBatch {
+export const MarkReadyFlowKinds = {
+  CLOSED: "closed",
+  GATE: "gate",
+  POSTING: "posting",
+} as const;
+
+export interface ClosedMarkReadyFlow {
+  kind: typeof MarkReadyFlowKinds.CLOSED;
+}
+
+export interface GateMarkReadyFlow {
+  kind: typeof MarkReadyFlowKinds.GATE;
+}
+
+/** The gate's post-my-drafts batch, one draft at a time. */
+export interface PostingMarkReadyFlow {
+  kind: typeof MarkReadyFlowKinds.POSTING;
+  /** The 1-based position of the draft in flight. */
   current: number;
   total: number;
+  /** The batch in flight; its posts and mark-ready apply only while this is current. */
+  token: number;
+}
+
+export type MarkReadyFlow =
+  | ClosedMarkReadyFlow
+  | GateMarkReadyFlow
+  | PostingMarkReadyFlow;
+
+/** Why a running batch stopped before it marked the pull request ready. */
+export const MarkReadyStopReasons = {
+  HEAD_ADVANCED: "head-advanced",
+  READY_ELSEWHERE: "ready-elsewhere",
+  BRIEF_LEFT: "brief-left",
+} as const;
+export type MarkReadyStopReason = ValueOf<typeof MarkReadyStopReasons>;
+
+export type PostDraftFailure = Exclude<
+  PostDraftOutcome,
+  typeof PostDraftOutcomes.POSTED
+>;
+
+export interface MarkReadyBatchStop {
+  reason: MarkReadyStopReason;
+  posted: number;
+  total: number;
+  /** The in-flight post's failure, when it failed as the batch stopped. */
+  cause?: PostDraftFailure;
+}
+
+export interface MarkReadyStopSignals {
+  /** The batch's store is no longer the one in view: a revision switch swapped it. */
+  briefLeft: boolean;
+  ownDraftActive: boolean;
+  markReadyAvailable: boolean;
+}
+
+export interface MarkReadyGateMountInput {
+  ownDraftActive: boolean;
+  markReadyAvailable: boolean;
+  flagCount: number;
+  unpostedDraftCount: number;
+  flow: MarkReadyFlow;
 }
 
 export type UseComparisonInput = Pick<BriefViewProps, "reading" | "address">;

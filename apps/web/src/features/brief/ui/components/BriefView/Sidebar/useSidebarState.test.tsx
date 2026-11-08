@@ -100,6 +100,19 @@ describe("useSidebarState over a brief change", () => {
     expect(refocusDue).toBe(false);
   });
 
+  it("returning to the earlier brief keeps the sheet closed", () => {
+    const { result, rerender } = renderHook(
+      ({ briefId }) => useSidebarState("narrow", true, briefId),
+      { initialProps: { briefId: "brief-a" } },
+    );
+    act(() => result.current.expand());
+
+    rerender({ briefId: "brief-b" });
+    rerender({ briefId: "brief-a" });
+
+    expect(result.current.expanded).toBe(false);
+  });
+
   it("asks for no focus when the sheet was already closed", () => {
     const { result, rerender } = renderHook(
       ({ briefId }) => useSidebarState("narrow", true, briefId),

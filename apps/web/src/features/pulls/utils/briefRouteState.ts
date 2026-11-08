@@ -5,7 +5,6 @@
 // waiting/failed/superseded display and the polling cadence only.
 import {
   LastReviewUnavailableReasons,
-  WaitReasons,
   type GenerationPartsView,
   type WaitReason,
 } from "contract";
@@ -14,6 +13,8 @@ import {
   type GenerationFailureCode,
   type GenerationUnitsParams,
 } from "types/generations";
+import { deriveGenerationWait } from "@web/utils/generation-wait";
+import { GenerationWaits } from "@web/utils/generation-wait/types";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
@@ -247,8 +248,8 @@ export function shouldPollMeta(meta: PrSummary): boolean {
   }
   const status = meta.generation?.status;
   // A stalled head has no job left to run: it polls at the settled pace.
-  const stalled = meta.generation?.waitReason === WaitReasons.STALLED;
-  const inFlight = isInFlight(status) && !stalled;
+  const inFlight =
+    deriveGenerationWait(meta.generation) === GenerationWaits.IN_FLIGHT;
   if (inFlight) {
     return true;
   }

@@ -3,9 +3,30 @@
     &[data-variant="danger"] {
       color: var(--color-negative);
     }
+
+    &[aria-disabled="true"][data-state="unavailable"] {
+      opacity: 1;
+
+      .glyph,
+      .label {
+        opacity: 0.6;
+      }
+    }
   }
 
   .glyph {
     color: inherit;
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-inline-size: 0;
+  }
+
+  .reason {
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
   }
 }

@@ -1,13 +1,11 @@
 // The wait surface for the DB-brief route. Announced via the polite live
 // region the body owns; presentational. The progress line is its own polite
 // region: a part landing is read in place, the heading never re-announces.
-import {
-  WaitReasons,
-  type GenerationPartsView,
-  type WaitReason,
-} from "contract";
+import type { GenerationPartsView, WaitReason } from "contract";
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
+import { deriveGenerationWait } from "@web/utils/generation-wait";
+import { GenerationWaits } from "@web/utils/generation-wait/types";
 import { useHydrated } from "./useHydrated";
 import { renderedLocale } from "@web/i18n/locale";
 import type { Span } from "../../../utils/briefRouteState";
@@ -53,7 +51,8 @@ export function WaitCard({
   const { t, i18n } = useTranslation();
   const hydrated = useHydrated();
   const heading = waitLabel(t, { status, phase, waitReason, pendingNotice });
-  const stalled = status === "pending" && waitReason === WaitReasons.STALLED;
+  const stalled =
+    deriveGenerationWait({ status, waitReason }) === GenerationWaits.STALLED;
   const detail = selectWaitDetail(t, { span, stalled, rerun });
   const progress = selectWaitProgress(t, {
     status,

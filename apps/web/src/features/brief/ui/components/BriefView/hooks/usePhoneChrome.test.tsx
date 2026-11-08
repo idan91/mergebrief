@@ -136,6 +136,17 @@ describe("usePhoneChrome", () => {
     );
   });
 
+  it("returning to the earlier brief keeps the sheet closed", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    const { rerender } = render(<Harness briefId="brief-a" />);
+    act(() => chrome?.openControls());
+
+    rerender(<Harness briefId="brief-b" />);
+    rerender(<Harness briefId="brief-a" />);
+
+    expect(chrome?.controlsOpen).toBe(false);
+  });
+
   it("takes focus back from the main landmark a leaving control handed it", () => {
     setMediaQueryMatches(MOBILE_QUERY, true);
     const { rerender } = render(<Harness briefId="brief-a" />);

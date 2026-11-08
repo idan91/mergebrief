@@ -66,7 +66,10 @@ export function useSidebarState(
   );
   const latest = useRef(preference);
   const [motionReady, setMotionReady] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Tagged with the brief it opened on, so another brief reads it closed.
+  const [sheetOpenFor, setSheetOpenFor] = useState<string | undefined>(
+    undefined,
+  );
   const [slideMotion, setSlideMotion] = useState(true);
   // The column's reserve while the panel slides; absent at rest.
   const [slideColumn, setSlideColumn] = useState<boolean | undefined>(
@@ -74,24 +77,29 @@ export function useSidebarState(
   );
   const [lastBand, setLastBand] = useState(band);
   const [lastVisible, setLastVisible] = useState(visible);
-  const [lastBriefId, setLastBriefId] = useState(briefId);
   const [sheetClosedByBrief, setSheetClosedByBrief] = useState(false);
   const narrow = band === ViewportBands.NARROW;
+  const sheetOpen = sheetOpenFor === briefId;
 
   // Crossing the breakpoint, or the sidebar leaving and returning, starts
   // from a closed sheet: a modal never reopens on its own.
   if (lastBand !== band || lastVisible !== visible) {
     setLastBand(band);
     setLastVisible(visible);
-    setSheetOpen(false);
+    setSheetOpenFor(undefined);
   }
-  if (lastBriefId !== briefId) {
-    setLastBriefId(briefId);
-    if (sheetOpen) {
-      setSheetOpen(false);
-      setSheetClosedByBrief(true);
+
+  // A tag left by the brief before reads closed already; clearing it keeps
+  // a return to that brief closed, and the next brief's sidebar takes focus.
+  const sheetLeftOnEarlierBrief =
+    sheetOpenFor !== undefined && sheetOpenFor !== briefId;
+  useEffect(() => {
+    if (!sheetLeftOnEarlierBrief) {
+      return;
     }
-  }
+    setSheetOpenFor(undefined);
+    setSheetClosedByBrief(true);
+  }, [sheetLeftOnEarlierBrief]);
 
   // Before paint, so a client-side navigation never flashes the default.
   useLayoutEffect(() => {
@@ -113,7 +121,7 @@ export function useSidebarState(
   const setExpanded = useCallback(
     (expanded: boolean, instantly = false) => {
       if (narrow) {
-        setSheetOpen(expanded);
+        setSheetOpenFor(expanded ? briefId : undefined);
         return;
       }
 
@@ -125,7 +133,7 @@ export function useSidebarState(
       );
       update({ expanded });
     },
-    [motionReady, narrow, update],
+    [briefId, motionReady, narrow, update],
   );
 
   const expanded = narrow ? sheetOpen : preference.expanded;

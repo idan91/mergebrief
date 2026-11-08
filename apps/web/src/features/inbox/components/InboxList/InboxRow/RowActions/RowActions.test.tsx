@@ -89,6 +89,7 @@ async function renderActions(
     <RowActions
       archived={archived}
       archiveHeld={false}
+      deleteHeld={false}
       item={item}
       onAnnounce={onAnnounce}
       onArchived={onArchived}

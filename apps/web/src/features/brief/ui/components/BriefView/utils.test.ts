@@ -36,6 +36,13 @@ import {
   listLargeChunkIds,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
+  composeMarkReadyStopCopy,
+  deriveMarkReadyStopReason,
+  openMarkReadyFlow,
+  closeMarkReadyFlow,
+  startMarkReadyFlowBatch,
+  advanceMarkReadyFlowBatch,
+  isMarkReadyGateMounted,
   resolveRiskEvidence,
   toggleSetMember,
   resolveSidebarLayout,
@@ -56,7 +63,11 @@ import {
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
   SESSION_FROZEN_REASON_KEY,
 } from "./consts";
-import { LinkParamErrors } from "./types";
+import {
+  LinkParamErrors,
+  MarkReadyStopReasons,
+  type MarkReadyFlow,
+} from "./types";
 import { DiffSides } from "types/comments";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -479,15 +490,161 @@ describe("markReadyBatchFailureCopy", () => {
   });
 });
 
+const CLOSED_FLOW: MarkReadyFlow = { kind: "closed" };
+const GATE_FLOW: MarkReadyFlow = { kind: "gate" };
+const POSTING_FLOW: MarkReadyFlow = {
+  kind: "posting",
+  current: 2,
+  total: 3,
+  token: 7,
+};
+
 describe("markReadyBatchBusyLabel", () => {
   it("returns undefined while no batch runs", () => {
-    expect(markReadyBatchBusyLabel(t, undefined)).toBeUndefined();
+    expect(markReadyBatchBusyLabel(t, GATE_FLOW)).toBeUndefined();
   });
 
   it("labels the running batch's progress", () => {
-    expect(markReadyBatchBusyLabel(t, { current: 2, total: 3 })).toBe(
-      "Posting 2 of 3…",
+    expect(markReadyBatchBusyLabel(t, POSTING_FLOW)).toBe("Posting 2 of 3…");
+  });
+});
+
+describe("mark-ready flow transitions", () => {
+  it("opens a closed gate and never resets a running batch", () => {
+    expect(openMarkReadyFlow(CLOSED_FLOW)).toEqual(GATE_FLOW);
+    expect(openMarkReadyFlow(POSTING_FLOW)).toBe(POSTING_FLOW);
+  });
+
+  it("closes from any state, keeping a closed flow as it is", () => {
+    expect(closeMarkReadyFlow(POSTING_FLOW)).toEqual(CLOSED_FLOW);
+    expect(closeMarkReadyFlow(CLOSED_FLOW)).toBe(CLOSED_FLOW);
+  });
+
+  it("starts a batch only from the open gate", () => {
+    expect(startMarkReadyFlowBatch(GATE_FLOW, 3, 4)).toEqual({
+      kind: "posting",
+      current: 1,
+      total: 4,
+      token: 3,
+    });
+    expect(startMarkReadyFlowBatch(CLOSED_FLOW, 3, 4)).toBe(CLOSED_FLOW);
+    expect(startMarkReadyFlowBatch(POSTING_FLOW, 3, 4)).toBe(POSTING_FLOW);
+  });
+
+  it("advances only the batch whose token is current", () => {
+    expect(advanceMarkReadyFlowBatch(POSTING_FLOW, 7, 3)).toEqual({
+      kind: "posting",
+      current: 3,
+      total: 3,
+      token: 7,
+    });
+    expect(advanceMarkReadyFlowBatch(POSTING_FLOW, 6, 3)).toBe(POSTING_FLOW);
+    expect(advanceMarkReadyFlowBatch(POSTING_FLOW, 7, 2)).toBe(POSTING_FLOW);
+    expect(advanceMarkReadyFlowBatch(CLOSED_FLOW, 7, 3)).toBe(CLOSED_FLOW);
+  });
+});
+
+describe("isMarkReadyGateMounted", () => {
+  const base = {
+    ownDraftActive: true,
+    markReadyAvailable: true,
+    flagCount: 0,
+    unpostedDraftCount: 0,
+  };
+
+  it("keeps a zero-flag gate mounted while its last draft posts", () => {
+    expect(isMarkReadyGateMounted({ ...base, flow: POSTING_FLOW })).toBe(true);
+    expect(isMarkReadyGateMounted({ ...base, flow: GATE_FLOW })).toBe(false);
+  });
+
+  it("never mounts once the action is withheld", () => {
+    expect(
+      isMarkReadyGateMounted({
+        ...base,
+        markReadyAvailable: false,
+        flagCount: 2,
+        flow: POSTING_FLOW,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("deriveMarkReadyStopReason", () => {
+  const signals = {
+    briefLeft: false,
+    ownDraftActive: true,
+    markReadyAvailable: false,
+  };
+
+  it("reads a withheld action as an advanced head", () => {
+    expect(deriveMarkReadyStopReason(signals)).toBe("head-advanced");
+  });
+
+  it("reads a closed own-draft state as ready elsewhere", () => {
+    expect(
+      deriveMarkReadyStopReason({ ...signals, ownDraftActive: false }),
+    ).toBe("ready-elsewhere");
+  });
+
+  it("reads every signal unchanged as leaving the Brief", () => {
+    expect(
+      deriveMarkReadyStopReason({
+        briefLeft: false,
+        ownDraftActive: true,
+        markReadyAvailable: true,
+      }),
+    ).toBe("brief-left");
+  });
+
+  it("reads a swapped Brief as leaving it, whatever else changed", () => {
+    expect(
+      deriveMarkReadyStopReason({
+        briefLeft: true,
+        ownDraftActive: false,
+        markReadyAvailable: false,
+      }),
+    ).toBe("brief-left");
+  });
+});
+
+describe("composeMarkReadyStopCopy", () => {
+  it("leads with the head advance and says it was not marked ready", () => {
+    expect(
+      composeMarkReadyStopCopy(t, {
+        reason: MarkReadyStopReasons.HEAD_ADVANCED,
+        posted: 1,
+        total: 3,
+      }),
+    ).toBe(
+      "This pull request has newer commits. Switch to the latest revision" +
+        " to mark it ready for review. Posted 1 of 3. The pull request was" +
+        " not marked ready.",
     );
+  });
+
+  it("drops the not-ready suffix when the PR went ready elsewhere", () => {
+    expect(
+      composeMarkReadyStopCopy(t, {
+        reason: MarkReadyStopReasons.READY_ELSEWHERE,
+        posted: 0,
+        total: 2,
+        cause: "indeterminate",
+      }),
+    ).toBe(
+      "This pull request is now ready for review, so the pre-ready check" +
+        " closed. Posted 0 of 2. One comment may or may not have posted." +
+        " Check GitHub before retrying.",
+    );
+  });
+
+  it("states only the counts when the batch's Brief was left", () => {
+    expect(
+      composeMarkReadyStopCopy(t, {
+        reason: MarkReadyStopReasons.BRIEF_LEFT,
+        posted: 2,
+        total: 2,
+      }),
+    ).toBe("Posted 2 of 2. The pull request was not marked ready.");
   });
 });
 

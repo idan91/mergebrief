@@ -1,6 +1,6 @@
 import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo } from "react";
 import { useStore } from "zustand";
 import { DraftCommentStatuses } from "types";
 
@@ -15,12 +15,13 @@ import type { RiskFlag } from "../../../../model/utils/view-model";
 import type { ShownButtonRef } from "../hooks/usePhoneChrome";
 import type { BriefViewStore } from "../store";
 import { useMarkReady } from "./useMarkReady";
-import { PostDraftOutcomes, type PostDraftOutcome } from "../types";
+import { useMarkReadyBatch } from "./useMarkReadyBatch";
+import { MarkReadyFlowKinds, type PostDraftOutcome } from "../types";
 import {
   countIntentGaps,
   countIntentTensions,
+  isMarkReadyGateMounted,
   markReadyBatchBusyLabel,
-  markReadyBatchFailureCopy,
 } from "../utils";
 import { focusRescueTarget } from "../focus-rescue";
 
@@ -32,7 +33,7 @@ export interface UseMarkReadyFlowInput {
   action: MarkReadyAction | undefined;
   /** Page-level live-region channel (clear-then-set). */
   announce: (message: string) => void;
-  /** Holds the gate, its checkbox and the batch progress for this Brief. */
+  /** Holds the gate's flow and its checkbox for this Brief. */
   viewStore: BriefViewStore;
   /**
    * Closes every reviewer overlay (drawers, pre-submit, disposition modals)
@@ -60,6 +61,8 @@ export interface UseMarkReadyFlowValue {
   pending: boolean;
   request: () => void;
   gateOpen: boolean;
+  /** The gate's modal is in the tree: open, closing, or posting a zero-flag batch. */
+  gateMounted: boolean;
   closeGate: () => void;
   markReadyAnyway: () => void;
   batchBusyLabel: string | undefined;
@@ -93,17 +96,13 @@ export function useMarkReadyFlow(
     showIntentBar,
     phoneControlsRef,
   } = input;
-  const markReadyGateOpen = useStore(
-    viewStore,
-    (state) => state.markReadyGateOpen,
-  );
+  const markReadyFlow = useStore(viewStore, (state) => state.markReadyFlow);
   // Default UNCHECKED: posting is an outward write.
   const postDraftsOnReady = useStore(
     viewStore,
     (state) => state.postDraftsOnReady,
   );
-  const markReadyBatch = useStore(viewStore, (state) => state.markReadyBatch);
-  const { setMarkReadyGateOpen, setPostDraftsOnReady, setMarkReadyBatch } =
+  const { openMarkReadyGate, closeMarkReadyGate, setPostDraftsOnReady } =
     viewStore.getState().actions;
 
   // Destructured because the hook returns a fresh object literal per render;
@@ -116,15 +115,20 @@ export function useMarkReadyFlow(
   // overlay once the PR is marked ready. The unmount drops focus on <body>
   // without a blur, so orphaned focus is re-homed on the terminal-slot CTA.
   const overlayWasOpenRef = useLatestRef(reviewerOverlayOpen);
-  const gateOpenRef = useLatestRef(markReadyGateOpen);
-  useEffect(() => {
+  // Layout phase: a post settling before passive effects flush would read
+  // the batch as current and run the next write.
+  useLayoutEffect(() => {
     if (!ownDraftActive) {
-      setMarkReadyGateOpen(false);
-      if (gateOpenRef.current) {
+      const flowAtExit = viewStore.getState().markReadyFlow;
+      closeMarkReadyGate();
+      if (flowAtExit.kind !== MarkReadyFlowKinds.CLOSED) {
         const activeAtExit = document.activeElement;
         if (activeAtExit === null || activeAtExit === document.body) {
           focusRescueTarget(phoneControlsRef);
         }
+      }
+      // A stopped batch announces once its in-flight post settles.
+      if (flowAtExit.kind === MarkReadyFlowKinds.GATE) {
         announce(t("pulls.markReady.exited"));
       }
       return;
@@ -140,36 +144,14 @@ export function useMarkReadyFlow(
     closeReviewerOverlays();
   }, [
     announce,
+    closeMarkReadyGate,
     closeReviewerOverlays,
-    gateOpenRef,
     overlayWasOpenRef,
     ownDraftActive,
     phoneControlsRef,
-    setMarkReadyGateOpen,
     t,
+    viewStore,
   ]);
-  // A batch failure closes the gate while the modal still holds focus. The
-  // rescue must run AFTER React commits the close: a requestAnimationFrame is
-  // not ordered against the commit, so under load it read the modal as still
-  // open and left focus stranded inside an inert dialog.
-  const [batchFailureRescue, setBatchFailureRescue] = useState(false);
-  useEffect(() => {
-    if (!batchFailureRescue) {
-      return;
-    }
-    setBatchFailureRescue(false);
-
-    const active = document.activeElement;
-    const stranded =
-      active === null ||
-      active === document.body ||
-      active.closest('[data-state="closed"]') !== null ||
-      active.closest("[inert]") !== null;
-    if (stranded) {
-      focusRescueTarget(phoneControlsRef);
-    }
-  }, [batchFailureRescue, phoneControlsRef]);
-
   const unpostedDraftComments = useMemo(
     () =>
       reviewComments.filter(
@@ -180,28 +162,50 @@ export function useMarkReadyFlow(
   const markReadyAvailable = action !== undefined;
   // Mid-gate head advance: the route withholds `markReady` WITHOUT a remount,
   // so the modal unmounts while its open flag stays set.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ownDraftActive || markReadyAvailable) {
       return;
     }
-    if (!gateOpenRef.current) {
+    const flowAtAdvance = viewStore.getState().markReadyFlow;
+    if (flowAtAdvance.kind === MarkReadyFlowKinds.CLOSED) {
       return;
     }
-    setMarkReadyGateOpen(false);
+    closeMarkReadyGate();
     const active = document.activeElement;
     if (active === null || active === document.body) {
       focusRescueTarget(phoneControlsRef);
     }
-    announce(t("pulls.markReady.gateClosed"));
+    if (flowAtAdvance.kind === MarkReadyFlowKinds.GATE) {
+      announce(t("pulls.markReady.gateClosed"));
+    }
   }, [
     announce,
-    gateOpenRef,
+    closeMarkReadyGate,
     markReadyAvailable,
     ownDraftActive,
     phoneControlsRef,
-    setMarkReadyGateOpen,
     t,
+    viewStore,
   ]);
+  const gateMounted = isMarkReadyGateMounted({
+    ownDraftActive,
+    markReadyAvailable,
+    flagCount,
+    unpostedDraftCount: unpostedDraftComments.length,
+    flow: markReadyFlow,
+  });
+  // A gate whose last draft left elsewhere unmounts with nothing to show; its
+  // flow closes so the shortcuts and the next Mark ready are live again.
+  const gateEmptied =
+    markReadyFlow.kind === MarkReadyFlowKinds.GATE &&
+    ownDraftActive &&
+    markReadyAvailable &&
+    !gateMounted;
+  useLayoutEffect(() => {
+    if (gateEmptied) {
+      closeMarkReadyGate();
+    }
+  }, [closeMarkReadyGate, gateEmptied]);
   const requestMarkReady = useCallback(() => {
     if (!markReadyAvailable) {
       announce(t("pulls.markReady.historicalRevision"));
@@ -209,7 +213,10 @@ export function useMarkReadyFlow(
     }
     // The CTA is aria-disabled (not hard disabled) while pending, so a click
     // still lands here and would reopen the gate over the running mutation.
-    if (markReadyPending) {
+    const refusesRequest =
+      markReadyPending ||
+      viewStore.getState().markReadyFlow.kind === MarkReadyFlowKinds.POSTING;
+    if (refusesRequest) {
       return;
     }
     // The gate opens for risk flags OR unposted drafts: a zero-flag brief
@@ -217,7 +224,7 @@ export function useMarkReadyFlow(
     // drafts silently stay local while the PR goes ready.
     if (flagCount > 0 || unpostedDraftComments.length > 0) {
       setPostDraftsOnReady(false);
-      setMarkReadyGateOpen(true);
+      openMarkReadyGate();
       return;
     }
     markReady();
@@ -227,24 +234,36 @@ export function useMarkReadyFlow(
     markReady,
     markReadyAvailable,
     markReadyPending,
-    setMarkReadyGateOpen,
+    openMarkReadyGate,
     setPostDraftsOnReady,
     t,
     unpostedDraftComments.length,
+    viewStore,
   ]);
-  const closeMarkReadyGate = useCallback(
-    () => setMarkReadyGateOpen(false),
-    [setMarkReadyGateOpen],
-  );
+  // The reviewer's own close, refused while the batch writes.
+  const cancelGate = useCallback((): boolean => {
+    const posting =
+      viewStore.getState().markReadyFlow.kind === MarkReadyFlowKinds.POSTING;
+    if (!posting) {
+      closeMarkReadyGate();
+    }
+    return !posting;
+  }, [closeMarkReadyGate, viewStore]);
+  const closeGate = useCallback(() => {
+    cancelGate();
+  }, [cancelGate]);
   const jumpToFlagFromGate = useCallback(
     (flag: RiskFlag) => {
-      setMarkReadyGateOpen(false);
-      jumpToChunk(flag.chunkId);
+      if (cancelGate()) {
+        jumpToChunk(flag.chunkId);
+      }
     },
-    [jumpToChunk, setMarkReadyGateOpen],
+    [cancelGate, jumpToChunk],
   );
   const jumpToDraftsFromGate = useCallback(() => {
-    setMarkReadyGateOpen(false);
+    if (!cancelGate()) {
+      return;
+    }
     const first = unpostedDraftComments[0];
     if (first === undefined) {
       return;
@@ -253,76 +272,37 @@ export function useMarkReadyFlow(
     if (chunkId !== "") {
       jumpToChunk(chunkId);
     }
-  }, [chunks, jumpToChunk, setMarkReadyGateOpen, unpostedDraftComments]);
+  }, [cancelGate, chunks, jumpToChunk, unpostedDraftComments]);
   // Intent lines never feed the gate's OPEN condition.
   const intentGapCount = countIntentGaps(intentCheck);
   const intentTensionCount = countIntentTensions(intentCheck);
   const jumpToIntentGapsFromGate = useCallback(() => {
-    setMarkReadyGateOpen(false);
-    showIntentBar();
-  }, [setMarkReadyGateOpen, showIntentBar]);
-  // Marks ready only if every post succeeded; any failure stops first. The
-  // confirm CTA is aria-disabled while the batch runs, so a click can land
-  // before the busy state renders: the guard must be a ref, not state.
-  const batchInFlight = useRef(false);
-  const runMarkReadyBatch = useCallback(
-    async (drafts: readonly ReviewComment[]) => {
-      if (batchInFlight.current) {
-        return;
-      }
-      batchInFlight.current = true;
-      try {
-        const total = drafts.length;
-        let posted = 0;
-        for (const draft of drafts) {
-          setMarkReadyBatch({ current: posted + 1, total });
-          // Sequential BY DESIGN: a failure must STOP the run before the next
-          // outward write and before mark-ready, Promise.all would defeat
-          // the stop-on-failure contract.
-          // oxlint-disable-next-line no-await-in-loop
-          const outcome = await postDraft(draft, true);
-          if (outcome !== PostDraftOutcomes.POSTED) {
-            setMarkReadyBatch(undefined);
-            setMarkReadyGateOpen(false);
-            // Per-comment copy is suppressed for the batch, so this summary
-            // is the run's only live-region write.
-            announce(markReadyBatchFailureCopy(t, posted, total, outcome));
-            // Neither sibling rescue fires here (no state exit, no head
-            // advance), so the effect below re-homes focus once the close has
-            // committed.
-            setBatchFailureRescue(true);
-            return;
-          }
-          posted += 1;
-        }
-        setMarkReadyBatch(undefined);
-        setMarkReadyGateOpen(false);
-        markReady();
-      } finally {
-        batchInFlight.current = false;
-      }
-    },
-    [
-      announce,
-      markReady,
-      postDraft,
-      setMarkReadyBatch,
-      setMarkReadyGateOpen,
-      t,
-    ],
-  );
+    if (cancelGate()) {
+      showIntentBar();
+    }
+  }, [cancelGate, showIntentBar]);
+  const { runMarkReadyBatch } = useMarkReadyBatch({
+    viewStore,
+    announce,
+    markReady,
+    markReadyAvailable,
+    ownDraftActive,
+    postDraft,
+    phoneControlsRef,
+  });
   const markReadyAnyway = useCallback(() => {
     if (postDraftsOnReady && unpostedDraftComments.length > 0) {
       void runMarkReadyBatch(unpostedDraftComments);
       return;
     }
-    setMarkReadyGateOpen(false);
-    markReady();
+    if (cancelGate()) {
+      markReady();
+    }
   }, [
+    cancelGate,
     markReady,
     postDraftsOnReady,
     runMarkReadyBatch,
-    setMarkReadyGateOpen,
     unpostedDraftComments,
   ]);
 
@@ -330,10 +310,11 @@ export function useMarkReadyFlow(
     available: markReadyAvailable,
     pending: markReadyPending,
     request: requestMarkReady,
-    gateOpen: markReadyGateOpen,
-    closeGate: closeMarkReadyGate,
+    gateOpen: markReadyFlow.kind !== MarkReadyFlowKinds.CLOSED,
+    gateMounted,
+    closeGate,
     markReadyAnyway,
-    batchBusyLabel: markReadyBatchBusyLabel(t, markReadyBatch),
+    batchBusyLabel: markReadyBatchBusyLabel(t, markReadyFlow),
     postDraftsOnReady,
     setPostDraftsOnReady,
     unpostedDraftCount: unpostedDraftComments.length,

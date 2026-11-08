@@ -182,10 +182,9 @@ export function InboxList({
     [handleGone],
   );
   // One delete modal serves a row's menu and the selection bar.
-  const deleteScope = useRef<ArchiveScope>(ArchiveScopes.ROW);
   const handleDeleted = useCallback(
-    (gone: readonly InboxItem[]): void => {
-      if (deleteScope.current === ArchiveScopes.SELECTION) {
+    (gone: readonly InboxItem[], scope: ArchiveScope): void => {
+      if (scope === ArchiveScopes.SELECTION) {
         handleSelectionGone(gone);
       } else {
         handleGone(gone);
@@ -244,8 +243,7 @@ export function InboxList({
   const { requestDelete } = deletion;
   const handleDelete = useCallback(
     (item: InboxItem): void => {
-      deleteScope.current = ArchiveScopes.ROW;
-      requestDelete([item]);
+      requestDelete([item], ArchiveScopes.ROW);
     },
     [requestDelete],
   );
@@ -255,7 +253,8 @@ export function InboxList({
   // One restore at a time: a second archive's Undo would meet the guard and do nothing.
   const archiveHeld = restoring.pending;
   const busy = deletion.busy || archiving.pending || archiveHeld || collecting;
-  const deleteOpen = deletion.pending.length > 0;
+  const deleteOpen = deletion.pending !== undefined;
+  const deleteItems = deletion.pending?.items ?? NO_ROWS;
   const selectedCount = selection.selectedItems.length;
   const selecting = selectMode || selectedCount > 0;
   const matchingTotal = Math.max(total, ordered.length);
@@ -319,8 +318,7 @@ export function InboxList({
       toast.show(t("home.inbox.select.noneDeletable", { count: rows.length }));
       return;
     }
-    deleteScope.current = ArchiveScopes.SELECTION;
-    deletion.requestDelete(deletableRows);
+    deletion.requestDelete(deletableRows, ArchiveScopes.SELECTION);
   }
   function archiveSelected(): void {
     void runArchive();
@@ -418,6 +416,7 @@ export function InboxList({
                 sort={sort}
                 archived={archived}
                 archiveHeld={archiveHeld}
+                deleteHeld={collecting}
                 onAnnounce={toast.show}
                 onArchived={announceArchived}
                 onDelete={handleDelete}
@@ -453,6 +452,7 @@ export function InboxList({
                 sort={sort}
                 archived={archived}
                 archiveHeld={archiveHeld}
+                deleteHeld={collecting}
                 onAnnounce={toast.show}
                 onArchived={announceArchived}
                 onDelete={handleDelete}
@@ -468,7 +468,7 @@ export function InboxList({
         busy={deletion.busy}
         cancel={deletion.cancel}
         confirm={confirmDelete}
-        items={deletion.pending}
+        items={deleteItems}
         open={deleteOpen}
       />
       {purge.pending === undefined ? null : (
@@ -491,6 +491,8 @@ export function InboxList({
     </section>
   );
 }
+
+const NO_ROWS: readonly InboxItem[] = [];
 
 function keepRestoredRows(): void {}
 

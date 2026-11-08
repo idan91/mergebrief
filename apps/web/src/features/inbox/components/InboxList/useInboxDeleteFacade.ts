@@ -1,5 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import type { TFunction } from "i18next";
 import { PullRequestSources } from "types";
 import { useTranslation } from "react-i18next";
@@ -12,6 +14,7 @@ import {
   type RowWriteFailureKind,
 } from "../../types";
 import { runWithConcurrency } from "../../utils";
+import type { ArchiveScope, PendingDelete } from "./types";
 
 /** The copy a refused delete announces, by the transport's failure kind. */
 const DeleteFailureCopy = {
@@ -25,8 +28,8 @@ const DeleteFailureCopy = {
 export interface InboxDeleteFacadeInput {
   /** The page-level live region. */
   readonly announce: (message: string) => void;
-  /** The rows that went, before the re-read; the list unticks them and decides where focus goes. */
-  readonly onDeleted: (gone: readonly InboxItem[]) => void;
+  /** The rows that went, before the re-read, with the scope they were asked from. */
+  readonly onDeleted: (gone: readonly InboxItem[], scope: ArchiveScope) => void;
 }
 
 interface RowOutcome {
@@ -81,37 +84,48 @@ export function useInboxDeleteFacade({
 }: InboxDeleteFacadeInput) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [pending, setPending] = useState<readonly InboxItem[]>([]);
+  const [pending, setPending] = useState<PendingDelete | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  // A bulk request lands after its matching read, from a click-time closure.
+  const pendingRef = useLatestRef(pending);
 
-  const requestDelete = useCallback((items: readonly InboxItem[]): void => {
-    setPending(items);
-  }, []);
+  /** An open delete keeps its rows: a later request is refused and announced. */
+  const requestDelete = useCallback(
+    (items: readonly InboxItem[], scope: ArchiveScope): void => {
+      if (pendingRef.current !== undefined) {
+        announce(t("home.inbox.select.deletePending"));
+        return;
+      }
+      setPending({ items, scope });
+    },
+    [announce, pendingRef, t],
+  );
 
   const cancel = useCallback((): void => {
-    setPending([]);
+    setPending(undefined);
   }, []);
 
   /** Runs the delete over every pending row; answers the rows that went. */
   const confirm = useCallback(async (): Promise<readonly InboxItem[]> => {
-    if (pending.length === 0 || busy) {
+    const confirmUnavailable = pending === undefined || busy;
+    if (confirmUnavailable) {
       return [];
     }
     setBusy(true);
     const outcomes = await runWithConcurrency(
-      pending,
+      pending.items,
       BULK_CONCURRENCY,
       deleteRow,
     );
     setBusy(false);
-    setPending([]);
+    setPending(undefined);
 
     const gone = outcomes
       .filter((outcome) => outcome.kind === RowWriteResultKinds.DELETED)
       .map((outcome) => outcome.item);
     announce(describeOutcome(t, outcomes, outcomes.length - gone.length));
     if (gone.length > 0) {
-      onDeleted(gone);
+      onDeleted(gone, pending.scope);
       await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
     }
     return gone;

@@ -140,7 +140,51 @@ async function renderBriefView(
   return {
     rerenderWith: (plan: OwnDraftPlan | undefined) =>
       view.rerender({ ownDraft: plan, session: buildSessionPayload() }),
+    switchBriefWith: (briefId: string, plan: OwnDraftPlan | undefined) =>
+      view.rerender({
+        briefId,
+        ownDraft: plan,
+        session: buildSessionPayload(),
+      }),
   };
+}
+
+interface HeldPosts {
+  postComment: (draftId: string) => Promise<PostCommentResult>;
+  settleNext: (result: PostCommentResult) => Promise<void>;
+}
+
+/** A post transport whose posts stay in flight until the test settles each. */
+function holdPosts(): HeldPosts {
+  const waiting: Array<(result: PostCommentResult) => void> = [];
+  return {
+    postComment: vi.fn(
+      (_draftId: string) =>
+        new Promise<PostCommentResult>((resolve) => {
+          waiting.push(resolve);
+        }),
+    ),
+    settleNext: async (result) => {
+      const settle = waiting.shift();
+      if (settle === undefined) {
+        throw new Error("no post is in flight");
+      }
+      await act(async () => {
+        settle(result);
+        await Promise.resolve();
+      });
+    },
+  };
+}
+
+async function startBatch(draftCount: number): Promise<void> {
+  fireEvent.click(markReadyCta());
+  fireEvent.click(
+    await screen.findByRole("checkbox", {
+      name: new RegExp(`post my ${String(draftCount)} draft comments`, "i"),
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
 }
 
 describe("own-draft Brief view", () => {
@@ -409,6 +453,33 @@ describe("own-draft Brief view", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
     await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
     expect(postComment).toHaveBeenCalledTimes(2);
+  });
+
+  it("a gate whose drafts left elsewhere lets Mark ready run again", async () => {
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    const reads = makeSessionReadDriver();
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    await renderBriefView({ markReady }, flaglessBrief, false, reads.source);
+    fireEvent.click(markReadyCta());
+    expect(
+      await screen.findByText("You have 1 unposted draft comment."),
+    ).toBeTruthy();
+
+    act(() => {
+      reads.startRead();
+      reads.landRead({ ...buildSessionPayload(), draftComments: [] });
+    });
+    await waitFor(() =>
+      expect(screen.queryByText("Before marking ready")).toBeNull(),
+    );
+
+    fireEvent.keyDown(window, { key: "?" });
+    expect(overlayState("Keyboard shortcuts")).toBe("open");
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(markReadyCta());
+    await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
   });
 
   it("counts a post-now as a session write until it settles", async () => {
@@ -790,6 +861,133 @@ describe("own-draft Brief view", () => {
     // Converting back to draft later must not resurrect the gate.
     rerenderWith({ markReady: vi.fn() });
     expect(overlayState("Before marking ready")).toBe("closed");
+  });
+
+  it("head advancing during the last post never marks ready", async () => {
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const posts = holdPosts();
+    const { rerenderWith } = await renderBriefView({
+      markReady,
+      postComment: posts.postComment,
+    });
+    await startBatch(2);
+    await posts.settleNext({ kind: "posted", commentId: 1 });
+    await waitFor(() => expect(posts.postComment).toHaveBeenCalledTimes(2));
+
+    rerenderWith({});
+    await posts.settleNext({ kind: "posted", commentId: 2 });
+
+    await waitFor(() =>
+      expect(screen.getByText(/posted 2 of 2/i)).toBeTruthy(),
+    );
+    expect(markReady).toHaveBeenCalledTimes(0);
+  });
+
+  it("ready elsewhere mid-batch stops the remaining posts", async () => {
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+      comment("c3", "chunk-a", "draft"),
+    ]);
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const posts = holdPosts();
+    const { rerenderWith } = await renderBriefView({
+      markReady,
+      postComment: posts.postComment,
+    });
+    await startBatch(3);
+
+    rerenderWith(undefined);
+    await posts.settleNext({ kind: "posted", commentId: 1 });
+
+    await waitFor(() =>
+      expect(screen.getByText(/posted 1 of 3/i)).toBeTruthy(),
+    );
+    expect(posts.postComment).toHaveBeenCalledTimes(1);
+    expect(markReady).toHaveBeenCalledTimes(0);
+    expect(screen.queryByText(/was not marked ready/i)).toBeNull();
+  });
+
+  it("a revision switch mid-batch never marks the pull request ready", async () => {
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const posts = holdPosts();
+    const { switchBriefWith } = await renderBriefView({
+      markReady,
+      postComment: posts.postComment,
+    });
+    await startBatch(2);
+
+    switchBriefWith("brief-earlier-revision", {});
+    await posts.settleNext({ kind: "posted", commentId: 1 });
+
+    await waitFor(() =>
+      expect(screen.getByText(/posted 1 of 2/i)).toBeTruthy(),
+    );
+    expect(posts.postComment).toHaveBeenCalledTimes(1);
+    expect(markReady).toHaveBeenCalledTimes(0);
+  });
+
+  it("unmounting mid-batch never marks the pull request ready", async () => {
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const posts = holdPosts();
+    await renderBriefView({ markReady, postComment: posts.postComment });
+    await startBatch(2);
+    await posts.settleNext({ kind: "posted", commentId: 1 });
+    await waitFor(() => expect(posts.postComment).toHaveBeenCalledTimes(2));
+
+    cleanup();
+    await posts.settleNext({ kind: "posted", commentId: 2 });
+
+    expect(markReady).toHaveBeenCalledTimes(0);
+  });
+
+  it("a stopped batch announces how many drafts it posted", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+      comment("c3", "chunk-a", "draft"),
+    ]);
+    const posts = holdPosts();
+    const { rerenderWith } = await renderBriefView({
+      markReady: vi.fn(),
+      postComment: posts.postComment,
+    });
+    await startBatch(3);
+    await posts.settleNext({ kind: "posted", commentId: 1 });
+    await waitFor(() => expect(posts.postComment).toHaveBeenCalledTimes(2));
+
+    rerenderWith({});
+    await posts.settleNext({ kind: "posted", commentId: 2 });
+    await act(() => vi.advanceTimersByTimeAsync(ANNOUNCE_TICKS_MS));
+
+    const stopCopy =
+      "This pull request has newer commits. Switch to the latest revision" +
+      " to mark it ready for review. Posted 2 of 3. The pull request was" +
+      " not marked ready.";
+    const toast = screen.getByText(stopCopy).closest('[data-state="visible"]');
+    expect(toast?.textContent).toBe(stopCopy);
+    expect(posts.postComment).toHaveBeenCalledTimes(2);
   });
 
   it("vanishes the affordances when draft flips under a live session", async () => {

@@ -63,9 +63,17 @@ import {
   LinkParamErrors,
   type LinkTarget,
   LinkTargetKinds,
-  type MarkReadyBatch,
+  type ClosedMarkReadyFlow,
+  type MarkReadyBatchStop,
+  type MarkReadyFlow,
+  MarkReadyFlowKinds,
+  type MarkReadyGateMountInput,
+  type MarkReadyStopReason,
+  MarkReadyStopReasons,
+  type MarkReadyStopSignals,
   PostDraftOutcomes,
-  type PostDraftOutcome,
+  type PostDraftFailure,
+  type PostingMarkReadyFlow,
   type ReviewCapability,
   type SinceMarkers,
 } from "./types";
@@ -325,16 +333,13 @@ const BATCH_CAUSE_KEYS = {
   [PostDraftOutcomes.STALE]: "brief.markReadyBatch.causeStale",
   [PostDraftOutcomes.NOT_FOUND]: "brief.markReadyBatch.causeNotFound",
   [PostDraftOutcomes.INDETERMINATE]: "brief.markReadyBatch.causeIndeterminate",
-} as const satisfies Record<
-  Exclude<PostDraftOutcome, typeof PostDraftOutcomes.POSTED>,
-  TranslationKey
->;
+} as const satisfies Record<PostDraftFailure, TranslationKey>;
 
 export function markReadyBatchFailureCopy(
   t: TFunction,
   posted: number,
   total: number,
-  cause: Exclude<PostDraftOutcome, typeof PostDraftOutcomes.POSTED>,
+  cause: PostDraftFailure,
 ): string {
   return [
     t("brief.markReadyBatch.counts", { posted, total }),
@@ -343,17 +348,138 @@ export function markReadyBatchFailureCopy(
   ].join(" ");
 }
 
+const STOP_REASON_KEYS: Record<
+  MarkReadyStopReason,
+  TranslationKey | undefined
+> = {
+  [MarkReadyStopReasons.HEAD_ADVANCED]: "pulls.markReady.gateClosed",
+  [MarkReadyStopReasons.READY_ELSEWHERE]: "pulls.markReady.exited",
+  [MarkReadyStopReasons.BRIEF_LEFT]: undefined,
+};
+
+/**
+ * The one announcement a stopped batch makes: why it stopped, the honest
+ * counts, the in-flight post's cause if it failed, and the not-marked-ready
+ * suffix unless the pull request went ready elsewhere.
+ */
+export function composeMarkReadyStopCopy(
+  t: TFunction,
+  stop: MarkReadyBatchStop,
+): string {
+  const parts: string[] = [];
+  const reasonKey = STOP_REASON_KEYS[stop.reason];
+  if (reasonKey !== undefined) {
+    parts.push(t(reasonKey));
+  }
+  parts.push(
+    t("brief.markReadyBatch.counts", {
+      posted: stop.posted,
+      total: stop.total,
+    }),
+  );
+  if (stop.cause !== undefined) {
+    parts.push(t(BATCH_CAUSE_KEYS[stop.cause]));
+  }
+  if (stop.reason !== MarkReadyStopReasons.READY_ELSEWHERE) {
+    parts.push(t("brief.markReadyBatch.suffix"));
+  }
+  return parts.join(" ");
+}
+
+/** An unmount leaves every signal as it was and reads as leaving the Brief. */
+export function deriveMarkReadyStopReason(
+  signals: MarkReadyStopSignals,
+): MarkReadyStopReason {
+  if (signals.briefLeft) {
+    return MarkReadyStopReasons.BRIEF_LEFT;
+  }
+  if (!signals.ownDraftActive) {
+    return MarkReadyStopReasons.READY_ELSEWHERE;
+  }
+  if (!signals.markReadyAvailable) {
+    return MarkReadyStopReasons.HEAD_ADVANCED;
+  }
+  return MarkReadyStopReasons.BRIEF_LEFT;
+}
+
 /** The running batch's confirm-button pending label, if a batch runs. */
 export function markReadyBatchBusyLabel(
   t: TFunction,
-  batch: MarkReadyBatch | undefined,
+  flow: MarkReadyFlow,
 ): string | undefined {
-  return batch !== undefined
-    ? t("brief.markReadyBatch.busyLabel", {
-        current: batch.current,
-        total: batch.total,
-      })
-    : undefined;
+  if (flow.kind !== MarkReadyFlowKinds.POSTING) {
+    return undefined;
+  }
+  return t("brief.markReadyBatch.busyLabel", {
+    current: flow.current,
+    total: flow.total,
+  });
+}
+
+const CLOSED_MARK_READY_FLOW: ClosedMarkReadyFlow = {
+  kind: MarkReadyFlowKinds.CLOSED,
+};
+
+/** A running batch keeps the gate: a second open never resets it. */
+export function openMarkReadyFlow(current: MarkReadyFlow): MarkReadyFlow {
+  if (current.kind !== MarkReadyFlowKinds.CLOSED) {
+    return current;
+  }
+  return { kind: MarkReadyFlowKinds.GATE };
+}
+
+/** Closes from any state, orphaning a batch in flight. */
+export function closeMarkReadyFlow(current: MarkReadyFlow): MarkReadyFlow {
+  if (current.kind === MarkReadyFlowKinds.CLOSED) {
+    return current;
+  }
+  return CLOSED_MARK_READY_FLOW;
+}
+
+export function startMarkReadyFlowBatch(
+  current: MarkReadyFlow,
+  token: number,
+  total: number,
+): MarkReadyFlow {
+  if (current.kind !== MarkReadyFlowKinds.GATE) {
+    return current;
+  }
+  return { kind: MarkReadyFlowKinds.POSTING, current: 1, total, token };
+}
+
+export function advanceMarkReadyFlowBatch(
+  current: MarkReadyFlow,
+  token: number,
+  position: number,
+): MarkReadyFlow {
+  const moved =
+    isCurrentMarkReadyBatch(current, token) && current.current !== position;
+  if (!moved) {
+    return current;
+  }
+  return { ...current, current: position };
+}
+
+export function isCurrentMarkReadyBatch(
+  flow: MarkReadyFlow,
+  token: number,
+): flow is PostingMarkReadyFlow {
+  const currentBatch =
+    flow.kind === MarkReadyFlowKinds.POSTING && flow.token === token;
+  return currentBatch;
+}
+
+/** A zero-flag gate stays mounted while its batch posts the last draft. */
+export function isMarkReadyGateMounted(
+  input: MarkReadyGateMountInput,
+): boolean {
+  if (!input.ownDraftActive || !input.markReadyAvailable) {
+    return false;
+  }
+  const hasContent = input.flagCount > 0 || input.unpostedDraftCount > 0;
+  const posting = input.flow.kind === MarkReadyFlowKinds.POSTING;
+  const mounted = hasContent || posting;
+  return mounted;
 }
 
 /** A copy of `current` with `member` toggled in or out. */

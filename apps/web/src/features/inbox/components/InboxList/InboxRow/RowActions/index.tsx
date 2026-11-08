@@ -25,6 +25,8 @@ export interface RowActionsProps {
   archived: InboxArchivedFilter;
   /** A restore is pending, so Archive waits for it. */
   archiveHeld: boolean;
+  /** Every matching row is being read for a bulk action, so Delete waits. */
+  deleteHeld: boolean;
   /** Page-level live region: the outcome of a copy, an archive or a regenerate. */
   onAnnounce: (message: string) => void;
   onArchived: (message: string, gone: readonly InboxItem[]) => void;
@@ -50,6 +52,7 @@ export function RowActions({
   item,
   archived,
   archiveHeld,
+  deleteHeld,
   onAnnounce,
   onArchived,
   onDelete,
@@ -79,6 +82,9 @@ export function RowActions({
     item.source === PullRequestSources.URL &&
     githubUrl !== undefined &&
     !isRerunHopeless(item.generation);
+  const deleteHeldReason = deleteHeld
+    ? t("home.inbox.actions.deleteHeld")
+    : undefined;
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 
@@ -146,6 +152,7 @@ export function RowActions({
             <Menu.Item
               danger
               glyph={<Icon name={IconNames.TRASH} size={IconSizes.MD} />}
+              unavailableReason={deleteHeldReason}
               onSelect={() => onDelete(item)}
             >
               {t("home.inbox.actions.delete")}

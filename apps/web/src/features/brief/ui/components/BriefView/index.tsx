@@ -593,10 +593,7 @@ function BriefViewContent(props: BriefViewProps) {
                     {ownDraftActive ? null : (
                       <RiskFlagModals flagsById={model.flagsById} />
                     )}
-                    {ownDraftActive &&
-                    markReady.available &&
-                    (model.flags.length > 0 ||
-                      markReady.unpostedDraftCount > 0) ? (
+                    {markReady.gateMounted ? (
                       <MarkReadyModal
                         open={markReady.gateOpen}
                         flags={model.flags}

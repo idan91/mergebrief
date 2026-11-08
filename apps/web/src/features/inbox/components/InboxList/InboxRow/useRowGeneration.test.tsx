@@ -8,6 +8,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LIVE_POLL_MS } from "@web/features/pulls/consts";
 import { INBOX_QUERY_ROOT, ROW_POLL_MS } from "../../../consts";
 import type { InboxItem } from "../../../types";
 import { useRowGeneration } from "./useRowGeneration";
@@ -46,7 +47,18 @@ function makeItem(
   };
 }
 
-function answerMeta(status: string): void {
+function answerMeta(status: string, waitReason?: string): void {
+  const generation: Record<string, unknown> = {
+    status,
+    phase: null,
+    attempts: 1,
+    errorCode: null,
+    errorParams: null,
+    updatedAt: "2026-09-20T10:05:00Z",
+  };
+  if (waitReason !== undefined) {
+    generation["waitReason"] = waitReason;
+  }
   fetchMock.mockImplementation(
     async () =>
       new Response(
@@ -64,14 +76,7 @@ function answerMeta(status: string): void {
           viewerCanResolve: false,
           appInstalled: true,
           behind: false,
-          generation: {
-            status,
-            phase: null,
-            attempts: 1,
-            errorCode: null,
-            errorParams: null,
-            updatedAt: "2026-09-20T10:05:00Z",
-          },
+          generation,
           updatedAt: "2026-09-20T10:05:00Z",
         }),
         { status: 200, headers: { "content-type": "application/json" } },
@@ -151,6 +156,26 @@ describe("useRowGeneration", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stalled row backs off to the settled pace", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answerMeta("pending", "stalled");
+    const { invalidate } = renderProbe(makeItem("pending"));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2.5 * ROW_POLL_MS);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LIVE_POLL_MS);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status").textContent).toBe("pending");
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it("a terminal read older than the queued row does not outrank it", async () => {

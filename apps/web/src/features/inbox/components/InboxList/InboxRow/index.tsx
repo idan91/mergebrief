@@ -58,6 +58,8 @@ export interface InboxRowProps {
   archived: InboxArchivedFilter;
   /** A restore is pending, so this row's Archive waits for it. */
   archiveHeld: boolean;
+  /** Every matching row is being read for a bulk action, so this row's Delete waits. */
+  deleteHeld: boolean;
   onAnnounce: (message: string) => void;
   onArchived: (message: string, gone: readonly InboxItem[]) => void;
   onDelete: (item: InboxItem) => void;
@@ -87,6 +89,7 @@ export function InboxRow({
   rowRef,
   archived,
   archiveHeld,
+  deleteHeld,
   onAnnounce,
   onArchived,
   onDelete,
@@ -244,6 +247,7 @@ export function InboxRow({
         <RowActions
           archived={archived}
           archiveHeld={archiveHeld}
+          deleteHeld={deleteHeld}
           item={item}
           onAnnounce={onAnnounce}
           onArchived={onArchived}

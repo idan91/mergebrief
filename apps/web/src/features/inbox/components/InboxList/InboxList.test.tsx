@@ -1443,6 +1443,64 @@ describe("InboxList", () => {
     expect(closed?.getAttribute("data-state")).toBe("closed");
   });
 
+  it("a row delete is unavailable while all matching rows are read", async () => {
+    let releasePageTwo: () => void = () => {};
+    answerMatchingPages(
+      new Promise<void>((resolve) => {
+        releasePageTwo = resolve;
+      }),
+    );
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha", viewerCanDelete: true }),
+          makeItem({ prNumber: 2, title: "Beta", viewerCanDelete: true }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={4}
+      />,
+    );
+    await selectWholePage();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select all 4 matching" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete matching" }));
+    });
+
+    const [alphaMenu] = screen.getAllByRole("button", { name: "More actions" });
+    await act(async () => {
+      fireEvent.click(alphaMenu as HTMLElement);
+    });
+    const rowDelete = screen.getByRole("menuitem", { name: "Delete" });
+    expect(rowDelete.getAttribute("aria-disabled")).toBe("true");
+    const reasonId = rowDelete.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      "Wait until every matching row is read",
+    );
+    await act(async () => {
+      fireEvent.click(rowDelete);
+    });
+    const deleteModal = screen
+      .getByRole("dialog", { hidden: true })
+      .closest("[data-state]");
+    expect(deleteModal?.getAttribute("data-state")).toBe("closed");
+
+    await act(async () => {
+      releasePageTwo();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText("None of the 4 matching rows can be deleted"),
+      ).toBeTruthy();
+    });
+  });
+
   it("a matching read that fails is announced, and nothing is archived", async () => {
     fetchMock.mockImplementation(
       async () => new Response("{}", { status: 500 }),

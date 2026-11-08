@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useListItem } from "@floating-ui/react";
 import {
   act,
   cleanup,
@@ -80,6 +81,16 @@ async function openMenu(): Promise<HTMLElement> {
   return trigger;
 }
 
+/** A row no primitive renders yet: registered with the list, natively disabled. */
+function NativeDisabledRow({ label }: { label: string }) {
+  const { ref } = useListItem({ label });
+  return (
+    <button disabled ref={ref} role="menuitem" type="button">
+      {label}
+    </button>
+  );
+}
+
 async function press(key: string): Promise<void> {
   await act(async () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key });
@@ -152,6 +163,142 @@ describe("Menu", () => {
         .getByRole("menuitem", { name: "Delete" })
         .getAttribute("data-variant"),
     ).toBe("danger");
+  });
+
+  it("an unavailable row refuses the select and describes why", async () => {
+    const onSelect = vi.fn();
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item unavailableReason="Wait for the read" onSelect={onSelect}>
+            Delete
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+
+    const row = screen.getByRole("menuitem", { name: "Delete" });
+    await act(async () => {
+      fireEvent.click(row);
+    });
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    const reasonId = row.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      "Wait for the read",
+    );
+  });
+
+  it("an unavailable row shows its reason inside the row it describes", async () => {
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item unavailableReason="Wait for the read" onSelect={vi.fn()}>
+            Delete
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+
+    const row = screen.getByRole("menuitem", {
+      name: "Delete",
+      description: "Wait for the read",
+    });
+    const reason = screen.getByText("Wait for the read");
+
+    expect(row.contains(reason)).toBe(true);
+    expect(reason.closest("[hidden]")).toBeNull();
+  });
+
+  it("arrow keys reach an unavailable row so its reason is heard", async () => {
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item onSelect={vi.fn()}>Copy link</Menu.Item>
+          <Menu.Item disabled onSelect={vi.fn()}>
+            Archive
+          </Menu.Item>
+          <Menu.Item unavailableReason="Wait for the read" onSelect={vi.fn()}>
+            Delete
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Copy link" }),
+      ),
+    );
+
+    await press("ArrowDown");
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: "Delete" }),
+    );
+  });
+
+  it("opens on a refused first row that states why, the row Home reaches", async () => {
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item unavailableReason="Wait for the read" onSelect={vi.fn()}>
+            Delete
+          </Menu.Item>
+          <Menu.Item onSelect={vi.fn()}>Copy link</Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+    const refused = screen.getByRole("menuitem", { name: "Delete" });
+    await waitFor(() => expect(document.activeElement).toBe(refused));
+
+    await press("End");
+    await press("Home");
+
+    expect(document.activeElement).toBe(refused);
+  });
+
+  it("arrow keys skip a natively disabled row", async () => {
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item onSelect={vi.fn()}>Copy link</Menu.Item>
+          <NativeDisabledRow label="Archive" />
+          <Menu.Item onSelect={vi.fn()}>Delete</Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Copy link" }),
+      ),
+    );
+
+    await press("ArrowDown");
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: "Delete" }),
+    );
   });
 
   it("typing jumps to a row and Escape returns focus to the trigger", async () => {

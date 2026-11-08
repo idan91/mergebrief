@@ -3,8 +3,15 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { ViewParam } from "../../../model/comparison/compare-state";
 import type { BriefViewModel } from "../../../model/utils/view-model";
-import type { MarkReadyBatch } from "./types";
-import { listInitiallyOpenChunkIds } from "./utils";
+import { MarkReadyFlowKinds, type MarkReadyFlow } from "./types";
+import {
+  advanceMarkReadyFlowBatch,
+  closeMarkReadyFlow,
+  isCurrentMarkReadyBatch,
+  listInitiallyOpenChunkIds,
+  openMarkReadyFlow,
+  startMarkReadyFlowBatch,
+} from "./utils";
 
 /** The screen state one Brief owns; the next Brief starts from a fresh copy. */
 export interface BriefViewState {
@@ -16,9 +23,8 @@ export interface BriefViewState {
   shortcutsOpen: boolean;
   /** The chunk whose actions sheet is open; the sheet is modal, so one at most. */
   chunkActionsFor: string | undefined;
-  markReadyGateOpen: boolean;
+  markReadyFlow: MarkReadyFlow;
   postDraftsOnReady: boolean;
-  markReadyBatch: MarkReadyBatch | undefined;
   /** Each risk attribute chip's next carrying-group position, before the wrap. */
   riskAttrCycle: ReadonlyMap<string, number>;
 }
@@ -32,9 +38,12 @@ export interface BriefViewActions {
   setFocusMode: (on: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
   setChunkActionsFor: (chunkId: string | undefined) => void;
-  setMarkReadyGateOpen: (open: boolean) => void;
+  openMarkReadyGate: () => void;
+  closeMarkReadyGate: () => void;
+  /** Starts the gate's batch; the token it returns, or undefined when none started. */
+  startMarkReadyBatch: (total: number) => number | undefined;
+  advanceMarkReadyBatch: (token: number, current: number) => void;
   setPostDraftsOnReady: (checked: boolean) => void;
-  setMarkReadyBatch: (batch: MarkReadyBatch | undefined) => void;
   advanceRiskAttrCycle: (attr: string) => void;
   clearRiskAttrCycle: () => void;
 }
@@ -51,16 +60,16 @@ export interface BriefViewSeed {
 }
 
 export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
-  return createStore<BriefViewStoreValue>((set) => ({
+  let batchToken = 0;
+  return createStore<BriefViewStoreValue>((set, get) => ({
     shownScopes: new Set(),
     submitOpen: false,
     openChunks: new Set(seed.openChunkIds),
     focusMode: seed.focusMode,
     shortcutsOpen: false,
     chunkActionsFor: undefined,
-    markReadyGateOpen: false,
+    markReadyFlow: { kind: MarkReadyFlowKinds.CLOSED },
     postDraftsOnReady: false,
-    markReadyBatch: undefined,
     riskAttrCycle: new Map(),
     actions: {
       markScopeShown(scope) {
@@ -85,14 +94,37 @@ export function createBriefViewStore(seed: BriefViewSeed): BriefViewStore {
       setChunkActionsFor(chunkId) {
         set({ chunkActionsFor: chunkId });
       },
-      setMarkReadyGateOpen(open) {
-        set({ markReadyGateOpen: open });
+      openMarkReadyGate() {
+        set((state) => ({
+          markReadyFlow: openMarkReadyFlow(state.markReadyFlow),
+        }));
+      },
+      closeMarkReadyGate() {
+        set((state) => ({
+          markReadyFlow: closeMarkReadyFlow(state.markReadyFlow),
+        }));
+      },
+      startMarkReadyBatch(total) {
+        batchToken += 1;
+        const token = batchToken;
+        const next = startMarkReadyFlowBatch(get().markReadyFlow, token, total);
+        if (!isCurrentMarkReadyBatch(next, token)) {
+          return undefined;
+        }
+        set({ markReadyFlow: next });
+        return token;
+      },
+      advanceMarkReadyBatch(token, current) {
+        set((state) => ({
+          markReadyFlow: advanceMarkReadyFlowBatch(
+            state.markReadyFlow,
+            token,
+            current,
+          ),
+        }));
       },
       setPostDraftsOnReady(checked) {
         set({ postDraftsOnReady: checked });
-      },
-      setMarkReadyBatch(batch) {
-        set({ markReadyBatch: batch });
       },
       advanceRiskAttrCycle(attr) {
         set((state) => {

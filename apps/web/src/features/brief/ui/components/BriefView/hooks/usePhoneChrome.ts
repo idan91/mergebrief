@@ -93,8 +93,11 @@ function useRotationFocus(refs: RotationFocusRefs): void {
  */
 export function usePhoneChrome(briefId: string): PhoneChrome {
   const mobile = useMobileViewport();
-  const [controlsOpen, setControlsOpen] = useState(false);
-  const [shownBriefId, setShownBriefId] = useState(briefId);
+  // Tagged with the brief it opened on, so another brief reads it closed.
+  const [controlsOpenFor, setControlsOpenFor] = useState<string | undefined>(
+    undefined,
+  );
+  const controlsOpen = controlsOpenFor === briefId;
   const barControlsRef = useRef<HTMLButtonElement | null>(null);
   const barIndicatorRef = useRef<HTMLButtonElement | null>(null);
   const rowControlsRef = useRef<HTMLButtonElement | null>(null);
@@ -114,15 +117,25 @@ export function usePhoneChrome(briefId: string): PhoneChrome {
   const [indicatorRefs] = useState(() => [barIndicatorRef, rowIndicatorRef]);
   useRotationFocus({ indicatorRefs, sheetTriggerRef, controlsRef });
   const [focusRescuePending, setFocusRescuePending] = useState(false);
-  const briefChanged = shownBriefId !== briefId;
-  if (briefChanged) {
-    setShownBriefId(briefId);
-  }
-  const sheetOrphaned = !mobile || briefChanged;
-  if (controlsOpen && sheetOrphaned) {
-    setControlsOpen(false);
+  const sheetOrphaned = controlsOpen && !mobile;
+  if (sheetOrphaned) {
+    setControlsOpenFor(undefined);
     setFocusRescuePending(true);
   }
+
+  // A tag left by the brief before reads closed already; clearing it keeps a
+  // return to that brief closed, and the focus its sheet held is rescued.
+  const controlsLeftOnEarlierBrief =
+    controlsOpenFor !== undefined && controlsOpenFor !== briefId;
+  useEffect(() => {
+    if (!controlsLeftOnEarlierBrief) {
+      return;
+    }
+    setControlsOpenFor(undefined);
+    if (isFocusStranded()) {
+      focusRescueTarget(controlsRef);
+    }
+  }, [controlsLeftOnEarlierBrief, controlsRef]);
 
   useEffect(() => {
     if (!focusRescuePending) {
@@ -134,9 +147,9 @@ export function usePhoneChrome(briefId: string): PhoneChrome {
     }
   }, [focusRescuePending, controlsRef]);
 
-  const openControls = () => setControlsOpen(true);
+  const openControls = () => setControlsOpenFor(briefId);
   const closeControls = () => {
-    setControlsOpen(false);
+    setControlsOpenFor(undefined);
     pickShownRef(barControlsRef, rowControlsRef).current?.focus();
   };
 

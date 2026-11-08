@@ -1,4 +1,3 @@
-import { WaitReasons } from "contract";
 import type { TFunction } from "i18next";
 import {
   GenerationStatuses,
@@ -12,6 +11,8 @@ import {
   type CapReset,
 } from "../../../../capped-head";
 import { buildFailedNote, buildFailureLine } from "../../../../failed-head";
+import { deriveGenerationWait } from "@web/utils/generation-wait";
+import { GenerationWaits } from "@web/utils/generation-wait/types";
 import { isNoLongerOpen } from "../../../../../../utils/pr-state";
 import { hasStoredHeadBrief } from "../../../../../../utils/briefRouteState";
 import { LatestPushStates, type LatestPushState } from "./types";
@@ -24,7 +25,8 @@ const OFFER_STATUSES: ReadonlySet<string> = new Set([
 
 /** A pending head whose job spent its attempts has nothing left to run it. */
 function readInFlightState(meta: PrSummary): LatestPushState {
-  const stalled = meta.generation?.waitReason === WaitReasons.STALLED;
+  const stalled =
+    deriveGenerationWait(meta.generation) === GenerationWaits.STALLED;
   if (stalled) {
     return LatestPushStates.STALLED;
   }

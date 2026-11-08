@@ -38,8 +38,22 @@ function keepReferenceAButton(role: ElementProps): ElementProps {
   return { ...role, reference };
 }
 
-function isEnabledRow(row: HTMLElement | null): row is HTMLElement {
-  return row !== null && row.getAttribute("aria-disabled") !== "true";
+/**
+ * The one test for the open position and the arrow path: a natively disabled
+ * row cannot take focus, and a refused row that describes why stays
+ * reachable, so its reason is heard.
+ */
+function isSkippedRow(row: HTMLElement | null | undefined): boolean {
+  if (row === undefined || row === null) {
+    return true;
+  }
+  if (row.hasAttribute("disabled")) {
+    return true;
+  }
+  const refused = row.getAttribute("aria-disabled") === "true";
+  const describesWhy = row.hasAttribute("aria-describedby");
+  const skipped = refused && !describesWhy;
+  return skipped;
 }
 
 /**
@@ -63,7 +77,7 @@ function revealRowInPanel(row: HTMLElement): void {
   }
 }
 
-/** The row the list opens on: a listbox's first ticked row, else the first enabled row. */
+/** The row the list opens on: a listbox's first ticked row, else the first row the arrows reach. */
 function pickOpenIndex(
   role: DropdownRole,
   rows: readonly (HTMLElement | null)[],
@@ -72,14 +86,14 @@ function pickOpenIndex(
   if (role === DropdownRoles.LISTBOX && ticked.size > 0) {
     return Math.min(...ticked);
   }
-  const first = rows.findIndex(isEnabledRow);
+  const first = rows.findIndex((row) => !isSkippedRow(row));
   return first === -1 ? 0 : first;
 }
 
 /**
  * Arrow keys with wrap, Home and End, typeahead over the row labels, and the
  * ARIA role pair. A listbox opens on its first ticked row, a menu on its
- * first row; a disabled first row is skipped.
+ * first row the arrows reach.
  */
 export function useDropdownList(
   context: FloatingContext,
@@ -90,8 +104,13 @@ export function useDropdownList(
   const elementsRef = useRef<(HTMLElement | null)[]>([]);
   const labelsRef = useRef<(string | null)[]>([]);
   const ariaRole = keepReferenceAButton(useRole(context, { role }));
+  const skipsRow = useCallback(
+    (index: number) => isSkippedRow(elementsRef.current[index]),
+    [],
+  );
   const navigation = useListNavigation(context, {
     listRef: elementsRef,
+    disabledIndices: skipsRow,
     activeIndex,
     onNavigate: setActiveIndex,
     loop: true,

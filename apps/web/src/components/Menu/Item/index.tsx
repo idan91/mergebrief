@@ -1,6 +1,6 @@
 import { useListItem } from "@floating-ui/react";
 import clsx from "clsx";
-import { useLayoutEffect, type ReactNode } from "react";
+import { useId, useLayoutEffect, type ReactNode } from "react";
 
 import { useDropdownContext } from "../../Dropdown/context";
 import itemStyles from "../../Dropdown/Item/Item.module.scss";
@@ -16,6 +16,8 @@ export interface MenuItemProps {
   /** A mark before the label. */
   glyph?: ReactNode;
   disabled?: boolean;
+  /** Set while the action waits: the row refuses and shows this under its label as its description. */
+  unavailableReason?: string | undefined;
   /** A destructive action, in the negative ink. */
   danger?: boolean;
   className?: string | undefined;
@@ -29,6 +31,7 @@ export function MenuItem({
   checked,
   glyph,
   disabled = false,
+  unavailableReason,
   danger = false,
   className,
   lang,
@@ -38,6 +41,9 @@ export function MenuItem({
   const active = menu.activeIndex === index;
   const stating = checked !== undefined;
   const { markSelected } = menu;
+  const reasonId = useId();
+  const unavailable = unavailableReason !== undefined;
+  const refused = disabled || unavailable;
 
   useLayoutEffect(() => {
     markSelected(index, checked === true);
@@ -55,7 +61,7 @@ export function MenuItem({
 
   const itemProps = menu.getItemProps({
     onClick() {
-      if (disabled) {
+      if (refused) {
         return;
       }
       onSelect();
@@ -65,13 +71,20 @@ export function MenuItem({
     },
   });
   const role = stating ? "menuitemradio" : "menuitem";
+  const label = (
+    <span className={clsx(itemStyles["label"], styles["label"])}>
+      {children}
+    </span>
+  );
 
   return (
     <button
       {...itemProps}
       aria-checked={checked}
-      aria-disabled={disabled ? true : undefined}
+      aria-describedby={unavailable ? reasonId : undefined}
+      aria-disabled={refused ? true : undefined}
       className={clsx(itemStyles["item"], styles["item"], className)}
+      data-state={unavailable ? "unavailable" : undefined}
       data-variant={danger ? "danger" : undefined}
       lang={lang}
       ref={ref}
@@ -89,7 +102,16 @@ export function MenuItem({
           {glyph}
         </span>
       )}
-      <span className={itemStyles["label"]}>{children}</span>
+      {unavailable ? (
+        <span className={styles["text"]}>
+          {label}
+          <span aria-hidden="true" className={styles["reason"]} id={reasonId}>
+            {unavailableReason}
+          </span>
+        </span>
+      ) : (
+        label
+      )}
     </button>
   );
 }
