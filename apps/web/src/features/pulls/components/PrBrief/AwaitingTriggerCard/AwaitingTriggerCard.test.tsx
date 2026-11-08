@@ -90,6 +90,12 @@ describe("AwaitingTriggerCard", () => {
     expect(screen.queryByText(/its pushes are briefed as usual/)).toBeNull();
   });
 
+  it("leads the card with the ghost mark", () => {
+    renderCard();
+
+    expect(screen.getByTestId("ghost-mark")).toBeTruthy();
+  });
+
   it("offers Generate to a pusher", () => {
     renderCard();
 

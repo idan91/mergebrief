@@ -3,12 +3,13 @@
 // pending delay, the stale content stays visible but goes non-interactive,
 // dim (data-pending) + inert + aria-busy on the content region ONLY. The
 // sticky header (revision, scope and comparison controls) must stay live so the reviewer
-// can keep stepping; a small decorative spinner rides beside the controls.
+// can keep stepping; a small decorative loader rides beside the controls.
 // Fast loads (shorter than the appearance delay) must show nothing at all.
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PENDING_APPEAR_MS } from "../../hooks/useDelayedPending";
+import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import { mountBriefView } from "@web/features/brief/test-utils";
 
 afterEach(() => {
@@ -37,6 +38,7 @@ describe("revision-pending treatment", () => {
     expect(main().hasAttribute("inert")).toBe(false);
     expect(main().hasAttribute("data-pending")).toBe(false);
     expect(main().getAttribute("aria-busy")).toBeNull();
+    expect(screen.queryByTestId("revision-loader")).toBeNull();
   });
 
   it("dims and inerts ONLY the content region after the delay", async () => {
@@ -51,7 +53,10 @@ describe("revision-pending treatment", () => {
     // The sticky header stays operable: none of its controls sit inside an
     // inert ancestor. Submit lives in the header on the reviewer view.
     const submit = screen.getByRole("button", { name: "Submit" });
+    const loader = screen.getByTestId("revision-loader");
     expect(submit.closest("[inert]")).toBeNull();
+    expect(loader.closest("[inert]")).toBeNull();
+    expect(loader.dataset["tone"]).toBe(MarkLoaderTones.MUTED);
   });
 
   it("stands the window-level keyboard shortcuts down while pending", async () => {

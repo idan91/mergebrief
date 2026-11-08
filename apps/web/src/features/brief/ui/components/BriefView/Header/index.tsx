@@ -27,6 +27,8 @@ import { PRODUCT_NAME } from "@web/components/Header/consts";
 import MergeBriefMark from "@web/components/icons/mergebrief-mark.svg?react";
 import { AccountMenu } from "@web/features/account";
 import { LocSign, LocSigns } from "@web/components/LocSign";
+import { MarkLoader } from "@web/components/MarkLoader";
+import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure";
 import { BranchPair } from "../BranchPair";
@@ -324,7 +326,7 @@ export function Header({
           />
         )}
         {revisionPending === true ? (
-          <span aria-hidden="true" className={styles["revisionSpinner"]} />
+          <MarkLoader testId="revision-loader" tone={MarkLoaderTones.MUTED} />
         ) : null}
         <div className={styles["detailsRegion"]}>
           <div className={styles["statsGroup"]}>

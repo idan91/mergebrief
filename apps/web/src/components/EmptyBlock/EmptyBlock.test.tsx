@@ -47,15 +47,34 @@ describe("EmptyBlock", () => {
     expect(note.getAttribute("aria-atomic")).toBe("true");
   });
 
-  it("draws a hidden spinner ahead of the detail while busy", () => {
+  it("leads with the hidden brand loader while busy", () => {
     render(<EmptyBlock busy detail="Soon." heading={<h1>Generating</h1>} />);
-    const spinner = screen.getByTestId("empty-block-spinner");
-    expect(spinner.getAttribute("aria-hidden")).toBe("true");
-    expect(spinner.parentElement?.textContent).toBe("Soon.");
+    const loader = screen.getByTestId("empty-block-loader");
+    const heading = screen.getByRole("heading", { level: 1 });
+
+    expect(loader.getAttribute("aria-hidden")).toBe("true");
+    expect(loader.getAttribute("data-tone")).toBe("brand");
+    expect(loader.getAttribute("data-size")).toBe("lg");
+    expect(
+      loader.compareDocumentPosition(heading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     cleanup();
     render(<EmptyBlock heading={<h1>Done</h1>} />);
-    expect(screen.queryByTestId("empty-block-spinner")).toBeNull();
+    expect(screen.queryByTestId("empty-block-loader")).toBeNull();
+  });
+
+  it("leads the block with the ghost mark, never while busy", () => {
+    render(<EmptyBlock ghostMark heading={<h1>No brief yet</h1>} />);
+    expect(screen.getByTestId("ghost-mark").getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+
+    cleanup();
+    render(<EmptyBlock busy ghostMark heading={<h1>Generating</h1>} />);
+    expect(screen.queryByTestId("ghost-mark")).toBeNull();
+    expect(screen.getByTestId("empty-block-loader")).toBeTruthy();
   });
 
   it("prints the note after the detail", () => {

@@ -20,7 +20,7 @@ const STALLED_LINE =
   "Generation for this push stopped: its queued job used every attempt.";
 
 describe("WaitCard on a stalled head", () => {
-  it("names no brief coming and shows no spinner", () => {
+  it("names no brief coming and shows no loader", () => {
     render(
       <I18nProvider>
         <WaitCard
@@ -39,7 +39,7 @@ describe("WaitCard on a stalled head", () => {
     expect(
       screen.getByText(/^No brief is on the way for this push\. A new push/),
     ).toBeTruthy();
-    expect(screen.queryByTestId("empty-block-spinner")).toBeNull();
+    expect(screen.queryByTestId("empty-block-loader")).toBeNull();
   });
 
   it("points a stalled url row at a paste", () => {

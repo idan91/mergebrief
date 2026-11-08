@@ -223,13 +223,16 @@
     --space-9: #{functions.to-rem(64px)};
 
     // ── Motion ───────────────────────────────────────────────────────────
-    // Three durations, one spinner period and the curves; keyboard movement
-    // never animates. SIDEBAR_SLIDE_IN_MS and SIDEBAR_SLIDE_OUT_MS in
+    // Three durations, the spinner period, the mark loader's pass and its
+    // stagger, and the curves; keyboard movement never animates.
+    // SIDEBAR_SLIDE_IN_MS and SIDEBAR_SLIDE_OUT_MS in
     // BriefView/Sidebar/consts.ts copy base and fast.
     --motion-fast: 120ms;
     --motion-base: 180ms;
     --motion-slow: 320ms;
     --motion-spin: 700ms;
+    --motion-read: 1.4s;
+    --motion-read-stagger: 140ms;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);

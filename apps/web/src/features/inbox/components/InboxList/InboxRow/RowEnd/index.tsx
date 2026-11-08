@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { InboxGeneration, InboxItem } from "../../../../types";
 import { Icon } from "@web/components/Icon";
 import { IconNames } from "@web/components/Icon/types";
+import { MarkLoader } from "@web/components/MarkLoader";
+import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import styles from "./RowEnd.module.scss";
 import { RowSignalKinds, type RowSignalKind } from "./types";
 import { readGenerationSignal, readStatusSignal } from "./utils";
@@ -16,7 +18,7 @@ export interface RowEndProps {
 
 const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
   [RowSignalKinds.QUEUED]: <Icon name={IconNames.CLOCK} />,
-  [RowSignalKinds.RUNNING]: <span className={styles["spinner"]} />,
+  [RowSignalKinds.RUNNING]: <MarkLoader tone={MarkLoaderTones.MUTED} />,
   [RowSignalKinds.FAILED]: <Icon name={IconNames.WARNING} />,
   [RowSignalKinds.CAPPED]: <Icon name={IconNames.CLOCK} />,
   [RowSignalKinds.AWAITING_TRIGGER]: <Icon name={IconNames.CURSOR_CLICK} />,

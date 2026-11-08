@@ -65,7 +65,7 @@ describe("WaitCard", () => {
 
     const block = screen.getByTestId("empty-block");
     expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
-    expect(screen.getByTestId("empty-block-spinner")).toBeTruthy();
+    expect(screen.getByTestId("empty-block-loader")).toBeTruthy();
     expect(block.textContent).toContain("Read the raw diff while you wait");
     expect(block.textContent).toContain(FILE);
   });
@@ -74,7 +74,7 @@ describe("WaitCard", () => {
     renderWaitCard(undefined);
 
     const block = screen.getByTestId("empty-block");
-    expect(screen.getByTestId("empty-block-spinner")).toBeTruthy();
+    expect(screen.getByTestId("empty-block-loader")).toBeTruthy();
     expect(block.textContent).toContain("once the span is known");
     expect(block.textContent).not.toContain(FILE);
   });

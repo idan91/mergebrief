@@ -46,35 +46,6 @@ $on-demand-label-min-width: 640px;
     color: var(--color-text-1);
   }
 
-  .spinner {
-    flex: none;
-    inline-size: 13px;
-    block-size: 13px;
-    margin-inline: functions.to-rem(1.5px);
-    border: 1.5px solid var(--color-surface-3);
-    border-block-start-color: var(--color-accent);
-    border-radius: var(--radius-circle);
-    animation: spin var(--motion-spin) linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes pulse {
-    to {
-      opacity: 0.4;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .spinner {
-      animation: pulse 1.2s ease-in-out infinite alternate;
-    }
-  }
-
   @media (width < 760px) {
     .end {
       gap: var(--space-3);

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters } from "types/inbox";
 
+import { GhostMark } from "@web/components/GhostMark";
 import { Header } from "@web/components/Header";
 import { SignInPage } from "@web/components/SignInPage";
 import {
@@ -313,7 +314,9 @@ function SignedInHome({ canGenerate, page, search }: SignedInHomeProps) {
           </>
         )}
       </div>
-      {emptiness === InboxEmptinesses.EMPTY ? null : (
+      {emptiness === InboxEmptinesses.EMPTY ? (
+        <GhostMark className={styles["emptyInbox"]} />
+      ) : (
         <div className={styles["inbox"]}>
           <InboxList
             controls={

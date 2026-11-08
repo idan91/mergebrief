@@ -26,6 +26,11 @@
     gap: var(--space-4);
   }
 
+  .emptyInbox {
+    justify-self: center;
+    margin-block-start: var(--space-8);
+  }
+
   @media (width < 760px) {
     .home {
       gap: var(--space-7);

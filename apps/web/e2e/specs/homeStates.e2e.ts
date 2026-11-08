@@ -49,6 +49,10 @@ test("an empty Inbox says so in the personal line and shows no list", async ({
   ).toHaveCount(0);
   await expect(page.getByTestId("no-installation")).toHaveCount(0);
 
+  const urlBox = await page.getByLabel("Pull request URL").boundingBox();
+  const ghost = await page.getByTestId("ghost-mark").boundingBox();
+  expect(ghost?.y).toBeGreaterThan(urlBox?.y ?? Number.POSITIVE_INFINITY);
+
   await expectNoSeriousAxeViolations(page, testInfo, "home-empty");
   expect(faults).toEqual([]);
 });

@@ -84,34 +84,6 @@ $detach-action-below: 480px;
     white-space: nowrap;
   }
 
-  .spinner {
-    flex: none;
-    box-sizing: border-box;
-    inline-size: 10px;
-    block-size: 10px;
-    border: 1.5px solid currentcolor;
-    border-block-start-color: transparent;
-    border-radius: var(--radius-circle);
-    animation: newer-commits-spin var(--motion-spin) linear infinite;
-
-    @media (prefers-reduced-motion: reduce) {
-      border-block-start-color: currentcolor;
-      animation: newer-commits-pulse 1.2s ease-in-out infinite;
-    }
-  }
-
-  @keyframes newer-commits-spin {
-    to {
-      transform: rotate(1turn);
-    }
-  }
-
-  @keyframes newer-commits-pulse {
-    50% {
-      opacity: 0.35;
-    }
-  }
-
   // Outranks Button's own [data-size="sm"] padding, radius and type.
   .action[data-size][data-variant] {
     block-size: functions.to-rem(24px);

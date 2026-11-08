@@ -3,6 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GenerationStatus, PrState } from "types";
 
+import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
 import { RowEnd } from ".";
 
@@ -46,6 +47,23 @@ describe("RowEnd", () => {
       signal?.querySelector("[data-icon]")?.getAttribute("data-icon"),
     ).toBe("cursor-click");
     expect(signal?.textContent).toBe("On demand");
+  });
+
+  it("leads a running row with the muted mark loader", () => {
+    const view = render(
+      <I18nProvider>
+        <RowEnd
+          draft={false}
+          generation={{ status: "running", updatedAt: AT }}
+          state="open"
+        />
+      </I18nProvider>,
+    );
+
+    const loader = view.container.querySelector(
+      '[data-generation="running"] [data-tone]',
+    );
+    expect(loader?.getAttribute("data-tone")).toBe(MarkLoaderTones.MUTED);
   });
 
   it("gives no other row signal the awaiting head's glyph", () => {

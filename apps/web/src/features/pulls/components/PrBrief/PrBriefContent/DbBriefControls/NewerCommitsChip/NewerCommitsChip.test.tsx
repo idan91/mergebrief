@@ -165,12 +165,12 @@ describe("NewerCommitsChip", () => {
     const status = stubStatus();
     const view = render(makeChip(status));
     const chip = screen.getByTestId("newer-commits-chip");
-    expect(within(chip).queryByTestId("newer-commits-spinner")).toBeNull();
+    expect(within(chip).queryByTestId("newer-commits-loader")).toBeNull();
 
     const nextStatus = stubStatus({ state: NewerCommitsStates.GENERATING });
     view.rerender(makeChip(nextStatus));
 
-    expect(within(chip).queryByTestId("newer-commits-spinner")).not.toBeNull();
+    expect(within(chip).queryByTestId("newer-commits-loader")).not.toBeNull();
   });
 
   it("opens the full explanation and the same action from the info button", () => {

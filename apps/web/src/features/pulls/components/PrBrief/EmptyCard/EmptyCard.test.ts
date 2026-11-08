@@ -1,8 +1,8 @@
 // The drafts-off empty-state copy override.
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { createElement } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { EmptyCard } from ".";
@@ -16,6 +16,15 @@ function renderCard(copyOverride?: string) {
     ),
   );
 }
+
+afterEach(cleanup);
+
+describe("EmptyCard", () => {
+  it("leads the card with the ghost mark", () => {
+    renderCard();
+    expect(screen.getByTestId("ghost-mark")).toBeTruthy();
+  });
+});
 
 describe("EmptyCard copy", () => {
   it("says the next push is briefed as usual by default", () => {

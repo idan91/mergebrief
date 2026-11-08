@@ -43,6 +43,7 @@ export function AwaitingTriggerCard(props: AwaitingTriggerCardProps) {
           />
         }
         detail={detail}
+        ghostMark
         heading={<h1 id="awaiting-trigger-heading">{heading}</h1>}
       />
     </section>

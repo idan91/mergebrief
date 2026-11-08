@@ -1,5 +1,7 @@
 import { useEffect, useId, useState } from "react";
 
+import { MarkLoader } from "@web/components/MarkLoader";
+import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import { handOffFocusOnRemoval } from "../../../../../utils/focus-hand-off";
 import { ActionButton } from "./ActionButton";
 import { ExplainPopover } from "./ExplainPopover";
@@ -36,12 +38,8 @@ export function NewerCommitsChip({ status }: NewerCommitsChipProps) {
     setAnnouncedText(statusLabel ?? "");
   }, [statusLabel]);
   const generating = status.state === NewerCommitsStates.GENERATING;
-  const spinner = generating ? (
-    <span
-      aria-hidden="true"
-      className={styles["spinner"]}
-      data-testid="newer-commits-spinner"
-    />
+  const loader = generating ? (
+    <MarkLoader testId="newer-commits-loader" tone={MarkLoaderTones.MUTED} />
   ) : null;
   const splitVariant = action === undefined ? undefined : "attached";
   const besideNewerBrief =
@@ -75,7 +73,7 @@ export function NewerCommitsChip({ status }: NewerCommitsChipProps) {
             className={styles["status"]}
             id={statusId}
           >
-            {spinner}
+            {loader}
             {statusLabel}
           </span>
         )}

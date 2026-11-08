@@ -1,0 +1,67 @@
+@layer components {
+  .loader {
+    position: relative;
+    display: inline-block;
+    flex: none;
+    inline-size: 14px;
+    block-size: 14px;
+
+    &[data-size="lg"] {
+      inline-size: 28px;
+      block-size: 28px;
+    }
+
+    &[data-tone="brand"] {
+      color: var(--color-brand);
+    }
+
+    &[data-tone="muted"] {
+      color: var(--color-text-2);
+    }
+  }
+
+  // Each band is the whole mark clipped to one diagonal, x + y between two
+  // lines two grid cells apart; the percentages are of the mark's own box.
+  .band {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    opacity: 0.22;
+    animation: mark-loader-read var(--motion-read) var(--ease-out) infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation-duration: calc(2 * var(--motion-read));
+    }
+
+    &[data-band="1"] {
+      clip-path: polygon(20% 0, 60% 0, 0 60%, 0 20%);
+    }
+
+    &[data-band="2"] {
+      clip-path: polygon(60% 0, 100% 0, 0 100%, 0 60%);
+      animation-delay: var(--motion-read-stagger);
+    }
+
+    &[data-band="3"] {
+      clip-path: polygon(100% 0, 140% 0, 0 140%, 0 100%);
+      animation-delay: calc(2 * var(--motion-read-stagger));
+    }
+
+    &[data-band="4"] {
+      clip-path: polygon(140% 0, 180% 0, 0 180%, 0 140%);
+      animation-delay: calc(3 * var(--motion-read-stagger));
+    }
+  }
+
+  @keyframes mark-loader-read {
+    0%,
+    100% {
+      opacity: 0.22;
+    }
+
+    25% {
+      opacity: 1;
+    }
+  }
+}

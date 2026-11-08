@@ -14,6 +14,7 @@ export function EmptyCard({ copyOverride }: EmptyCardProps) {
     <section aria-labelledby="empty-heading">
       <EmptyBlock
         detail={detail}
+        ghostMark
         heading={<h1 id="empty-heading">{t("pulls.empty.heading")}</h1>}
       />
     </section>

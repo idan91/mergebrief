@@ -42,30 +42,8 @@
     line-height: 1.5;
   }
 
-  .spinner {
-    display: inline-block;
-    inline-size: 14px;
-    block-size: 14px;
-    margin-inline-end: var(--space-3);
-    border: 2px solid var(--color-outline-2);
-    vertical-align: -2px;
-    border-block-start-color: var(--color-text-2);
-    border-radius: var(--radius-circle);
-    animation: empty-block-spin var(--motion-spin) linear infinite;
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-  }
-
   .below {
     inline-size: 100%;
     margin-block-start: var(--space-5);
-  }
-}
-
-@keyframes empty-block-spin {
-  to {
-    transform: rotate(360deg);
   }
 }

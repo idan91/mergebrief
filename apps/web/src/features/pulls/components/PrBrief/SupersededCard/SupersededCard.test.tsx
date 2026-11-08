@@ -18,7 +18,7 @@ describe("SupersededCard", () => {
 
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading.textContent).toContain("newer");
-    expect(screen.getByTestId("empty-block-spinner")).toBeTruthy();
+    expect(screen.getByTestId("empty-block-loader")).toBeTruthy();
   });
 
   it("says the newest push is briefed as usual", () => {
@@ -48,6 +48,6 @@ describe("SupersededCard", () => {
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading.textContent).toBe("Generation stopped");
     expect(screen.getByTestId("empty-block").textContent).toContain(note);
-    expect(screen.queryByTestId("empty-block-spinner")).toBeNull();
+    expect(screen.queryByTestId("empty-block-loader")).toBeNull();
   });
 });
