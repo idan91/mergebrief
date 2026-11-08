@@ -13,8 +13,9 @@ import type { MarkReadyFailure } from "./types";
 /**
  * GitHub enforces who may mark ready, and the write converges, so a replay
  * after a renewal is safe. Success mirrors `draft = false` so the next page
- * read shows it; a row gone mid-request or a mirror write that fails is the
- * webhook's to reconcile, never a failure of a write GitHub already took.
+ * read shows it, unless a webhook already stamped the row past GitHub's flip;
+ * a row gone mid-request or a mirror write that fails is the webhook's to
+ * reconcile, never a failure of a write GitHub already took.
  */
 export async function markPullRequestReady(
   handle: AppDatabase,
@@ -38,7 +39,11 @@ export async function markPullRequestReady(
 
   const tenant = createTenantRepository(handle, access.rowScope);
   try {
-    await tenant.pullRequests.setDraft(access.row.id, false);
+    await tenant.pullRequests.setDraft(
+      access.row.id,
+      false,
+      marked.value.githubUpdatedAt,
+    );
   } catch (mirrorError) {
     log.error("ready mirror not saved after GitHub marked the PR ready", {
       pullRequestId: String(access.row.id),

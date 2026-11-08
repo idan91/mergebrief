@@ -247,6 +247,27 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await countReadyAudits(harness)).toBe(1);
   });
 
+  it("keeps the draft a webhook stamped after GitHub's flip", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    arrangeRepository(fake);
+    await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
+      repoId: brandRepoId(BigInt(REPO_ID)),
+      prNumber: PR_NUMBER,
+      repoSlug: REPO_SLUG,
+      draft: true,
+      state: PrStates.OPEN,
+      githubUpdatedAt: new Date("2026-02-01T00:00:00Z"),
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await markReady(cookie);
+
+    expect(res.status).toBe(204);
+    expect(fake.listCalls("markPullRequestReadyForReview")).toHaveLength(1);
+    expect(await readDraft(harness.handle)).toBe(true);
+    expect(await countReadyAudits(harness)).toBe(1);
+  });
+
   it("converges two POSTs to 204 with an audit row each", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);

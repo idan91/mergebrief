@@ -16,15 +16,63 @@ function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
 
 const INPUT = { owner: "o", repo: "r", prNumber: 7 } as const;
 const NODE_ID = "PR_kwDOABCD";
+const READ_UPDATED_AT = "2026-09-01T10:00:00Z";
+const FLIP_UPDATED_AT = "2026-09-01T10:05:00Z";
 
 function nodeIdResponse(isDraft: boolean, id = NODE_ID): unknown {
-  return { repository: { pullRequest: { id, isDraft } } };
+  return {
+    repository: {
+      pullRequest: { id, isDraft, updatedAt: READ_UPDATED_AT },
+    },
+  };
 }
 function mutationResponse(): unknown {
-  return { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } };
+  return {
+    markPullRequestReadyForReview: {
+      pullRequest: { isDraft: false, updatedAt: FLIP_UPDATED_AT },
+    },
+  };
 }
 
 describe("markPullRequestReadyForReview", () => {
+  it("mark ready returns GitHub's updated time", async () => {
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce(nodeIdResponse(true))
+      .mockResolvedValueOnce(mutationResponse());
+
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        alreadyReady: false,
+        githubUpdatedAt: new Date(FLIP_UPDATED_AT),
+      },
+    });
+    const [nodeQuery] = graphql.mock.calls[0] ?? [];
+    const [mutationQuery] = graphql.mock.calls[1] ?? [];
+    expect(String(nodeQuery)).toContain("updatedAt");
+    expect(String(mutationQuery)).toContain("updatedAt");
+  });
+
+  it("an already ready pull request returns the read's updated time", async () => {
+    const graphql = vi.fn().mockResolvedValueOnce(nodeIdResponse(false));
+
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: { alreadyReady: true, githubUpdatedAt: new Date(READ_UPDATED_AT) },
+    });
+  });
+
   it("resolves the node id then runs the draft-to-ready mutation", async () => {
     const graphql = vi
       .fn()
@@ -82,7 +130,30 @@ describe("markPullRequestReadyForReview", () => {
       throw new Error("unreachable");
     }
     expect(result.value.alreadyReady).toBe(true);
+    expect(result.value.githubUpdatedAt).toEqual(new Date(READ_UPDATED_AT));
     expect(graphql).toHaveBeenCalledTimes(2);
+  });
+
+  it("a flip with no pull request in its answer keeps the read's time", async () => {
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce(nodeIdResponse(true))
+      .mockResolvedValueOnce({
+        markPullRequestReadyForReview: { pullRequest: null },
+      });
+
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        alreadyReady: false,
+        githubUpdatedAt: new Date(READ_UPDATED_AT),
+      },
+    });
   });
 
   it("not-found when the repository field is null", async () => {

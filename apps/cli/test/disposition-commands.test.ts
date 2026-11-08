@@ -311,8 +311,20 @@ describe("disposition commands over the real api app", () => {
       ["ready", "7"],
     ]) {
       stubGitHub(world, [
-        { repository: { pullRequest: { id: "PR_node1", isDraft: true } } },
-        { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } },
+        {
+          repository: {
+            pullRequest: {
+              id: "PR_node1",
+              isDraft: true,
+              updatedAt: "2026-10-01T10:00:00Z",
+            },
+          },
+        },
+        {
+          markPullRequestReadyForReview: {
+            pullRequest: { isDraft: false, updatedAt: "2026-10-01T10:05:00Z" },
+          },
+        },
       ]);
       const result = await run(argv);
       expect(result.err).toEqual([]);

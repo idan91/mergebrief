@@ -395,7 +395,7 @@ const REVIEWER_WRITE_CASES: readonly ContractCase<ReviewerRepoClient>[] = [
     operation: "markPullRequestReadyForReview",
     call: (client: ReviewerRepoClient) =>
       client.markPullRequestReadyForReview(7),
-    expected: { alreadyReady: false },
+    expected: { alreadyReady: false, githubUpdatedAt: UPDATED_AT },
   }),
   defineCase({
     operation: "setReviewThreadResolution",

@@ -65,7 +65,7 @@ describe("createTenantRepository row_version", () => {
       next: 9001n,
     });
     const commented = swapped.ok ? swapped.value : undefined;
-    const drafted = await pullRequests.setDraft(inserted.id, true);
+    const drafted = await pullRequests.setDraft(inserted.id, true, readAt);
     const stacked = await pullRequests.recordStack(inserted.id, stack);
     const approved = await approveTestTrigger(
       handle,
@@ -266,6 +266,40 @@ describe("createTenantRepository entry comment rotation", () => {
 });
 
 describe("createTenantRepository setDraft, the mark-ready flip", () => {
+  const FLIP_AT = new Date("2026-09-20T12:00:00Z");
+  const WEBHOOK_AT = new Date("2026-09-20T12:05:00Z");
+
+  it("setDraft leaves a row a newer webhook already wrote", async () => {
+    const handle = shared.handle;
+    const a = createTenantRepository(handle, CTX_A);
+    const pr = await a.pullRequests.upsert({
+      ...upsertInput(7),
+      draft: true,
+      githubUpdatedAt: WEBHOOK_AT,
+    });
+
+    const result = await a.pullRequests.setDraft(pr.id, false, FLIP_AT);
+
+    expect(result?.draft).toBe(true);
+    expect(result?.rowVersion).toBe(pr.rowVersion);
+    expect((await a.pullRequests.getById(pr.id))?.draft).toBe(true);
+  });
+
+  it("setDraft never writes the row's github_updated_at", async () => {
+    const handle = shared.handle;
+    const a = createTenantRepository(handle, CTX_A);
+    const pr = await a.pullRequests.upsert({
+      ...upsertInput(7),
+      draft: true,
+      githubUpdatedAt: FLIP_AT,
+    });
+
+    const result = await a.pullRequests.setDraft(pr.id, false, WEBHOOK_AT);
+
+    expect(result?.draft).toBe(false);
+    expect(result?.githubUpdatedAt).toEqual(FLIP_AT);
+  });
+
   it("flips draft=true to false in place and is idempotent", async () => {
     const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
@@ -273,12 +307,12 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
     const pr = await a.pullRequests.upsert({ ...upsertInput(7), draft: true });
     expect(pr.draft).toBe(true);
 
-    const flipped = await a.pullRequests.setDraft(pr.id, false);
+    const flipped = await a.pullRequests.setDraft(pr.id, false, FLIP_AT);
     expect(flipped?.draft).toBe(false);
     expect((await a.pullRequests.getById(pr.id))?.draft).toBe(false);
 
     // Idempotent: a second flip (e.g. a double-POST) is a clean no-op write.
-    const again = await a.pullRequests.setDraft(pr.id, false);
+    const again = await a.pullRequests.setDraft(pr.id, false, FLIP_AT);
     expect(again?.draft).toBe(false);
   });
 
@@ -288,7 +322,7 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
     const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert({ ...upsertInput(7), draft: true });
-    const result = await a.pullRequests.setDraft(bPr.id, false);
+    const result = await a.pullRequests.setDraft(bPr.id, false, FLIP_AT);
 
     expect(result).toBeUndefined();
     // B's draft PR is untouched.

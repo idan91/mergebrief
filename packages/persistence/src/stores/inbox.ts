@@ -33,6 +33,7 @@ import {
 } from "types/inbox";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
+import { checkpoint } from "../schema/checkpoint";
 import { inboxArchive } from "../schema/inbox-archive";
 import { pullRequest } from "../schema/pull-request";
 import { reviewSession } from "../schema/review-session";
@@ -227,9 +228,46 @@ function buildLatestBrief(db: InboxDb) {
 }
 type LatestBrief = ReturnType<typeof buildLatestBrief>;
 
+/**
+ * The viewer's last-reviewed SHA on the row: the head of the newest Brief
+ * a review of theirs was submitted from after their Checkpoint, else the
+ * Checkpoint's. A tie goes to the Checkpoint. One row always: the
+ * aggregates answer NULL over no Checkpoint, and the subquery's `max`
+ * reads that outer row.
+ */
+function buildLastReviewed(db: InboxDb, reviewerId: ReviewerId) {
+  const submittedHead = sql`(
+    select b.head_sha from ${reviewSubmittedReview} rsr
+    join ${reviewSession} rs on rs.id = rsr.review_session_id
+    join ${brief} b on b.id = rs.brief_id
+    where b.pull_request_id = ${pullRequest.id} and rs.reviewer_id = ${reviewerId}
+      and rsr.created_at > coalesce(max(${checkpoint.submittedAt}), '-infinity')
+    order by b.head_index desc, b.id desc
+    limit 1
+  )`;
+  return db
+    .select({
+      lastReviewedSha: sql<
+        string | null
+      >`coalesce(${submittedHead}, max(${checkpoint.lastSubmittedSha}))`.as(
+        "last_reviewed_sha",
+      ),
+    })
+    .from(checkpoint)
+    .where(
+      and(
+        eq(checkpoint.pullRequestId, pullRequest.id),
+        eq(checkpoint.reviewerId, reviewerId),
+      ),
+    )
+    .as("reviewed");
+}
+type LastReviewed = ReturnType<typeof buildLastReviewed>;
+
 /** Everything the list and the counts derive per row. */
 interface RowFacts {
   readonly latest: LatestBrief;
+  readonly reviewed: LastReviewed;
   readonly reviewState: SQL<string | null>;
   readonly viewerIsAuthor: SQL<boolean>;
   readonly behind: SQL<boolean>;
@@ -240,23 +278,14 @@ interface RowFacts {
 function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
   const latest = buildLatestBrief(db);
   const reviewerId = input.reviewerId;
+  const reviewed = buildLastReviewed(db, reviewerId);
+  const lastReviewedSha = reviewed.lastReviewedSha;
   const sessionOnLatest = sql`exists (
     select 1 from ${reviewSession} rs
     where rs.brief_id = ${latest.latestId} and rs.reviewer_id = ${reviewerId}
   )`;
-  const submittedOnLatest = sql`exists (
-    select 1 from ${reviewSubmittedReview} rsr
-    join ${reviewSession} rs on rs.id = rsr.review_session_id
-    where rs.brief_id = ${latest.latestId} and rs.reviewer_id = ${reviewerId}
-  )`;
-  const submittedOnOlder = sql`exists (
-    select 1 from ${reviewSubmittedReview} rsr
-    join ${reviewSession} rs on rs.id = rsr.review_session_id
-    join ${brief} older on older.id = rs.brief_id
-    where older.pull_request_id = ${pullRequest.id}
-      and older.id <> ${latest.latestId}
-      and rs.reviewer_id = ${reviewerId}
-  )`;
+  const reviewedAtHead = sql`(${lastReviewedSha} = ${latest.latestHeadSha}
+    or ${lastReviewedSha} = ${pullRequest.githubHeadSha})`;
   // A row whose author is unknown is nobody's own, never NULL.
   const viewerIsAuthor =
     input.reviewerLogin === null
@@ -264,8 +293,8 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
       : sql<boolean>`coalesce(${pullRequest.authorLogin} = ${input.reviewerLogin}, false)`;
   const reviewState = sql<string | null>`case
     when ${viewerIsAuthor} then null
-    when ${submittedOnLatest} then ${InboxReviewStates.REVIEWED}
-    when ${submittedOnOlder} then ${InboxReviewStates.UPDATED}
+    when ${reviewedAtHead} then ${InboxReviewStates.REVIEWED}
+    when ${lastReviewedSha} is not null then ${InboxReviewStates.UPDATED}
     when ${sessionOnLatest} then ${InboxReviewStates.IN_PROGRESS}
     else ${InboxReviewStates.NEW}
   end`;
@@ -279,7 +308,14 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
       and ia.reviewer_id = ${reviewerId}
       and ia.head_sha is not distinct from ${latest.latestHeadSha}
   )`;
-  return { latest, reviewState, viewerIsAuthor, behind, archived };
+  return {
+    latest,
+    reviewed,
+    reviewState,
+    viewerIsAuthor,
+    behind,
+    archived,
+  };
 }
 
 function canReachInstallations(input: InboxListInput): boolean {
@@ -416,7 +452,7 @@ function buildViewable(
   rowFilters: readonly SQL[],
   scope: ViewableScope,
 ) {
-  const { latest } = facts;
+  const { latest, reviewed } = facts;
   const conditions = [buildVisibility(input), buildShadowing(input)];
   if (scope.inView) {
     conditions.push(
@@ -443,6 +479,7 @@ function buildViewable(
     })
     .from(pullRequest)
     .leftJoinLateral(latest, sql`true`)
+    .leftJoinLateral(reviewed, sql`true`)
     .where(and(...conditions))
     .as("viewable");
 }

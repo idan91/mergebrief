@@ -25,6 +25,7 @@ import {
 } from "../src/index";
 import { internal } from "../src/db/handle";
 import { brief } from "../src/schema/brief";
+import { reviewSubmittedReview } from "../src/schema/review-submitted-review";
 import {
   isBriefRowId,
   isInstallationId,
@@ -54,6 +55,8 @@ const REPO_B: RepoId = brandWith(isRepoId, 200n);
 const CTX_ACME: ScopeContext = { installationId: ACME };
 const CTX_OCTO: ScopeContext = { installationId: OCTO };
 const CTX_OWNER: ScopeContext = { ownerUserId: VIEWER };
+const EARLIER = new Date("2026-09-01T00:00:00Z");
+const LATER = new Date("2026-09-02T00:00:00Z");
 
 interface SeedRow {
   readonly ctx: ScopeContext;
@@ -145,6 +148,30 @@ async function openSession(
   }
 }
 
+async function seedCheckpoint(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  reviewerId: ReviewerId,
+  lastSubmittedSha: string,
+  submittedAt = EARLIER,
+): Promise<void> {
+  await createTenantRepository(handle, ctx).checkpoints.upsertOnSubmit({
+    pullRequestId,
+    reviewerId,
+    reviewerLogin: "reviewer",
+    lastSubmittedSha,
+    submittedAt,
+  });
+}
+
+async function stampSubmittedReviews(
+  handle: AppDatabase,
+  createdAt: Date,
+): Promise<void> {
+  await internal(handle).update(reviewSubmittedReview).set({ createdAt });
+}
+
 const DEFAULT_FILTERS: InboxFilters = {
   statuses: [InboxStatuses.OPEN, InboxStatuses.DRAFT],
   author: InboxAuthorFilters.ALL,
@@ -204,26 +231,21 @@ describe("createInboxStore.list, review state", () => {
       repoId: REPO_A,
       prNumber: 3,
     });
-    await openSession(
-      handle,
-      CTX_ACME,
-      await seedBrief(handle, CTX_ACME, done, "h3"),
-      VIEWER,
-      true,
-    );
+    await seedBrief(handle, CTX_ACME, done, "h3");
+    await seedCheckpoint(handle, CTX_ACME, done, VIEWER, "h3");
     const moved = await seedRow(handle, {
       ctx: CTX_OCTO,
       repoId: REPO_B,
       prNumber: 4,
     });
-    const older = await seedBrief(
+    await seedBrief(
       handle,
       CTX_OCTO,
       moved,
       "h4a",
       new Date("2026-08-01T00:00:00Z"),
     );
-    await openSession(handle, CTX_OCTO, older, VIEWER, true);
+    await seedCheckpoint(handle, CTX_OCTO, moved, VIEWER, "h4a");
     await seedBrief(
       handle,
       CTX_OCTO,
@@ -243,63 +265,42 @@ describe("createInboxStore.list, review state", () => {
       repoId: REPO_B,
       prNumber: 6,
     });
-    await openSession(
-      handle,
-      CTX_OCTO,
-      await seedBrief(handle, CTX_OCTO, someoneElse, "h6"),
-      OTHER,
-      true,
-    );
+    await seedBrief(handle, CTX_OCTO, someoneElse, "h6");
+    await seedCheckpoint(handle, CTX_OCTO, someoneElse, OTHER, "h6");
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 7 });
     const reviewedTwice = await seedRow(handle, {
       ctx: CTX_OCTO,
       repoId: REPO_B,
       prNumber: 8,
     });
-    await openSession(
+    await seedBrief(
       handle,
       CTX_OCTO,
-      await seedBrief(
-        handle,
-        CTX_OCTO,
-        reviewedTwice,
-        "h8a",
-        new Date("2026-08-01T00:00:00Z"),
-      ),
-      VIEWER,
-      true,
+      reviewedTwice,
+      "h8a",
+      new Date("2026-08-01T00:00:00Z"),
     );
-    await openSession(
+    await seedBrief(
       handle,
       CTX_OCTO,
-      await seedBrief(
-        handle,
-        CTX_OCTO,
-        reviewedTwice,
-        "h8b",
-        new Date("2026-08-02T00:00:00Z"),
-      ),
-      VIEWER,
-      true,
+      reviewedTwice,
+      "h8b",
+      new Date("2026-08-02T00:00:00Z"),
     );
+    await seedCheckpoint(handle, CTX_OCTO, reviewedTwice, VIEWER, "h8b");
     const movedAndBegun = await seedRow(handle, {
       ctx: CTX_OCTO,
       repoId: REPO_B,
       prNumber: 9,
     });
-    await openSession(
+    await seedBrief(
       handle,
       CTX_OCTO,
-      await seedBrief(
-        handle,
-        CTX_OCTO,
-        movedAndBegun,
-        "h9a",
-        new Date("2026-08-01T00:00:00Z"),
-      ),
-      VIEWER,
-      true,
+      movedAndBegun,
+      "h9a",
+      new Date("2026-08-01T00:00:00Z"),
     );
+    await seedCheckpoint(handle, CTX_OCTO, movedAndBegun, VIEWER, "h9a");
     await openSession(
       handle,
       CTX_OCTO,
@@ -311,6 +312,18 @@ describe("createInboxStore.list, review state", () => {
         new Date("2026-08-02T00:00:00Z"),
       ),
       VIEWER,
+    );
+    const pasted = await seedRow(handle, {
+      ctx: CTX_OWNER,
+      repoId: REPO_A,
+      prNumber: 10,
+    });
+    await openSession(
+      handle,
+      CTX_OWNER,
+      await seedBrief(handle, CTX_OWNER, pasted, "h10"),
+      VIEWER,
+      true,
     );
     await createTenantRepository(handle, CTX_ACME).pullRequests.recordStack(
       fresh,
@@ -335,6 +348,7 @@ describe("createInboxStore.list, review state", () => {
     expect(byNumber.get(7)?.latestBrief).toBeUndefined();
     expect(stateOf(8)).toBe(InboxReviewStates.REVIEWED);
     expect(stateOf(9)).toBe(InboxReviewStates.UPDATED);
+    expect(stateOf(10)).toBe(InboxReviewStates.REVIEWED);
     const latest = byNumber.get(1)?.latestBrief;
     expect(typeof latest?.id).toBe("bigint");
     expect(latest?.createdAt).toBeInstanceOf(Date);
@@ -346,10 +360,10 @@ describe("createInboxStore.list, review state", () => {
     expect(page.counts).toEqual({
       new: 3,
       inProgress: 1,
-      reviewed: 2,
+      reviewed: 3,
       updated: 2,
     });
-    expect(page.total).toBe(9);
+    expect(page.total).toBe(10);
   });
 
   it("marks a row behind when GitHub reports a head past the brief", async () => {
@@ -381,6 +395,127 @@ describe("createInboxStore.list, review state", () => {
         [2, false],
       ]),
     );
+  });
+});
+
+describe("createInboxStore.list, the checkpoint", () => {
+  async function readState(
+    handle: AppDatabase,
+  ): Promise<InboxReviewState | null | undefined> {
+    const page = await createInboxStore(handle).list(makeListInput());
+    return page.items[0]?.reviewState;
+  }
+
+  it("reads reviewed from a checkpoint at the latest brief head", async () => {
+    const handle = shared.handle;
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(handle, CTX_ACME, prId, "h1");
+    await seedCheckpoint(handle, CTX_ACME, prId, VIEWER, "h1");
+
+    expect(await readState(handle)).toBe(InboxReviewStates.REVIEWED);
+  });
+
+  it("reads updated from a checkpoint at an older head", async () => {
+    const handle = shared.handle;
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(handle, CTX_ACME, prId, "h1");
+    await seedBrief(handle, CTX_ACME, prId, "h2");
+    await seedCheckpoint(handle, CTX_ACME, prId, VIEWER, "h1");
+
+    expect(await readState(handle)).toBe(InboxReviewStates.UPDATED);
+  });
+
+  it("counts a review submitted on GitHub as reviewed", async () => {
+    const handle = shared.handle;
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+      githubHeadSha: "h1",
+    });
+    await seedCheckpoint(handle, CTX_ACME, prId, VIEWER, "h1");
+
+    const page = await createInboxStore(handle).list(makeListInput());
+
+    expect(page.items[0]?.reviewState).toBe(InboxReviewStates.REVIEWED);
+    expect(page.counts.reviewed).toBe(1);
+  });
+
+  it("a checkpoint past the latest brief head reads reviewed", async () => {
+    const handle = shared.handle;
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+      githubHeadSha: "h2",
+    });
+    await seedBrief(handle, CTX_ACME, prId, "h1");
+    await seedCheckpoint(handle, CTX_ACME, prId, VIEWER, "h2");
+
+    expect(await readState(handle)).toBe(InboxReviewStates.REVIEWED);
+  });
+
+  it("reads reviewed from a submit before its checkpoint lands", async () => {
+    const handle = shared.handle;
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    const briefId = await seedBrief(handle, CTX_ACME, prId, "h1");
+    await openSession(handle, CTX_ACME, briefId, VIEWER, true);
+
+    expect(await readState(handle)).toBe(InboxReviewStates.REVIEWED);
+  });
+
+  async function seedSubmitAndCheckpoint(
+    handle: AppDatabase,
+    submittedAt: Date,
+    checkpointAt: Date,
+  ): Promise<void> {
+    const prId = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedBrief(handle, CTX_ACME, prId, "h1");
+    const latest = await seedBrief(handle, CTX_ACME, prId, "h2");
+    await openSession(handle, CTX_ACME, latest, VIEWER, true);
+    await stampSubmittedReviews(handle, submittedAt);
+    await seedCheckpoint(handle, CTX_ACME, prId, VIEWER, "h1", checkpointAt);
+  }
+
+  it("a submit newer than an older checkpoint reads reviewed", async () => {
+    const handle = shared.handle;
+    await seedSubmitAndCheckpoint(handle, LATER, EARLIER);
+
+    const page = await createInboxStore(handle).list(makeListInput());
+
+    expect(page.items[0]?.reviewState).toBe(InboxReviewStates.REVIEWED);
+    expect(page.counts.reviewed).toBe(1);
+    expect(page.counts.updated).toBe(0);
+  });
+
+  it("a checkpoint newer than the submit reads from the checkpoint", async () => {
+    const handle = shared.handle;
+    await seedSubmitAndCheckpoint(handle, EARLIER, LATER);
+
+    expect(await readState(handle)).toBe(InboxReviewStates.UPDATED);
+  });
+
+  it("a checkpoint at the submit's time wins the tie", async () => {
+    const handle = shared.handle;
+    await seedSubmitAndCheckpoint(handle, EARLIER, EARLIER);
+
+    expect(await readState(handle)).toBe(InboxReviewStates.UPDATED);
   });
 });
 
@@ -815,13 +950,8 @@ describe("createInboxStore.list, filters", () => {
       repoId: REPO_B,
       prNumber: 6,
     });
-    await openSession(
-      handle,
-      CTX_OCTO,
-      await seedBrief(handle, CTX_OCTO, reviewed, "h6"),
-      VIEWER,
-      true,
-    );
+    await seedBrief(handle, CTX_OCTO, reviewed, "h6");
+    await seedCheckpoint(handle, CTX_OCTO, reviewed, VIEWER, "h6");
   }
 
   it("a row with no author is nobody's own and shows under others", async () => {

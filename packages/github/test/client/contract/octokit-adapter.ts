@@ -213,8 +213,16 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
   createReviewCommentReply: answerOk({ id: 902, pull_request_review_id: 78 }),
   // One payload answers both the node-id read and the mutation.
   markPullRequestReadyForReview: answerGraphql({
-    repository: { pullRequest: { id: "PR_7", isDraft: true } },
-    markPullRequestReadyForReview: { pullRequest: { isDraft: false } },
+    repository: {
+      pullRequest: {
+        id: "PR_7",
+        isDraft: true,
+        updatedAt: "2026-10-01T10:00:00Z",
+      },
+    },
+    markPullRequestReadyForReview: {
+      pullRequest: { isDraft: false, updatedAt: "2026-10-01T10:00:00Z" },
+    },
   }),
   setReviewThreadResolution: answerGraphql({
     repository: {

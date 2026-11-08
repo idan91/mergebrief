@@ -121,24 +121,40 @@ async function openSession(
   ctx: ScopeContext,
   briefId: BriefRowId,
   reviewerId: ReviewerId,
-  submit: boolean,
 ): Promise<void> {
-  const published = submit
-    ? { draftIds: [], githubReviewId: 77n }
-    : { draftIds: [] };
   const result = await createTenantRepository(
     handle,
     ctx,
-  ).reviewSessions.recordPublishedDrafts({ briefId, reviewerId }, published);
+  ).reviewSessions.recordPublishedDrafts(
+    { briefId, reviewerId },
+    { draftIds: [] },
+  );
   if (!result.ok) {
     throw new Error(`session seed failed: ${result.error.code}`);
   }
 }
 
+/** The viewer's Checkpoint, as the review webhook writes it. */
+async function writeCheckpoint(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  reviewerId: ReviewerId,
+  lastSubmittedSha: string,
+): Promise<void> {
+  await createTenantRepository(handle, ctx).checkpoints.upsertOnSubmit({
+    pullRequestId,
+    reviewerId,
+    reviewerLogin: E2E_VIEWER_LOGIN,
+    lastSubmittedSha,
+    submittedAt: new Date(),
+  });
+}
+
 /**
  * One installation row per fixture state. The review state comes from the
- * viewer's session on the latest brief and from a submitted review on it or
- * on an older brief, exactly as the Inbox query derives it.
+ * viewer's Checkpoint and their session on the latest brief, exactly as the
+ * Inbox query derives it.
  */
 async function seedInboxRow(
   handle: AppDatabase,
@@ -186,14 +202,14 @@ async function seedInboxRow(
   };
 
   if (row.state === InboxSeedStates.UPDATED) {
-    const older = await writeBrief(
+    await writeBrief(handle, ctx, pullRequest, E2E_SEED_OLDER_HEAD, 1);
+    await writeCheckpoint(
       handle,
       ctx,
-      pullRequest,
+      pullRequest.id,
+      viewer,
       E2E_SEED_OLDER_HEAD,
-      1,
     );
-    await openSession(handle, ctx, older, viewer, true);
     await writeBrief(handle, ctx, pullRequest, E2E_SEED_LATEST_HEAD, 2);
     return;
   }
@@ -205,10 +221,16 @@ async function seedInboxRow(
     1,
   );
   if (row.state === InboxSeedStates.IN_PROGRESS) {
-    await openSession(handle, ctx, latest, viewer, false);
+    await openSession(handle, ctx, latest, viewer);
   }
   if (row.state === InboxSeedStates.REVIEWED) {
-    await openSession(handle, ctx, latest, viewer, true);
+    await writeCheckpoint(
+      handle,
+      ctx,
+      pullRequest.id,
+      viewer,
+      E2E_SEED_LATEST_HEAD,
+    );
   }
 }
 

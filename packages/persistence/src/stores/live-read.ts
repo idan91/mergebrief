@@ -95,7 +95,9 @@ export interface LiveReadStore {
   ): Promise<PullRequestRow | undefined>;
   /**
    * GitHub no longer shows the row to the owner: stamp the read so the row
-   * backs off, and keep the first sighting as the unreachable time.
+   * backs off, and keep the first sighting as the unreachable time. A read
+   * that started before the stored one marks nothing and only takes the
+   * read stamp, so it never undoes a later read's or a paste's clear.
    */
   markUnreachable(
     pullRequestId: PullRequestRowId,
@@ -275,10 +277,18 @@ export function createLiveReadStore(
           updatedAt: new Date(),
         })
         .where(
-          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, pullRequestId),
+            buildReadOrderGuard(readAt),
+          ),
         )
         .returning();
-      return rows[0];
+      const marked = rows[0];
+      if (marked !== undefined) {
+        return marked;
+      }
+      return stampRead(pullRequestId, readAt);
     },
   });
 }

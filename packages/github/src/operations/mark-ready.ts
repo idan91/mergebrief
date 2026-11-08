@@ -3,10 +3,9 @@
 // do this, so no local role model is involved. The mutation takes a node ID,
 // never a number, so the PR's node id is resolved first and never leaves this
 // module. Failures funnel through `mapGraphqlError`.
-//
-// Convergence: a PR ALREADY out of draft is not a failure. Both the read-time
-// check and the race backstop (GitHub's "Pull request is not a draft" mutation
-// error) resolve to `ok: true` with `alreadyReady: true`.
+// Convergence: a PR ALREADY out of draft is not a failure. The read-time check
+// and the race backstop ("Pull request is not a draft") both answer
+// `alreadyReady: true` with the read's `updatedAt`; a flip carries its own.
 import type { Octokit } from "octokit";
 import { z } from "zod/v4";
 import {
@@ -30,9 +29,15 @@ export interface MarkReadyResult {
    * tell a no-op apart from a fresh flip.
    */
   readonly alreadyReady: boolean;
+  /** GitHub's `updatedAt` for the pull request the call last saw. */
+  readonly githubUpdatedAt: Date;
 }
 
 const CONTEXT = "mark pull request ready for review";
+
+const updatedAtSchema = z.iso
+  .datetime({ offset: true })
+  .transform((value) => new Date(value));
 
 // `repository` and `pullRequest` are nullable in GitHub's schema; a missing
 // or inaccessible resource can arrive as a null FIELD in a 2xx response, not
@@ -41,7 +46,11 @@ const nodeIdResponseSchema = z.object({
   repository: z
     .object({
       pullRequest: z
-        .object({ id: z.string(), isDraft: z.boolean() })
+        .object({
+          id: z.string(),
+          isDraft: z.boolean(),
+          updatedAt: updatedAtSchema,
+        })
         .nullable(),
     })
     .nullable(),
@@ -50,7 +59,9 @@ const nodeIdResponseSchema = z.object({
 const mutationResponseSchema = z.object({
   markPullRequestReadyForReview: z
     .object({
-      pullRequest: z.object({ isDraft: z.boolean() }).nullable(),
+      pullRequest: z
+        .object({ isDraft: z.boolean(), updatedAt: updatedAtSchema })
+        .nullable(),
     })
     .nullable(),
 });
@@ -61,6 +72,7 @@ query PullRequestNodeId($owner: String!, $repo: String!, $prNumber: Int!) {
     pullRequest(number: $prNumber) {
       id
       isDraft
+      updatedAt
     }
   }
 }`;
@@ -70,6 +82,7 @@ mutation MarkPullRequestReady($pullRequestId: ID!) {
   markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
     pullRequest {
       isDraft
+      updatedAt
     }
   }
 }`;
@@ -132,8 +145,12 @@ export async function markPullRequestReadyForReview(
   }
 
   // Already out of draft at read time: converged, no mutation needed.
+  const readUpdatedAt = pullRequest.updatedAt;
   if (!pullRequest.isDraft) {
-    return { ok: true, value: { alreadyReady: true } };
+    return {
+      ok: true,
+      value: { alreadyReady: true, githubUpdatedAt: readUpdatedAt },
+    };
   }
 
   try {
@@ -144,12 +161,18 @@ export async function markPullRequestReadyForReview(
     if (!parsedMutation.success) {
       return { ok: false, error: unexpectedResponseError(CONTEXT) };
     }
-    return { ok: true, value: { alreadyReady: false } };
+    const flipped =
+      parsedMutation.data.markPullRequestReadyForReview?.pullRequest;
+    const githubUpdatedAt = flipped?.updatedAt ?? readUpdatedAt;
+    return { ok: true, value: { alreadyReady: false, githubUpdatedAt } };
   } catch (error) {
     // Raced a concurrent ready transition → GitHub says "not a draft".
     // Converged, not a failure.
     if (isAlreadyReadyError(error)) {
-      return { ok: true, value: { alreadyReady: true } };
+      return {
+        ok: true,
+        value: { alreadyReady: true, githubUpdatedAt: readUpdatedAt },
+      };
     }
     return { ok: false, error: mapGraphqlError(error, CONTEXT) };
   }

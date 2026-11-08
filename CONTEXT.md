@@ -460,7 +460,7 @@ The page at `/`. Signed in: the one-tier **Header**, a personal line that leads 
 _Avoid_: landing page, picker, front door, dashboard
 
 **Inbox**:
-The list on **Home**: every pull request the **Reviewer** reaches, across every **Installation** plus the ones they pasted, each row carrying their review state, folded so the rows that still need them come first, with filters, a sort and numbered pages. Inbox is the term in code and here; the label on screen is "Briefs".
+The list on **Home**: every pull request the **Reviewer** reaches, across every **Installation** plus the ones they pasted, each row carrying their review state, folded so the rows that still need them come first, with filters, a sort and numbered pages. The review state reads the reviewer's newer signal: the head of the newest **Brief** they submitted a review from after their **Checkpoint**, else the Checkpoint, which also wins a tie: Reviewed when that SHA is the latest Brief's head or the head GitHub reports, Updated when it is any other SHA, In progress with a **Review Session** on the latest Brief, else New. Their own pull requests carry no state. Inbox is the term in code and here; the label on screen is "Briefs".
 _Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
 
 **Archive**:

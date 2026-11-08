@@ -332,8 +332,15 @@ describe("makeFakeGitHub writes", () => {
     const second = await client.markPullRequestReadyForReview(7);
     const pull = await client.fetchPullRequest(7);
 
-    expect(first).toEqual({ ok: true, value: { alreadyReady: false } });
-    expect(second).toEqual({ ok: true, value: { alreadyReady: true } });
+    const githubUpdatedAt = new Date("2026-10-01T10:00:00Z");
+    expect(first).toEqual({
+      ok: true,
+      value: { alreadyReady: false, githubUpdatedAt },
+    });
+    expect(second).toEqual({
+      ok: true,
+      value: { alreadyReady: true, githubUpdatedAt },
+    });
     expect(pull.ok && pull.value.draft).toBe(false);
   });
 });

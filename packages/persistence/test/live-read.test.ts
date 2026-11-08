@@ -555,4 +555,35 @@ describe("createLiveReadStore.markUnreachable", () => {
     expect(row.githubReadAt).toEqual(NOW);
     expect(row.githubHeadSha).toBe(HEAD);
   });
+
+  it("a stale unreachable mark leaves a row a later read cleared", async () => {
+    const handle = shared.handle;
+    const store = createLiveReadStore(handle, CTX_A);
+    const id = await seedOpen(handle, CTX_A, 1);
+    unwrap(await store.record(id, stubFacts({ readAt: NOW })));
+
+    const row = unwrap(await store.markUnreachable(id, minutesAgo(5)));
+
+    expect(row.githubUnreachableAt).toBeNull();
+    expect(row.githubReadAt).toEqual(NOW);
+  });
+
+  it("a stale unreachable mark leaves a paste's clear standing", async () => {
+    const handle = shared.handle;
+    const store = createLiveReadStore(handle, CTX_A);
+    const id = await seedOpen(handle, CTX_A, 1);
+    unwrap(await store.markUnreachable(id, minutesAgo(10)));
+    await createTenantRepository(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      liveRead: { readAt: NOW, headSha: HEAD },
+    });
+
+    const row = unwrap(await store.markUnreachable(id, minutesAgo(5)));
+
+    expect(row.githubUnreachableAt).toBeNull();
+    expect(row.githubReadAt).toEqual(NOW);
+  });
 });

@@ -167,16 +167,18 @@ export interface PullRequestRepository {
     swap: { readonly seen: bigint | null; readonly next: bigint | null },
   ): Promise<Result<PullRequestRow, EntryCommentSwapError>>;
   /**
-   * Flip the local `draft` mirror after a mark-ready mutation. A NARROW,
-   * tenant-scoped update by row id, the caller already resolved the
-   * row via `getByNumber`, so this never reconstructs the lifecycle (unlike
-   * `recordState`, which is a full webhook upsert). Idempotent: re-running with
-   * the same value is a no-op write. `undefined` if no row in ctx's scope (a
-   * PR deleted mid-request); the later `ready_for_review` webhook reconciles.
+   * Flip the local `draft` mirror after a mark-ready mutation: a narrow
+   * update by row id, never the lifecycle (`recordState` is the webhook's full
+   * upsert). Idempotent. `githubUpdatedAt` is GitHub's time for the flip: a
+   * row a webhook already stamped later keeps its draft and is returned as it
+   * stands, and the mirror never writes `github_updated_at`, which webhooks
+   * own. `undefined` if no row in ctx's scope (a PR deleted mid-request); the
+   * later `ready_for_review` webhook reconciles.
    */
   setDraft(
     pullRequestId: PullRequestRowId,
     draft: boolean,
+    githubUpdatedAt: Date,
   ): Promise<PullRequestRow | undefined>;
   /**
    * Overwrite the last stack GitHub resolved for the row and its read time.
@@ -369,7 +371,8 @@ export function createTenantRepository(
       };
     },
 
-    async setDraft(pullRequestId, draft) {
+    async setDraft(pullRequestId, draft, githubUpdatedAt) {
+      const notNewer = sql`(${pullRequest.githubUpdatedAt} is null or ${pullRequest.githubUpdatedAt} <= ${githubUpdatedAt})`;
       const rows = await db
         .update(pullRequest)
         .set({
@@ -378,10 +381,18 @@ export function createTenantRepository(
           updatedAt: new Date(),
         })
         .where(
-          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, pullRequestId),
+            notNewer,
+          ),
         )
         .returning();
-      return rows[0];
+      const flipped = rows[0];
+      if (flipped !== undefined) {
+        return flipped;
+      }
+      return pullRequests.getById(pullRequestId);
     },
 
     async recordStack(pullRequestId, input) {

@@ -317,7 +317,7 @@ function buildReviewerConvergingWrites(
           readPullRequest(world, input, (pull) => {
             const alreadyReady = !pull.info.draft;
             pull.info = { ...pull.info, draft: false };
-            return { alreadyReady };
+            return { alreadyReady, githubUpdatedAt: pull.info.updatedAt };
           }),
       });
     },
