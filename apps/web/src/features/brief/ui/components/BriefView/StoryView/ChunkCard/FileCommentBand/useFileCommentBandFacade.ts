@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { CommentAnchorKinds } from "types/comments";
 
 import {
   demotedSubmittedCommentIds,
   type DigestThreadRow,
 } from "@web/features/conversation/utils";
 import {
+  isHostSaving,
   useFileReviewComments,
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
 import { createFileCommentAnchor } from "@web/features/review/utils";
 import { useReviewPosture } from "../../../../../hooks/useReviewPosture";
+import { useComposerHost } from "../../../hooks/useComposerHost";
 import type { BriefChunk } from "../../../../../../model/types";
 
 const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
@@ -27,6 +30,7 @@ export function useFileCommentBandFacade({
   inboundRows,
 }: UseFileCommentBandFacadeInput) {
   const [collapsed, setCollapsed] = useState(false);
+  useComposerHost(CommentAnchorKinds.FILE, chunk.id);
   const fileComments = useFileReviewComments(chunk.file);
   const {
     saveComment,
@@ -35,7 +39,9 @@ export function useFileCommentBandFacade({
     updateComment,
     toggleConversationThread,
   } = useReviewActions();
-  const composerSaving = useReviewFlow((state) => state.composerSaving);
+  const composerSaving = useReviewFlow((state) =>
+    isHostSaving(state.composer, chunk.id),
+  );
   const {
     postComment,
     postBlockedExternally,

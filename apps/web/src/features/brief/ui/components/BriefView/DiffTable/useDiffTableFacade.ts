@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useId, useMemo, useRef, useState, type AnimationEvent } from "react";
+import { CommentAnchorKinds } from "types/comments";
 
 import type { LineSelection } from "@web/features/review/utils";
 
@@ -25,7 +26,6 @@ import { useDiffTableModel } from "./useDiffTableModel";
 import { useDragSelection } from "./useDragSelection";
 import { useExpandLanding } from "./useExpandLanding";
 import { useRailHover } from "./useRailHover";
-import { useComposerHostUnmount } from "./useComposerHostUnmount";
 import { useReasonRow } from "./useReasonRow";
 import { RowRefKinds } from "../../../../model/expansion/types";
 import {
@@ -35,6 +35,7 @@ import {
 } from "../../../../model/chunk-layout/useChunkLayout";
 import { estimateReservedRowsHeight } from "../reading/chunk-height-model";
 import { useWrapColumns } from "../reading/useWrapColumns";
+import { useComposerHost } from "../hooks/useComposerHost";
 import { resolveChunkView } from "../utils";
 import { countLineDigits } from "./SkeletonRows/utils";
 import type { GuestRowReason } from "../../../../model/types";
@@ -139,7 +140,7 @@ export function useDiffTableFacade({
   );
   const isOldSideRun = (run: ComparisonRun): boolean => oldSideRuns.has(run);
   const { activeCommentAnchor, lineSelection } = review;
-  useComposerHostUnmount(activeCommentAnchor !== null, review.cancelComposer);
+  useComposerHost(CommentAnchorKinds.LINE, chunk.id);
   const unified = model.resolvedView === DiffViews.UNIFIED;
   const selectionIndexes = useMemo(() => {
     if (lineSelection === null) {
@@ -155,7 +156,7 @@ export function useDiffTableFacade({
   const selectionGlyph = resolveSelectionGlyph(
     lineSelection,
     selectionIndexes,
-    activeCommentAnchor !== null,
+    activeCommentAnchor !== undefined,
   );
   const selectLines = (selection: LineSelection) => {
     review.selectLines(selection);
@@ -174,7 +175,7 @@ export function useDiffTableFacade({
   };
   const activeSpanIndexes = useMemo(() => {
     if (
-      activeCommentAnchor === null ||
+      activeCommentAnchor === undefined ||
       activeCommentAnchor.chunkId === chunk.id
     ) {
       return EMPTY_EXPANDED_THREADS;
@@ -190,7 +191,7 @@ export function useDiffTableFacade({
   const dragIndexes = new Set(dragSelection.indexes);
   const dragBaseIndexes = collectDragBaseIndexes(dragIndexes, rowRefs);
   const activePlacement =
-    activeCommentAnchor === null
+    activeCommentAnchor === undefined
       ? undefined
       : placementForAnchor(activeCommentAnchor);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
@@ -270,7 +271,7 @@ export function useDiffTableFacade({
     activeRowIds,
     activeSpanIndexes,
     activePlacement,
-    composerOpen: activeCommentAnchor !== null,
+    composerOpen: activeCommentAnchor !== undefined,
     openComposer: review.openComposer,
     selectionIndexes,
     selectionPlacement,

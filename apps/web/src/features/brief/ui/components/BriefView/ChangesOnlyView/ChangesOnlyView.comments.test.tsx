@@ -4,9 +4,11 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
+import { CommentAnchorKinds } from "types/comments";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
   emptySessionPayload,
   ReviewFlowProvider,
@@ -270,7 +272,13 @@ function renderChanges(options: RenderOptions = {}) {
     },
   });
   if (options.composerHost !== undefined) {
-    flowStore.setState({ composerHost: options.composerHost });
+    flowStore.setState({
+      composer: {
+        kind: ComposerStateKinds.OPEN,
+        anchor: { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
+        host: options.composerHost,
+      },
+    });
   }
   const model = buildBriefViewModel(FULL_BRIEF);
   const review: ChangesReviewWiring = {

@@ -29,7 +29,7 @@ export interface DiffRowViewParams {
   addressedComments: AddressedReviewComment[];
   dragIndexes: ReadonlySet<number>;
   activeRowIds: Set<string>;
-  activeCommentAnchor: CommentAnchor | null;
+  activeCommentAnchor: CommentAnchor | undefined;
   /** Rows adopted by drafts that land on no rendered line, see below. */
   strandedRowIds: ReadonlyMap<string, string>;
 }
@@ -155,7 +155,7 @@ export function getDiffRowView({
   );
   const isSelected = dragIndexes.has(index) || activeRowIds.has(id);
   const showComposer =
-    activeCommentAnchor !== null &&
+    activeCommentAnchor !== undefined &&
     isLineCommentAnchor(activeCommentAnchor) &&
     activeCommentAnchor.chunkId === chunk.id &&
     activeCommentAnchor.rowIds.at(-1) === id;

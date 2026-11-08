@@ -3,6 +3,8 @@ import { useCallback, useEffect } from "react";
 import { useStore } from "zustand";
 
 import {
+  getComposerHost,
+  getReanchorDraftId,
   useCreateReviewFlowStore,
   useDraftCommentCount,
   useReviewSession,
@@ -99,9 +101,11 @@ function useComposerScopeGuard(
 ): void {
   const flowActions = flowStore.getState().actions;
   useEffect(() => {
-    const host = flowStore.getState().composerHost;
-    if (host !== null && isGuestHost(host) !== inChangesScope) {
-      flowActions.cancelComposer();
+    const host = getComposerHost(flowStore.getState().composer);
+    const hostOutOfScope =
+      host !== undefined && isGuestHost(host) !== inChangesScope;
+    if (hostOutOfScope) {
+      flowActions.dismissComposer();
     }
   }, [flowActions, flowStore, inChangesScope]);
 }
@@ -110,7 +114,9 @@ function useReanchor(
   flowStore: ReviewFlowStore,
   reviewComments: ReviewComment[],
 ) {
-  const reanchorDraftId = useStore(flowStore, (state) => state.reanchorDraftId);
+  const reanchorDraftId = useStore(flowStore, (state) =>
+    getReanchorDraftId(state.composer),
+  );
   const reanchorDraft = findDraftComment(reviewComments, reanchorDraftId);
   const reanchorLocation =
     reanchorDraft === undefined ? undefined : commentLocation(reanchorDraft);

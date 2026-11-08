@@ -1,5 +1,6 @@
 import { useStore } from "zustand";
 
+import { getComposerHost } from "@web/features/review/session";
 import { ViewportBands } from "@web/hooks/useViewportBoundary";
 import { useKeyboardShortcuts } from "../../../hooks/useKeyboardShortcuts";
 import type { UseViewShortcutsInput } from "../types";
@@ -11,7 +12,7 @@ export function useViewShortcuts(input: UseViewShortcutsInput): void {
 
   const composerOpen = useStore(
     flow.flowStore,
-    (state) => state.composerAnchor !== null,
+    (state) => getComposerHost(state.composer) !== undefined,
   );
   const sheetOpen =
     layout.band === ViewportBands.NARROW && regions.sidebar && sidebar.expanded;

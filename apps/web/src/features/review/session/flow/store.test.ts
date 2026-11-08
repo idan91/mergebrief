@@ -14,6 +14,13 @@ import {
   type ReviewFlowSessionActions,
   type ReviewFlowStore,
 } from "./store";
+import { ComposerStateKinds } from "./types";
+import {
+  getComposerAnchor,
+  getComposerHost,
+  getReanchorDraftId,
+  isComposerSaving,
+} from "./utils";
 
 const anchor: CommentAnchor = {
   kind: CommentAnchorKinds.LINE,
@@ -26,10 +33,31 @@ const anchor: CommentAnchor = {
   selectedText: "validate(a);",
 };
 
+const otherAnchor: CommentAnchor = {
+  ...anchor,
+  startLine: 12,
+  endLine: 12,
+  rowIds: ["row-3"],
+  selectedText: "return a;",
+};
+
+interface DeferredSave {
+  promise: Promise<boolean>;
+  resolve: (saved: boolean) => void;
+}
+
+function makeDeferredSave(): DeferredSave {
+  let resolve: (saved: boolean) => void = () => undefined;
+  const promise = new Promise<boolean>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 function sessionMock(): ReviewFlowSessionActions {
   return {
     saveComment: vi.fn(() => Promise.resolve(true)),
-    updateComment: vi.fn(),
+    updateComment: vi.fn(() => Promise.resolve(true)),
     deleteComment: vi.fn(),
     toggleComment: vi.fn(),
     reanchorComment: vi.fn(),
@@ -54,28 +82,28 @@ describe("ReviewFlow store", () => {
   });
 
   describe("composer", () => {
-    it("opens at the anchor when writable", () => {
-      store.getState().actions.openComposer(anchor, undefined);
-      expect(store.getState().composerAnchor).toEqual(anchor);
-      expect(store.getState().composerHost).toBe(anchor.chunkId);
-    });
-
-    it("opens in the card that picked the rows when it is not the owner", () => {
+    it("opens at the anchor in the host that picked the rows", () => {
       store.getState().actions.openComposer(anchor, undefined, "chunk-b");
-      expect(store.getState().composerHost).toBe("chunk-b");
+      expect(store.getState().composer).toEqual({
+        kind: ComposerStateKinds.OPEN,
+        anchor,
+        host: "chunk-b",
+      });
       store.getState().actions.cancelComposer();
-      expect(store.getState().composerHost).toBeNull();
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
     });
 
     it("announces the read-only reason instead of opening", () => {
-      store.getState().actions.openComposer(anchor, "Historical revision.");
-      expect(store.getState().composerAnchor).toBeNull();
+      store
+        .getState()
+        .actions.openComposer(anchor, "Historical revision.", anchor.chunkId);
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
       flushAnnounce();
       expect(store.getState().toast).toBe("Historical revision.");
     });
 
     it("closes the composer on write SUCCESS, not on click", async () => {
-      store.getState().actions.openComposer(anchor, undefined);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
       void store.getState().actions.saveComment(anchor, "  looks wrong  ");
       expect(session.saveComment).toHaveBeenCalledWith({
         anchor,
@@ -83,12 +111,9 @@ describe("ReviewFlow store", () => {
         status: DraftCommentStatuses.DRAFT,
         collapsed: false,
       });
-      // Still open, and saying so, while the write is in flight.
-      expect(store.getState().composerAnchor).toEqual(anchor);
-      expect(store.getState().composerSaving).toBe(true);
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.SAVING);
       await vi.runAllTimersAsync();
-      expect(store.getState().composerAnchor).toBeNull();
-      expect(store.getState().composerSaving).toBe(false);
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
       flushAnnounce();
       expect(store.getState().toast).toBe(
         "Draft comment added to this review.",
@@ -98,38 +123,238 @@ describe("ReviewFlow store", () => {
     it("leaves the composer open when the write fails", async () => {
       session.saveComment = vi.fn(() => Promise.resolve(false));
       store = createReviewFlowStore(session, appI18n.t);
-      store.getState().actions.openComposer(anchor, undefined);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
       void store.getState().actions.saveComment(anchor, "looks wrong");
       await vi.runAllTimersAsync();
-      expect(store.getState().composerAnchor).toEqual(anchor);
-      expect(store.getState().composerSaving).toBe(false);
+      expect(store.getState().composer).toEqual({
+        kind: ComposerStateKinds.OPEN,
+        anchor,
+        host: anchor.chunkId,
+      });
+    });
+
+    it("reopens the composer when the write throws", async () => {
+      session.saveComment = vi.fn(() => Promise.reject(new Error("network")));
+      store = createReviewFlowStore(session, appI18n.t);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
+      await expect(
+        store.getState().actions.saveComment(anchor, "looks wrong"),
+      ).rejects.toThrow("network");
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
     });
 
     it("refuses a second save while one is in flight", async () => {
-      store.getState().actions.openComposer(anchor, undefined);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
       void store.getState().actions.saveComment(anchor, "one");
       void store.getState().actions.saveComment(anchor, "two");
       expect(session.saveComment).toHaveBeenCalledTimes(1);
       await vi.runAllTimersAsync();
     });
 
+    it("refuses a cancel while the save is in flight and says why", () => {
+      session.saveComment = vi.fn(() => new Promise<boolean>(() => {}));
+      store = createReviewFlowStore(session, appI18n.t);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
+      void store.getState().actions.saveComment(anchor, "one");
+      store.getState().actions.cancelComposer();
+      flushAnnounce();
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.SAVING);
+      expect(store.getState().toast).toBe(
+        "A comment is still saving. Try again once it lands.",
+      );
+    });
+
+    it("announces why a row pick is ignored while saving", () => {
+      session.saveComment = vi.fn(() => new Promise<boolean>(() => {}));
+      store = createReviewFlowStore(session, appI18n.t);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
+      void store.getState().actions.saveComment(anchor, "one");
+      store.getState().actions.openComposer(otherAnchor, undefined, "chunk-a");
+      flushAnnounce();
+      expect(getComposerAnchor(store.getState().composer)).toBe(anchor);
+      expect(store.getState().toast).toBe(
+        "A comment is still saving. Try again once it lands.",
+      );
+    });
+
+    it("keeps a reopened composer open when an older save lands", async () => {
+      const first = makeDeferredSave();
+      session.saveComment = vi.fn(() => first.promise);
+      store = createReviewFlowStore(session, appI18n.t);
+      const { actions } = store.getState();
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      const pending = actions.saveComment(anchor, "one");
+      actions.dismissComposer();
+      actions.openComposer(otherAnchor, undefined, "chunk-a");
+      first.resolve(true);
+      await pending;
+      expect(store.getState().composer).toEqual({
+        kind: ComposerStateKinds.OPEN,
+        anchor: otherAnchor,
+        host: "chunk-a",
+      });
+    });
+
+    it("refuses to reopen lines whose dismissed save is in flight", async () => {
+      const first = makeDeferredSave();
+      session.saveComment = vi.fn(() => first.promise);
+      store = createReviewFlowStore(session, appI18n.t);
+      const { actions } = store.getState();
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      const pending = actions.saveComment(anchor, "one");
+      actions.dismissComposer();
+
+      actions.openComposer({ ...anchor, rowIds: [] }, undefined, "chunk-a");
+      flushAnnounce();
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
+      expect(store.getState().toast).toBe(
+        "A comment is still saving. Try again once it lands.",
+      );
+
+      first.resolve(false);
+      await pending;
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+    });
+
+    it("opens the same file under another header mid-save", () => {
+      session.saveComment = vi.fn(() => new Promise<boolean>(() => {}));
+      store = createReviewFlowStore(session, appI18n.t);
+      const { actions } = store.getState();
+      const fileAnchor: CommentAnchor = {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/a.ts",
+      };
+      actions.openComposer(fileAnchor, undefined, "chunk-a");
+      void actions.saveComment(fileAnchor, "one");
+      actions.dismissComposer();
+
+      actions.openComposer(fileAnchor, undefined, "chunk-b");
+
+      expect(getComposerHost(store.getState().composer)).toBe("chunk-b");
+    });
+
+    it("places a carried draft on lines whose dismissed save is in flight", () => {
+      session.saveComment = vi.fn(() => new Promise<boolean>(() => {}));
+      session.reanchorComment = vi.fn(() => true);
+      store = createReviewFlowStore(session, appI18n.t);
+      const { actions } = store.getState();
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      void actions.saveComment(anchor, "one");
+      actions.dismissComposer();
+      actions.startReanchor("draft-1", undefined);
+
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+
+      expect(session.reanchorComment).toHaveBeenCalledWith("draft-1", anchor);
+    });
+
+    it("lets a new composer save while a dismissed save is in flight", async () => {
+      const first = makeDeferredSave();
+      const second = makeDeferredSave();
+      session.saveComment = vi
+        .fn()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+      store = createReviewFlowStore(session, appI18n.t);
+      const { actions } = store.getState();
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      const firstSave = actions.saveComment(anchor, "one");
+      actions.dismissComposer();
+      actions.openComposer(otherAnchor, undefined, "chunk-a");
+      const secondSave = actions.saveComment(otherAnchor, "two");
+      expect(session.saveComment).toHaveBeenCalledTimes(2);
+
+      first.resolve(true);
+      await firstSave;
+      expect(isComposerSaving(store.getState().composer)).toBe(true);
+      second.resolve(true);
+      await secondSave;
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
+    });
+
+    it("dismisses a composer once the last surface hosting it is gone", async () => {
+      const { actions } = store.getState();
+      const release = actions.holdComposerHost(anchor.kind, "chunk-a");
+      actions.openComposer(anchor, undefined, "chunk-a");
+
+      release();
+      await Promise.resolve();
+
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
+    });
+
+    it("keeps the composer when its host remounts in the same tick", async () => {
+      const { actions } = store.getState();
+      const release = actions.holdComposerHost(anchor.kind, "chunk-a");
+      actions.openComposer(anchor, undefined, "chunk-a");
+
+      release();
+      actions.holdComposerHost(anchor.kind, "chunk-a");
+      await Promise.resolve();
+
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+    });
+
+    it("keeps a file composer when its card's diff table leaves", async () => {
+      const { actions } = store.getState();
+      const fileAnchor: CommentAnchor = {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/a.ts",
+      };
+      actions.holdComposerHost(CommentAnchorKinds.FILE, "chunk-a");
+      const releaseTable = actions.holdComposerHost(anchor.kind, "chunk-a");
+      actions.openComposer(fileAnchor, undefined, "chunk-a");
+
+      releaseTable();
+      await Promise.resolve();
+
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+    });
+
     it("rejects an empty body and keeps the composer open", () => {
-      store.getState().actions.openComposer(anchor, undefined);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
       void store.getState().actions.saveComment(anchor, "   ");
       expect(session.saveComment).not.toHaveBeenCalled();
-      expect(store.getState().composerAnchor).toEqual(anchor);
+      expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
       flushAnnounce();
       expect(store.getState().toast).toBe("Comment cannot be empty.");
     });
 
-    it("updates through the session actions with trimmed body", () => {
-      store.getState().actions.updateComment("id-1", " edited ");
+    it("updates through the session actions with trimmed body", async () => {
+      await store.getState().actions.updateComment("id-1", " edited ");
       expect(session.updateComment).toHaveBeenCalledWith("id-1", "edited");
     });
 
-    it("rejects an empty update", () => {
-      store.getState().actions.updateComment("id-1", " ");
+    it("rejects an empty update and answers false", async () => {
+      const updated = await store.getState().actions.updateComment("id-1", " ");
+      expect(updated).toBe(false);
       expect(session.updateComment).not.toHaveBeenCalled();
+    });
+
+    it("announces an update only after it lands", async () => {
+      const landing = makeDeferredSave();
+      session.updateComment = vi.fn(() => landing.promise);
+      store = createReviewFlowStore(session, appI18n.t);
+      const pending = store.getState().actions.updateComment("id-1", "edited");
+      flushAnnounce();
+      expect(store.getState().toast).toBe("");
+
+      landing.resolve(true);
+      expect(await pending).toBe(true);
+      flushAnnounce();
+      expect(store.getState().toast).toBe("Draft comment updated.");
+    });
+
+    it("answers false and stays quiet when the update fails", async () => {
+      session.updateComment = vi.fn(() => Promise.resolve(false));
+      store = createReviewFlowStore(session, appI18n.t);
+      const updated = await store
+        .getState()
+        .actions.updateComment("id-1", "edited");
+      flushAnnounce();
+      expect(updated).toBe(false);
+      expect(store.getState().toast).toBe("");
     });
 
     it("deletes and toggles through the session actions", () => {
@@ -144,7 +369,7 @@ describe("ReviewFlow store", () => {
     it("arms quietly: the banner shows it, the toast stays empty", () => {
       store.getState().actions.startReanchor("draft-1", undefined);
       flushAnnounce();
-      expect(store.getState().reanchorDraftId).toBe("draft-1");
+      expect(getReanchorDraftId(store.getState().composer)).toBe("draft-1");
       expect(store.getState().toast).toBe("");
       expect(store.getState().liveMessage).toBe(
         "Pick the lines this draft belongs on.",
@@ -155,8 +380,34 @@ describe("ReviewFlow store", () => {
       store.getState().actions.startReanchor("draft-1", undefined);
       store.getState().actions.cancelReanchor();
       flushAnnounce();
-      expect(store.getState().reanchorDraftId).toBeNull();
+      expect(getReanchorDraftId(store.getState().composer)).toBeUndefined();
       expect(store.getState().liveMessage).toBe("Re-anchoring cancelled.");
+    });
+
+    it("starting re-anchor closes an open file composer", () => {
+      store
+        .getState()
+        .actions.openComposer(
+          { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
+          undefined,
+          "chunk-a",
+        );
+      store.getState().actions.startReanchor("draft-1", undefined);
+      expect(getComposerAnchor(store.getState().composer)).toBeUndefined();
+      expect(getReanchorDraftId(store.getState().composer)).toBe("draft-1");
+    });
+
+    it("refuses to arm while a save is in flight and says why", () => {
+      session.saveComment = vi.fn(() => new Promise<boolean>(() => {}));
+      store = createReviewFlowStore(session, appI18n.t);
+      store.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
+      void store.getState().actions.saveComment(anchor, "one");
+      store.getState().actions.startReanchor("draft-1", undefined);
+      flushAnnounce();
+      expect(isComposerSaving(store.getState().composer)).toBe(true);
+      expect(store.getState().toast).toBe(
+        "A comment is still saving. Try again once it lands.",
+      );
     });
 
     it("drops a live line selection when arming", () => {
@@ -177,14 +428,14 @@ describe("ReviewFlow store", () => {
     it("announces the read-only reason instead of arming", () => {
       store.getState().actions.startReanchor("draft-1", "Historical revision.");
       flushAnnounce();
-      expect(store.getState().reanchorDraftId).toBeNull();
+      expect(getReanchorDraftId(store.getState().composer)).toBeUndefined();
       expect(store.getState().toast).toBe("Historical revision.");
     });
 
     it("pressing the same draft's control again cancels", () => {
       store.getState().actions.startReanchor("draft-1", undefined);
       store.getState().actions.startReanchor("draft-1", undefined);
-      expect(store.getState().reanchorDraftId).toBeNull();
+      expect(getReanchorDraftId(store.getState().composer)).toBeUndefined();
     });
 
     it("refuses a placement whose path is over the bound and stays armed", () => {
@@ -193,14 +444,31 @@ describe("ReviewFlow store", () => {
         file: "x".repeat(RequestBounds.PATH_LENGTH + 1),
       };
       store.getState().actions.startReanchor("draft-1", undefined);
-      store.getState().actions.openComposer(longPath, undefined);
+      store.getState().actions.openComposer(longPath, undefined, "chunk-a");
       flushAnnounce();
       expect(session.reanchorComment).not.toHaveBeenCalled();
-      expect(store.getState().reanchorDraftId).toBe("draft-1");
-      expect(store.getState().composerAnchor).toBeNull();
+      expect(getReanchorDraftId(store.getState().composer)).toBe("draft-1");
       expect(store.getState().toast).toBe(
         "That file's path is too long to hold a comment. Pick lines in another file, or cancel re-anchoring.",
       );
+    });
+
+    it("a file comment ends re-anchoring and leaves the draft in place", () => {
+      const fileAnchor: CommentAnchor = {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/b.ts",
+      };
+      store.getState().actions.startReanchor("draft-1", undefined);
+      store.getState().actions.openComposer(fileAnchor, undefined, "chunk-b");
+      flushAnnounce();
+      expect(session.reanchorComment).not.toHaveBeenCalled();
+      expect(store.getState().composer).toEqual({
+        kind: ComposerStateKinds.OPEN,
+        anchor: fileAnchor,
+        host: "chunk-b",
+      });
+      expect(store.getState().liveMessage).toBe("Re-anchoring cancelled.");
+      expect(store.getState().toast).toBe("");
     });
 
     it("leaves the live region alone when nothing is armed", () => {
@@ -223,7 +491,7 @@ describe("ReviewFlow store", () => {
     it("clears on request and survives the composer closing", () => {
       const { actions } = store.getState();
       actions.selectLines(picked);
-      actions.openComposer(anchor, undefined);
+      actions.openComposer(anchor, undefined, anchor.chunkId);
       actions.cancelComposer();
       expect(store.getState().lineSelection).toEqual(picked);
       actions.clearLineSelection();

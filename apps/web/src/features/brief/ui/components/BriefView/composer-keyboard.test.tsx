@@ -36,3 +36,19 @@ it("keeps J/K/Z working after leaving a comment composer via Escape", async () =
     ),
   );
 });
+
+it("holds the page shortcuts while a file composer is open", async () => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  await mountBriefView({ session: emptySessionPayload() });
+  const [fileControl] = screen.getAllByRole("button", {
+    name: /^Add a comment on /,
+  });
+  fireEvent.click(fileControl as Element);
+  await screen.findByPlaceholderText("Leave a comment");
+
+  const before = document.querySelector("article[data-current]")?.id;
+  fireEvent.keyDown(window, { key: "j" });
+
+  expect(document.querySelector("article[data-current]")?.id).toBe(before);
+  expect(screen.getByPlaceholderText("Leave a comment")).toBeTruthy();
+});

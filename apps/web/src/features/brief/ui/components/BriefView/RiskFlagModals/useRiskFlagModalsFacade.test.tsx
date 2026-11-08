@@ -22,7 +22,7 @@ function setup() {
   const flowStore: ReviewFlowStore = createReviewFlowStore(
     {
       saveComment: () => Promise.resolve(true),
-      updateComment: () => undefined,
+      updateComment: () => Promise.resolve(true),
       deleteComment: () => undefined,
       toggleComment: () => undefined,
       reanchorComment: () => true,

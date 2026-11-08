@@ -23,6 +23,7 @@ import { AttachDisabledReasons, type AttachDisabledReason } from "./types";
 import {
   buildImageMarkdown,
   buildUploadPlaceholders,
+  findUploadPlaceholders,
   insertPlaceholder,
   parseRetryAfterSeconds,
   replacePlaceholder,
@@ -124,6 +125,31 @@ export function adoptOrphanSettles(text: string): TextEdit | null {
   }
   return edit;
 }
+export interface RestoredUploadText {
+  text: string;
+  /** A placeholder no upload owns was removed: its image never landed. */
+  droppedUpload: boolean;
+}
+
+/**
+ * Removes the placeholders no upload still owns, such as one restored after a
+ * reload: it would never settle, and the save would wait on it for good.
+ */
+export function dropOrphanedPlaceholders(text: string): RestoredUploadText {
+  let restored = text;
+  let droppedUpload = false;
+  for (const placeholder of findUploadPlaceholders(text)) {
+    const owned =
+      inFlightPlaceholders.has(placeholder) || orphanSettles.has(placeholder);
+    const edit = owned ? null : replacePlaceholder(restored, placeholder, "");
+    if (edit !== null) {
+      restored = edit.text;
+      droppedUpload = true;
+    }
+  }
+  return { text: restored, droppedUpload };
+}
+
 /**
  * One upload at a time per repo, across every composer on the page: each
  * commit moves the same branch head, and the server settles only one lost

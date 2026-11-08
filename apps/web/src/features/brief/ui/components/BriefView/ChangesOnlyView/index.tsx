@@ -15,7 +15,7 @@ import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { Markdown } from "@web/components/Markdown";
 import { useViewportShape } from "@web/hooks/useViewportShape";
-import { useReviewFlow } from "@web/features/review/session";
+import { getComposerHost, useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import {
   estimateNarrativeCardHeight,
@@ -338,7 +338,9 @@ function WindowedNarrativeList({
     () => chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
     [chunks],
   );
-  const composerHost = useReviewFlow((state) => state.composerHost);
+  const composerHost = useReviewFlow((state) =>
+    getComposerHost(state.composer),
+  );
   const hostedIndex = useMemo(
     () =>
       chunks.findIndex(

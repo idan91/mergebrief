@@ -9,7 +9,6 @@ import {
 } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import { CommentComposer, CommentThread } from "@web/features/review";
-import type { CommentAnchor } from "@web/features/review/utils";
 import type { BriefChunk } from "../../../../../../model/types";
 import { useFileCommentBandFacade } from "./useFileCommentBandFacade";
 import { Icon } from "@web/components/Icon";
@@ -55,15 +54,6 @@ export function FileCommentBand({
   const handleToggleConversation = (threadId: number) =>
     band.toggleConversationThread(band.chunkKey, threadId);
 
-  const handleSave = (anchor: CommentAnchor, body: string) => {
-    void band.saveComment(anchor, body).then((saved) => {
-      if (saved) {
-        onCancelComposer();
-      }
-      return saved;
-    });
-  };
-
   return (
     <section
       aria-label={t("review.comment.commentOnFile")}
@@ -103,7 +93,7 @@ export function FileCommentBand({
               anchor={band.fileAnchor}
               cancel={onCancelComposer}
               mentionSource={conversationComposer?.mentionSource}
-              save={handleSave}
+              save={band.saveComment}
               saving={band.composerSaving}
             />
           ) : null}

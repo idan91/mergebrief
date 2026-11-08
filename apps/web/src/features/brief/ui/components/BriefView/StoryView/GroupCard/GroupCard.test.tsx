@@ -80,7 +80,7 @@ function renderCard(writes: SessionWrites) {
   const flowStore = createReviewFlowStore(
     {
       saveComment: () => Promise.resolve(true),
-      updateComment: () => undefined,
+      updateComment: () => Promise.resolve(true),
       deleteComment: () => undefined,
       toggleComment: () => undefined,
       reanchorComment: () => true,

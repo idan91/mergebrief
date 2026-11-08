@@ -37,7 +37,7 @@ export interface UnderRowsProps {
   onToggleConversationThread: (threadId: number) => void;
   reasonRowOpen: boolean;
   onCloseReasonRow: () => void;
-  activeCommentAnchor: LineCommentAnchor | null;
+  activeCommentAnchor: LineCommentAnchor | undefined;
   composerSaving: boolean;
   cancelComposer: ComposerProps["cancel"];
   saveComment: ComposerProps["save"];
@@ -83,7 +83,7 @@ export function UnderRows({
   reviewCommentLabel,
 }: UnderRowsProps) {
   const composerPlacement =
-    activeCommentAnchor === null
+    activeCommentAnchor === undefined
       ? undefined
       : placementForAnchor(activeCommentAnchor);
 
@@ -96,7 +96,7 @@ export function UnderRows({
           reason={view.disabledReason}
         />
       ) : null}
-      {view.showComposer && activeCommentAnchor ? (
+      {view.showComposer && activeCommentAnchor !== undefined ? (
         <UnderRow
           layout={layout}
           placement={composerPlacement}

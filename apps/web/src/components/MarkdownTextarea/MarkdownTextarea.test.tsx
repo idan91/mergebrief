@@ -23,7 +23,10 @@ import {
   type MentionCandidate,
   type MentionSuggestions,
 } from "./types";
-import { resetAttachmentUploadState } from "./useAttachmentUpload";
+import {
+  dropOrphanedPlaceholders,
+  resetAttachmentUploadState,
+} from "./useAttachmentUpload";
 
 function Harness({
   initial = "",
@@ -773,6 +776,24 @@ describe("MarkdownTextarea image attachments", () => {
     apiFetchMock.mockReset();
     resetAttachmentUploadState();
     holdCommits.current = false;
+  });
+
+  it("keeps a live upload's placeholder and drops one no upload owns", async () => {
+    deferUpload();
+    render(<AttachHarness />);
+    fireEvent.paste(textarea(), {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+
+    const restored = dropOrphanedPlaceholders(
+      "![Uploading image.png…]()\n![Uploading lost.png…]()\nnote",
+    );
+
+    expect(restored).toEqual({
+      text: "![Uploading image.png…]()\nnote",
+      droppedUpload: true,
+    });
   });
 
   it("pastes an image as a placeholder and swaps in the image line", async () => {

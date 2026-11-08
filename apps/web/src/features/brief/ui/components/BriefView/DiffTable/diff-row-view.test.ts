@@ -37,7 +37,7 @@ function stubParams(line: DiffLine): DiffRowViewParams {
     addressedComments: [],
     dragIndexes: new Set(),
     activeRowIds: new Set(),
-    activeCommentAnchor: null,
+    activeCommentAnchor: undefined,
     strandedRowIds: new Map(),
   };
 }

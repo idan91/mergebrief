@@ -13,21 +13,30 @@ import {
 } from "@testing-library/react";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Button } from "@web/components/Button";
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import { type CommentAnchor } from "../../utils/comments";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
+  getComposerAnchor,
+  isComposerSaving,
   ReviewFlowProvider,
   ReviewSessionProvider,
+  useReviewActions,
+  useReviewFlow,
+  type ReviewFlowSessionActions,
+  type ReviewFlowStore,
   type ReviewSessionPayload,
 } from "../../session";
 import { CommentComposer } from ".";
-import { useCommentComposerFacade } from "./useCommentComposerFacade";
+import { useComposerFormFacade } from "./ComposerForm/useComposerFormFacade";
+import { buildUnsavedCommentKey } from "./unsaved-text-storage";
 import {
   CommentAnchorKinds,
   DiffSides,
@@ -215,8 +224,8 @@ describe("CommentComposer navigation-guard registration", () => {
 
 describe("CommentComposer while an image uploads", () => {
   it("holds the save and says why until the upload lands", () => {
-    const save = vi.fn();
-    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+    const save = vi.fn(() => Promise.resolve(true));
+    const { result } = renderHook(() => useComposerFormFacade(anchor, save));
 
     act(() =>
       result.current.onBodyChange("look at this\n![Uploading shot.png…]()"),
@@ -239,8 +248,8 @@ describe("CommentComposer while an image uploads", () => {
 
 describe("CommentComposer request bounds", () => {
   it("holds a body over the bound and keeps it for shortening", () => {
-    const save = vi.fn();
-    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+    const save = vi.fn(() => Promise.resolve(true));
+    const { result } = renderHook(() => useComposerFormFacade(anchor, save));
     const overBound = "x".repeat(RequestBounds.BODY_LENGTH + 1);
 
     act(() => result.current.onBodyChange(overBound));
@@ -259,8 +268,8 @@ describe("CommentComposer request bounds", () => {
   });
 
   it("measures the body the save sends, without its outer whitespace", () => {
-    const save = vi.fn();
-    const { result } = renderHook(() => useCommentComposerFacade(anchor, save));
+    const save = vi.fn(() => Promise.resolve(true));
+    const { result } = renderHook(() => useComposerFormFacade(anchor, save));
 
     act(() =>
       result.current.onBodyChange(
@@ -273,14 +282,12 @@ describe("CommentComposer request bounds", () => {
   });
 
   it("holds a comment on a file whose path is over the bound", () => {
-    const save = vi.fn();
+    const save = vi.fn(() => Promise.resolve(true));
     const longPath = {
       ...anchor,
       file: "x".repeat(RequestBounds.PATH_LENGTH + 1),
     };
-    const { result } = renderHook(() =>
-      useCommentComposerFacade(longPath, save),
-    );
+    const { result } = renderHook(() => useComposerFormFacade(longPath, save));
 
     act(() => result.current.onBodyChange("looks off"));
     act(() => result.current.submit());
@@ -332,5 +339,339 @@ describe("CommentComposer mention source hand-off", () => {
     expect(
       screen.getAllByRole("option").map((option) => option.textContent?.trim()),
     ).toEqual(["@carol"]);
+  });
+});
+
+interface ComposerHarnessProps {
+  cancel: () => void;
+  saving?: boolean;
+  children?: ReactNode;
+}
+
+function ComposerHarness({ cancel, saving, children }: ComposerHarnessProps) {
+  return (
+    <ReviewSessionProvider
+      briefId="test-brief"
+      model={buildBriefViewModel(brief)}
+      session={sessionWith([])}
+    >
+      <ReviewFlowProvider store={makeFlowStore()}>
+        <CommentComposer
+          anchor={anchor}
+          cancel={cancel}
+          save={vi.fn()}
+          saving={saving}
+        />
+        {children}
+      </ReviewFlowProvider>
+    </ReviewSessionProvider>
+  );
+}
+
+describe("CommentComposer while the save is in flight", () => {
+  it("cancels on Escape while idle", () => {
+    const cancel = vi.fn();
+    render(<ComposerHarness cancel={cancel} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape while saving", () => {
+    const cancel = vi.fn();
+    render(<ComposerHarness cancel={cancel} saving />);
+    fireEvent.keyDown(screen.getByLabelText("Comment"), { key: "Escape" });
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("keeps Cancel focusable and aria-disabled while saving", () => {
+    render(<ComposerHarness cancel={vi.fn()} saving />);
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
+    expect(cancel.hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Comment").readOnly).toBe(
+      true,
+    );
+  });
+
+  it("leaves an Escape pressed inside a dialog to the dialog", () => {
+    const cancel = vi.fn();
+    render(
+      <ComposerHarness cancel={cancel}>
+        <div aria-label="Submit review" role="dialog">
+          <Button>Post</Button>
+        </div>
+      </ComposerHarness>,
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: "Post" }), {
+      key: "Escape",
+    });
+    expect(cancel).not.toHaveBeenCalled();
+  });
+});
+
+const otherAnchor: CommentAnchor = {
+  ...anchor,
+  startLine: 12,
+  endLine: 12,
+  rowIds: [],
+};
+
+/** Shows the store's open composer the way a diff table does. */
+function OpenComposer() {
+  const actions = useReviewActions();
+  const open = useReviewFlow((state) => getComposerAnchor(state.composer));
+  const saving = useReviewFlow((state) => isComposerSaving(state.composer));
+  if (open === undefined) {
+    return null;
+  }
+  return (
+    <CommentComposer
+      anchor={open}
+      cancel={actions.cancelComposer}
+      save={actions.saveComment}
+      saving={saving}
+    />
+  );
+}
+
+function stubSessionActions(
+  saveComment: ReviewFlowSessionActions["saveComment"],
+): ReviewFlowSessionActions {
+  return {
+    saveComment,
+    updateComment: vi.fn(() => Promise.resolve(true)),
+    deleteComment: vi.fn(),
+    toggleComment: vi.fn(),
+    reanchorComment: vi.fn(() => false),
+  };
+}
+
+function mountStoredComposer(
+  briefId: string,
+  saveComment: ReviewFlowSessionActions["saveComment"] = () =>
+    Promise.resolve(true),
+): ReviewFlowStore {
+  const store = createReviewFlowStore(
+    stubSessionActions(saveComment),
+    appI18n.t,
+    briefId,
+  );
+  render(
+    <ReviewSessionProvider
+      briefId={briefId}
+      model={buildBriefViewModel(brief)}
+      session={sessionWith([])}
+    >
+      <ReviewFlowProvider store={store}>
+        <OpenComposer />
+      </ReviewFlowProvider>
+    </ReviewSessionProvider>,
+  );
+  return store;
+}
+
+function openAt(store: ReviewFlowStore, at: CommentAnchor): void {
+  act(() => store.getState().actions.openComposer(at, undefined, "chunk-a"));
+}
+
+function typeComment(body: string): void {
+  fireEvent.change(screen.getByLabelText("Comment"), {
+    target: { value: body },
+  });
+}
+
+function readComposerText(): string {
+  return screen.getByLabelText<HTMLTextAreaElement>("Comment").value;
+}
+
+describe("CommentComposer unsaved text", () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("brings the text back when replaced lines reopen", () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("first thought");
+
+    openAt(store, otherAnchor);
+    expect(readComposerText()).toBe("");
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("first thought");
+  });
+
+  it("brings the text back after the host collapses and expands", () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("kept across collapse");
+
+    act(() => store.getState().actions.dismissComposer());
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("kept across collapse");
+  });
+
+  it("never shows one brief's text on another revision", () => {
+    const first = mountStoredComposer("brief-1");
+    openAt(first, anchor);
+    typeComment("on revision one");
+    cleanup();
+
+    const second = mountStoredComposer("brief-2");
+    openAt(second, anchor);
+
+    expect(readComposerText()).toBe("");
+  });
+
+  it("discards the text on Cancel", () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("never mind");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("");
+  });
+
+  it("clears the text once the save lands", async () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("ship it");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("");
+  });
+
+  it("keeps the text when the save fails", async () => {
+    const store = mountStoredComposer("brief-1", () => Promise.resolve(false));
+    openAt(store, anchor);
+    typeComment("try again");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+    expect(readComposerText()).toBe("try again");
+    act(() => store.getState().actions.dismissComposer());
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("try again");
+  });
+
+  it("keeps the text when the save throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const store = mountStoredComposer("brief-1", () =>
+      Promise.reject(new Error("network")),
+    );
+    openAt(store, anchor);
+    typeComment("still here");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+
+    expect(readComposerText()).toBe("still here");
+    expect(store.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+  });
+
+  it("works in memory when storage is denied", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+
+    typeComment("only here");
+
+    expect(readComposerText()).toBe("only here");
+    expect(hasUnsavedComposerText()).toBe(true);
+  });
+
+  it("drops an upload placeholder that will never land and says so", () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("see this\n![Uploading shot.png…]()");
+    act(() => store.getState().actions.dismissComposer());
+
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("see this\n");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "An image upload did not finish. Attach the image again.",
+    );
+  });
+
+  it("clears restored text that lost its upload once the save lands", async () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("see this\n![Uploading shot.png…]()");
+    act(() => store.getState().actions.dismissComposer());
+    openAt(store, anchor);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("");
+  });
+
+  it("clears the older stored text when a later write failed", async () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+    typeComment("first");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    typeComment("first and more");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("");
+  });
+
+  it("keeps text stored after the save started", async () => {
+    let landSave: (saved: boolean) => void = () => undefined;
+    const store = mountStoredComposer(
+      "brief-1",
+      () =>
+        new Promise((resolve) => {
+          landSave = resolve;
+        }),
+    );
+    openAt(store, anchor);
+    typeComment("ship it");
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    });
+
+    const key = buildUnsavedCommentKey("brief-1", anchor, "chunk-a") ?? "";
+    sessionStorage.setItem(key, "stored mid-save");
+    await act(async () => landSave(true));
+    openAt(store, anchor);
+
+    expect(readComposerText()).toBe("stored mid-save");
+  });
+
+  it("leaves the navigation guard to storage when text is kept", () => {
+    const store = mountStoredComposer("brief-1");
+    openAt(store, anchor);
+
+    typeComment("persisted as typed");
+
+    expect(hasUnsavedComposerText()).toBe(false);
   });
 });

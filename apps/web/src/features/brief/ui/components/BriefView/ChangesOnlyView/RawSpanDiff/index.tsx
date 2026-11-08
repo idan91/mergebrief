@@ -6,7 +6,11 @@
 import { useTranslation } from "react-i18next";
 import { formatDisplayPath } from "brief-core/hidden-chars";
 import { ToolbarButton } from "@web/components/ToolbarButton";
-import { useReviewActions, useReviewFlow } from "@web/features/review/session";
+import {
+  getComposerHost,
+  useReviewActions,
+  useReviewFlow,
+} from "@web/features/review/session";
 import { useQuery } from "@tanstack/react-query";
 import {
   type ReactNode,
@@ -183,17 +187,17 @@ interface SpanFileProps {
 
 /**
  * One file's panel. Collapsing it keeps the table mounted, so a composer
- * it hosts is cancelled here rather than left open out of sight.
+ * it hosts is dismissed here rather than left open out of sight.
  */
 function SpanFile({ chunk, openByDefault, review }: SpanFileProps) {
-  const { cancelComposer } = useReviewActions();
+  const { dismissComposer } = useReviewActions();
   const hostsComposer = useReviewFlow(
-    (state) => state.composerHost === chunk.id,
+    (state) => getComposerHost(state.composer) === chunk.id,
   );
   const displayFile = formatDisplayPath(chunk.file);
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     if (!event.currentTarget.open && hostsComposer) {
-      cancelComposer();
+      dismissComposer();
     }
   };
 

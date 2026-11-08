@@ -597,23 +597,6 @@ describe("ChunkCard chunk actions", () => {
     expect(document.activeElement).toBe(kept);
   });
 
-  it("expands a collapsed chunk whose file composer is still open", () => {
-    const { toggleChunk } = renderCard({ open: false });
-    fireEvent.click(
-      within(openActions().dialog).getByRole("button", {
-        name: "Comment on file",
-      }),
-    );
-
-    fireEvent.click(
-      within(openActions().dialog).getByRole("button", {
-        name: "Comment on file",
-      }),
-    );
-
-    expect(toggleChunk).toHaveBeenCalledTimes(2);
-  });
-
   it("focuses an open composer when the landscape row asks for it", () => {
     const { positionStore } = renderCard({ open: true });
     fireEvent.click(

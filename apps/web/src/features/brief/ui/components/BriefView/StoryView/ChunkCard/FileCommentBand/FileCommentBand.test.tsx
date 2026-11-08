@@ -7,6 +7,7 @@ import {
 import { appI18n } from "../../../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -23,6 +24,7 @@ import {
   DigestRowKinds,
 } from "@web/features/conversation/utils";
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
   emptySessionPayload,
   ReviewFlowProvider,
@@ -172,13 +174,14 @@ interface RenderOptions {
   conversationRows?: ChunkCardProps["conversationRows"];
   conversationComposer?: ThreadComposerWiring;
   addressedReviewComments?: AddressedReviewComment[];
+  saveComment?: () => Promise<boolean>;
 }
 
 function renderCard(options: RenderOptions = {}) {
   const toggleChunk = vi.fn();
   const flowStore = createReviewFlowStore(
     {
-      saveComment: vi.fn(() => Promise.resolve(true)),
+      saveComment: vi.fn(options.saveComment ?? (() => Promise.resolve(true))),
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
@@ -199,8 +202,12 @@ function renderCard(options: RenderOptions = {}) {
     conversationRows: options.conversationRows,
     conversationComposer: options.conversationComposer,
   };
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+  const client = new QueryClient();
+  const buildCardTree = (
+    cardProps: ChunkCardProps,
+    cardKey: string | undefined,
+  ) => (
+    <QueryClientProvider client={client}>
       <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(brief)}
@@ -214,15 +221,35 @@ function renderCard(options: RenderOptions = {}) {
               })}
             >
               <ReadingPositionProvider store={createReadingPositionStore()}>
-                <ChunkCard {...props} />
+                {cardKey === undefined ? null : (
+                  <ChunkCard key={cardKey} {...cardProps} />
+                )}
               </ReadingPositionProvider>
             </ReviewPostureProvider>
           </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  return { flowStore, toggleChunk };
+  const view = render(buildCardTree(props, "first"));
+  const rerenderCard = (patch: Partial<ChunkCardProps>, cardKey = "first") =>
+    view.rerender(buildCardTree({ ...props, ...patch }, cardKey));
+  const unmountCard = () => view.rerender(buildCardTree(props, undefined));
+  return { flowStore, toggleChunk, rerenderCard, unmountCard };
+}
+
+/** A host's release settles a microtask after its unmount effects flush. */
+async function flushHostRelease(): Promise<void> {
+  await act(async () => undefined);
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+function clickFileCommentControl(): void {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Add a comment on src/a.ts" }),
+  );
 }
 
 describe("FileCommentBand", () => {
@@ -363,6 +390,78 @@ describe("FileCommentBand", () => {
     }
     fireEvent.click(firstControl);
     expect(screen.getAllByText("Add comment on file")).toHaveLength(1);
+  });
+
+  it("keeps the file composer open when its card remounts", async () => {
+    const { flowStore, rerenderCard } = renderCard();
+    clickFileCommentControl();
+
+    rerenderCard({}, "remounted");
+    await flushHostRelease();
+
+    expect(screen.getByLabelText("Comment")).toBeTruthy();
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+  });
+
+  it("closes the file composer when its card unmounts", async () => {
+    const { flowStore, unmountCard } = renderCard();
+    clickFileCommentControl();
+
+    unmountCard();
+    await flushHostRelease();
+
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
+  });
+
+  it("closes the file composer when its chunk collapses", async () => {
+    const { flowStore, rerenderCard } = renderCard();
+    clickFileCommentControl();
+
+    rerenderCard({ open: false });
+    await flushHostRelease();
+
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
+  });
+
+  it("closes the file composer only once its save lands", async () => {
+    let land: (saved: boolean) => void = () => undefined;
+    const { flowStore } = renderCard({
+      saveComment: () =>
+        new Promise<boolean>((resolve) => {
+          land = resolve;
+        }),
+    });
+    clickFileCommentControl();
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "file note" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeTruthy();
+    await act(async () => {
+      land(false);
+    });
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Comment").value).toBe(
+      "file note",
+    );
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
+  });
+
+  it("shows no saving state under a header whose composer is not saving", () => {
+    const { flowStore } = renderCard();
+    act(() => {
+      flowStore.setState({
+        composer: {
+          kind: ComposerStateKinds.SAVING,
+          anchor: { kind: CommentAnchorKinds.FILE, file: chunk.file },
+          host: "chunk-b",
+          token: 1,
+        },
+      });
+    });
+
+    expect(screen.queryByTestId("file-comment-band")).toBeNull();
+    expect(screen.queryByText("Saving…")).toBeNull();
   });
 
   it("renders an inbound FILE thread in the band", () => {

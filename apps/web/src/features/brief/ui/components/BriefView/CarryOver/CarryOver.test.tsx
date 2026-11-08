@@ -122,7 +122,7 @@ function mountCarryOver(
   const flowStore = createReviewFlowStore(
     {
       saveComment: () => Promise.resolve(true),
-      updateComment: () => undefined,
+      updateComment: () => Promise.resolve(true),
       deleteComment: () => undefined,
       toggleComment: () => undefined,
       reanchorComment: () => true,
@@ -337,6 +337,22 @@ describe("carry-over row", () => {
     );
     expect(screen.queryByTestId("reanchor-banner")).toBeNull();
     expect(document.querySelector("[data-pick]")).toBeNull();
+  });
+
+  it("leaves an unrelated composer open when a carried draft is deleted", async () => {
+    await mountBriefView({ session: buildOrphanedDraft() });
+    const gutter = document.querySelector(
+      "[data-commentable] [data-comment-anchor]",
+    );
+    fireEvent.mouseDown(gutter as Element);
+    fireEvent.mouseUp(gutter as Element);
+    expect(screen.getByPlaceholderText("Leave a comment")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByTestId("attention-action-delete-draft-comment"),
+    );
+
+    expect(screen.getByPlaceholderText("Leave a comment")).toBeTruthy();
   });
 
   it("stacks the re-anchor banner after the focus pill", async () => {

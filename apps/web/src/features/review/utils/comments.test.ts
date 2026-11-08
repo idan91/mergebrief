@@ -433,6 +433,6 @@ describe("findDraftComment", () => {
 
   it("finds nothing for a submitted comment or no id", () => {
     expect(findDraftComment([submitted, draft], "b")).toBeUndefined();
-    expect(findDraftComment([submitted, draft], null)).toBeUndefined();
+    expect(findDraftComment([submitted, draft], undefined)).toBeUndefined();
   });
 });

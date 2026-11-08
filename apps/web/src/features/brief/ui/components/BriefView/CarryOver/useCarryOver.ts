@@ -6,6 +6,7 @@ import { ProductActionIds } from "contract";
 import type { BriefViewModel } from "@web/features/brief/model/utils/view-model";
 import {
   getChunkRegions,
+  getReanchorDraftId,
   useReviewActions,
   useReviewFlow,
   useReviewSession,
@@ -28,7 +29,7 @@ export interface CarryOverView {
   carriedFrom: NonNullable<ReviewSessionPayload["carriedFrom"]>;
   /** The carried items still needing a re-look; empty = the clean receipt. */
   items: CarriedItem[];
-  armedDraftId: string | null;
+  armedDraftId: string | undefined;
   runAction: (item: CarriedItem, action: AttentionActionId) => void;
 }
 
@@ -49,7 +50,9 @@ export function useCarryOver({
   const deletedMissingDrafts = useReviewSession(
     (state) => state.deletedMissingDrafts,
   );
-  const armedDraftId = useReviewFlow((state) => state.reanchorDraftId);
+  const armedDraftId = useReviewFlow((state) =>
+    getReanchorDraftId(state.composer),
+  );
   const { composerDisabledReason } = useReviewPosture();
   const carriedFrom = useReviewSession((state) => state.carriedFrom);
   const attention = useReviewSession((state) => state.attention);
@@ -88,7 +91,7 @@ export function useCarryOver({
         sessionActions.deleteMissingDraft(item.actionTargetId);
         return;
       }
-      flowActions.cancelComposer();
+      flowActions.cancelReanchor();
       sessionActions.deleteComment(item.actionTargetId);
     },
     [ProductActionIds.REANCHOR_DRAFT_COMMENT]: (item) => {

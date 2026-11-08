@@ -14,6 +14,7 @@ import {
   readMentionHandle,
   replaceSelectionWithSuggestion,
   buildUploadPlaceholders,
+  findUploadPlaceholders,
   hasUploadPlaceholder,
   insertPlaceholder,
   parseRetryAfterSeconds,
@@ -436,6 +437,17 @@ describe("hasUploadPlaceholder", () => {
     expect(hasUploadPlaceholder("a\n![Uploading shot.png…]()\nb")).toBe(true);
     expect(hasUploadPlaceholder("![Image](https://x/y.png)")).toBe(false);
     expect(hasUploadPlaceholder("Uploading shot.png")).toBe(false);
+  });
+});
+
+describe("findUploadPlaceholders", () => {
+  it("lists every upload line in order and nothing else", () => {
+    const text = "a\n![Uploading a.png…]()\n![Image](x)\n![Uploading b.png…]()";
+    expect(findUploadPlaceholders(text)).toEqual([
+      "![Uploading a.png…]()",
+      "![Uploading b.png…]()",
+    ]);
+    expect(findUploadPlaceholders("plain")).toEqual([]);
   });
 });
 

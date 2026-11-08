@@ -1,5 +1,5 @@
 import { RequestBounds } from "contract";
-import { DraftCommentStatuses } from "types/comments";
+import { DraftCommentStatuses, type CommentAnchorKind } from "types/comments";
 import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
@@ -11,6 +11,25 @@ import {
 } from "../../utils/comments";
 import type { DismissTarget, EvidenceTarget } from "../../utils/state";
 import type { ReviewSessionActions } from "../store";
+import {
+  ComposerStateKinds,
+  type ComposerPlace,
+  type ComposerState,
+} from "./types";
+import {
+  armReanchorState,
+  cancelComposerState,
+  disarmReanchorState,
+  dismissComposer,
+  getComposerAnchor,
+  getComposerHost,
+  getReanchorDraftId,
+  isComposerSaving,
+  isSameComposerPlace,
+  openComposerState,
+  settleComposerSave,
+  startComposerSave,
+} from "./utils";
 
 /** How long the announce clear tick holds before the message lands (two-tick
  * clear-then-set: an identical repeat still produces a DOM change, so the
@@ -24,24 +43,14 @@ export const ANNOUNCE_CLEAR_MS = 30;
  * reload.
  */
 export interface ReviewFlowState {
-  composerAnchor: CommentAnchor | null;
+  /** The Brief this store belongs to; absent keeps composer text in memory only. */
+  briefId: string | undefined;
   /**
-   * The chunk whose table shows the composer. Usually the anchor's own
-   * chunk; a row picked inside a sibling span anchors to the owner but the
-   * composer opens where the reviewer clicked, and only there.
+   * The one composer on the page, or the carried draft waiting for the next
+   * row pick to place it. The composer closes on write SUCCESS, not on
+   * click, and a cancel is refused while the write is in flight.
    */
-  composerHost: string | null;
-  /**
-   * A carried draft is waiting for its new home: the next row the reviewer
-   * picks re-anchors THAT draft instead of opening a fresh composer.
-   */
-  reanchorDraftId: string | null;
-  /**
-   * A staged-draft write is in flight. The composer closes on write SUCCESS,
-   * not on click: that buys one "Saving…" round trip and costs no
-   * unsaved-marker state, no retry button and no half-applied draft.
-   */
-  composerSaving: boolean;
+  composer: ComposerState;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
   /**
@@ -82,9 +91,19 @@ export interface ReviewFlowActions {
   openComposer: (
     anchor: CommentAnchor,
     disabledReason: string | undefined,
-    host?: string,
+    host: string,
   ) => void;
+  /** The reviewer's cancel; refused and announced while the write is in flight. */
   cancelComposer: () => void;
+  /** The host went away: closes even mid-save, and that save's settle is dropped. */
+  dismissComposer: () => void;
+  /**
+   * Counts a mounted surface that can show a composer of this kind under
+   * this host; the returned release dismisses a composer it showed once no
+   * such surface is left. Checked a microtask later, so a remount or a
+   * StrictMode re-run inside one commit keeps the composer.
+   */
+  holdComposerHost: (anchorKind: CommentAnchorKind, host: string) => () => void;
   /**
    * Arms re-anchoring for a carried draft; the next picked row places it. A
    * read-only reason from the caller is announced instead of arming.
@@ -98,7 +117,8 @@ export interface ReviewFlowActions {
    * a failure leaves it open holding its text, with the same Save available.
    */
   saveComment: (anchor: CommentAnchor, body: string) => Promise<boolean>;
-  updateComment: (commentId: string, body: string) => void;
+  /** Answers whether the edit landed; "updated" is announced only then. */
+  updateComment: (commentId: string, body: string) => Promise<boolean>;
   deleteComment: (commentId: string) => void;
   toggleComment: (commentId: string) => void;
   /** @description Flip one inline thread's disclosure under its chunk key. */
@@ -157,22 +177,10 @@ export type ReviewFlowSessionActions = Pick<
   | "reanchorComment"
 >;
 
-function resolveHost(
-  anchor: CommentAnchor,
-  host: string | undefined,
-): string | null {
-  if (host !== undefined) {
-    return host;
-  }
-  return isLineCommentAnchor(anchor) ? anchor.chunkId : null;
-}
-
-function initialReviewFlowState(): ReviewFlowState {
+function initialReviewFlowState(briefId: string | undefined): ReviewFlowState {
   return {
-    composerAnchor: null,
-    composerHost: null,
-    composerSaving: false,
-    reanchorDraftId: null,
+    briefId,
+    composer: { kind: ComposerStateKinds.CLOSED },
     dismissTarget: null,
     evidenceTarget: null,
     lineSelection: null,
@@ -201,6 +209,7 @@ export function createReviewFlowStore(
    * here would keep announcing English after a locale switch.
    */
   translate: (key: TranslationKey) => string,
+  briefId?: string,
 ): ReviewFlowStore {
   return createStore<ReviewFlowStoreValue>((set, get) => {
     let announceTimer: number | undefined;
@@ -222,23 +231,60 @@ export function createReviewFlowStore(
         ANNOUNCE_CLEAR_MS,
       );
     };
+    let saveToken = 0;
+    /** Every save still in flight, a dismissed composer's included. */
+    const pendingSaves = new Map<number, ComposerPlace>();
+    const heldHosts = new Map<string, number>();
+    const dismissUnheldHost = (anchorKind: CommentAnchorKind, host: string) => {
+      const { composer } = get();
+      const shown =
+        getComposerHost(composer) === host &&
+        getComposerAnchor(composer)?.kind === anchorKind;
+      if (shown) {
+        set({ composer: dismissComposer(composer) });
+      }
+    };
+    /** True when a write is in flight, after saying why the action waits. */
+    const refuseWhileSaving = () => {
+      if (!isComposerSaving(get().composer)) {
+        return false;
+      }
+      announce(translate("review.announce.commentStillSaving"));
+      return true;
+    };
+    /** A place whose dismissed save is in flight would reopen on the text it sends. */
+    const refuseWhilePlaceSaving = (place: ComposerPlace) => {
+      const placeSaving = [...pendingSaves.values()].some((saved) =>
+        isSameComposerPlace(saved, place),
+      );
+      if (placeSaving) {
+        announce(translate("review.announce.commentStillSaving"));
+      }
+      return placeSaving;
+    };
     return {
-      ...initialReviewFlowState(),
+      ...initialReviewFlowState(briefId),
       actions: {
         openComposer(anchor, disabledReason, host) {
           if (disabledReason !== undefined) {
             announce(disabledReason);
             return;
           }
+          if (refuseWhileSaving()) {
+            return;
+          }
           // Placement branches HERE, not at the call sites: every gesture that
           // picks rows already ends in this one action.
-          const reanchoring = get().reanchorDraftId;
-          if (reanchoring !== null) {
+          const { composer } = get();
+          const reanchoring = getReanchorDraftId(composer);
+          const reanchorsDraft =
+            reanchoring !== undefined && isLineCommentAnchor(anchor);
+          if (reanchorsDraft) {
             if (anchor.file.length > RequestBounds.PATH_LENGTH) {
               announce(translate("review.announce.reanchorPathTooLong"));
               return;
             }
-            set({ reanchorDraftId: null });
+            set({ composer: disarmReanchorState(composer) });
             // A draft deleted while placement was armed leaves nothing to
             // move: the gesture falls through to a fresh composer rather than
             // announcing a placement that never happened.
@@ -247,24 +293,46 @@ export function createReviewFlowStore(
               return;
             }
           }
-          set({
-            composerAnchor: anchor,
-            composerHost: resolveHost(anchor, host),
-          });
+          if (refuseWhilePlaceSaving({ anchor, host })) {
+            return;
+          }
+          // A file comment places no draft: it ends re-anchoring, and the
+          // armed draft keeps its lines.
+          get().actions.cancelReanchor();
+          const current = get().composer;
+          set({ composer: openComposerState(current, anchor, host) });
         },
         cancelComposer() {
-          set({
-            composerAnchor: null,
-            composerHost: null,
-            composerSaving: false,
-            reanchorDraftId: null,
-          });
+          if (refuseWhileSaving()) {
+            return;
+          }
+          const { composer } = get();
+          set({ composer: cancelComposerState(composer) });
+        },
+        dismissComposer() {
+          const { composer } = get();
+          set({ composer: dismissComposer(composer) });
+        },
+        holdComposerHost(anchorKind, host) {
+          const key = `${anchorKind}:${host}`;
+          heldHosts.set(key, (heldHosts.get(key) ?? 0) + 1);
+          return () => {
+            heldHosts.set(key, (heldHosts.get(key) ?? 1) - 1);
+            queueMicrotask(() => {
+              if ((heldHosts.get(key) ?? 0) > 0) {
+                return;
+              }
+              heldHosts.delete(key);
+              dismissUnheldHost(anchorKind, host);
+            });
+          };
         },
         startReanchor(draftId, disabledReason) {
           // Armed twice on the same draft = disarmed, so an armed state the
           // reviewer changed their mind about has a way out that is not
           // "pick a row you did not mean".
-          if (get().reanchorDraftId === draftId) {
+          const { composer } = get();
+          if (getReanchorDraftId(composer) === draftId) {
             get().actions.cancelReanchor();
             return;
           }
@@ -272,20 +340,22 @@ export function createReviewFlowStore(
             announce(disabledReason);
             return;
           }
+          if (refuseWhileSaving()) {
+            return;
+          }
           set({
-            composerAnchor: null,
-            composerHost: null,
+            composer: armReanchorState(composer, draftId),
             lineSelection: null,
-            reanchorDraftId: draftId,
           });
           // The mode banner shows it; the hidden region only says it.
           announceQuietly(translate("review.announce.reanchorArmed"));
         },
         cancelReanchor() {
-          if (get().reanchorDraftId === null) {
+          const { composer } = get();
+          if (getReanchorDraftId(composer) === undefined) {
             return;
           }
-          set({ reanchorDraftId: null });
+          set({ composer: disarmReanchorState(composer) });
           announceQuietly(translate("review.announce.reanchorCancelled"));
         },
         async saveComment(anchor, body) {
@@ -297,34 +367,44 @@ export function createReviewFlowStore(
           // One in-flight save per composer: a disabled control, not a
           // protocol. A second click while the first is unresolved could
           // stage the same draft twice.
-          if (get().composerSaving) {
+          const current = get().composer;
+          if (current.kind !== ComposerStateKinds.OPEN) {
             return false;
           }
-          set({ composerSaving: true });
+          saveToken += 1;
+          const token = saveToken;
+          pendingSaves.set(token, { anchor, host: current.host });
+          set({ composer: startComposerSave(current, token) });
+          let saved = false;
           try {
-            const saved = await session.saveComment({
+            saved = await session.saveComment({
               anchor,
               body: trimmed,
               status: DraftCommentStatuses.DRAFT,
               collapsed: false,
             });
-            if (saved) {
-              set({ composerAnchor: null, composerHost: null });
-              announce(translate("review.announce.commentAdded"));
-            }
             return saved;
           } finally {
-            set({ composerSaving: false });
+            pendingSaves.delete(token);
+            const { composer } = get();
+            set({ composer: settleComposerSave(composer, token, saved) });
+            // A dismissed composer's draft still landed: say so.
+            if (saved) {
+              announce(translate("review.announce.commentAdded"));
+            }
           }
         },
-        updateComment(commentId, body) {
+        async updateComment(commentId, body) {
           const trimmed = body.trim();
           if (!trimmed) {
             announce(translate("review.announce.commentEmpty"));
-            return;
+            return false;
           }
-          session.updateComment(commentId, trimmed);
-          announce(translate("review.announce.commentUpdated"));
+          const updated = await session.updateComment(commentId, trimmed);
+          if (updated) {
+            announce(translate("review.announce.commentUpdated"));
+          }
+          return updated;
         },
         deleteComment(commentId) {
           session.deleteComment(commentId);
@@ -336,13 +416,9 @@ export function createReviewFlowStore(
         toggleConversationThread(chunkKey, threadId) {
           set((state) => {
             const next = new Map(state.expandedConversations);
-            next.set(
-              chunkKey,
-              toggleSet(
-                state.expandedConversations.get(chunkKey) ?? new Set(),
-                threadId,
-              ),
-            );
+            const expanded =
+              state.expandedConversations.get(chunkKey) ?? new Set<number>();
+            next.set(chunkKey, toggleSet(expanded, threadId));
             return { expandedConversations: next };
           });
         },

@@ -20,7 +20,7 @@ export interface AttentionListProps {
   /** The verdict the list stands in for; its accessible name. */
   label: string;
   /** The draft waiting for its new home; its control reads as armed. */
-  armedDraftId: string | null;
+  armedDraftId: string | undefined;
   /** Jumps to the item's location, which is the submit list's own mechanic. */
   jumpToItem: (item: CarriedItem) => void;
   runAction: (item: CarriedItem, action: AttentionActionId) => void;

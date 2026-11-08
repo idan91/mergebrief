@@ -2,16 +2,14 @@
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action, not a page-load focus steal. */
-import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { useId, useRef, useState } from "react";
+import { useId } from "react";
 import { DraftCommentStatuses } from "types";
 
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
 import type { MentionSource } from "@web/features/conversation/types";
@@ -24,6 +22,7 @@ import { commentLocation } from "../../utils/state";
 import { useReviewActions } from "../../session";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview";
+import { useCommentThreadFacade } from "./useCommentThreadFacade";
 import { readSideSign } from "./utils";
 import styles from "./CommentThread.module.scss";
 
@@ -71,7 +70,8 @@ export interface CommentThreadProps {
    */
   postBlockedExternally?: string | undefined;
   toggle: (commentId: string) => void;
-  update: (commentId: string, body: string) => void;
+  /** Answers whether the edit landed; the editor closes only then. */
+  update: (commentId: string, body: string) => Promise<boolean>;
 }
 
 export function CommentThread({
@@ -87,51 +87,20 @@ export function CommentThread({
   const { t } = useTranslation();
   const { announce, announceQuietly } = useReviewActions();
   const mentions = useMentionSuggestions(mentionSource);
-  const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState(comment.body);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // An upload failure or a refused save; a save waits for zero uploads.
-  const [editError, setEditError] = useState<string | undefined>(undefined);
-  const editBody = (next: string) => {
-    setBody(next);
-    setEditError(undefined);
-  };
   // Only a draft is the reviewer's to change. Posted means GitHub holds the
   // text (an edit here would silently diverge: re-submits ship drafts), and a
   // status this bundle predates is the server's, so both read-only.
   const readOnly = comment.status !== DraftCommentStatuses.DRAFT;
-  const editorOpen = editing && !readOnly;
-  const confirmDeleteOpen = confirmingDelete && !readOnly;
+  const thread = useCommentThreadFacade({ comment, readOnly, posting, update });
+  const { body, editError, editorOpen, saving } = thread;
   const postable = post !== undefined && !readOnly;
   // Never-saved text = an open editor whose body diverged from the draft;
-  // Save/Cancel both clear it (navigation guard).
+  // a landed Save or a Cancel clears it (navigation guard).
   const unsavedEdit = editorOpen && body !== comment.body;
   useUnsavedComposerText(useId(), unsavedEdit);
-  // Save keeps the posting guard: an editor already open when a Post starts
-  // must not save mid-flight (capture-at-initiation).
-  const saveEdit = () => {
-    if (posting) {
-      return;
-    }
-    // The body would carry the placeholder, not the image.
-    if (hasUploadPlaceholder(body)) {
-      setEditError(t("shell.attach.waitForUpload"));
-      return;
-    }
-    if (body.trim().length > RequestBounds.BODY_LENGTH) {
-      setEditError(
-        t("review.comment.tooLongToSave", { max: RequestBounds.BODY_LENGTH }),
-      );
-      return;
-    }
-    update(comment.id, body);
-    setEditing(false);
-  };
-  const cancelEdit = () => {
-    setBody(comment.body);
-    setEditError(undefined);
-    setEditing(false);
-  };
+  const saveLabel = saving
+    ? t("review.comment.saving")
+    : t("review.comment.save");
   const statusLabels = STATUS_LABEL_KEYS[comment.status];
   const collapsedLabel =
     statusLabels === undefined ? "" : `${t(statusLabels.collapsed)} `;
@@ -145,7 +114,7 @@ export function CommentThread({
   //   the same draft, so it must block here with recoverable copy.
   const postBlocked = postable
     ? (postBlockedExternally ??
-      (editing
+      (thread.editing
         ? t("review.comment.saveFirst")
         : postCommentBlockedReason(t, comment)))
     : undefined;
@@ -155,11 +124,6 @@ export function CommentThread({
   // else keeps its visible paragraph as the description.
   const postingReason = posting ? t("review.comment.postingReason") : undefined;
   const postReasonId = useId();
-  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
-  const keepDraft = () => {
-    setConfirmingDelete(false);
-    deleteTriggerRef.current?.focus();
-  };
   const postDescribed = postingReason ?? postBlocked;
   const locationLabel = isFileCommentAnchor(comment.anchor)
     ? t("review.comment.commentOnFile")
@@ -204,7 +168,7 @@ export function CommentThread({
       {/* An open editor dies with the draft: if a submit lands while the
           textarea is up, the posted record renders read-only regardless. */}
       {editorOpen ? (
-        <div className={styles["editor"]}>
+        <div className={styles["editor"]} ref={thread.editorRef}>
           <MarkdownTextarea
             autoFocus
             label={t("review.comment.editLabel")}
@@ -217,10 +181,12 @@ export function CommentThread({
             value={body}
             announce={announce}
             announceQuietly={announceQuietly}
-            onAttachError={setEditError}
-            onChange={editBody}
-            onEscape={cancelEdit}
-            onSubmit={saveEdit}
+            ariaBusy={saving}
+            readOnly={saving}
+            onAttachError={thread.setEditError}
+            onChange={thread.editBody}
+            onEscape={thread.cancelEdit}
+            onSubmit={thread.saveEdit}
           />
           {editError !== undefined ? (
             <p className={styles["postBlocked"]} role="alert">
@@ -228,9 +194,18 @@ export function CommentThread({
             </p>
           ) : null}
           <div className={styles["actions"]}>
-            <Button onClick={cancelEdit}>{t("review.comment.cancel")}</Button>
-            <Button disabled={posting} variant="accent" onClick={saveEdit}>
-              {t("review.comment.save")}
+            <Button disabled={saving} onClick={thread.cancelEdit}>
+              {t("review.comment.cancel")}
+            </Button>
+            {/* Focusable-disabled while saving: focus stays on Save. */}
+            <Button
+              aria-busy={saving || undefined}
+              aria-disabled={saving || undefined}
+              disabled={posting}
+              variant="accent"
+              onClick={thread.saveEdit}
+            >
+              {saveLabel}
             </Button>
           </div>
         </div>
@@ -254,21 +229,15 @@ export function CommentThread({
           {readOnly ? null : (
             <LinkButton
               disabled={posting}
-              onClick={() => {
-                // Seed the editor from the current comment each time, so an edit
-                // never opens on a stale body if it changed since mount.
-                setBody(comment.body);
-                setEditing(true);
-              }}
+              ref={thread.editTriggerRef}
+              onClick={thread.openEditor}
             >
               {t("review.comment.edit")}
             </LinkButton>
           )}
           <LinkButton
             onClick={() => {
-              // A confirmation must not resurface (and re-announce) on a
-              // later expand without fresh intent.
-              setConfirmingDelete(false);
+              thread.dropDeleteConfirm();
               toggle(comment.id);
             }}
           >
@@ -276,9 +245,10 @@ export function CommentThread({
           </LinkButton>
           {readOnly ? null : (
             <LinkButton
+              aria-disabled={editorOpen || undefined}
               disabled={posting}
-              ref={deleteTriggerRef}
-              onClick={() => setConfirmingDelete(true)}
+              ref={thread.deleteTriggerRef}
+              onClick={thread.requestDelete}
             >
               {t("review.comment.delete")}
             </LinkButton>
@@ -286,14 +256,16 @@ export function CommentThread({
         </div>
         {/* Inline two-step confirm: the page toast is a text-only live
             region, so an undo BUTTON has no surface. */}
-        {confirmDeleteOpen ? (
+        {thread.confirmDeleteOpen ? (
           <div className={styles["deleteConfirm"]} role="alert">
             <span>{t("review.comment.deleteConfirm")}</span>
-            <Button onClick={keepDraft}>{t("review.comment.keep")}</Button>
+            <Button onClick={thread.keepDraft}>
+              {t("review.comment.keep")}
+            </Button>
             <Button
               disabled={posting}
               onClick={() => {
-                setConfirmingDelete(false);
+                thread.dropDeleteConfirm();
                 deleteComment(comment.id);
               }}
             >

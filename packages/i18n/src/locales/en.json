@@ -1277,6 +1277,7 @@
       "save": "Save",
       "delete": "Delete",
       "deleteDraft": "Delete draft",
+      "deleteWhileEditing": "Save or cancel your edit before deleting this draft.",
       "keep": "Keep",
       "edit": "Edit",
       "previewEmpty": "Nothing to preview.",
@@ -1288,7 +1289,8 @@
       "pathTooLongToPost": "This comment is anchored to a file whose path is too long to post. Delete the draft to continue.",
       "tooLongToSave": "This comment is longer than the {{max, number}}-character limit. Shorten it to save.",
       "pathTooLongToSave": "This file's path is too long to hold a comment. Cancel this comment to continue.",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "uploadNotRestored": "An image upload did not finish. Attach the image again."
     },
     "announce": {
       "commentEmpty": "Comment cannot be empty.",
@@ -1299,6 +1301,7 @@
       "commentReanchored": "Draft comment re-anchored.",
       "reanchorCancelled": "Re-anchoring cancelled.",
       "reanchorPathTooLong": "That file's path is too long to hold a comment. Pick lines in another file, or cancel re-anchoring.",
+      "commentStillSaving": "A comment is still saving. Try again once it lands.",
       "lineSelected": "Line {{line}} selected.",
       "linesSelected": "Lines {{start}} to {{end}} selected.",
       "lineSelectionCleared": "Line selection cleared.",

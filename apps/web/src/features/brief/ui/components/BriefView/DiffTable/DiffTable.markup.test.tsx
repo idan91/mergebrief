@@ -13,6 +13,7 @@ import type {
 } from "@web/features/conversation/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
   emptySessionPayload,
   ReviewFlowProvider,
@@ -211,6 +212,9 @@ describe("DiffTable markup", () => {
       makeChunk().diff ?? [],
       [3],
     );
+    if (anchor === null) {
+      throw new Error("expected an anchor");
+    }
     const addressed: AddressedReviewComment = {
       id: "a1",
       file: "src/a.ts",
@@ -237,8 +241,7 @@ describe("DiffTable markup", () => {
     const view = renderTable({
       addressedComments: [addressed],
       flowState: {
-        composerAnchor: anchor,
-        composerHost: anchor?.chunkId ?? null,
+        composer: { kind: ComposerStateKinds.OPEN, anchor, host: "c1" },
       },
       posture: { composerDisabledReason: "This revision is read-only." },
       session,

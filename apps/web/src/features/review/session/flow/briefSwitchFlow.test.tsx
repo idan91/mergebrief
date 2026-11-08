@@ -12,6 +12,7 @@ import {
 import { ReviewSessionProvider, useReviewSession } from "..";
 import { type CommentAnchor } from "../../utils/comments";
 import { useCreateReviewFlowStore } from "./provider";
+import { ComposerStateKinds } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -108,12 +109,35 @@ describe("flow store per brief", () => {
     expect(next.reviewComment).toBe("");
     expect(next.toast).toBe("");
     expect(next.liveMessage).toBe("");
-    expect(next.composerAnchor).toBeNull();
-    expect(next.reanchorDraftId).toBeNull();
+    expect(next.composer.kind).toBe(ComposerStateKinds.CLOSED);
     expect(next.dismissTarget).toBeNull();
     expect(next.evidenceTarget).toBeNull();
     expect(next.selectedRiskFlags.size).toBe(0);
     expect(next.expandedConversations.size).toBe(0);
+  });
+
+  it("leaves the new brief's composer closed when a save lands late", async () => {
+    currentBriefId = "brief-a";
+    const { result, rerender } = renderHook(
+      () => useCreateReviewFlowStore(currentBriefId),
+      { wrapper: Wrapper },
+    );
+    const first = result.current;
+    let pending: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      first.getState().actions.openComposer(anchor, undefined, anchor.chunkId);
+      pending = first.getState().actions.saveComment(anchor, "mid-switch");
+    });
+
+    currentBriefId = "brief-b";
+    rerender();
+    await act(async () => {
+      await pending;
+    });
+
+    expect(result.current.getState().composer.kind).toBe(
+      ComposerStateKinds.CLOSED,
+    );
   });
 
   it("keeps the flow store across a same-brief render", () => {
@@ -142,9 +166,9 @@ describe("flow store per brief", () => {
     currentBriefId = "brief-b";
     rerender();
     await act(async () => {
-      await result.current.flowStore
-        .getState()
-        .actions.saveComment(anchor, "on the new brief");
+      const { actions } = result.current.flowStore.getState();
+      actions.openComposer(anchor, undefined, anchor.chunkId);
+      await actions.saveComment(anchor, "on the new brief");
     });
 
     expect(

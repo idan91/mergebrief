@@ -322,7 +322,7 @@ export interface ExpandedRowViewParams {
   commentable: boolean;
   /** The owners' comments; the row shows the ones ending on its line. */
   comments: readonly ReviewComment[];
-  activeCommentAnchor: CommentAnchor | null;
+  activeCommentAnchor: CommentAnchor | undefined;
   dragIndexes: ReadonlySet<number>;
   /** Rendered indexes the active anchor covers inside a span. */
   activeIndexes: ReadonlySet<number>;
@@ -355,7 +355,7 @@ export function buildExpandedRowView({
         );
   const showComposer =
     owner !== undefined &&
-    activeCommentAnchor !== null &&
+    activeCommentAnchor !== undefined &&
     isLineCommentAnchor(activeCommentAnchor) &&
     activeCommentAnchor.chunkId === owner &&
     anchorEndsOnRow(activeCommentAnchor, line);
@@ -380,7 +380,7 @@ export interface GuestRowViewParams {
   hostId: string;
   resolution: GuestRowResolution | undefined;
   comments: readonly ReviewComment[];
-  activeCommentAnchor: CommentAnchor | null;
+  activeCommentAnchor: CommentAnchor | undefined;
   dragIndexes: ReadonlySet<number>;
   activeIndexes: ReadonlySet<number>;
 }
@@ -427,7 +427,7 @@ export function buildGuestRowView({
 }: GuestRowViewParams): DiffRowView {
   const commentable = resolution?.commentable === true;
   const newSideActive =
-    activeCommentAnchor !== null &&
+    activeCommentAnchor !== undefined &&
     isLineCommentAnchor(activeCommentAnchor) &&
     isNewSideAnchor(activeCommentAnchor);
   const view = buildExpandedRowView({
@@ -437,7 +437,7 @@ export function buildGuestRowView({
     owner: resolution?.commentable === true ? resolution.chunkId : undefined,
     commentable,
     comments: comments.filter(hasNewSideAnchor),
-    activeCommentAnchor: newSideActive ? activeCommentAnchor : null,
+    activeCommentAnchor: newSideActive ? activeCommentAnchor : undefined,
     dragIndexes,
     activeIndexes,
   });

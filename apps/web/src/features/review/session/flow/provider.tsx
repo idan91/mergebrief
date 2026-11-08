@@ -28,7 +28,11 @@ export function useCreateReviewFlowStore(briefId: string): ReviewFlowStore {
   if (storeRef.current === null || storeRef.current.briefId !== briefId) {
     storeRef.current = {
       briefId,
-      store: createReviewFlowStore(sessionActions, (key) => appI18n.t(key)),
+      store: createReviewFlowStore(
+        sessionActions,
+        (key) => appI18n.t(key),
+        briefId,
+      ),
     };
   }
   return storeRef.current.store;

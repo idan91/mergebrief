@@ -404,6 +404,16 @@ export function hasUploadPlaceholder(text: string): boolean {
   return UPLOAD_PLACEHOLDER_PATTERN.test(text);
 }
 
+const UPLOAD_PLACEHOLDERS_PATTERN = new RegExp(
+  UPLOAD_PLACEHOLDER_PATTERN.source,
+  "g",
+);
+
+/** Every upload placeholder the text holds, in order. */
+export function findUploadPlaceholders(text: string): string[] {
+  return text.match(UPLOAD_PLACEHOLDERS_PATTERN) ?? [];
+}
+
 /**
  * One placeholder per file, unique against the text, the batch and every
  * upload still in flight: a repeated name (every clipboard image is

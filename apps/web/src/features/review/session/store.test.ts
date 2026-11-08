@@ -5,6 +5,8 @@ import { buildBriefViewModel } from "@web/features/brief/model";
 import { type ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import { createReviewSessionStore, deriveInitialState } from "./store";
+import { createReviewFlowStore } from "./flow/store";
+import { ComposerStateKinds } from "./flow/types";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
@@ -121,7 +123,7 @@ describe("reviewChunk", () => {
 });
 
 describe("comments + outcome", () => {
-  it("saves, updates, deletes comments and sets outcome", () => {
+  it("saves, updates, deletes comments and sets outcome", async () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
@@ -142,7 +144,10 @@ describe("comments + outcome", () => {
     void store.getState().actions.saveComment(comment);
     expect(store.getState().reviewComments).toHaveLength(1);
     expect(store.getState().reviewComments[0]?.id).toBe(commentId);
-    store.getState().actions.updateComment(commentId, "second");
+    const updated = await store
+      .getState()
+      .actions.updateComment(commentId, "second");
+    expect(updated).toBe(true);
     expect(store.getState().reviewComments[0]?.body).toBe("second");
     store.getState().actions.toggleComment(commentId);
     expect(store.getState().reviewComments[0]?.collapsed).toBe(true);
@@ -180,7 +185,7 @@ describe("comments + outcome", () => {
     expect(ids).toEqual(["chunk-a-new-10-12-1", "chunk-a-old-new-10-12-1"]);
   });
 
-  it("submitted comments are immutable, update and delete no-op", () => {
+  it("submitted comments are immutable, update and delete no-op", async () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
@@ -206,7 +211,10 @@ describe("comments + outcome", () => {
 
     // GitHub is the system of record now: a local edit would silently diverge
     // from what was posted (a re-submit ships drafts only).
-    store.getState().actions.updateComment(id, "silently changed");
+    const updated = await store
+      .getState()
+      .actions.updateComment(id, "silently changed");
+    expect(updated).toBe(false);
     expect(store.getState().reviewComments[0]?.body).toBe("posted text");
     store.getState().actions.deleteComment(id);
     expect(store.getState().reviewComments).toHaveLength(1);
@@ -432,12 +440,53 @@ describe("per-action writes", () => {
     expect(store.getState().reviewComments).toHaveLength(0);
   });
 
+  it("answers whether a draft update landed", async () => {
+    const landedStore = gatewayMock().store;
+    const failedStore = gatewayMock(FAILED).store;
+    for (const store of [landedStore, failedStore]) {
+      await store.getState().actions.saveComment({
+        anchor: anchorFor("c1"),
+        body: "look here",
+        status: DraftCommentStatuses.DRAFT,
+        collapsed: false,
+      });
+    }
+
+    const landed = await landedStore
+      .getState()
+      .actions.updateComment("9001", "look closer");
+    const failed = await failedStore
+      .getState()
+      .actions.updateComment("9001", "look closer");
+
+    expect(landed).toBe(true);
+    expect(failed).toBe(false);
+  });
+
   it("freezes the whole screen on a 409, rather than failing one action", async () => {
     const { store } = gatewayMock(FROZEN);
     store.getState().actions.reviewChunk("c1");
     await vi.waitFor(() => expect(store.getState().frozen).toBe(true));
     expect(store.getState().reviewedChunks.has("c1")).toBe(false);
     expect(store.getState().writeError).toBe("review.writeError.frozen");
+  });
+
+  it("keeps the composer open at its lines when a save meets a 409", async () => {
+    const { store } = gatewayMock(FROZEN);
+    const flow = createReviewFlowStore(store.getState().actions, (key) => key);
+    const anchor = anchorFor("c1");
+    flow.getState().actions.openComposer(anchor, undefined, "c1");
+
+    const saved = await flow.getState().actions.saveComment(anchor, "look");
+
+    expect(saved).toBe(false);
+    expect(store.getState().frozen).toBe(true);
+    expect(store.getState().reviewComments).toHaveLength(0);
+    expect(flow.getState().composer).toEqual({
+      kind: ComposerStateKinds.OPEN,
+      anchor,
+      host: "c1",
+    });
   });
 });
 

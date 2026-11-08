@@ -79,7 +79,8 @@ export interface ReviewSessionActions {
    * it open holding its text and the same action still available.
    */
   saveComment: (comment: Omit<ReviewComment, "id">) => Promise<boolean>;
-  updateComment: (id: string, body: string) => void;
+  /** Answers whether the edit LANDED; a submitted or missing comment answers false. */
+  updateComment: (id: string, body: string) => Promise<boolean>;
   /**
    * Re-places a carried draft the reviewer picked a new home for. The human
    * placing it IS the carry-over verdict, so nothing is inferred here.
@@ -448,7 +449,7 @@ export function createReviewSessionStore(
               comment.status === DraftCommentStatuses.DRAFT,
           );
           if (before === undefined) {
-            return;
+            return Promise.resolve(false);
           }
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
@@ -459,7 +460,7 @@ export function createReviewSessionStore(
                 : comment,
             ),
           }));
-          void landed(
+          return landed(
             (gateway) => gateway.updateComment(id, body),
             () =>
               set((state) => ({

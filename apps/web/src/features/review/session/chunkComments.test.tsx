@@ -129,7 +129,9 @@ describe("useChunkReviewComments", () => {
     // Edit, toggle, then delete chunk-a's comment: chunk-b's slice must
     // keep the exact same identity through all three.
     const commentId = aAfterSave[0]!.id;
-    act(() => result.current.actions.updateComment(commentId, "edited"));
+    act(() => {
+      void result.current.actions.updateComment(commentId, "edited");
+    });
     expect(result.current.b).toBe(bAfterSave);
     expect(result.current.a).not.toBe(aAfterSave);
     expect(result.current.a[0]!.body).toBe("edited");

@@ -23,12 +23,7 @@ import type {
   DigestThreadRow,
 } from "@web/features/conversation/utils";
 import type { ThreadComposerWiring } from "@web/features/conversation";
-import { useReviewFlow } from "@web/features/review/session";
-import {
-  isLineCommentAnchor,
-  type ChunkLocator,
-  type CommentAnchor,
-} from "@web/features/review/utils";
+import { getComposerHost, useReviewFlow } from "@web/features/review/session";
 import { ChunkCard } from "./ChunkCard";
 import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
@@ -255,33 +250,9 @@ interface WindowedChunkListProps {
   lineOwnersByFile: ReadonlyMap<string, FileLineOwners>;
 }
 
-function pinComposerChunks(
-  pinned: Set<string>,
-  composerAnchor: CommentAnchor,
-  chunks: readonly ChunkLocator[],
-  keyByChunkId: ReadonlyMap<string, string>,
-): void {
-  if (isLineCommentAnchor(composerAnchor)) {
-    const key = keyByChunkId.get(composerAnchor.chunkId);
-    if (key !== undefined) {
-      pinned.add(key);
-    }
-    return;
-  }
-
-  for (const chunk of chunks) {
-    if (chunk.file !== composerAnchor.file) {
-      continue;
-    }
-    pinned.add(`${chunk.file}#${chunk.id}`);
-  }
-}
-
 function collectPinnedChunkKeys(
   focusedKey: string | null,
-  composerAnchor: CommentAnchor | null,
-  composerHost: string | null,
-  chunks: readonly ChunkLocator[],
+  composerHost: string | undefined,
   keyByChunkId: ReadonlyMap<string, string>,
 ): Set<string> | undefined {
   const pinned = new Set<string>();
@@ -289,14 +260,10 @@ function collectPinnedChunkKeys(
   if (focusedKey !== null) {
     pinned.add(focusedKey);
   }
-
-  if (composerAnchor !== null) {
-    pinComposerChunks(pinned, composerAnchor, chunks, keyByChunkId);
-  }
-  // The composer renders in its host's table, which may be a sibling of
-  // the anchor's chunk.
+  // The composer renders only in its host, which may be a sibling of the
+  // anchor's chunk or, for a file comment, the header that opened it.
   const hostKey =
-    composerHost === null ? undefined : keyByChunkId.get(composerHost);
+    composerHost === undefined ? undefined : keyByChunkId.get(composerHost);
   if (hostKey !== undefined) {
     pinned.add(hostKey);
   }
@@ -334,19 +301,13 @@ function WindowedChunkList({
     [group.chunks],
   );
 
-  const composerAnchor = useReviewFlow((state) => state.composerAnchor);
-  const composerHost = useReviewFlow((state) => state.composerHost);
+  const composerHost = useReviewFlow((state) =>
+    getComposerHost(state.composer),
+  );
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const pinnedKeys = useMemo(
-    () =>
-      collectPinnedChunkKeys(
-        focusedKey,
-        composerAnchor,
-        composerHost,
-        group.chunks,
-        keyByChunkId,
-      ),
-    [composerAnchor, composerHost, focusedKey, group.chunks, keyByChunkId],
+    () => collectPinnedChunkKeys(focusedKey, composerHost, keyByChunkId),
+    [composerHost, focusedKey, keyByChunkId],
   );
 
   const { openChunks } = view;

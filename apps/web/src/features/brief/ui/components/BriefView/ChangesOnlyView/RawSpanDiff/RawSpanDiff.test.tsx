@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
 
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
   ReviewSessionProvider,
   ReviewFlowProvider,
@@ -412,14 +413,14 @@ describe("RawSpanDiff toggle", () => {
     );
   });
 
-  it("cancels an open composer when its file panel is collapsed", async () => {
+  it("dismisses an open composer when its file panel is collapsed", async () => {
     const { container, flowStore } = renderRaw(diffQuery("chk", "head"));
     fireEvent.click(toggleButton());
     await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
     fireEvent.keyDown(findSpanRow(container, "validate(a);"), {
       key: "Enter",
     });
-    expect(flowStore.getState().composerAnchor).not.toBeNull();
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
     const panel = container.querySelector("details");
     if (!(panel instanceof HTMLDetailsElement)) {
       throw new Error("expected a file panel");
@@ -428,22 +429,25 @@ describe("RawSpanDiff toggle", () => {
     panel.open = false;
     fireEvent(panel, new Event("toggle"));
 
-    expect(flowStore.getState().composerAnchor).toBeNull();
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
   });
 
-  it("cancels an open composer when the raw diff is toggled off", async () => {
+  it("dismisses an open composer when the raw diff is toggled off", async () => {
     const { container, flowStore } = renderRaw(diffQuery("chk", "head"));
     fireEvent.click(toggleButton());
     await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
     fireEvent.keyDown(findSpanRow(container, "validate(a);"), {
       key: "Enter",
     });
-    expect(flowStore.getState().composerAnchor).not.toBeNull();
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.OPEN);
 
     fireEvent.click(toggleButton());
 
-    await waitFor(() => expect(flowStore.getState().composerAnchor).toBeNull());
-    expect(flowStore.getState().composerHost).toBeNull();
+    await waitFor(() =>
+      expect(flowStore.getState().composer.kind).toBe(
+        ComposerStateKinds.CLOSED,
+      ),
+    );
   });
 
   it("returns to the summary when toggled back off", async () => {

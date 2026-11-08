@@ -77,9 +77,9 @@ export function listDraftComments(
 /** The draft with this id; a submitted comment of the same id is not one. */
 export function findDraftComment(
   comments: readonly ReviewComment[],
-  id: string | null,
+  id: string | undefined,
 ): ReviewComment | undefined {
-  if (id === null) {
+  if (id === undefined) {
     return undefined;
   }
   return comments.find(

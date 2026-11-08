@@ -3,10 +3,12 @@ import { useMemo } from "react";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import {
   findDraftComment,
-  isLineCommentAnchor,
   type LineCommentAnchor,
 } from "@web/features/review/utils";
 import {
+  getHostedLineAnchor,
+  getReanchorDraftId,
+  isHostSaving,
   useChunkReviewComments,
   useReviewActions,
   useReviewCommentsForChunks,
@@ -82,16 +84,15 @@ export function useDiffTableComments({
     () => demoteSubmitted(allSpanComments, ownFileThreads),
     [allSpanComments, ownFileThreads],
   );
-  // Anchor-match selector: null (stable) unless the composer is hosted by
-  // THIS table. A span row's composer anchors to the owner but opens here.
-  const composerSaving = useReviewFlow((state) => state.composerSaving);
-  const activeCommentAnchor = useReviewFlow((state) => {
-    const anchor = state.composerAnchor;
-    if (anchor === null || !isLineCommentAnchor(anchor)) {
-      return null;
-    }
-    return state.composerHost === chunk.id ? anchor : null;
-  });
+  // Host-scoped: absent unless THIS table shows the composer, so a
+  // sibling's composer or save never re-renders it. A span row's composer
+  // anchors to the owner but opens here.
+  const composerSaving = useReviewFlow((state) =>
+    isHostSaving(state.composer, chunk.id),
+  );
+  const activeCommentAnchor = useReviewFlow((state) =>
+    getHostedLineAnchor(state.composer, chunk.id),
+  );
   // Chunk-scoped: a selection elsewhere never re-renders this table. A
   // guest selection names the owner, so a guest table reads its owners'.
   const lineSelection = useReviewFlow((state) => {
@@ -112,7 +113,9 @@ export function useDiffTableComments({
   // While a draft waits for its new lines, a row pick in its file places
   // it and every other file's rows stand inert. Keyed on the draft still
   // existing, as the banner is: a draft deleted while armed ends the mode.
-  const reanchorDraftId = useReviewFlow((state) => state.reanchorDraftId);
+  const reanchorDraftId = useReviewFlow((state) =>
+    getReanchorDraftId(state.composer),
+  );
   const reanchorFile = useReviewSession(
     (state) =>
       findDraftComment(state.reviewComments, reanchorDraftId)?.anchor.file,

@@ -1,12 +1,10 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 
-import { useReviewActions } from "@web/features/review/session";
+import {
+  isHostingFileComposer,
+  useReviewActions,
+  useReviewFlow,
+} from "@web/features/review/session";
 import { createFileCommentAnchor } from "@web/features/review/utils";
 import { useReviewPosture } from "../../../../hooks/useReviewPosture";
 import type { BriefChunk } from "../../../../../model/types";
@@ -31,28 +29,30 @@ export function useFileCommentComposer({
   chunkOpen,
   toggleChunk,
 }: UseFileCommentComposerInput): FileCommentComposer {
-  const [composerOpen, setComposerOpen] = useState(false);
-  const { openComposer } = useReviewActions();
+  const composerOpen = useReviewFlow((state) =>
+    isHostingFileComposer(state.composer, chunk.id),
+  );
+  const { openComposer, cancelComposer } = useReviewActions();
   const { composerDisabledReason } = useReviewPosture();
 
   const bandRef = useRef<HTMLElement | null>(null);
 
-  const cancelComposer = useCallback(() => setComposerOpen(false), []);
-
   const requestComposer = useCallback(() => {
-    if (composerDisabledReason !== undefined) {
-      openComposer(createFileCommentAnchor(chunk.file), composerDisabledReason);
-      return;
-    }
     if (composerOpen) {
-      setComposerOpen(false);
+      cancelComposer();
       return;
     }
-    if (!chunkOpen) {
+    const opensChunk = !chunkOpen && composerDisabledReason === undefined;
+    if (opensChunk) {
       toggleChunk(chunk.id);
     }
-    setComposerOpen(true);
+    openComposer(
+      createFileCommentAnchor(chunk.file),
+      composerDisabledReason,
+      chunk.id,
+    );
   }, [
+    cancelComposer,
     chunk.file,
     chunk.id,
     chunkOpen,
@@ -62,19 +62,14 @@ export function useFileCommentComposer({
     toggleChunk,
   ]);
 
-  /** The way in from a menu, which has no pressed state to toggle: an open composer keeps its text. */
+  /** The way in from a menu, which has no pressed state to toggle: an open composer takes focus instead of closing. */
   const revealComposer = useCallback(() => {
-    const composerInCollapsedChunk = composerOpen && !chunkOpen;
-    if (composerInCollapsedChunk) {
-      toggleChunk(chunk.id);
-      return;
-    }
     if (composerOpen) {
       bandRef.current?.querySelector("textarea")?.focus();
       return;
     }
     requestComposer();
-  }, [chunk.id, chunkOpen, composerOpen, requestComposer, toggleChunk]);
+  }, [composerOpen, requestComposer]);
 
   const requested = useReadingPositionIfMounted(
     (state) => state.fileCommentChunkId === chunk.id,

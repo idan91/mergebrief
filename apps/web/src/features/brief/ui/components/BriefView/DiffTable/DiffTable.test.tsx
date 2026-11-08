@@ -25,6 +25,7 @@ import type {
   PrConversation,
 } from "@web/features/conversation/types";
 import {
+  ComposerStateKinds,
   createReviewFlowStore,
   emptySessionPayload,
   ReviewSessionProvider,
@@ -770,7 +771,7 @@ describe("DiffTable revision rail callout", () => {
     fireEvent.keyDown(jump, { key: "Enter" });
 
     expect(flowStore.getState().lineSelection).toBeNull();
-    expect(flowStore.getState().composerAnchor).toBeNull();
+    expect(flowStore.getState().composer.kind).toBe(ComposerStateKinds.CLOSED);
   });
 });
 
@@ -851,7 +852,7 @@ describe("DiffTable re-anchor pick affordance", () => {
   it("marks commentable rows pickable in the armed draft's file", () => {
     const { view } = renderTable(
       {},
-      { reanchorDraftId: "41" },
+      { composer: { kind: ComposerStateKinds.REANCHORING, draftId: "41" } },
       undefined,
       session,
     );
@@ -866,7 +867,7 @@ describe("DiffTable re-anchor pick affordance", () => {
     const otherFile: BriefChunk = { ...chunk(), id: "c2", file: "src/b.ts" };
     const { view, openCommentComposer } = renderTable(
       { chunk: otherFile },
-      { reanchorDraftId: "41" },
+      { composer: { kind: ComposerStateKinds.REANCHORING, draftId: "41" } },
       undefined,
       session,
     );
@@ -888,7 +889,7 @@ describe("DiffTable re-anchor pick affordance", () => {
     // the mode reads the draft itself, as the banner does.
     const { view } = renderTable(
       {},
-      { reanchorDraftId: "gone" },
+      { composer: { kind: ComposerStateKinds.REANCHORING, draftId: "gone" } },
       undefined,
       session,
     );
@@ -1105,21 +1106,26 @@ describe("DiffTable line selection", () => {
       view: { container },
       flowStore,
       openCommentComposer,
-    } = renderTable({}, { reanchorDraftId: "41" }, undefined, {
-      ...emptySessionPayload(),
-      draftComments: [
-        {
-          id: "41",
-          filePath: "src/a.ts",
-          kind: "line",
-          side: "new",
-          startLine: 10,
-          endLine: 10,
-          body: "carried draft",
-          status: "draft",
-        },
-      ],
-    });
+    } = renderTable(
+      {},
+      { composer: { kind: ComposerStateKinds.REANCHORING, draftId: "41" } },
+      undefined,
+      {
+        ...emptySessionPayload(),
+        draftComments: [
+          {
+            id: "41",
+            filePath: "src/a.ts",
+            kind: "line",
+            side: "new",
+            startLine: 10,
+            endLine: 10,
+            body: "carried draft",
+            status: "draft",
+          },
+        ],
+      },
+    );
     const [, second] = commentableRows(container);
     if (!second) {
       throw new Error("expected two diff rows");
@@ -1349,7 +1355,9 @@ describe("DiffTable line selection", () => {
     if (anchor === null) {
       throw new Error("expected an anchor");
     }
-    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
+    act(() =>
+      flowStore.getState().actions.openComposer(anchor, undefined, "c1"),
+    );
 
     expect(first.hasAttribute("data-selected")).toBe(false);
     expect(second.hasAttribute("data-selected")).toBe(true);
@@ -1489,7 +1497,9 @@ describe("DiffTable line selection", () => {
     if (anchor === null) {
       throw new Error("expected an anchor");
     }
-    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
+    act(() =>
+      flowStore.getState().actions.openComposer(anchor, undefined, "c1"),
+    );
 
     expect(
       container.querySelector('[data-testid="line-link-button"]'),
@@ -1595,7 +1605,9 @@ describe("DiffTable mention source hand-off", () => {
     if (anchor === null) {
       throw new Error("expected an anchor");
     }
-    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
+    act(() =>
+      flowStore.getState().actions.openComposer(anchor, undefined, "c1"),
+    );
 
     fireEvent.change(screen.getByLabelText("Comment"), {
       target: { value: "@" },

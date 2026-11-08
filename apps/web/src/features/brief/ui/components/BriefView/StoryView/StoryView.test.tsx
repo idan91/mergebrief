@@ -126,7 +126,7 @@ function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
   const flowStore = createReviewFlowStore(
     {
       saveComment: () => Promise.resolve(true),
-      updateComment: () => undefined,
+      updateComment: () => Promise.resolve(true),
       deleteComment: () => undefined,
       toggleComment: () => undefined,
       reanchorComment: () => true,
