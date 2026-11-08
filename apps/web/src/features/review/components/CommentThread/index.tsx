@@ -202,7 +202,7 @@ export function CommentThread({
               aria-busy={saving || undefined}
               aria-disabled={saving || undefined}
               disabled={posting}
-              variant="accent"
+              variant="primary"
               onClick={thread.saveEdit}
             >
               {saveLabel}
@@ -285,7 +285,7 @@ export function CommentThread({
               data-post-cta=""
               disabled={posting || postBlocked !== undefined}
               loading={posting}
-              variant="accent"
+              variant="primary"
               onClick={() => post(comment)}
             >
               {posting ? t("review.comment.posting") : t("review.comment.post")}

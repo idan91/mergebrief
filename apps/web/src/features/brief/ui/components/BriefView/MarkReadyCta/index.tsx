@@ -39,7 +39,7 @@ export function MarkReadyCta({
       className={className}
       data-terminal-slot=""
       ref={slotRef}
-      variant="accent"
+      variant="primary"
       onBlur={onBlur}
       onClick={ownDraft.markReady}
       onFocus={onFocus}

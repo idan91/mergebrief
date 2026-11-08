@@ -30,7 +30,7 @@ export function PrBriefError({ error, returnTo }: PrBriefErrorProps) {
   // message embeds the request path.
   const detail = prBriefErrorDetail(t, error);
   const action = prBriefErrorNeedsSignIn(error) ? (
-    <Button as="a" href={SIGN_IN_PATH} variant="accent">
+    <Button as="a" href={SIGN_IN_PATH} variant="primary">
       {t("pulls.errorBoundary.signIn")}
     </Button>
   ) : undefined;

@@ -23,7 +23,7 @@ export function InstallFirst({ canGenerate, installUrl }: InstallFirstProps) {
         as="a"
         className={styles["install"]}
         href={installUrl}
-        variant="accent"
+        variant="primary"
       >
         <Icon name={IconNames.GITHUB_LOGO} />
         {t("home.empty.installAction")}
@@ -31,7 +31,7 @@ export function InstallFirst({ canGenerate, installUrl }: InstallFirstProps) {
       {canGenerate ? (
         <div className={styles["paste"]}>
           <p className={styles["label"]}>{t("home.empty.urlBoxLabel")}</p>
-          {/* Install is a first run's one accent, so Generate steps down beside it. */}
+          {/* Install is a first run's one primary, so Generate steps down beside it. */}
           <UrlBox generateVariant={ButtonVariants.SECONDARY} />
         </div>
       ) : null}

@@ -147,7 +147,7 @@ function EvidenceForm({
         <Button onClick={cancel}>{t("review.evidence.cancel")}</Button>
         <Button
           disabled={evidenceIncomplete}
-          variant="accent"
+          variant="primary"
           onClick={() =>
             confirm(kind, commentId || undefined, note.trim() || undefined)
           }

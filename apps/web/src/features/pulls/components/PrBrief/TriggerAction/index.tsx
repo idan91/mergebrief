@@ -32,7 +32,7 @@ export function TriggerAction({
           ref={handOffFocusOnRemoval}
           loading={pending}
           type="button"
-          variant="accent"
+          variant="primary"
           onClick={onTrigger}
         >
           {label}

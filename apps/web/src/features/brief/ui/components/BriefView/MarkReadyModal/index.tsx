@@ -197,7 +197,7 @@ export function MarkReadyModal({
         <Button
           disabled={busy}
           loading={busy}
-          variant="accent"
+          variant="primary"
           onClick={markReadyAnyway}
         >
           {busyLabel ?? t("pulls.markReadyModal.markReadyAnyway")}

@@ -67,7 +67,7 @@ export function AdvisoryView({
       </div>
       <Modal.Footer>
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
-        <Button variant="accent" onClick={continueToVerdict}>
+        <Button variant="primary" onClick={continueToVerdict}>
           {t("review.submit.continueAction")}
         </Button>
       </Modal.Footer>

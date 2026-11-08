@@ -42,7 +42,7 @@ export function CreatedToken({ token, dismiss }: CreatedTokenProps) {
       </p>
       <div className={styles["secret"]}>
         <code className={styles["value"]}>{token}</code>
-        <Button ref={copyRef} variant="accent" onClick={() => void copy()}>
+        <Button ref={copyRef} variant="primary" onClick={() => void copy()}>
           {copyLabelByState[copyState]}
         </Button>
       </div>

@@ -78,7 +78,7 @@ export function SignOutModal({ flow, cancel, confirm }: SignOutModalProps) {
           <Button
             disabled={busy}
             loading={thisDeviceBusy}
-            variant={ButtonVariants.ACCENT}
+            variant={ButtonVariants.PRIMARY}
             onClick={() => confirm(SignOutScopes.THIS_DEVICE)}
           >
             {thisDeviceLabel}

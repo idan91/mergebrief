@@ -20,7 +20,7 @@ export function SubmitButton({ submit }: SubmitButtonProps) {
       aria-describedby={submit.describedBy}
       aria-disabled={ariaDisabled}
       loading={submit.pending}
-      variant="accent"
+      variant="primary"
       onClick={submit.attempt}
     >
       {label}

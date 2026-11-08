@@ -44,7 +44,7 @@
       }
     }
 
-    &[data-variant="accent"] {
+    &[data-variant="primary"] {
       border-color: var(--color-accent);
       background: var(--color-accent);
       color: var(--color-on-primary);
@@ -184,7 +184,7 @@
       background: transparent;
     }
 
-    &[data-variant="accent"][aria-disabled="true"] {
+    &[data-variant="primary"][aria-disabled="true"] {
       border-color: var(--color-outline-1);
       background: var(--color-surface-2);
       color: var(--color-text-3);

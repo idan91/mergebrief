@@ -55,7 +55,7 @@ export function DismissModal({
       ) : null}
       <Modal.Footer>
         <Button onClick={cancel}>{t("review.dismiss.cancel")}</Button>
-        <Button variant="accent" onClick={confirm}>
+        <Button variant="primary" onClick={confirm}>
           {warned
             ? t("review.dismiss.dismissAnyway")
             : t("review.dismiss.dismissWithReason")}

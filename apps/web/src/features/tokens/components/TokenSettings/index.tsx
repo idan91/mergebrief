@@ -60,10 +60,10 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
     revokedHere: state.revokedHereId === token.id,
     revoking: state.revokePendingId === token.id,
   }));
-  // The shown-once Copy is the view's one accent while the token is up.
+  // The shown-once Copy is the view's one primary while the token is up.
   const createVariant =
     state.mintedToken === null
-      ? ButtonVariants.ACCENT
+      ? ButtonVariants.PRIMARY
       : ButtonVariants.SECONDARY;
 
   return (

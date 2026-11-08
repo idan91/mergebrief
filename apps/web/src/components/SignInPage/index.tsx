@@ -96,7 +96,7 @@ export function SignInPage({
           className={styles["signIn"]}
           href={href}
           aria-busy={ariaBusy}
-          variant="accent"
+          variant="primary"
           onClick={markOpening}
         >
           {opening ? (

@@ -12,7 +12,7 @@ import { UrlBoxStates } from "./types";
 import { useUrlBoxFacade } from "./useUrlBoxFacade";
 
 export interface UrlBoxProps {
-  /** Secondary where another action is the view's one accent. */
+  /** Secondary where another action is the view's one primary. */
   generateVariant?: ButtonVariant;
 }
 
@@ -23,7 +23,7 @@ export interface UrlBoxProps {
  * a submit is a navigation; a refusal lands in the alert line below.
  */
 export function UrlBox({
-  generateVariant = ButtonVariants.ACCENT,
+  generateVariant = ButtonVariants.PRIMARY,
 }: UrlBoxProps) {
   const { t } = useTranslation();
   const facade = useUrlBoxFacade();

@@ -583,7 +583,7 @@ describe("Header menu and stats", () => {
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
-  it("keeps the accent CTA top-level", async () => {
+  it("keeps the primary CTA top-level", async () => {
     const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(openSubmit).toHaveBeenCalledTimes(1);

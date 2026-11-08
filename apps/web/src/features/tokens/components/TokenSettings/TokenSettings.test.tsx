@@ -281,11 +281,11 @@ describe("TokenSettings", () => {
     );
   });
 
-  it("keeps Copy the one accent while a created token is shown", async () => {
+  it("keeps Copy the one primary while a created token is shown", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();
     const create = screen.getByRole("button", { name: /create token/i });
-    expect(create.getAttribute("data-variant")).toBe("accent");
+    expect(create.getAttribute("data-variant")).toBe("primary");
 
     fireEvent.change(screen.getByLabelText(/token name/i), {
       target: { value: "ci-token" },
@@ -299,15 +299,15 @@ describe("TokenSettings", () => {
       target: { value: "second" },
     });
 
-    const accents = document.querySelectorAll('[data-variant="accent"]');
-    expect([...accents]).toEqual([copy]);
+    const primaries = document.querySelectorAll('[data-variant="primary"]');
+    expect([...primaries]).toEqual([copy]);
 
     fireEvent.click(screen.getByRole("button", { name: /^done$/i }));
     expect(
       screen
         .getByRole("button", { name: /create token/i })
         .getAttribute("data-variant"),
-    ).toBe("accent");
+    ).toBe("primary");
   });
 
   it("focuses Copy on creation and copies only when pressed", async () => {

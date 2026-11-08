@@ -15,13 +15,13 @@ describe("Button", () => {
 
   it("lets the caller override type, variant, and size", () => {
     render(
-      <Button size="sm" type="submit" variant="accent">
+      <Button size="sm" type="submit" variant="primary">
         Go
       </Button>,
     );
     const button = screen.getByRole("button", { name: "Go" });
     expect(button.getAttribute("type")).toBe("submit");
-    expect(button.getAttribute("data-variant")).toBe("accent");
+    expect(button.getAttribute("data-variant")).toBe("primary");
     expect(button.getAttribute("data-size")).toBe("sm");
   });
 
@@ -106,7 +106,7 @@ describe("Button", () => {
 
   it("as=a renders an anchor with the href and no type attribute", () => {
     render(
-      <Button as="a" href="/somewhere" variant="accent">
+      <Button as="a" href="/somewhere" variant="primary">
         Go
       </Button>,
     );
