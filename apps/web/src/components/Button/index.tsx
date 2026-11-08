@@ -17,10 +17,8 @@ export const ButtonVariants = {
   PRIMARY: "primary",
   SECONDARY: "secondary",
   QUIET: "quiet",
-  /** The negative fill under Accent Ink: a destructive confirm, one per dialog. */
+  /** Negative ink and edge on no fill: a destructive action, its weight carried by the dialog's words. */
   DANGER: "danger",
-  /** Negative ink and edge on no fill: a destructive action that still asks a confirm. */
-  DANGER_OUTLINE: "danger-outline",
 } as const;
 export type ButtonVariant = ValueOf<typeof ButtonVariants>;
 

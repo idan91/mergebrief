@@ -15,7 +15,7 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Button } from "@web/components/Button";
+import { Button, ButtonVariants } from "@web/components/Button";
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
@@ -171,15 +171,21 @@ describe("CommentComposer store-backed submit label", () => {
 });
 
 describe("CommentComposer actions", () => {
-  it("reads Cancel then the primary action", () => {
+  it("reads Cancel then the submit action", () => {
     renderComposer([]);
 
     const cancel = screen.getByRole("button", { name: "Cancel" });
-    const primary = screen.getByRole("button", { name: "Start review" });
-    const primaryFollows =
-      cancel.compareDocumentPosition(primary) &
-      Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(primaryFollows).toBeTruthy();
+    const submit = screen.getByRole("button", { name: "Start review" });
+    const submitFollows =
+      cancel.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(submitFollows).toBeTruthy();
+  });
+
+  it("leaves the primary to the header's Submit", () => {
+    renderComposer([]);
+
+    const submit = screen.getByRole("button", { name: "Start review" });
+    expect(submit.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
   });
 });
 

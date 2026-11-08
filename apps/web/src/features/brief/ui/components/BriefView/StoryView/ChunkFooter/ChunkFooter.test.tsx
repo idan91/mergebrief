@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { Button } from "@web/components/Button";
+import { Button, ButtonVariants } from "@web/components/Button";
 import { briefFixture } from "@web/features/brief/test-utils";
 import {
   ReviewSessionProvider,
@@ -75,6 +75,13 @@ describe("ChunkFooter", () => {
     expect(next.getAttribute("aria-keyshortcuts")).toBe("J");
     fireEvent.click(next);
     expect(wiring.jumpToChunk).toHaveBeenCalledWith("chunk-b");
+  });
+
+  it("leaves the primary to the header's Submit", () => {
+    renderFooter("chunk-a");
+
+    const next = screen.getByRole("button", { name: "Next chunk" });
+    expect(next.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
   });
 
   it("disables previous on the first chunk and next on the last", () => {

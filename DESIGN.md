@@ -3,8 +3,9 @@ name: MergeBrief
 description: A calm, dark reading surface for understanding a pull request before reviewing it.
 colors:
   accent: "#e1e1e1"
-  accent-ink: "#1b1b1b"
   brand: "#e91f00"
+  brand-strong: "#d81b00"
+  on-brand: "#ffffff"
   ground: "#0a0a0c"
   surface-1: "#111114"
   surface-2: "#15151a"
@@ -17,7 +18,7 @@ colors:
   line-strong: "#2b2b32"
   state-open: "#5fc88f"
   state-merged: "#a98fd1"
-  state-closed: "#e06c6c"
+  state-closed: "#df6b7d"
   state-warning: "#d9a45c"
   concern-implementation: "#5f96dc"
   concern-test: "#b25c3e"
@@ -102,15 +103,9 @@ spacing:
   "8": "48px"
   "9": "64px"
 components:
-  button-accent:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.accent-ink}"
-    rounded: "{rounded.md}"
-    height: "32px"
-    padding: "0 16px"
   button-primary:
-    backgroundColor: "{colors.text-1}"
-    textColor: "{colors.accent-ink}"
+    backgroundColor: "{colors.brand}"
+    textColor: "{colors.on-brand}"
     rounded: "{rounded.md}"
     height: "38px"
     padding: "8px 16px"
@@ -172,7 +167,6 @@ components:
     height: "56px"
   avatar:
     backgroundColor: "{colors.accent}"
-    textColor: "{colors.accent-ink}"
     rounded: "{rounded.circle}"
     size: "26px"
 ---
@@ -193,7 +187,7 @@ Calm comes from neutral greys and one pale accent. Structure comes from hairline
 
 - Dark only. A near-black page, flat from edge to edge; no glow, no page gradient and no backdrop blur, focus mode included.
 - Hairline borders and row dividers. No card per row.
-- One accent. It marks what needs the reviewer, the primary action, and focus.
+- One accent. It marks what needs the reviewer, and focus. The brand colour draws the mark and fills the one primary action.
 - Two-line rows of 56 to 57px. Titles at 15px; the smallest text is 11px.
 - Motion is rare and short. Keyboard movement never animates.
 
@@ -205,8 +199,8 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Accent** (#e1e1e1, the `--accent-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, the Generate button, focus rings, the selected diff rows, the revision marks, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1b1b1b, derived at 22% lightness).
-- **Brand** (#e91f00, `--color-brand`): the mark, wherever it appears: the Header lockup, the Brief header's home link and the sign-in page.
+- **Accent** (#e1e1e1, the `--accent-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, focus rings, links, active controls, the selected diff rows, the revision marks, the value of a changed filter, the current page, progress and the avatar's ground.
+- **Brand** (#e91f00, `--color-brand`): the mark wherever it appears (the Header lockup, the Brief header's home link, the sign-in page), and the fill of the one primary action per view under **On Brand**, a pure white label at 4.51:1. **Brand Strong** (#d81b00) is the primary's hover and press.
 
 ### Neutral
 
@@ -222,7 +216,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### State (fixed meaning, hue may be tuned)
 
-- **Open** (#5fc88f), **Merged** (#a98fd1), **Closed and failed** (#e06c6c), **Warning** (#d9a45c). Draft is Text 2 with its own icon shape.
+- **Open** (#5fc88f), **Merged** (#a98fd1), **Closed and failed** (#df6b7d, a crimson; deleted lines, errors and the Danger edge take it too, and deleted-line text is #ebd0d2), **Warning** (#d9a45c). Draft is Text 2 with its own icon shape.
 
 ### Concern (marks only)
 
@@ -230,15 +224,17 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Named Rules
 
-**The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
+**The Brand Colour Rule.** The brand appears in two places only: brand moments (the mark, its loader, the app tile) and the one primary action of a view. It is never a state, a link, focus, selection or decoration, and a view without a primary action shows no brand fill. Its label is pure white, so the primary only ever darkens on hover and press.
+
+**The Light Accent Rule.** The accent is always light: it draws small marks on a dark page (focus, links, active controls, selection, the cursor, progress and revision marks) and is never the primary button's fill; that is the brand's. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
 
 **The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--theme-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
-**The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach. The concern marks are the one exception: Doc, Spec and Test share hues with Open, Warning and Closed and stay apart from them only by sitting darker, and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
+**The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to cyan and pink to magenta. The concern marks are the one exception: Doc, Spec and Test share hues with Open, Warning and Closed and stay apart from them only by sitting darker, and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
-**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
+**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
-**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. Focus always shows a 2px accent ring.
+**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. The primary's white label is held at the AA line, 4.5:1, on the brand and on Brand Strong. Focus always shows a 2px accent ring.
 
 ## Typography
 
@@ -270,7 +266,7 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 
 **The Code Only Rule.** Monospace appears only for code and what identifies code. The whole list: inline code and code blocks, diffs with their line numbers, file paths, commit hashes, branch names, model ids with the effort beside them, and key caps. Everything else is the sans, and a count sets in the sans with tabular numerals: header stats, added and deleted lines, positions like Group 1 of 3, labels, chips and headings.
 
-**The Amber Rule.** Amber means look here or this brief may be wrong, nothing else: risk attributes (the chips, the Risk attributes count and the group card's risk notes), generation warnings, repo-config trouble, a group's Uncertain classification chip, and the Submit dialog's warning that the pull request has newer commits. A de-emphasised risk attribute drops to neutral. Its deliberate exceptions are cautions someone must act on: the Settings spend meter near or at its cap and the capped note, the version notice, a primary ticket that could not be read and the diff-timeout notice. A misaligned ticket read stays neutral. A Home row's New commits chip is not a warning: new commits are a change to read, so it takes the changed tint. The Brief's own Newer commits control takes the changed tint. "Not an approval" is a neutral fact chip.
+**The Amber Rule.** Amber means look here or this brief may be wrong, nothing else: risk attributes (the chips, the Risk attributes count and the group card's risk notes), generation warnings, repo-config trouble, a group's Uncertain classification chip, and the Submit dialog's warning that the pull request has newer commits. A de-emphasised risk attribute drops to neutral. Its deliberate exceptions are cautions someone must act on: the Settings spend meter near or at its cap and the capped note, the version notice, a primary ticket that could not be read and the diff-timeout notice. A misaligned ticket read stays neutral. Gold is not amber: it belongs to the landing page, the docs and brand badges, never to a state. A Home row's New commits chip is not a warning: new commits are a change to read, so it takes the changed tint. The Brief's own Newer commits control takes the changed tint. "Not an approval" is a neutral fact chip.
 
 ## Layout
 
@@ -282,7 +278,7 @@ The list splits at a fold. Rows that need the reviewer (open, not a draft, and n
 
 Under 760px the filters collapse behind one button and the controls take their own line; under 400px View and Sort may wrap under the Filters button. Status labels become icons with hidden text. The page never scrolls sideways down to 320px.
 
-**Sign-in.** A signed-out viewer of any page gets one centred column, 360px wide at most, with no header: the 48px mark in Brand, a Headline, a 15px lead, a full-width 44px accent button and one quiet note.
+**Sign-in.** A signed-out viewer of any page gets one centred column, 360px wide at most, with no header: the 48px mark in Brand, a Headline, a 15px lead, a full-width 44px primary button and one quiet note.
 
 **Settings.** Home's shell: the same Header, gutter and column, with the heading in Display and the panel 32px below it (24px under 760px). A viewer with one tab gets no rail. An Operator gets a 184px rail beside the panel, 48px apart and pinned 24px from the top, where the current tab takes Surface 3 on an 8px corner. On a phone the rail becomes a row of tabs over a hairline.
 
@@ -329,10 +325,10 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 ### Buttons
 
 - **Shape:** 8px corner. Every variant takes its height from padding and the body line-height, about 38px, so a confirm and its Cancel sit level; the URL box sizes its own Generate at 32px inside the field.
-- **Accent:** accent fill, Accent Ink text: the primary action of a view, Generate on Home, Submit and the dialogs' confirm on the Brief page. One per view. Hover mixes 15% of the page ground into the fill, press 25%: the accent is a light, so its pressed state is a shade darker.
+- **Primary:** Brand fill under a white label: the primary action of a view, Generate on Home, Submit and the dialogs' confirm on the Brief page, Sign in. One per view: on the Brief page the header's Submit is it, so a chunk's Next, a comment composer's submit and a thread's Post and Save take Secondary. Hover takes Brand Strong and press mixes 12% of the ground into it in sRGB, so a primary only darkens and keeps its hue. The Submit button's draft count sits on black at 50% under a white number.
 - **Secondary:** transparent with a Line Strong border.
-- **Danger:** Closed red fill under Accent Ink; hover mixes 10% of the page ground into the fill, press 18%. An outline variant keeps only the red edge and text.
-- **Disabled:** a Line edge and Text 2, with no fill. The accent keeps a Surface 2 fill with Text 3, so a disabled primary is never the brightest thing in a dialog.
+- **Danger:** outline only: crimson text and a crimson edge at 55% over Line Strong; hover lifts the edge to full crimson over a 12% crimson tint. There is no filled Danger. In a destructive dialog Cancel and the confirm carry equal weight, so the heading asks the question, the body says what cannot be undone, and focus lands on Cancel.
+- **Disabled:** a Line edge and Text 2, with no fill. The primary keeps a Surface 2 fill with Text 3, so a disabled primary is never the brightest thing in a dialog.
 - **Icon buttons:** borderless, Text 2, Surface 3 under the pointer with Text 1. The triggers that need a visible edge (the account trigger's pill, the details trigger's ring) draw their own.
 - **Press:** a Button or icon button scales to 0.97 over 120ms on the entrance curve; a toolbar button never scales, it can be a full-width heading, so it takes a background step instead, as rows and tabs do. No hover movement anywhere.
 
@@ -400,5 +396,6 @@ Durations 120, 180 and 320ms, one 700ms spinner period every spinner reads throu
 - Do keep every page flat: no page light and no blur. Don't add a gradient to a surface.
 - Do use amber for risk attributes, where the brief may be wrong, and the Amber Rule's listed exceptions. Don't use it for new commits, a count that is not a risk, or decoration.
 - Do use the accent for what needs the reviewer. Don't use it for decoration or for state.
+- Do keep the brand to the mark and the one primary action. Don't use it for a state, a link or a highlight.
 - Do give every new token a plan: where the Brief page adopts it and what it replaces.
 - Don't add a card per row, a stat tile outside the verification receipt's three, an all-caps label, or monospace outside the Code Only Rule's list.

@@ -197,7 +197,7 @@ export function SelectionHeader({
             <Button
               disabled={deleteHeld}
               size="sm"
-              variant={ButtonVariants.DANGER_OUTLINE}
+              variant={ButtonVariants.DANGER}
               onClick={onDelete}
             >
               {deleteLabel}

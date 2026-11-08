@@ -132,7 +132,7 @@ export function ComposerForm({
         <Button
           aria-busy={saving || undefined}
           aria-disabled={saving || undefined}
-          variant="primary"
+          variant="secondary"
           onClick={composer.submit}
         >
           {submitLabel}

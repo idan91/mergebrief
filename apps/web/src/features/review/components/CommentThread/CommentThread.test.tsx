@@ -15,6 +15,7 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
+import { ButtonVariants } from "@web/components/Button";
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { type ReviewComment } from "../../utils/comments";
@@ -256,6 +257,23 @@ describe("CommentThread", () => {
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(screen.getByText(/posted to GitHub/i)).toBeDefined();
+  });
+
+  it("leaves the primary to the header's Submit", () => {
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        post={vi.fn()}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const post = screen.getByRole("button", { name: "Post" });
+    expect(post.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
   });
 
   it("offers Post on a draft when the post action is injected, and calls it", () => {

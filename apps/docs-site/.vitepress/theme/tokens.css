@@ -7,6 +7,8 @@
   --mb-hue: 286;
   --mb-gray-c: 0.01;
   --mb-brand: #e91f00;
+  --mb-brand-strong: #d81b00;
+  --mb-on-brand: #ffffff;
 
   --mb-ground: oklch(98.6% calc(var(--mb-gray-c) / 3) var(--mb-hue));
   --mb-surface-1: oklch(96.6% var(--mb-gray-c) var(--mb-hue));
@@ -19,11 +21,10 @@
   --mb-text-2: oklch(47% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(51% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(22% 0 var(--mb-hue));
-  --mb-on-accent: oklch(98.6% 0 var(--mb-hue));
   --mb-info: oklch(45% 0.12 255);
   --mb-positive: oklch(45% 0.12 155);
   --mb-warning: oklch(47% 0.115 70);
-  --mb-negative: oklch(47% 0.16 25);
+  --mb-negative: oklch(47% 0.16 12);
   --mb-shadow-float: 0 18px 44px -10px rgb(0 0 0 / 18%);
   --mb-underline-mix: 55%;
   --mb-ring-width: 2px;
@@ -43,11 +44,10 @@
   --mb-text-2: oklch(68.9% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(64.5% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(91% 0 var(--mb-hue));
-  --mb-on-accent: oklch(22% 0 var(--mb-hue));
   --mb-info: #7da7d9;
   --mb-positive: #5fc88f;
   --mb-warning: #d9a45c;
-  --mb-negative: #e06c6c;
+  --mb-negative: #df6b7d;
   --mb-shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%);
   --mb-underline-mix: 40%;
 }
@@ -109,18 +109,20 @@
   --vp-c-caution-3: var(--mb-negative);
   --vp-c-caution-soft: var(--vp-c-danger-soft);
 
-  --vp-button-brand-text: var(--mb-on-accent);
-  --vp-button-brand-hover-text: var(--mb-on-accent);
-  --vp-button-brand-active-text: var(--mb-on-accent);
-  --vp-button-brand-hover-bg: color-mix(
-    in srgb,
-    var(--mb-ground) 10%,
-    var(--mb-accent)
-  );
+  /* The brand fills the call to action only; links keep the accent. */
+  --vp-button-brand-border: var(--mb-brand);
+  --vp-button-brand-text: var(--mb-on-brand);
+  --vp-button-brand-bg: var(--mb-brand);
+  --vp-button-brand-hover-border: var(--mb-brand-strong);
+  --vp-button-brand-hover-text: var(--mb-on-brand);
+  --vp-button-brand-hover-bg: var(--mb-brand-strong);
+  --vp-button-brand-active-border: var(--mb-brand-strong);
+  --vp-button-brand-active-text: var(--mb-on-brand);
+  /* Black, not the ground: the light ground would lighten the press. */
   --vp-button-brand-active-bg: color-mix(
     in srgb,
-    var(--mb-ground) 18%,
-    var(--mb-accent)
+    var(--mb-brand-strong) 88%,
+    #000
   );
 
   --vp-code-color: var(--mb-text-1);

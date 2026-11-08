@@ -45,76 +45,33 @@
     }
 
     &[data-variant="primary"] {
-      border-color: var(--color-accent);
-      background: var(--color-accent);
-      color: var(--color-on-primary);
+      border-color: var(--color-brand);
+      background: var(--color-brand);
+      color: var(--color-on-brand);
       font-weight: 600;
 
       @include mixins.hover {
         &:hover {
-          border-color: color-mix(
-            in oklch,
-            var(--color-accent) 85%,
-            var(--color-background)
-          );
-          background: color-mix(
-            in oklch,
-            var(--color-accent) 85%,
-            var(--color-background)
-          );
+          border-color: var(--color-brand-strong);
+          background: var(--color-brand-strong);
         }
       }
 
       &:active {
         border-color: color-mix(
-          in oklch,
-          var(--color-accent) 75%,
+          in srgb,
+          var(--color-brand-strong) 88%,
           var(--color-background)
         );
         background: color-mix(
-          in oklch,
-          var(--color-accent) 75%,
+          in srgb,
+          var(--color-brand-strong) 88%,
           var(--color-background)
         );
       }
     }
 
     &[data-variant="danger"] {
-      border-color: var(--color-negative);
-      background: var(--color-negative);
-      color: var(--color-on-primary);
-      font-weight: 600;
-
-      @include mixins.hover {
-        &:hover {
-          border-color: color-mix(
-            in srgb,
-            var(--color-negative) 90%,
-            var(--color-background)
-          );
-          background: color-mix(
-            in srgb,
-            var(--color-negative) 90%,
-            var(--color-background)
-          );
-        }
-      }
-
-      &:active {
-        border-color: color-mix(
-          in srgb,
-          var(--color-negative) 82%,
-          var(--color-background)
-        );
-        background: color-mix(
-          in srgb,
-          var(--color-negative) 82%,
-          var(--color-background)
-        );
-      }
-    }
-
-    &[data-variant="danger-outline"] {
       border-color: color-mix(
         in srgb,
         var(--color-negative) 55%,
@@ -178,10 +135,6 @@
           background: transparent;
         }
       }
-    }
-
-    &[data-variant="danger"][aria-disabled="true"] {
-      background: transparent;
     }
 
     &[data-variant="primary"][aria-disabled="true"] {

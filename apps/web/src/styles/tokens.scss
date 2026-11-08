@@ -27,12 +27,13 @@
     --gray-400: oklch(68.9% var(--gray-c) var(--theme-hue));
     --gray-100: oklch(94.4% calc(var(--gray-c) / 3) var(--theme-hue));
     --green-400: #5fc88f;
-    --red-400: #e06c6c;
+    --crimson-400: #df6b7d;
     --amber-400: #d9a45c;
     --accent-400: oklch(var(--accent-l) var(--accent-c) var(--theme-hue));
     --blue-400: #7da7d9;
     --violet-400: #a98fd1;
     --vermilion-500: #e91f00;
+    --vermilion-600: #d81b00;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
 
@@ -70,15 +71,14 @@
     --color-outline-2: var(--gray-700); // strong borders, frames, halos
 
     // ── Status and accent ────────────────────────────────────────────────
-    // The one accent, always light: a fill under dark text and small marks
-    // on a dark page (DESIGN.md, the Light Accent Rule).
     --color-accent: var(--accent-400);
 
-    // The brand: the mark wherever it appears. Never a state, never focus
-    // (DESIGN.md, Brand); the contrast test holds it at the marks line.
+    // White on the brand is 4.51:1, the AA line the contrast test pins.
     --color-brand: var(--vermilion-500);
+    --color-brand-strong: var(--vermilion-600);
+    --color-on-brand: #fff;
     --color-positive: var(--green-400);
-    --color-negative: var(--red-400);
+    --color-negative: var(--crimson-400);
     --color-warning: var(--amber-400);
 
     // GitHub's merged-PR purple. Semantic on purpose: "merged" is a status in
@@ -102,9 +102,7 @@
     --color-concern-unattributed: #7c7c87;
 
     // ── Other semantic colors ────────────────────────────────────────────
-    --color-on-primary: oklch(
-      22% calc(var(--accent-c) * 0.55) var(--theme-hue)
-    );
+    --color-count-on-fill: rgb(0 0 0 / 50%);
 
     // The light-mode half of the two light-dark() pairs in base.scss. The app
     // ships dark-only today; the pair is kept so a light scheme stays possible.
@@ -113,7 +111,7 @@
     // Diff line text: desaturated for long code runs, near text-1 lightness
     // — the hue alone carries add/del.
     --color-diff-add-text: #d6efe1;
-    --color-diff-del-text: #eed3d3;
+    --color-diff-del-text: #ebd0d2;
 
     // Diff table geometry: one width for every revision gutter, edge and
     // seam, both views; the column widths and the under-row insets read it.

@@ -87,7 +87,7 @@ export function ChunkFooter({
           disabled={!next}
           label={nextLabel}
           shortcut="J"
-          variant={ButtonVariants.PRIMARY}
+          variant={ButtonVariants.SECONDARY}
           onClick={stepOn}
         />
       </div>

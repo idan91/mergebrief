@@ -113,7 +113,7 @@ export function TokenRow({
             aria-label={t("tokens.ariaLabelRevoke", { name })}
             disabled={revokeInFlight}
             size="sm"
-            variant="danger-outline"
+            variant="danger"
             onClick={confirm}
           >
             {t("tokens.revoke")}
