@@ -3,8 +3,6 @@
 
 @layer components {
   .panel {
-    --scroller-bg: var(--color-background);
-
     flex: 1;
     overscroll-behavior: contain;
 
@@ -12,11 +10,11 @@
   }
 
   .list {
-    /* The picked timeline's node: a 1.5px ring, and a halo over a ground gap when current. */
+    /* The picked timeline's node: a 1.5px ring, and a halo over a gap in the scroller fill when current. */
     --node-ring-rest: inset 0 0 0 1.5px var(--color-text-3);
     --node-ring-hover: inset 0 0 0 1.5px var(--color-text-2);
     --node-halo:
-      0 0 0 1.5px var(--color-background), 0 0 0 2.5px var(--color-accent);
+      0 0 0 1.5px var(--scroller-bg), 0 0 0 2.5px var(--color-accent);
     --row-pad-block: #{functions.to-rem(8px)};
     --list-gap: #{functions.to-rem(2px)};
     --node-center: #{functions.to-rem(9px)};
@@ -109,7 +107,7 @@
       inline-size: 8px;
       block-size: 8px;
       border-radius: var(--radius-circle);
-      background: var(--color-background);
+      background: var(--scroller-bg);
       box-shadow: var(--node-ring-rest);
       transform: translate(-50%, -50%);
     }

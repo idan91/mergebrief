@@ -3,8 +3,6 @@
 
 @layer components {
   .panel {
-    --scroller-bg: var(--color-background);
-
     flex: 1;
     overscroll-behavior: contain;
 

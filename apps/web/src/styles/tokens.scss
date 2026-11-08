@@ -17,7 +17,7 @@
     --accent-l: 91%;
     --accent-c: 0;
     --gray-c: 0.01;
-    --gray-950: oklch(14.6% var(--gray-c) var(--theme-hue));
+    --gray-950: oklch(8% var(--gray-c) var(--theme-hue));
     --gray-900: oklch(17.9% var(--gray-c) var(--theme-hue));
     --gray-850: oklch(19.8% var(--gray-c) var(--theme-hue));
     --gray-800: oklch(24.1% var(--gray-c) var(--theme-hue));
@@ -43,11 +43,20 @@
     // surface-3 sits below outline-1 on purpose: a menu's fill is darker
     // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
-    --color-focus-ground: oklch(11.5% 0.008 var(--theme-hue)); // focus mode
+    --color-focus-ground: #000; // focus mode, below the page
     --color-scrim: rgb(0 0 0 / 55%);
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
     --color-surface-3: var(--gray-750); // top: toasts, chips, highest hovers
+
+    // One fill for the chrome that frames the reading: the Brief header's
+    // compare row and the sidebar's column, panel and narrow bar. Opaque, so
+    // content never shows through it.
+    --color-chrome: color-mix(
+      in srgb,
+      var(--color-surface-1) 45%,
+      var(--color-background)
+    );
 
     // ── Text ─────────────────────────────────────────────────────────────
     --color-text-1: var(--gray-100); // primary

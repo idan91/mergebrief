@@ -53,7 +53,7 @@
     padding-block: functions.to-rem(10px) functions.to-rem(16px);
     padding-inline-end: functions.to-rem(1px);
     border-inline-start: 1px solid var(--color-outline-1);
-    background: var(--color-background);
+    background: var(--color-chrome);
   }
 
   .foot {
@@ -77,13 +77,15 @@
   }
 
   .panel {
+    --scroller-bg: var(--color-chrome);
+
     display: flex;
     flex: none;
     flex-direction: column;
     order: 1;
     inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
     border-inline-start: 1px solid var(--color-outline-1);
-    background: var(--color-background);
+    background: var(--color-chrome);
     transform: translateX(100%);
 
     &[hidden] {

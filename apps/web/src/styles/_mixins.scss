@@ -104,7 +104,7 @@
 // trip overflow-x: auto into a horizontal bar. The shadows sit at the viewport
 // edges (attachment: scroll) while the solid covers scroll with the content
 // (attachment: local), so each shadow shows only past that edge.
-// The caller must set --scroller-bg to the surface the scroller sits on.
+// The host the scroller sits in sets --scroller-bg to its own surface.
 @mixin rail-scroller {
   min-block-size: 0;
   overflow: hidden auto;
@@ -311,6 +311,8 @@
 }
 
 @mixin bottom-sheet-chrome {
+  --scroller-bg: var(--color-surface-1);
+
   border-block-start: 1px solid var(--color-outline-2);
   border-start-start-radius: var(--radius-lg);
   border-start-end-radius: var(--radius-lg);

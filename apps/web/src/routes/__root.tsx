@@ -28,7 +28,7 @@ import appStyles from "../styles/app.scss?url";
 import monoBodyFont from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
 import sansBodyFont from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 
-const THEME_COLOR = "#0a0a0c";
+const THEME_COLOR = "#020203";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: ({ match }) => {

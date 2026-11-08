@@ -1,10 +1,16 @@
 import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Reads the palette straight from tokens.scss, so a test judges the values
 // that ship. Only hex and the OKLCH forms the tokens use are understood.
 
-const TOKENS_URL = new URL("./tokens.scss", import.meta.url);
+// Built from the module's own path: a jsdom suite rewrites
+// `new URL("./x", import.meta.url)` into an asset URL.
+const TOKENS_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "tokens.scss",
+);
 const MAX_ALIAS_DEPTH = 8;
 
 export type Rgb = readonly [number, number, number];
@@ -18,7 +24,7 @@ const CALC_STEP = /^calc\(\s*([\d.]+)\s*([*/])\s*([\d.]+)\s*\)$/;
 const HEX_LITERAL = /^#([0-9a-f]{6}|[0-9a-f]{3})$/i;
 
 export async function readTokenDeclarations(): Promise<Declarations> {
-  const source = await readFile(fileURLToPath(TOKENS_URL), "utf8");
+  const source = await readFile(TOKENS_PATH, "utf8");
   const declarations = new Map<string, string>();
   for (const match of source.matchAll(DECLARATION)) {
     const [, name, value] = match;

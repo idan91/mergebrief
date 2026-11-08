@@ -48,7 +48,7 @@
     padding-block: functions.to-rem(5px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--color-outline-1);
-    background: color-mix(in srgb, var(--color-surface-1) 45%, transparent);
+    background: var(--color-chrome);
   }
 
   .home {

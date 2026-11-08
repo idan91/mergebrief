@@ -32,7 +32,7 @@
 }
 
 .dark {
-  --mb-ground: oklch(14.6% var(--mb-gray-c) var(--mb-hue));
+  --mb-ground: oklch(8% var(--mb-gray-c) var(--mb-hue));
   --mb-surface-1: oklch(17.9% var(--mb-gray-c) var(--mb-hue));
   --mb-surface-2: oklch(19.8% var(--mb-gray-c) var(--mb-hue));
   --mb-surface-elevated: oklch(22.9% var(--mb-gray-c) var(--mb-hue));

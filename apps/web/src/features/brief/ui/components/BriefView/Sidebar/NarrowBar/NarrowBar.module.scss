@@ -10,7 +10,7 @@
     padding-block-end: env(safe-area-inset-bottom);
     padding-inline: functions.to-rem(8px);
     border-block-start: 1px solid var(--color-outline-1);
-    background: var(--color-background);
+    background: var(--color-chrome);
 
     @include mixins.for-phone {
       display: none;

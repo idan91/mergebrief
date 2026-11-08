@@ -6,7 +6,9 @@ colors:
   brand: "#e91f00"
   brand-strong: "#d81b00"
   on-brand: "#ffffff"
-  ground: "#0a0a0c"
+  ground: "#020203"
+  focus-ground: "#000000"
+  chrome: "#09090b"
   surface-1: "#111114"
   surface-2: "#15151a"
   surface-3: "#1c1c22"
@@ -204,7 +206,8 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Neutral
 
-- **Ground** (#0a0a0c): the page. Focus mode drops to a darker **Focus Ground** at 11.5% lightness, one flat fill.
+- **Ground** (#020203): the page and the Header, one ground with no band. Focus mode drops to **Focus Ground**, black, one flat fill, so it stays below the page.
+- **Chrome** (`--color-chrome`, Surface 1 at 45% over the ground, about #09090b): the Brief header's compare row and the sidebar's column, panel and narrow bar, one fill so they cannot drift apart.
 - **Scrim** (black at 55%): behind dialogs and sheets.
 - **Surface 1, 2, 3** (#111114, #15151a, #1c1c22): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
 - **Well** (Ground 25% into Surface 1): the diff's code and a chunk's head, the one surface a step below the card it sits in.
@@ -232,7 +235,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to teal and pink to magenta; Implementation and Generated draw from them. The concern marks are the one exception: Doc shares Open's green and Spec sits by Warning's amber, apart only by sitting darker; Test sits 14° from the brand and clears its lane on chroma alone, 71% of the brand's; and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
-**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
+**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.08 (the focus ground is black, 0), surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, a focused field's edge 0.39, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
 **Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. The primary's white label is held at the AA line, 4.5:1, on the brand and on Brand Strong. Focus always shows a 2px accent ring.
 

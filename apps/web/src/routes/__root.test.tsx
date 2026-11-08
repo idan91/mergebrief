@@ -4,6 +4,7 @@ import type { LinkHTMLAttributes } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n, I18nProvider } from "../i18n/I18nProvider";
+import { parseColor, resolvePalette } from "../styles/test-utils";
 import { renderInRouter } from "../test/router";
 import { Route } from "./__root";
 
@@ -83,6 +84,16 @@ describe("root route head", () => {
     for (const tag of imageTags) {
       expect(String(tag?.content)).toMatch(/^https?:\/\/[^/]+\/og-image\.png$/);
     }
+  });
+
+  it("paints the browser chrome in the page ground", async () => {
+    const resolved = await resolveHead();
+    const meta = resolved.meta ?? [];
+    const themeColor = meta.find((tag) => tag?.name === "theme-color");
+    const readColor = await resolvePalette();
+    const shipped = parseColor(String(themeColor?.content));
+
+    expect(shipped).toEqual(readColor("--color-background"));
   });
 
   it("reads both descriptions from the catalog", async () => {
