@@ -38,10 +38,6 @@
     --badge-color: var(--color-text-1);
   }
 
-  .badge[data-color="blue"] {
-    --badge-color: var(--color-info);
-  }
-
   .badge[data-color="violet"] {
     --badge-color: var(--color-merged);
   }

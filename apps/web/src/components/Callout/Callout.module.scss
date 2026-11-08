@@ -59,16 +59,17 @@
   }
 }
 
-// floating-ui arrow (SVG): same surface as the callout; hairline via the
-// component's stroke prop.
+// The hairline is the stroke prop's currentColor: a presentation attribute
+// cannot read a custom property.
 .arrow {
+  color: var(--color-outline-2);
   fill: var(--color-surface-3);
 }
 
 .eyebrow {
   display: block;
   margin-bottom: functions.to-rem(5px);
-  color: var(--color-info);
+  color: var(--color-text-2);
   font-size: var(--font-size-sm);
 }
 

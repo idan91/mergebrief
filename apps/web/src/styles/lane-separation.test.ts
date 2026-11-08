@@ -21,7 +21,6 @@ const LANE_NEIGHBOURS = [
   "--color-negative",
   "--color-warning",
   "--color-merged",
-  "--color-info",
   ...Object.values(Concerns).map((concern) => `--color-concern-${concern}`),
 ];
 

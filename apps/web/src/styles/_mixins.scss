@@ -230,10 +230,7 @@
   }
 
   strong {
-    // Off-scale: bold text sits just under --color-text-1.
-    --strong-text: #d7d7dc;
-
-    color: var(--strong-text);
+    color: var(--color-text-1);
     font-weight: 600;
   }
 }

@@ -69,15 +69,14 @@ const WORDS = [
   "--color-diff-del-text",
 ] as const;
 // The accent and the state colours draw marks, and they also set words:
-// delta numerals, revision tags, deletion counts, the after-brief chip. So
-// they are held at both lines.
+// delta numerals, revision tags, deletion counts. So they are held at both
+// lines.
 const MARKS = [
   "--color-accent",
   "--color-positive",
   "--color-negative",
   "--color-warning",
   "--color-merged",
-  "--color-info",
 ] as const;
 // Derived from the vocabulary, so a new concern without a token fails here
 // instead of rendering the neutral mark.

@@ -79,12 +79,9 @@
       color: var(--color-text-2);
     }
 
-    /* The comment postdates the viewed brief. The info lane, not amber and
-       not the accent: origin must read as neither the open-thread state nor
-       a selection. */
     &[data-state="after-brief"] {
-      border-color: var(--color-info);
-      color: var(--color-info);
+      border-color: var(--color-outline-2);
+      color: var(--color-text-read);
     }
 
     &[data-state="approved"],
@@ -178,12 +175,8 @@
   }
 
   .error {
-    // Earned oddity: a warmer red than --color-negative for inline
-    // conversation errors.
-    --error-text: #d9836c;
-
     margin: 0;
-    color: var(--error-text);
+    color: var(--color-negative);
     font-size: var(--font-size-lg);
   }
 }

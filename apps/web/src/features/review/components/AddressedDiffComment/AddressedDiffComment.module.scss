@@ -4,7 +4,7 @@
   .comment {
     overflow: hidden;
     margin-block: functions.to-rem(8px) functions.to-rem(4px);
-    border: 1px solid color-mix(in srgb, var(--color-info) 35%, transparent);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
     box-shadow: var(--shadow-elevation-md);
@@ -23,7 +23,7 @@
     padding-block: functions.to-rem(10px);
     padding-inline: functions.to-rem(12px);
     border-block-end: 1px solid var(--color-outline-1);
-    color: var(--color-info);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
   }
 

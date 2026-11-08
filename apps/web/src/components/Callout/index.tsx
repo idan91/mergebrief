@@ -205,9 +205,7 @@ function CalloutNode({
         className={styles["arrow"]}
         context={context}
         ref={arrowRef}
-        // Hairline to match the callout border (--color-outline-2; SVG presentation
-        // attributes cannot resolve CSS custom properties).
-        stroke="#2b2b32"
+        stroke="currentColor"
         strokeWidth={1}
       />
       <span className={styles["content"]} ref={setContentEl}>

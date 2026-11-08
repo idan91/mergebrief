@@ -23,6 +23,7 @@
     --gray-800: oklch(24.1% var(--gray-c) var(--theme-hue));
     --gray-750: oklch(22.9% var(--gray-c) var(--theme-hue));
     --gray-700: oklch(29.2% var(--gray-c) var(--theme-hue));
+    --gray-600: oklch(39% var(--gray-c) var(--theme-hue));
     --gray-650: oklch(35.5% calc(var(--gray-c) * 2) var(--theme-hue));
     --gray-400: oklch(68.9% var(--gray-c) var(--theme-hue));
     --gray-100: oklch(94.4% calc(var(--gray-c) / 3) var(--theme-hue));
@@ -30,7 +31,6 @@
     --crimson-400: #df6b7d;
     --amber-400: #d9a45c;
     --accent-400: oklch(var(--accent-l) var(--accent-c) var(--theme-hue));
-    --blue-400: #7da7d9;
     --violet-400: #a98fd1;
     --vermilion-500: #e91f00;
     --vermilion-600: #d81b00;
@@ -69,6 +69,7 @@
     // ── Outline / border ─────────────────────────────────────────────────
     --color-outline-1: var(--gray-800); // hairline dividers, default borders
     --color-outline-2: var(--gray-700); // strong borders, frames, halos
+    --color-outline-3: var(--gray-600); // a focused field's edge
 
     // ── Status and accent ────────────────────────────────────────────────
     --color-accent: var(--accent-400);
@@ -85,20 +86,16 @@
     // this product's vocabulary, not a decoration.
     --color-merged: var(--violet-400);
 
-    // The free blue lane (DESIGN.md, the Four Lanes Rule): a mark that is
-    // neither a state nor the accent, such as a comment's origin and the blue
-    // badge. Never selection, never focus.
-    --color-info: var(--blue-400);
-
-    // Concern marks (DESIGN.md, Concern): one hue per concern at one chroma,
-    // neighbours a lightness step apart, unattributed the one neutral. Marks
-    // only, never words; the palette contrast test holds them at 3:1.
-    --color-concern-implementation: #5f96dc;
-    --color-concern-test: #b25c3e;
-    --color-concern-doc: #3daa7e;
-    --color-concern-spec: #b17921;
-    --color-concern-config: #8f87d9;
-    --color-concern-generated: #b05774;
+    // Concern marks (DESIGN.md, Concern): one hue per concern, neighbours in
+    // vocabulary order alternating light and dark, unattributed the one
+    // neutral. Marks only, never words; the contrast test holds them at 3:1
+    // and the lane test keeps Test out of the brand's lane.
+    --color-concern-implementation: #3a93ff;
+    --color-concern-test: #c35000;
+    --color-concern-doc: #00b472;
+    --color-concern-spec: #a88100;
+    --color-concern-config: #8f7dfa;
+    --color-concern-generated: #b94399;
     --color-concern-unattributed: #7c7c87;
 
     // ── Other semantic colors ────────────────────────────────────────────

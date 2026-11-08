@@ -20,12 +20,12 @@ colors:
   state-merged: "#a98fd1"
   state-closed: "#df6b7d"
   state-warning: "#d9a45c"
-  concern-implementation: "#5f96dc"
-  concern-test: "#b25c3e"
-  concern-doc: "#3daa7e"
-  concern-spec: "#b17921"
-  concern-config: "#8f87d9"
-  concern-generated: "#b05774"
+  concern-implementation: "#3a93ff"
+  concern-test: "#c35000"
+  concern-doc: "#00b472"
+  concern-spec: "#a88100"
+  concern-config: "#8f7dfa"
+  concern-generated: "#b94399"
   concern-unattributed: "#7c7c87"
 typography:
   display:
@@ -173,7 +173,7 @@ components:
 
 # Design System: MergeBrief
 
-Status: built on Home, which leads this language; the Brief page follows it. The palette is the one the Brief page was designed on, expressed as tokens: hue 286, the greys at chroma 0.01 and the accent a white at chroma 0. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. Nothing on screen carries the hue but the greys; the info blue (`--color-info`) keeps its lane.
+Status: built on Home, which leads this language; the Brief page follows it. The palette is the one the Brief page was designed on, expressed as tokens: hue 286, the greys at chroma 0.01 and the accent a white at chroma 0. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. Nothing on screen carries the hue but the greys. There is no info colour: a note that is neither a state nor the brand is neutral, and its words or icon carry it.
 
 ## Overview
 
@@ -220,7 +220,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Concern (marks only)
 
-- **Implementation** (#5f96dc), **Test** (#b25c3e), **Doc** (#3daa7e), **Spec** (#b17921), **Config** (#8f87d9), **Generated** (#b05774), and **Unattributed** (#7c7c87), the one neutral. Every hue sits at OKLCH chroma 0.12, and neighbours in that order step lightness so adjacent segments stay apart under colour-vision deficiency. A concern colour draws a dot or a split segment, never a word or a fill.
+- **Implementation** (#3a93ff), **Test** (#c35000, an orange), **Doc** (#00b472), **Spec** (#a88100, an olive), **Config** (#8f7dfa), **Generated** (#b94399, a magenta), and **Unattributed** (#7c7c87), the one neutral. The hues sit at OKLCH chroma 0.13 to 0.18 and lightness 57% to 68%. In this order neighbours alternate light and dark, at least four points apart, except Generated beside Unattributed, where the neutral's missing chroma does the separating. Hue alone parts Implementation from Config and Test from Generated, so the legend names every segment and colour never carries the split alone. A concern colour draws a dot or a split segment, never a word or a fill.
 
 ### Named Rules
 
@@ -230,7 +230,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--theme-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
-**The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to cyan and pink to magenta. The concern marks are the one exception: Doc, Spec and Test share hues with Open, Warning and Closed and stay apart from them only by sitting darker, and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
+**The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to teal and pink to magenta; Implementation and Generated draw from them. The concern marks are the one exception: Doc shares Open's green and Spec sits by Warning's amber, apart only by sitting darker; Test sits 14° from the brand and clears its lane on chroma alone, 71% of the brand's; and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
 **The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 

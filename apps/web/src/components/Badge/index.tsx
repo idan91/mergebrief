@@ -8,7 +8,6 @@ import styles from "./Badge.module.scss";
 export const BadgeColors = {
   NEUTRAL: "neutral",
   TEXT: "text",
-  BLUE: "blue",
   VIOLET: "violet",
   AMBER: "amber",
   POSITIVE: "positive",

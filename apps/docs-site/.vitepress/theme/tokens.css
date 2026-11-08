@@ -21,7 +21,6 @@
   --mb-text-2: oklch(47% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(51% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(22% 0 var(--mb-hue));
-  --mb-info: oklch(45% 0.12 255);
   --mb-positive: oklch(45% 0.12 155);
   --mb-warning: oklch(47% 0.115 70);
   --mb-negative: oklch(47% 0.16 12);
@@ -44,7 +43,6 @@
   --mb-text-2: oklch(68.9% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(64.5% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(91% 0 var(--mb-hue));
-  --mb-info: #7da7d9;
   --mb-positive: #5fc88f;
   --mb-warning: #d9a45c;
   --mb-negative: #df6b7d;
@@ -80,10 +78,10 @@
   --vp-c-brand-3: var(--mb-accent);
   --vp-c-brand-soft: color-mix(in srgb, var(--mb-accent) 8%, transparent);
 
-  --vp-c-tip-1: var(--mb-info);
-  --vp-c-tip-2: var(--mb-info);
-  --vp-c-tip-3: var(--mb-info);
-  --vp-c-tip-soft: color-mix(in srgb, var(--mb-info) 12%, transparent);
+  --vp-c-tip-1: var(--mb-text-2);
+  --vp-c-tip-2: var(--mb-text-2);
+  --vp-c-tip-3: var(--mb-text-2);
+  --vp-c-tip-soft: var(--vp-c-default-soft);
   --vp-c-note-1: var(--mb-text-2);
   --vp-c-note-2: var(--mb-text-2);
   --vp-c-note-3: var(--mb-text-2);

@@ -47,11 +47,6 @@
   }
 
   .box {
-    // The textarea's focus border is a one-off lift above --color-outline-2,
-    // scoped to the focused state; it derives from the hue and grey chroma
-    // like every other grey.
-    --textarea-focus-border: oklch(39% var(--gray-c) var(--theme-hue));
-
     inline-size: functions.to-rem(460px);
     max-inline-size: 92vw;
     max-block-size: calc(100dvh - functions.to-rem(24px));
@@ -98,7 +93,7 @@
       @include mixins.touch-field-text;
 
       &:focus-visible {
-        border-color: var(--textarea-focus-border);
+        border-color: var(--color-outline-3);
 
         @include mixins.focus-ring;
       }
