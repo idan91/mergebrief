@@ -102,7 +102,7 @@ async function openRunScope(start: RunStart): Promise<RunScope | undefined> {
   }
   // Taken before the source opens: a url-box source may read the head while
   // opening and serve that read as the run's first.
-  const pickedUpAt = new Date();
+  const pickedUpAt = await projection.readClock();
   const source = await openRunSource(start, guarded);
   const entryCommentManager = createEntryCommentManager(payload, {
     source,

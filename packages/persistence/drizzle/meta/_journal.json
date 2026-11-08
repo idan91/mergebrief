@@ -617,6 +617,20 @@
       "when": 1793750531933,
       "tag": "0088_stored-json-documents",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1794147008148,
+      "tag": "0089_generation-write-clock",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1794147203881,
+      "tag": "0090_generation-lifecycle-checks",
+      "breakpoints": true
     }
   ]
 }

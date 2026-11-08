@@ -1,0 +1,1 @@
+ALTER TABLE "generation" ALTER COLUMN "updated_at" SET DEFAULT clock_timestamp();

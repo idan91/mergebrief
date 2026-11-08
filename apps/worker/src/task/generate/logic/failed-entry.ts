@@ -1,5 +1,8 @@
 import type { BriefSpanRow } from "persistence";
-import type { GenerationFailureCode } from "types/generations";
+import {
+  GenerationStatuses,
+  type GenerationFailureCode,
+} from "types/generations";
 import {
   buildEntryCommentFailedBody,
   isHeadEntryBody,
@@ -31,6 +34,7 @@ import { replaceOnUnreadHead } from "./unread-head-entry";
 export async function postFailedEntry(
   progress: RunProgress,
   code: GenerationFailureCode,
+  options: FailedEntryOptions = {},
 ): Promise<void> {
   const { scope, context } = progress;
   if (scope === undefined || scope.payload.grantId !== undefined) {
@@ -41,7 +45,7 @@ export async function postFailedEntry(
     const write =
       context === undefined
         ? await replaceFailedBody(scope, code)
-        : await replaceOrCreateFailedBody(context, code);
+        : await replaceOrCreateFailedBody(context, code, options);
     await queueEntrySyncOnLostWrite(scope, write);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -51,9 +55,15 @@ export async function postFailedEntry(
   }
 }
 
+export interface FailedEntryOptions {
+  /** The post stands down unless the row, read after the head, still fails with `code`. */
+  readonly requiresFailedRow?: boolean;
+}
+
 async function replaceOrCreateFailedBody(
   context: RunContext,
   code: GenerationFailureCode,
+  options: FailedEntryOptions,
 ): Promise<EntryWrite> {
   if (await isBriefStored(context)) {
     return EntryWrites.LEFT;
@@ -64,6 +74,15 @@ async function replaceOrCreateFailedBody(
   const head = await context.watch.readHead();
   if (head.kind === HeadReadings.MOVED) {
     context.log.info("generate: head moved, leaving the Entry comment to it");
+    return EntryWrites.LEFT;
+  }
+  const rowMoved =
+    options.requiresFailedRow === true &&
+    !(await isRowStillFailed(context, code));
+  if (rowMoved) {
+    context.log.info(
+      "generate: the row left its failure, the failed Entry stands down",
+    );
     return EntryWrites.LEFT;
   }
 
@@ -110,6 +129,17 @@ function buildFailedEntryBody(
     deriveNextHeadIndex(priorBriefs),
   );
   return buildEntryCommentFailedBody(deps.translate, headLink, code);
+}
+
+/** A trigger may have projected the row afresh since the run ended it. */
+async function isRowStillFailed(
+  context: RunContext,
+  code: GenerationFailureCode,
+): Promise<boolean> {
+  const row = await context.projection.get(context.target);
+  const stillFailed =
+    row?.status === GenerationStatuses.FAILED && row.errorCode === code;
+  return stillFailed;
 }
 
 /** The brief may have landed during this run, after the context was read. */

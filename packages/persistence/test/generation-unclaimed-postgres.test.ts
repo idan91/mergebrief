@@ -2,8 +2,9 @@
 // by MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red under CI.
 // Rows are staged by raw updates, never a claim: an attempt row would count
 // against the instance-wide cap the generation-cap suite asserts in parallel.
+import { sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createGenerationProjection,
   createTenantRepository,
@@ -11,7 +12,10 @@ import {
   type GenerationProjection,
 } from "../src/index";
 import { readTestPostgresUrl } from "../src/testing";
-import type { AppDatabase } from "../src/db/handle";
+import { internal, type AppDatabase } from "../src/db/handle";
+import { projectPendingGeneration } from "../src/stores/generation";
+import { resolveScope } from "../src/stores/scope";
+import type { TenantContext } from "../src/stores/scope-context";
 import type { InstallationId } from "../src/types";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 import {
@@ -22,6 +26,8 @@ import {
 } from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
+/** How far an api host's clock may lag the database's. */
+const WRITER_CLOCK_LAG_MS = 60_000;
 const FAILED_RUN = {
   status: GenerationStatuses.FAILED,
   failure: { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED },
@@ -30,6 +36,7 @@ const FAILED_RUN = {
 interface UnclaimedWorld {
   readonly handle: AppDatabase;
   readonly tenant: InstallationId;
+  readonly ctx: TenantContext;
   readonly gen: GenerationProjection;
   readonly target: ReturnType<typeof makeBriefTarget>;
   /** Raw SQL on the world's one generation row. */
@@ -59,7 +66,7 @@ async function openWorld(url: string): Promise<UnclaimedWorld> {
       await pool.end();
     }
   }
-  return { handle, tenant, gen, target, stage };
+  return { handle, tenant, ctx, gen, target, stage };
 }
 
 describe.skipIf(databaseUrl === undefined)(
@@ -78,6 +85,42 @@ describe.skipIf(databaseUrl === undefined)(
         await deleteTenantRows(world.handle, world.tenant);
       }
     }
+
+    it("settle refuses a row re-projected by a tx open at pickup", async () => {
+      await runInUnclaimedWorld(async ({ handle, ctx, gen, target, stage }) => {
+        await stage("status = 'failed', error_code = 'unknown'");
+        let markResetOpen: () => void = () => undefined;
+        const resetOpen = new Promise<void>((resolve) => {
+          markResetOpen = resolve;
+        });
+        let releaseReset: () => void = () => undefined;
+        const pickupRead = new Promise<void>((resolve) => {
+          releaseReset = resolve;
+        });
+        const reset = internal(handle).transaction(async (tx) => {
+          await tx.execute(sql`select 1`);
+          markResetOpen();
+          await pickupRead;
+          const lagging = new Date(Date.now() - WRITER_CLOCK_LAG_MS);
+          vi.useFakeTimers({ toFake: ["Date"], now: lagging });
+          try {
+            await projectPendingGeneration(tx, resolveScope(ctx), target);
+          } finally {
+            vi.useRealTimers();
+          }
+        });
+        await resetOpen;
+
+        const pickedUpAt = await gen.readClock();
+        releaseReset();
+        await reset;
+
+        expect(await gen.settleStoredBrief(target, pickedUpAt)).toBeUndefined();
+        expect((await gen.get(target))?.status).toBe(
+          GenerationStatuses.PENDING,
+        );
+      });
+    });
 
     it("ends a pending row a takeover handed back to recovery", async () => {
       await runInUnclaimedWorld(async ({ gen, target, stage }) => {

@@ -1,8 +1,11 @@
 import type { LogFields } from "logging";
 import {
   ChargeOutcomes,
+  ClaimEnds,
   ClaimOutcomes,
+  type CappedClaim,
   type ChargeRunInput,
+  type ClaimEnd,
   type ClaimRunInput,
   type ClaimUnitsInput,
   type ClaimRunOutcome,
@@ -13,6 +16,7 @@ import {
 import {
   GenerationPhases,
   GenerationStatuses,
+  type GenerationStatus,
   type GenerationUnitsParams,
   type Mutable,
 } from "types";
@@ -21,7 +25,7 @@ import {
   isPastDailyCap,
 } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
-import { CLAIM_LEASE_MS } from "../consts";
+import { CLAIM_LEASE_MS, ENTRY_SYNC_DELAY_SECONDS } from "../consts";
 import {
   HeadReadings,
   type RunContext,
@@ -38,31 +42,20 @@ import { ClaimLostSignal, SpendCappedSignal } from "./run-signals";
  * so a run never counts itself and N slots or processes cannot start past the
  * cap together. The claim queues the head's recovery job in the same
  * transaction; a takeover's claim queues its successor, which ends the
- * takeover job's own retries and carries them on. A capped run leaves the projection
- * terminal `capped` (or `failed`); a held or finished row is reported untouched.
+ * takeover job's own retries and carries them on. A capped or exhausted claim
+ * writes the row's end itself; a held or finished row is reported untouched.
  * A row that is gone (its pull request deleted) stands the run down.
  */
 export async function applySpendGate(
   payload: ParsedGeneratePayload,
   inputs: SpendGateInputs,
 ): Promise<ClaimRunOutcome> {
-  const { deps, projection, target, job, log } = inputs;
+  const { deps, projection, job, log } = inputs;
 
   const { day, cap, storeInput } = readTodayCap(deps);
-  const claimInput: Mutable<ClaimRunInput> = {
-    ...storeInput,
-    target,
-    phase: GenerationPhases.FETCHING,
-    leaseMs: CLAIM_LEASE_MS,
-  };
-  const recovery: Mutable<RecoveryJobInput> = {
-    delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
-  };
-  if (payload.grantId !== undefined) {
-    recovery.grantId = payload.grantId;
-  }
-  claimInput.recovery = recovery;
-  const claim = await projection.claimRun(claimInput);
+  const claim = await projection.claimRun(
+    buildClaimInput(payload, inputs, storeInput),
+  );
   if (!claim.ok) {
     throw new ClaimLostSignal(claim.error.message);
   }
@@ -71,7 +64,7 @@ export async function applySpendGate(
     if (cap === undefined) {
       throw new Error("generate: claimRun capped a run with no cap");
     }
-    await recordCappedRun(payload, inputs, {
+    await recordCappedRun(payload, inputs, claim.value, {
       cap,
       resetsAt: day.to,
       dayUtc: day.label,
@@ -88,6 +81,34 @@ export async function applySpendGate(
     log.info("generate: run started", startFields);
   }
   return claim.value;
+}
+
+function buildClaimInput(
+  payload: ParsedGeneratePayload,
+  inputs: SpendGateInputs,
+  storeInput: CapStoreInput,
+): ClaimRunInput {
+  const { target, existingBrief, pickedUpAt } = inputs;
+  const claimInput: Mutable<ClaimRunInput> = {
+    ...storeInput,
+    target,
+    phase: GenerationPhases.FETCHING,
+    leaseMs: CLAIM_LEASE_MS,
+  };
+  const recovery: Mutable<RecoveryJobInput> = {
+    delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
+  };
+  if (payload.grantId !== undefined) {
+    recovery.grantId = payload.grantId;
+  }
+  claimInput.recovery = recovery;
+  if (existingBrief !== undefined) {
+    claimInput.storedBrief = { pickedUpAt };
+  }
+  if (payload.grantId === undefined) {
+    claimInput.entrySync = { delaySeconds: ENTRY_SYNC_DELAY_SECONDS };
+  }
+  return claimInput;
 }
 
 /**
@@ -278,18 +299,28 @@ interface CappedEntryFacts {
   readonly resetsAt: Date;
   /** A large run's refusal; absent when the run's claim met the cap. */
   readonly units?: GenerationUnitsParams;
+  /** The status the capped claim left on the row; a row read otherwise just before the post stands it down. */
+  readonly endedStatus?: GenerationStatus;
 }
 
 type CappedEntryInputs = Pick<
   SpendGateInputs,
-  "deps" | "prRow" | "entryCommentManager" | "existingBrief" | "watch" | "log"
+  | "deps"
+  | "projection"
+  | "target"
+  | "prRow"
+  | "entryCommentManager"
+  | "existingBrief"
+  | "watch"
+  | "log"
 >;
 
 /**
  * UPDATE ONLY: a capped PR never gets an Entry comment created for it, the
  * cap must not make MergeBrief louder on a thread than it was. A stored brief
  * still owes its ready Entry, which the caller posts. A post that fails, or
- * stands down on an unread head, queues the head's sync.
+ * stands down on an unread head, queues the head's sync. A trigger that moved
+ * the claim's end before the post leaves the thread to its own run.
  */
 async function updateCappedEntry(
   payload: ParsedGeneratePayload,
@@ -316,6 +347,12 @@ async function updateCappedEntry(
     await queueEntrySync({ deps, payload, log });
     return;
   }
+  if (!(await isEndStillStanding(inputs, facts.endedStatus))) {
+    log.info(
+      "generate: the row left the capped end, the capped Entry stands down",
+    );
+    return;
+  }
 
   const cappedBody = buildEntryCommentCappedBody(deps.translate, {
     publicBaseUrl: deps.publicBaseUrl,
@@ -329,32 +366,41 @@ async function updateCappedEntry(
   await queueEntrySyncOnLostWrite({ deps, payload, log }, write);
 }
 
+/** Absent `endedStatus` stands; otherwise the row must still read it. */
+async function isEndStillStanding(
+  inputs: Pick<CappedEntryInputs, "projection" | "target">,
+  endedStatus: GenerationStatus | undefined,
+): Promise<boolean> {
+  if (endedStatus === undefined) {
+    return true;
+  }
+  const current = await inputs.projection.get(inputs.target);
+  return current?.status === endedStatus;
+}
+
+/** The claim settled a stored brief's row, or left it to a later trigger: no capped Entry. */
+const CAPPED_END_STATUSES: Partial<Record<ClaimEnd, GenerationStatus>> = {
+  [ClaimEnds.MARKED]: GenerationStatuses.CAPPED,
+  [ClaimEnds.KEPT_FAILED]: GenerationStatuses.FAILED,
+};
+
 async function recordCappedRun(
   payload: ParsedGeneratePayload,
   inputs: SpendGateInputs,
+  claim: CappedClaim,
   facts: CappedRunFacts,
 ): Promise<void> {
-  const { projection, target, repoSlug, existingBrief, pickedUpAt, log } =
-    inputs;
+  const { repoSlug, log } = inputs;
   log.warn("generate: daily generation cap reached, skipping this run", {
     evt: "spend.cap.trip",
     repo: repoSlug,
     cap: facts.cap,
     dayUtc: facts.dayUtc,
   });
-  await updateCappedEntry(payload, inputs, facts);
 
-  // A claimed run over a stored brief: the brief stands, only its follow-on
-  // work was capped.
-  if (existingBrief !== undefined) {
-    await projection.settleStoredBrief(target, pickedUpAt);
+  const endedStatus = CAPPED_END_STATUSES[claim.end];
+  if (endedStatus === undefined) {
     return;
   }
-  // Do NOT overwrite a `failed` row: an at-cap graphile retry lands here
-  // with the previous attempt's real failure recorded, and stamping
-  // `capped` over it would erase why the job actually broke.
-  const current = await projection.get(target);
-  if (current?.status !== GenerationStatuses.FAILED) {
-    await projection.markCapped(target);
-  }
+  await updateCappedEntry(payload, inputs, { ...facts, endedStatus });
 }

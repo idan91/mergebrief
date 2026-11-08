@@ -1,13 +1,15 @@
 import {
+  ClaimEnds,
   ClaimOutcomes,
   createIngestRoutines,
   type BriefSpanRow,
   type ClaimRunOutcome,
+  type ExhaustedClaim,
   type GenerationProjection,
   type GenerationRow,
   type GenerationTarget,
 } from "persistence";
-import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { GenerationStatuses } from "types/generations";
 import { DEFAULT_HEAD_POLL_INTERVAL_MS } from "../consts";
 import { RunDecisionKinds, type RunContext, type RunDecision } from "../types";
 import { buildAttemptFields } from "../utils";
@@ -15,7 +17,6 @@ import {
   buildAfterLeaseRequest,
   scheduleClaimRecovery,
 } from "./claim-recovery";
-import { queueEntrySync } from "./entry-sync";
 import { postFailedEntry } from "./failed-entry";
 import { listRunStops, traceRunStep } from "./step-span";
 import { applySpendGate, refuseAtCap } from "./spend-gate";
@@ -67,7 +68,7 @@ export async function decideRun(context: RunContext): Promise<RunDecision> {
     await followHolder(context, claim.leaseRemainingMs);
   }
   if (claim.kind === ClaimOutcomes.EXHAUSTED) {
-    await settleExhaustedRun(context, claim.claims);
+    await announceExhaustedRun(context, claim);
   }
   return decideFromClaim(context, claim);
 }
@@ -98,38 +99,27 @@ async function decideUnclaimedStoredBriefRun(
 
 /**
  * The head's paid attempts since its last trigger are spent, and the job ends
- * without a retry. A stored brief settles the row; otherwise it ends `failed`
- * as `attempts-exhausted`, keeping a failure already there, and the failed
- * Entry names the failure the row keeps, its sync queued first.
+ * without a retry. The claim already ended the row with its Entry sync: a
+ * failure it wrote or kept posts the failed Entry for the code it names,
+ * unless a trigger moved the row before the post.
  */
-async function settleExhaustedRun(
+async function announceExhaustedRun(
   context: RunContext,
-  claims: number,
+  claim: ExhaustedClaim,
 ): Promise<void> {
-  const { projection, target, existingBrief, pickedUpAt, projected, log } =
-    context;
-  log.error(
+  context.log.error(
     "generate: the head's attempts are spent, ending the run without a retry",
-    { evt: "job.retries.exhausted", ...buildAttemptFields(claims) },
+    { evt: "job.retries.exhausted", ...buildAttemptFields(claim.claims) },
   );
 
-  if (existingBrief !== undefined) {
-    await projection.settleStoredBrief(target, pickedUpAt);
+  const endsFailed =
+    claim.end === ClaimEnds.MARKED || claim.end === ClaimEnds.KEPT_FAILED;
+  if (!endsFailed || claim.errorCode === undefined) {
     return;
   }
-  await queueEntrySync(context);
-  const exhausted = { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED };
-  if (projected?.status !== GenerationStatuses.FAILED) {
-    const marked = await projection.markFailed(target, exhausted);
-    if (marked.ok) {
-      await postFailedEntry({ scope: context, context }, exhausted.code);
-    }
-    return;
-  }
-  await postFailedEntry(
-    { scope: context, context },
-    projected.errorCode ?? exhausted.code,
-  );
+  await postFailedEntry({ scope: context, context }, claim.errorCode, {
+    requiresFailedRow: true,
+  });
 }
 
 /**

@@ -1383,7 +1383,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("keeps failed prior generations undamped because no brief exists", async () => {
       await trigger();
-      await harness.raw("update generation set status = 'failed'");
+      await harness.raw(
+        "update generation set status = 'failed', error_code = 'unknown'",
+      );
       await harness.raw("delete from graphile_worker.jobs");
       const before = Date.now();
       await trigger({

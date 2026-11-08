@@ -486,7 +486,7 @@ describe("generate task, a revision span GitHub fails to serve", () => {
     await claimTestRun(projection, makeTarget(second.pr, HEAD_2));
     await harness.raw("update graphile_worker.jobs set locked_at = now()");
     await harness.raw(
-      "update generation set lease_expires_at = now() - interval '1 second'",
+      "update generation set lease_expires_at = now() - interval '1 second' where run_id is not null",
     );
     github.failOn("fetchCheckedCompareDiff", FakeFailures.SERVER_ERROR);
 

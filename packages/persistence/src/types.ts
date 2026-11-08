@@ -62,6 +62,20 @@ export type DeliveryId = Brand<string, "DeliveryId">;
 /** Lowercase hex SHA-256 of a verified `X-Hub-Signature-256` header. */
 export type WebhookSignatureDigest = Brand<string, "WebhookSignatureDigest">;
 
+/**
+ * A `timestamptz` the database clock read, as UTC ISO text to the microsecond:
+ * a JS `Date` keeps milliseconds only, so a fence compared through one would
+ * pass a row written in the same millisecond after it.
+ */
+export type DatabaseTimestamp = Brand<string, "DatabaseTimestamp">;
+
+const DATABASE_TIMESTAMP_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+
+export function isDatabaseTimestamp(value: string): value is DatabaseTimestamp {
+  return DATABASE_TIMESTAMP_PATTERN.test(value);
+}
+
 /** Each pattern's source must read the same as a POSIX regex: a CHECK reuses it. */
 export const DELIVERY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 export const WEBHOOK_SIGNATURE_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
@@ -124,16 +138,29 @@ export const ClaimOutcomes = {
   CLAIMED: "claimed",
   /** Another run's lease is live; nothing was written. */
   HELD: "held",
-  /** The day's attempts reached the cap; nothing was written. */
+  /** The day's attempts reached the cap; the claim wrote the row's end instead, its `ClaimEnd`. */
   CAPPED: "capped",
   /** The row already succeeded; there is nothing to claim. */
   FINISHED: "finished",
   /** The head waits for a collaborator's trigger approval; nothing was written. */
   AWAITING_TRIGGER: "awaiting-trigger",
-  /** The head's paid attempts since its last trigger are spent; nothing was written. */
+  /** The head's paid attempts since its last trigger are spent; the claim wrote the row's end instead, its `ClaimEnd`. */
   EXHAUSTED: "exhausted",
 } as const;
 export type ClaimOutcome = ValueOf<typeof ClaimOutcomes>;
+
+/** What a capped or exhausted claim did to the row, in its own transaction. */
+export const ClaimEnds = {
+  /** Wrote the end: `failed` as `attempts-exhausted`, or `capped`. */
+  MARKED: "marked",
+  /** The row had already failed, and keeps that failure. */
+  KEPT_FAILED: "kept-failed",
+  /** The pair's brief is stored, so the row is `succeeded`. */
+  SETTLED: "settled",
+  /** Over a stored brief, the row was written after the run's pickup or a previous release's run holds it; it is left to that writer. */
+  LEFT: "left",
+} as const;
+export type ClaimEnd = ValueOf<typeof ClaimEnds>;
 
 /** graphile's `job_key_mode` for an `add_job` on a key that already has a job. */
 export const JobKeyModes = {

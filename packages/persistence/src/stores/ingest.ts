@@ -35,10 +35,9 @@ import {
   type PullRequestUpsertInput,
 } from "./tenant";
 import {
+  addEntrySyncJob,
   addQueueJob,
   buildJobPayload,
-  ENTRY_SYNC_MAX_ATTEMPTS,
-  getEntrySyncJobKey,
   getRecoveryJobKey,
   readQueueJob,
 } from "./queue";
@@ -843,14 +842,13 @@ export function createIngestRoutines(
           return { queued: false };
         }
 
-        await addQueueJob(tx, {
-          identifier: QueueTasks.SYNC_ENTRY,
-          payload: buildJobPayload(scope, undefined, pullRequestId, headSha),
-          key: getEntrySyncJobKey(pullRequestId, headSha),
-          delaySeconds: input.delaySeconds,
-          keyMode: JobKeyModes.REPLACE,
-          maxAttempts: ENTRY_SYNC_MAX_ATTEMPTS,
-        });
+        await addEntrySyncJob(
+          tx,
+          scope,
+          pullRequestId,
+          headSha,
+          input.delaySeconds,
+        );
         return { queued: true };
       });
     },

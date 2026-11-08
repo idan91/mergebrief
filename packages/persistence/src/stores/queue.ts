@@ -5,7 +5,7 @@
 import { sql } from "drizzle-orm";
 import { readActiveTraceparent } from "logging";
 import type { AppDrizzle } from "../db/handle";
-import type { GrantRowId, JobKeyMode } from "../types";
+import { JobKeyModes, type GrantRowId, type JobKeyMode } from "../types";
 import type { RowScope } from "./scope";
 import {
   QueueTasks,
@@ -121,6 +121,24 @@ export async function addQueueJob(
       job_key_mode => ${job.keyMode}
     )
   `);
+}
+
+/** The one Entry sync shape: keyed per head, replacing a pending one, on its own attempt budget. */
+export async function addEntrySyncJob(
+  executor: QueueExecutor,
+  scope: RowScope,
+  pullRequestId: bigint,
+  headSha: string,
+  delaySeconds: number,
+): Promise<void> {
+  await addQueueJob(executor, {
+    identifier: QueueTasks.SYNC_ENTRY,
+    payload: buildJobPayload(scope, undefined, pullRequestId, headSha),
+    key: getEntrySyncJobKey(pullRequestId, headSha),
+    delaySeconds,
+    keyMode: JobKeyModes.REPLACE,
+    maxAttempts: ENTRY_SYNC_MAX_ATTEMPTS,
+  });
 }
 
 /** Where one keyed job stands, judged by the database clock. */

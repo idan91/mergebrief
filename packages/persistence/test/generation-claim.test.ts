@@ -4,10 +4,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ChargeOutcomes,
+  ClaimEnds,
   ClaimOutcomes,
   createGenerationProjection,
   createTenantRepository,
   GenerationErrorCodes,
+  type ClaimRunInput,
   type ClaimRunOutcome,
   type GenerationError,
   type GenerationProjection,
@@ -17,6 +19,7 @@ import { succeedTestRun, type PgliteHarness } from "../src/testing";
 import {
   isInstallationId,
   isRepoId,
+  type DatabaseTimestamp,
   type PullRequestRowId,
 } from "../src/types";
 import {
@@ -43,6 +46,7 @@ const WINDOW = {
   to: new Date("2100-01-01T00:00:00.000Z"),
 };
 const HEAD = "head";
+const ENTRY_SYNC_DELAY_SECONDS = 5;
 const FAILED_RUN = {
   status: GenerationStatuses.FAILED,
   failure: { code: GenerationFailureCodes.UNKNOWN, params: { detail: "boom" } },
@@ -106,9 +110,32 @@ async function claim(
   return unwrap(await world.gen.claimRun({ ...input, cap }));
 }
 
-/** A pickup time after every row write the test made. */
-function readLater(): Date {
-  return new Date(Date.now() + LEASE_SLACK_MS);
+/** A claim as the worker makes it: the Entry sync named, and the stored brief when the run stands on one. */
+async function claimAsRun(
+  world: ClaimWorld,
+  extra: Partial<ClaimRunInput> = {},
+): Promise<ClaimRunOutcome> {
+  return unwrap(
+    await world.gen.claimRun({
+      target: world.target,
+      leaseMs: LEASE_MS,
+      entrySync: { delaySeconds: ENTRY_SYNC_DELAY_SECONDS },
+      ...WINDOW,
+      ...extra,
+    }),
+  );
+}
+
+async function listJobKeys(world: ClaimWorld): Promise<unknown[]> {
+  const jobs = await world.harness.raw(
+    "select key from graphile_worker.jobs order by id",
+  );
+  return jobs.map((job) => job["key"]);
+}
+
+/** A pickup after every row write the test made, on the database clock. */
+async function readLater(world: ClaimWorld): Promise<DatabaseTimestamp> {
+  return world.gen.readClock();
 }
 
 async function expireLease(world: ClaimWorld): Promise<void> {
@@ -179,17 +206,87 @@ describe("claimRun", () => {
     expect((await world.gen.get(world.target))?.runId).toBe(second);
   });
 
-  it("refuses at the cap, reports the count and leaves the row", async () => {
+  it("a capped claim ends the row capped unless it failed", async () => {
     const world = await makeClaimWorld();
     const runId = readRunId(await claim(world));
     unwrap(await world.gen.finishRun(world.target, runId, FAILED_RUN));
 
-    const refused = await claim(world, 1);
+    const keptFailed = await claimAsRun(world, { cap: 1 });
 
-    expect(refused).toEqual({ kind: ClaimOutcomes.CAPPED, startedRuns: 1 });
+    expect(keptFailed).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
+      end: ClaimEnds.KEPT_FAILED,
+      errorCode: GenerationFailureCodes.UNKNOWN,
+    });
+    expect((await world.gen.get(world.target))?.status).toBe(
+      GenerationStatuses.FAILED,
+    );
+    expect(await listJobKeys(world)).not.toContain(
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    );
+
+    await world.gen.upsertPending(world.target);
+    const marked = await claimAsRun(world, { cap: 1 });
+
+    expect(marked).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
+      end: ClaimEnds.MARKED,
+    });
     const row = await world.gen.get(world.target);
-    expect(row?.status).toBe(GenerationStatuses.FAILED);
-    expect(row?.runId).toBeNull();
+    expect(row?.status).toBe(GenerationStatuses.CAPPED);
+    expect(row?.errorCode).toBeNull();
+    expect(row?.phase).toBeNull();
+    expect(await countAttemptRows(world)).toBe(1);
+    expect(await listJobKeys(world)).toContain(
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    );
+  });
+
+  it("a capped claim over a stored brief settles the row", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+    unwrap(await world.gen.finishRun(world.target, runId, FAILED_RUN));
+
+    const settled = await claimAsRun(world, {
+      cap: 1,
+      storedBrief: { pickedUpAt: await readLater(world) },
+    });
+
+    expect(settled).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
+      end: ClaimEnds.SETTLED,
+    });
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(row?.errorCode).toBeNull();
+  });
+
+  it("a capped claim leaves a row re-projected after its pickup", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+    unwrap(await world.gen.finishRun(world.target, runId, FAILED_RUN));
+    const pickedUpAt = await world.gen.readClock();
+    await world.gen.upsertPending(world.target);
+
+    const left = await claimAsRun(world, {
+      cap: 1,
+      storedBrief: { pickedUpAt },
+    });
+
+    expect(left).toEqual({
+      kind: ClaimOutcomes.CAPPED,
+      startedRuns: 1,
+      end: ClaimEnds.LEFT,
+    });
+    expect((await world.gen.get(world.target))?.status).toBe(
+      GenerationStatuses.PENDING,
+    );
+    expect(await listJobKeys(world)).not.toContain(
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    );
   });
 
   it("reports finished on a succeeded row", async () => {
@@ -230,10 +327,11 @@ describe("claimRun attempt budget and recovery job", () => {
     expect(await claim(world)).toEqual({
       kind: ClaimOutcomes.EXHAUSTED,
       claims: 3,
+      end: ClaimEnds.MARKED,
+      errorCode: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
     });
     expect(await countAttemptRows(world)).toBe(3);
 
-    unwrap(await world.gen.markFailed(world.target, FAILED_RUN.failure));
     await world.gen.upsertPending(world.target);
     expect((await claim(world)).kind).toBe(ClaimOutcomes.CLAIMED);
   });
@@ -254,21 +352,73 @@ describe("claimRun attempt budget and recovery job", () => {
     expect(numbers).toEqual([1, 2, 3]);
   });
 
-  it("an exhausted head ends failed with attempts-exhausted", async () => {
+  it("an exhausted claim ends the row failed in the claim's write", async () => {
     const world = await makeClaimWorld();
     await claimThrice(world);
-    expect((await claim(world)).kind).toBe(ClaimOutcomes.EXHAUSTED);
+    const keysBefore = await listJobKeys(world);
 
-    const failed = unwrap(
-      await world.gen.markFailed(world.target, {
-        code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
-      }),
+    const exhausted = await claimAsRun(world);
+
+    expect(exhausted).toEqual({
+      kind: ClaimOutcomes.EXHAUSTED,
+      claims: 3,
+      end: ClaimEnds.MARKED,
+      errorCode: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+    });
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    expect(row?.errorParams).toBeNull();
+    expect(row?.runId).toBeNull();
+    expect(row?.leaseExpiresAt).toBeNull();
+    expect(await listJobKeys(world)).toEqual([
+      ...keysBefore,
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    ]);
+  });
+
+  it("an exhausted claim keeps an earlier failure", async () => {
+    const world = await makeClaimWorld();
+    await claimThrice(world);
+    await world.harness.raw(
+      "update generation set status = 'failed', error_code = 'provider-timeout', run_id = null, lease_expires_at = null",
     );
 
-    expect(failed.status).toBe(GenerationStatuses.FAILED);
-    expect(failed.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
-    expect(failed.errorParams).toBeNull();
-    expect(failed.runId).toBeNull();
+    const exhausted = await claimAsRun(world);
+
+    expect(exhausted).toEqual({
+      kind: ClaimOutcomes.EXHAUSTED,
+      claims: 3,
+      end: ClaimEnds.KEPT_FAILED,
+      errorCode: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.PROVIDER_TIMEOUT);
+    expect(await listJobKeys(world)).toContain(
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    );
+  });
+
+  it("an exhausted claim over a stored brief settles the row", async () => {
+    const world = await makeClaimWorld();
+    await claimThrice(world);
+
+    const exhausted = await claimAsRun(world, {
+      storedBrief: { pickedUpAt: await readLater(world) },
+    });
+
+    expect(exhausted).toEqual({
+      kind: ClaimOutcomes.EXHAUSTED,
+      claims: 3,
+      end: ClaimEnds.SETTLED,
+    });
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(row?.runId).toBeNull();
+    expect(await listJobKeys(world)).toContain(
+      `sync-entry:${world.pullRequestId}:${HEAD}`,
+    );
   });
 
   it("queues the head's recovery job in the claim's transaction", async () => {
@@ -706,7 +856,7 @@ describe("settleStoredBrief", () => {
     );
 
     expect(
-      await world.gen.settleStoredBrief(world.target, new Date()),
+      await world.gen.settleStoredBrief(world.target, await readLater(world)),
     ).toBeUndefined();
     expect((await world.gen.get(world.target))?.status).toBe(
       GenerationStatuses.PENDING,
@@ -722,7 +872,7 @@ describe("settleStoredBrief", () => {
 
     const settled = await world.gen.settleStoredBrief(
       world.target,
-      readLater(),
+      await readLater(world),
     );
 
     expect(settled?.status).toBe(GenerationStatuses.SUCCEEDED);
@@ -730,17 +880,16 @@ describe("settleStoredBrief", () => {
     expect(settled?.errorParams).toBeNull();
   });
 
-  it("leaves a failed row a live lease holds", async () => {
+  it("leaves a row a live lease holds", async () => {
     const world = await makeClaimWorld();
-    readRunId(await claim(world));
-    await world.harness.raw("update generation set status = 'failed'");
+    const runId = readRunId(await claim(world));
 
     expect(
-      await world.gen.settleStoredBrief(world.target, readLater()),
+      await world.gen.settleStoredBrief(world.target, await readLater(world)),
     ).toBeUndefined();
-    expect((await world.gen.get(world.target))?.status).toBe(
-      GenerationStatuses.FAILED,
-    );
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
+    expect(row?.runId).toBe(runId);
   });
 
   it("settles a released pending row and leaves a succeeded one", async () => {
@@ -748,12 +897,12 @@ describe("settleStoredBrief", () => {
 
     const settled = await world.gen.settleStoredBrief(
       world.target,
-      readLater(),
+      await readLater(world),
     );
 
     expect(settled?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(
-      await world.gen.settleStoredBrief(world.target, readLater()),
+      await world.gen.settleStoredBrief(world.target, await readLater(world)),
     ).toBeUndefined();
   });
 
@@ -762,7 +911,7 @@ describe("settleStoredBrief", () => {
     await world.harness.raw("update generation set status = 'running'");
 
     expect(
-      await world.gen.settleStoredBrief(world.target, readLater()),
+      await world.gen.settleStoredBrief(world.target, await readLater(world)),
     ).toBeUndefined();
   });
 });
@@ -781,7 +930,7 @@ describe("supersedeStaleBriefs and the claim", () => {
     const swept = await world.gen.supersedeStaleBriefs(
       world.pullRequestId,
       "current",
-      new Date(),
+      await world.gen.readClock(),
     );
 
     expect(swept).toBe(0);

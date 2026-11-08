@@ -5,7 +5,7 @@ import {
   createGenerationProjection,
   type PullRequestRow,
 } from "persistence";
-import { GenerationStatuses } from "types/generations";
+import { GenerationStatuses, type GenerationStatus } from "types/generations";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import { RepoConfigPaths } from "repo-config";
@@ -302,6 +302,24 @@ describe("generate task, daily generation cap", () => {
     ).toBeDefined();
   });
 
+  it("a moved-base run at the cap ends its own row capped", async () => {
+    const { pr, payload } = await burnOneRun();
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { baseSha: "d".repeat(40) });
+    const generator = stubGenerator();
+
+    await makeTask({ generator, github, spend: { maxGenerationsPerDay: 1 } })(
+      payload,
+    );
+
+    expect(generator.calls).toEqual([]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.CAPPED);
+    expect(row?.runId).toBeNull();
+  });
+
   it("a failure over a stored brief leaves the row succeeded", async () => {
     const { pr, payload } = await burnOneRun();
     const github = makeGitHub(HEAD_1);
@@ -318,9 +336,11 @@ describe("generate task, daily generation cap", () => {
   });
 
   /** The row a shutdown or an earlier failure left beside the stored brief. */
-  async function unsettleRow(status: string): Promise<void> {
+  async function unsettleRow(status: GenerationStatus): Promise<void> {
+    const errorCode = status === GenerationStatuses.FAILED ? "unknown" : null;
     await harness.raw(
-      `update generation set status = '${status}' where head_sha = '${HEAD_1}'`,
+      "update generation set status = $1, error_code = $2 where head_sha = $3",
+      [status, errorCode, HEAD_1],
     );
   }
 
@@ -468,6 +488,43 @@ describe("generate task, daily generation cap", () => {
     expect(body).toContain("reached its daily generation cap");
     expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7`);
     expect(body).toContain(HEAD_2.slice(0, 7));
+  });
+
+  it("the capped Entry stands down after a trigger reset", async () => {
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const github = makeGitHub(HEAD_2);
+    const prRow = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
+    const liveId = prRow?.entryCommentId;
+    if (liveId === null || liveId === undefined) {
+      throw new Error("no entry comment to update");
+    }
+    github.addComment(REPO, liveId, "the ready body from the previous run");
+    let reads = 0;
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequest(prNumber) {
+        const read = await client.fetchPullRequest(prNumber);
+        reads += 1;
+        if (reads === 2) {
+          await trigger(HEAD_2);
+        }
+        return read;
+      },
+    }));
+
+    await makeTask({ github, spend: { maxGenerationsPerDay: 1 } })(payload);
+
+    expect([...github.readComments(REPO).values()]).toEqual([
+      "the ready body from the previous run",
+    ]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
   });
 
   it("at the cap with NO Entry comment: creates none", async () => {

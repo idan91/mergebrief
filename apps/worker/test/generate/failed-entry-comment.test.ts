@@ -10,6 +10,7 @@ import {
 } from "generators";
 import {
   createGenerationProjection,
+  createIngestRoutines,
   createTenantRepository,
   parseScopeContext,
 } from "persistence";
@@ -151,6 +152,26 @@ async function takeOverEntryComment(
     seen: tracked?.entryCommentId ?? null,
     next: NEWER_COMMENT_ID,
   });
+}
+
+/** A collaborator's Generate click landing during the run's Entry post head read. */
+function regenerateOnPostHeadRead(
+  github: FakeGitHub,
+  pr: TriggeredPullRequest,
+): void {
+  let reads = 0;
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async fetchPullRequest(prNumber) {
+      const read = await client.fetchPullRequest(prNumber);
+      reads += 1;
+      if (reads === 2) {
+        const ingest = createIngestRoutines(harness.handle, ctx);
+        await ingest.triggerOnDemand({ pullRequestId: pr.id });
+      }
+      return read;
+    },
+  }));
 }
 
 const SAME_HEAD_COMMENT_ID = 9_002n;
@@ -556,6 +577,25 @@ describe("generate task, failed Entry comment", () => {
     expect(readLiveBodies(github)).toEqual([
       buildFailedBody(HEAD_1, GenerationFailureCodes.ATTEMPTS_EXHAUSTED),
     ]);
+  });
+
+  it("the exhausted failed Entry stands down after a regenerate", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      "update generation set status = 'running', run_id = $1, claims = 3, lease_expires_at = now() - interval '1 second'",
+      [HOLDER_RUN_ID],
+    );
+    const github = makeGitHub(HEAD_1);
+    regenerateOnPostHeadRead(github, pr);
+    const generator = stubGenerator();
+
+    await makeRecoveryTask({ github, generator })(payload, {
+      job: FIRST_ATTEMPT,
+    });
+
+    expect(generator.calls).toEqual([]);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.PENDING);
+    expect(readLiveBodies(github)).toEqual([]);
   });
 
   it("a spent head over a failed row posts the row's own code", async () => {

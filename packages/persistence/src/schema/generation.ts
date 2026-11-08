@@ -33,7 +33,7 @@ import {
   type GenerationPhase,
   type GenerationStatus,
 } from "types/generations";
-import { isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
+import { differsFrom, isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
 import { jsonDocument, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -92,9 +92,10 @@ export const generation = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Every write stamps the database clock at its statement, `clock_timestamp()`. */
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .default(sql`clock_timestamp()`),
   },
   (table) => {
     const briefKind = isOneOf(table.kind, [GenerationKinds.BRIEF]);
@@ -102,6 +103,8 @@ export const generation = pgTable(
       GenerationKinds.DELTA,
       GenerationKinds.REVISION_NARRATIVE,
     ]);
+    const notFailed = differsFrom(table.status, GenerationStatuses.FAILED);
+    const running = isOneOf(table.status, [GenerationStatuses.RUNNING]);
 
     return [
       unique("generation_natural_key")
@@ -134,6 +137,18 @@ export const generation = pgTable(
       check(
         "generation_kind_baseline_shape",
         sql`(${briefKind} and ${table.baselineSha} is null) or (${baselinedKind} and ${table.baselineSha} is not null)`,
+      ),
+      check(
+        "generation_failed_has_code",
+        sql`${notFailed} or ${table.errorCode} is not null`,
+      ),
+      check(
+        "generation_claim_has_lease",
+        sql`(${table.runId} is null) = (${table.leaseExpiresAt} is null)`,
+      ),
+      check(
+        "generation_claim_is_running",
+        sql`${table.runId} is null or ${running}`,
       ),
     ];
   },

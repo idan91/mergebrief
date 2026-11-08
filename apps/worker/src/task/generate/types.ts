@@ -27,6 +27,7 @@ import type {
   AuditEntry,
   BriefRowId,
   BriefSpanRow,
+  DatabaseTimestamp,
   GenerationFailure,
   GenerationPartStore,
   GenerationProjection,
@@ -503,8 +504,8 @@ export interface RunScope extends RunStart {
   readonly repoSlug: string;
   /** The generation row as pickup found it, before this run marked it. */
   readonly projected: GenerationRow | undefined;
-  /** Taken before the source opens; the stale-projection sweep counts from it. */
-  readonly pickedUpAt: Date;
+  /** The database clock before the source opens; the stale-projection sweep and every settle count from it. */
+  readonly pickedUpAt: DatabaseTimestamp;
   readonly source: PullRequestSource;
   readonly entryCommentManager: EntryCommentManager;
 }
@@ -665,7 +666,7 @@ export interface SpendGateInputs {
   readonly recovering: boolean;
   /** The pair's stored brief, when a claimed run stands on one. */
   readonly existingBrief: BriefSpanRow | undefined;
-  readonly pickedUpAt: Date;
+  readonly pickedUpAt: DatabaseTimestamp;
   readonly prRow: PullRequestRow;
   /** The row's slug after the usable-slug guard narrowed it. */
   readonly repoSlug: string;

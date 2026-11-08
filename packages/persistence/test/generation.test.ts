@@ -18,6 +18,7 @@ import {
 import { PrStates } from "types/pull-requests";
 import {
   GenerationKinds,
+  isDatabaseTimestamp,
   isInstallationId,
   isRepoId,
   type InstallationId,
@@ -318,7 +319,11 @@ describe("createGenerationProjection status transitions", () => {
     await gen.upsertPending(current);
     await succeedTestRun(gen, current);
 
-    const swept = await gen.supersedeStaleBriefs(pr.id, "new-head", new Date());
+    const swept = await gen.supersedeStaleBriefs(
+      pr.id,
+      "new-head",
+      await gen.readClock(),
+    );
     expect(swept).toBe(1);
     const staleRow = await gen.get(stale);
     expect(staleRow?.status).toBe(GenerationStatuses.SUPERSEDED);
@@ -361,7 +366,7 @@ describe("createGenerationProjection status transitions", () => {
     // Both rows predate the pickup, so the sweep's write is the newest.
     await writeGenerationUpdatedAt(handle, stale, STALE_WRITTEN_AT);
     await writeGenerationUpdatedAt(handle, current, SUCCEEDED_AT);
-    const pickedUpAt = new Date();
+    const pickedUpAt = await gen.readClock();
     expect(await gen.supersedeStaleBriefs(pr.id, "new-head", pickedUpAt)).toBe(
       1,
     );
@@ -420,9 +425,13 @@ describe("createGenerationProjection status transitions", () => {
 });
 
 describe("supersedeStaleBriefs against the pickup time", () => {
-  const PICKED_UP_AT = new Date("2026-03-01T12:00:00.000Z");
-  const BEFORE_PICKUP = new Date(PICKED_UP_AT.getTime() - 1_000);
-  const AFTER_PICKUP = new Date(PICKED_UP_AT.getTime() + 1);
+  const PICKUP_TIME = new Date("2026-03-01T12:00:00.000Z");
+  const PICKED_UP_AT = brandWith(
+    isDatabaseTimestamp,
+    "2026-03-01T12:00:00.000000Z",
+  );
+  const BEFORE_PICKUP = new Date(PICKUP_TIME.getTime() - 1_000);
+  const AFTER_PICKUP = new Date(PICKUP_TIME.getTime() + 1);
   const HEAD_A = "head-a";
   const HEAD_B = "head-b";
 
@@ -503,7 +512,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
     await gen.upsertPending(headA);
     await succeedTestRun(gen, headA);
     await gen.upsertPending(headB);
-    await stampUpdatedAt(HEAD_B, PICKED_UP_AT);
+    await stampUpdatedAt(HEAD_B, PICKUP_TIME);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, HEAD_A, PICKED_UP_AT);
 

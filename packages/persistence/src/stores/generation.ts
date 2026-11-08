@@ -18,7 +18,6 @@ import {
   inArray,
   isNull,
   lt,
-  lte,
   ne,
   not,
   notInArray,
@@ -26,6 +25,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { PgColumn, PgUpdateSetSource } from "drizzle-orm/pg-core";
+import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { generationAttempt } from "../schema/generation-attempt";
@@ -33,6 +33,7 @@ import { pullRequest } from "../schema/pull-request";
 import { resolveScope, ScopeViolationError, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
+  addEntrySyncJob,
   addQueueJob,
   buildJobPayload,
   getRecoveryJobKey,
@@ -43,20 +44,27 @@ import { sanitizeErrorDetail } from "logging";
 import { traceStore } from "./trace-store";
 import {
   ChargeOutcomes,
+  ClaimEnds,
   ClaimOutcomes,
   GenerationKinds,
   JobKeyModes,
+  type ClaimEnd,
+  type DatabaseTimestamp,
+  isDatabaseTimestamp,
   type GenerationFailure,
   type GrantRowId,
   type PullRequestRowId,
 } from "../types";
 import {
+  GenerationFailureCodes,
   GenerationStatuses,
   QueueTasks,
   TakeoverJobStates,
+  type GenerationFailureCode,
   type GenerationPhase,
   type GenerationStatus,
   type GenerationUnitsParams,
+  type Mutable,
   type Result,
   type ValueOf,
 } from "types";
@@ -135,6 +143,10 @@ export interface ClaimRunInput extends CapWindow {
   readonly leaseMs: number;
   /** Queue the head's recovery job in the claim's transaction. */
   readonly recovery?: RecoveryJobInput;
+  /** The run stands on the pair's stored brief: an exhausted or capped claim settles the row. */
+  readonly storedBrief?: StoredBriefSettle;
+  /** Queue the head's Entry sync in the claim's transaction, with any end but a left row or a capped claim's kept failure. */
+  readonly entrySync?: EntrySyncJobInput;
 }
 
 export interface RecoveryJobInput {
@@ -142,6 +154,15 @@ export interface RecoveryJobInput {
   readonly delaySeconds: number;
   /** The url-box job's credential reference, as the claiming job carries it. */
   readonly grantId?: GrantRowId;
+}
+
+export interface StoredBriefSettle {
+  /** Only a row last written at or before it settles, as `settleStoredBrief` fences. */
+  readonly pickedUpAt: DatabaseTimestamp;
+}
+
+export interface EntrySyncJobInput {
+  readonly delaySeconds: number;
 }
 
 export interface ChargeRunInput extends CapWindow {
@@ -222,10 +243,27 @@ export type ClaimRunOutcome =
       /** Until the holder's lease lapses, by the database clock. */
       readonly leaseRemainingMs: number;
     }
-  | { readonly kind: typeof ClaimOutcomes.CAPPED; readonly startedRuns: number }
+  | CappedClaim
   | { readonly kind: typeof ClaimOutcomes.FINISHED }
   | { readonly kind: typeof ClaimOutcomes.AWAITING_TRIGGER }
-  | { readonly kind: typeof ClaimOutcomes.EXHAUSTED; readonly claims: number };
+  | ExhaustedClaim;
+
+/** The row's end a refused claim wrote under the row lock, so no trigger lands between the refusal and the end. */
+interface RefusedClaimEnd {
+  readonly end: ClaimEnd;
+  /** The failure the row ends on; absent unless it ends `failed`. */
+  readonly errorCode?: GenerationFailureCode;
+}
+
+export interface CappedClaim extends RefusedClaimEnd {
+  readonly kind: typeof ClaimOutcomes.CAPPED;
+  readonly startedRuns: number;
+}
+
+export interface ExhaustedClaim extends RefusedClaimEnd {
+  readonly kind: typeof ClaimOutcomes.EXHAUSTED;
+  readonly claims: number;
+}
 
 /** How a claimed run ends. */
 export type RunOutcome =
@@ -395,11 +433,11 @@ export interface GenerationProjection {
    * Claim the row in one transaction that reads it `FOR UPDATE`; with `cap`
    * set, under the instance advisory lock, so the cap is exact across slots
    * and processes (a ceiling, not fair share). `finished` on a succeeded row,
-   * `held` under a live lease, `exhausted` after `MAX_GENERATION_ATTEMPTS`
-   * claims since a trigger projected it, `capped` at the cap; otherwise a run
-   * id, a lease of `leaseMs` on the database clock, `running`, one more claim,
-   * one attempt row and, with `recovery`, the head's recovery job. A row that
-   * is gone is `claim-lost`: nobody holds a claim on it.
+   * `held` under a live lease; `exhausted` after `MAX_GENERATION_ATTEMPTS`
+   * claims since a trigger and `capped` at the cap write the row's end under
+   * the same lock, so a trigger lands wholly before or after it (`ClaimEnds`);
+   * otherwise a run id, a lease of `leaseMs`, `running`, one more claim, one
+   * attempt row and, with `recovery`, the head's recovery job. A gone row is `claim-lost`.
    */
   claimRun(
     input: ClaimRunInput,
@@ -499,7 +537,7 @@ export interface GenerationProjection {
    */
   settleStoredBrief(
     target: GenerationTarget,
-    pickedUpAt: Date,
+    pickedUpAt: DatabaseTimestamp,
   ): Promise<GenerationRow | undefined>;
   /**
    * The NEWEST brief-kind projection per PR (by `updated_at`), batched for the
@@ -533,8 +571,10 @@ export interface GenerationProjection {
   supersedeStaleBriefs(
     pullRequestId: PullRequestRowId,
     currentHeadSha: string,
-    pickedUpAt: Date,
+    pickedUpAt: DatabaseTimestamp,
   ): Promise<number>;
+  /** The database clock now, the pickup every `pickedUpAt` fence compares row writes with. */
+  readClock(): Promise<DatabaseTimestamp>;
   /**
    * The queued `generate` job for one PR in ctx's scope; `undefined` when the
    * queue holds none. Both answers are computed in SQL, so no `run_at` value
@@ -663,6 +703,24 @@ function computeLeaseEnd(leaseMs: number): SQL {
   return sql`now() + make_interval(secs => ${leaseMs / 1000})`;
 }
 
+const clockReadingSchema = z.object({
+  rows: z.tuple([z.object({ now: z.string() })]),
+});
+
+/**
+ * A row write's `updated_at`: the database clock at the statement, never the
+ * process clock or `now()`, the transaction's start, which a trigger holding
+ * the pull request's lock before it projects may have taken before a pickup.
+ */
+function stampWriteTime(): SQL {
+  return sql`clock_timestamp()`;
+}
+
+/** The row's last write is no later than `pickedUpAt`, both on the database clock. */
+function isWrittenBy(pickedUpAt: DatabaseTimestamp): SQL {
+  return sql`${generation.updatedAt} <= ${pickedUpAt}::timestamptz`;
+}
+
 /** A run holds the row and its lease has not lapsed, by the database clock. */
 function isLeaseLive(): SQL {
   return sql`(${generation.runId} is not null and ${generation.leaseExpiresAt} > now())`;
@@ -745,9 +803,30 @@ function buildTriggerReset(
     leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
     claims: keepWhileHeld(generation.claims, sql`0`),
     awaitsRecovery: keepWhileHeld(generation.awaitsRecovery, sql`false`),
-    updatedAt: new Date(),
+    updatedAt: stampWriteTime(),
   };
 }
+
+/** How a refused claim ends a row that neither settles nor already failed. */
+interface RefusedClaimMark {
+  readonly set: GenerationSet;
+  readonly errorCode?: GenerationFailureCode;
+  /** An earlier failure the row keeps still has its failed Entry synced. */
+  readonly syncsKeptFailure: boolean;
+}
+
+const EXHAUSTED_END: GenerationSet = {
+  ...CLAIM_CLEARED,
+  status: GenerationStatuses.FAILED,
+  phase: null,
+  errorCode: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+  errorParams: null,
+};
+
+const CAPPED_END: GenerationSet = {
+  ...TERMINAL_CLEARED,
+  status: GenerationStatuses.CAPPED,
+};
 
 /** A no-op write, so the conflict still returns the row as stored. */
 const KEEP_STORED_ROW: GenerationSet = { status: sql`${generation.status}` };
@@ -1000,7 +1079,7 @@ export function createGenerationProjection(
     const executor = options.executor ?? db;
     const write: GenerationSet = { ...set };
     if (options.keepUpdatedAt !== true) {
-      write.updatedAt = new Date();
+      write.updatedAt = stampWriteTime();
     }
     const rows = await executor
       .update(generation)
@@ -1129,6 +1208,96 @@ export function createGenerationProjection(
     return rows[0];
   }
 
+  /**
+   * A refused claim's end, under the claim's row lock: a stored brief settles
+   * the row, an earlier failure stays, anything else takes `mark`. The Entry
+   * sync is queued with it, so a worker dying before its own post still gets
+   * the Entry the row names; a settle's is the ready body, which an exhausted
+   * run never posts itself.
+   */
+  async function endRefusedClaim(
+    executor: GenerationExecutor,
+    input: ClaimRunInput,
+    current: Pick<GenerationRow, "status" | "errorCode">,
+    mark: RefusedClaimMark,
+  ): Promise<RefusedClaimEnd> {
+    const { target, storedBrief } = input;
+    if (storedBrief !== undefined) {
+      const settled = await settleRow(executor, target, storedBrief.pickedUpAt);
+      if (settled === undefined) {
+        return { end: ClaimEnds.LEFT };
+      }
+      await queueClaimEntrySync(executor, input);
+      return { end: ClaimEnds.SETTLED };
+    }
+
+    if (current.status === GenerationStatuses.FAILED) {
+      if (mark.syncsKeptFailure) {
+        await queueClaimEntrySync(executor, input);
+      }
+      const kept: Mutable<RefusedClaimEnd> = { end: ClaimEnds.KEPT_FAILED };
+      const errorCode = current.errorCode ?? mark.errorCode;
+      if (errorCode !== undefined) {
+        kept.errorCode = errorCode;
+      }
+      return kept;
+    }
+
+    await queueClaimEntrySync(executor, input);
+    const marked = await transition(target, mark.set, { executor });
+    if (!marked.ok) {
+      throw new Error(`generation ${target.headSha} vanished under its lock`);
+    }
+    const ended: Mutable<RefusedClaimEnd> = { end: ClaimEnds.MARKED };
+    if (mark.errorCode !== undefined) {
+      ended.errorCode = mark.errorCode;
+    }
+    return ended;
+  }
+
+  async function queueClaimEntrySync(
+    executor: GenerationExecutor,
+    input: ClaimRunInput,
+  ): Promise<void> {
+    const { target, entrySync } = input;
+    const writesNoEntry = entrySync === undefined || scope.ownerUserId !== null;
+    if (writesNoEntry) {
+      return;
+    }
+    await addEntrySyncJob(
+      executor,
+      scope,
+      target.pullRequestId,
+      target.headSha,
+      entrySync.delaySeconds,
+    );
+  }
+
+  /** A row no run holds that has not succeeded and was last written by `pickedUpAt` becomes `succeeded`. */
+  async function settleRow(
+    executor: GenerationExecutor,
+    target: GenerationTarget,
+    pickedUpAt: DatabaseTimestamp,
+  ): Promise<GenerationRow | undefined> {
+    const rows = await executor
+      .update(generation)
+      .set({
+        ...TERMINAL_CLEARED,
+        status: GenerationStatuses.SUCCEEDED,
+        updatedAt: stampWriteTime(),
+      })
+      .where(
+        and(
+          keyWhere(target),
+          ne(generation.status, GenerationStatuses.SUCCEEDED),
+          not(isProjectionHeld()),
+          isWrittenBy(pickedUpAt),
+        ),
+      )
+      .returning();
+    return rows[0];
+  }
+
   async function claimRow(
     executor: GenerationExecutor,
     input: ClaimRunInput,
@@ -1137,6 +1306,7 @@ export function createGenerationProjection(
     const found = await executor
       .select({
         status: generation.status,
+        errorCode: generation.errorCode,
         claims: generation.claims,
         leaseLive: sql<boolean>`${isLeaseLive()}`,
         leaseRemainingMs: computeLeaseRemainingMs(),
@@ -1165,14 +1335,30 @@ export function createGenerationProjection(
       };
     }
     if (current.claims >= MAX_GENERATION_ATTEMPTS) {
+      const ended = await endRefusedClaim(executor, input, current, {
+        set: EXHAUSTED_END,
+        errorCode: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+        syncsKeptFailure: true,
+      });
       return {
         ok: true,
-        value: { kind: ClaimOutcomes.EXHAUSTED, claims: current.claims },
+        value: {
+          kind: ClaimOutcomes.EXHAUSTED,
+          claims: current.claims,
+          ...ended,
+        },
       };
     }
     const startedRuns = await findCapReached(executor, input);
     if (startedRuns !== undefined) {
-      return { ok: true, value: { kind: ClaimOutcomes.CAPPED, startedRuns } };
+      const ended = await endRefusedClaim(executor, input, current, {
+        set: CAPPED_END,
+        syncsKeptFailure: false,
+      });
+      return {
+        ok: true,
+        value: { kind: ClaimOutcomes.CAPPED, startedRuns, ...ended },
+      };
     }
 
     const runId = randomUUID();
@@ -1546,23 +1732,7 @@ export function createGenerationProjection(
     },
 
     async settleStoredBrief(target, pickedUpAt) {
-      const rows = await db
-        .update(generation)
-        .set({
-          ...TERMINAL_CLEARED,
-          status: GenerationStatuses.SUCCEEDED,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            keyWhere(target),
-            ne(generation.status, GenerationStatuses.SUCCEEDED),
-            not(isProjectionHeld()),
-            lte(generation.updatedAt, pickedUpAt),
-          ),
-        )
-        .returning();
-      return rows[0];
+      return settleRow(db, target, pickedUpAt);
     },
 
     async latestBriefForPullRequests(pullRequestIds) {
@@ -1609,7 +1779,7 @@ export function createGenerationProjection(
         .set({
           ...TERMINAL_CLEARED,
           status: GenerationStatuses.SUPERSEDED,
-          updatedAt: new Date(),
+          updatedAt: stampWriteTime(),
         })
         .where(
           and(
@@ -1624,12 +1794,23 @@ export function createGenerationProjection(
               GenerationStatuses.PENDING,
               GenerationStatuses.RUNNING,
             ]),
-            lte(generation.updatedAt, pickedUpAt),
+            isWrittenBy(pickedUpAt),
             not(isLeaseLive()),
           ),
         )
         .returning({ id: generation.id });
       return rows.length;
+    },
+
+    async readClock() {
+      const result = await db.execute(
+        sql`select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as now`,
+      );
+      const now = clockReadingSchema.parse(result).rows[0].now;
+      if (!isDatabaseTimestamp(now)) {
+        throw new Error(`the database clock read as ${now}`);
+      }
+      return now;
     },
 
     async getGenerateJobTiming(pullRequestId) {
