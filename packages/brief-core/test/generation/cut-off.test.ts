@@ -38,8 +38,14 @@ function answerUnlessCut(cutLabels: readonly string[]) {
 
 /** The parts a run whose first batch was cut stores: the grouping, both halves and batch 2. */
 async function storeSplitRun(): Promise<Map<string, unknown>> {
+  return storeRunParts(["detail:1"]);
+}
+
+async function storeRunParts(
+  cutLabels: readonly string[],
+): Promise<Map<string, unknown>> {
   const stored = new Map<string, unknown>();
-  const generator = new FakeGenerator(answerUnlessCut(["detail:1"]));
+  const generator = new FakeGenerator(answerUnlessCut(cutLabels));
   await generateBrief(
     makeOptions(generator, {
       multiCallHooks: {
@@ -50,6 +56,19 @@ async function storeSplitRun(): Promise<Map<string, unknown>> {
     }),
   );
   return stored;
+}
+
+/** The `detail:<n>` numbers a run sent a whole or half call for, ascending. */
+function readSentDetailCalls(requests: readonly RecordedRequest[]): number[] {
+  const batches = new Set<number>();
+  for (const { label } of requests) {
+    const batch = /^detail:(\d+)/.exec(label)?.[1];
+    if (batch !== undefined) {
+      batches.add(Number(batch));
+    }
+  }
+
+  return [...batches].toSorted((left, right) => left - right);
 }
 
 describe("a cut detail call", () => {
@@ -180,6 +199,40 @@ describe("a cut detail call", () => {
     expect(brief.chunks).toHaveLength(91);
     expect(warnings.map((warning) => warning.kind)).toContain(
       GenerationWarningKinds.DETAIL_CALL_CUT,
+    );
+  });
+
+  describe("reports as missing exactly the detail calls a resume sends", () => {
+    it.each([
+      ["no part", ["detail:1"], ["detail:1:1", "detail:1:2"], [1]],
+      ["the whole batch", [], [], []],
+      ["both halves", ["detail:1"], [], []],
+      ["the head half only", ["detail:1"], ["detail:1:2"], [1]],
+      ["the tail half only", ["detail:1"], ["detail:1:1"], [1]],
+    ])(
+      "with %s stored for batch 1",
+      async (_state, cutLabels, droppedKeys, missing) => {
+        const stored = await storeRunParts(cutLabels);
+        for (const key of droppedKeys) {
+          stored.delete(key);
+        }
+        const plans: PlannedDetailCalls[] = [];
+        const generator = new FakeGenerator(answerUnlessCut([]));
+
+        await generateBrief(
+          makeOptions(generator, {
+            multiCallHooks: {
+              loadPart: async (key) => stored.get(key),
+              onGroupingDone: async (plan) => {
+                plans.push(plan);
+              },
+            },
+          }),
+        );
+
+        expect(plans.map((plan) => plan.missingDetailCalls)).toEqual([missing]);
+        expect(readSentDetailCalls(generator.requests)).toEqual(missing);
+      },
     );
   });
 

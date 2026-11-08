@@ -629,6 +629,10 @@ const JSON_NON_DEP_KEYS = new Set([
   "module",
   "types",
   "packageManager",
+  "repository",
+  "homepage",
+  "bugs",
+  "funding",
 ]);
 
 /** [package]/[project] metadata keys that are never dependency entries. */
@@ -649,11 +653,40 @@ const TOML_NON_DEP_KEYS = new Set([
   "rust-version",
   "requires-python",
   "dynamic",
+  "include",
+  "exclude",
+  "license-file",
+  "lints",
 ]);
 
 /** A value that looks like a version/range/source spec rather than text. */
 const VERSION_SHAPED =
-  /^(?:[\^~]|[<>]=?|==?|\d|\*|workspace:|npm:|file:|link:|git\+|git:|https?:\/\/)/;
+  /^(?:[\^~]|[<>]=?|==?|\d|\*|workspace:|catalog:|npm:|jsr:|file:|link:|portal:|patch:|github:|gitlab:|bitbucket:|gist:|git\+|git:|https?:\/\/)/;
+
+/** `serde.workspace = true`: a dependency, unless the field is package metadata. */
+const TOML_WORKSPACE_KEY = /^([\w-]+)\.workspace$/;
+
+/** `[dependencies.serde]`, `[target.'cfg(unix)'.dependencies.serde]`: the dependency named by its own sub-table. */
+const TOML_DEPENDENCY_SUBTABLE = /dependencies\.(?:"([^"]+)"|([\w-]+))$/;
+
+/**
+ * Added and removed entries must key the dependency, not its field: a sub-table
+ * keys every line by its name, a dotted `serde.features` by its first segment.
+ */
+function readTableDependencyName(
+  table: string,
+  key: string,
+): string | undefined {
+  const named = TOML_DEPENDENCY_SUBTABLE.exec(table);
+  const subTable = named?.[1] ?? named?.[2];
+  if (subTable !== undefined) {
+    return subTable;
+  }
+  if (!table.includes("dependencies")) {
+    return undefined;
+  }
+  return key.split(".")[0] ?? key;
+}
 
 /** Section context visible in the patch when a candidate line is scanned. */
 interface SectionContext {
@@ -697,10 +730,16 @@ function depKeyFromLine(
       const key = m[1] ?? "";
       const value = m[2] ?? "";
       if (ctx.tomlTable !== undefined) {
-        return ctx.tomlTable.includes("dependencies") ? key : undefined;
+        return readTableDependencyName(ctx.tomlTable, key);
       }
       if (TOML_NON_DEP_KEYS.has(key)) {
         return undefined;
+      }
+      const inherited = TOML_WORKSPACE_KEY.exec(key)?.[1];
+      if (inherited !== undefined) {
+        const inheritsDependency =
+          /^true\b/.test(value) && !TOML_NON_DEP_KEYS.has(inherited);
+        return inheritsDependency ? inherited : undefined;
       }
       const quoted = /^"([^"]*)"/.exec(value);
       if (quoted) {
@@ -782,6 +821,7 @@ function advanceJsonSection(
  * view" (context lines + that side's changed lines) drives both the line
  * counter, from each `@@` hunk header, and the section tracking, so a
  * `"scripts": {` opener in context correctly reclassifies the lines under it.
+ * Section state resets on every hunk, because the gap may open or close a section.
  */
 function collectDepEntries(
   patch: string,
@@ -800,6 +840,9 @@ function collectDepEntries(
     const hunk = HUNK_HEADER.exec(raw)?.groups;
     if (hunk) {
       lineNo = Number(side === "added" ? hunk["newStart"] : hunk["oldStart"]);
+      jsonSection = undefined;
+      tomlTable = undefined;
+      inPomDependencies = false;
       continue;
     }
     if (

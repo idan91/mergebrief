@@ -169,7 +169,10 @@ export interface MultiCallHooks {
   readonly onGroupingDone?: (plan: PlannedDetailCalls) => Promise<void>;
   /** Once, before the first detail call starts. */
   readonly onDetailStart?: () => Promise<void>;
-  /** A stored part's body for the key, or undefined; a body its schema no longer accepts is regenerated. */
+  /**
+   * A stored part's body for the key, or undefined; a body its schema no longer accepts is regenerated.
+   * A stored detail part is read only under a reused grouping.
+   */
   readonly loadPart?: (key: PartKey) => Promise<unknown>;
   /** After each fresh call's output parsed, with the body to store; never for a reused part. */
   readonly onPartDone?: (key: PartKey, body: unknown) => Promise<void>;

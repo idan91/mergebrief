@@ -409,6 +409,58 @@ describe("runHarnessProcess", () => {
     expect(result.stdout.length).toBeLessThanOrEqual(cap);
   });
 
+  it("keeps a consumer failure when a timer fires during the kill grace", async () => {
+    const boom = new Error("adapter parse failure");
+    // Both timers arm with the line, so the watchdog fires inside the grace;
+    // its window also runs from spawn, so it must outlast child startup.
+    const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
+      env: process.env,
+      command: process.execPath,
+      argv: [
+        "-e",
+        "process.on('SIGINT', () => {}); process.stdout.write('line\\n'); setInterval(() => {}, 60000)",
+      ],
+      stdin: "",
+      timeouts: { hardMs: 10_000, inactivityMs: 1200, killGraceMs: 1300 },
+      onStdoutLine: () => {
+        throw boom;
+      },
+    });
+
+    await expect(promise).rejects.toBe(boom);
+  });
+
+  it("keeps the overflow error when an abort lands during the kill grace", async () => {
+    const controller = new AbortController();
+    let abortScheduled = false;
+    // The flood passes the cap within a few chunks of its first line; the
+    // abort lands 600ms after that line, inside the 1500ms grace.
+    const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
+      env: process.env,
+      command: process.execPath,
+      argv: [
+        "-e",
+        "process.on('SIGINT', () => {}); const b = 'x'.repeat(65536) + '\\n'; setInterval(() => process.stdout.write(b), 5)",
+      ],
+      stdin: "",
+      timeouts: { hardMs: 10_000, inactivityMs: 10_000, killGraceMs: 1500 },
+      maxStdoutUnits: 256 * 1024,
+      signal: controller.signal,
+      onStdoutLine: () => {
+        if (abortScheduled) {
+          return;
+        }
+        abortScheduled = true;
+        setTimeout(() => controller.abort(new Error("late abort")), 600);
+      },
+    });
+
+    await expect(promise).rejects.toThrow(/stdout exceeded/);
+    expect(controller.signal.aborted).toBe(true);
+  });
+
   it("classifies spawn failures honestly: missing binary vs system failure", () => {
     const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
     expect(spawnFailureError("claude", enoent).kind).toBe(

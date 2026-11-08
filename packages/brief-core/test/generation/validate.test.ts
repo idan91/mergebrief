@@ -337,6 +337,31 @@ describe("validateRiskAttributes", () => {
         patch: '@@ -2,0 +3 @@\n+  "packageManager": "pnpm@9.0.0",',
         range: { start: 3, end: 3 },
       },
+      {
+        file: "package.json",
+        patch: '@@ -4,0 +5 @@\n+  "repository": "github:acme/app",',
+        range: { start: 5, end: 5 },
+      },
+      {
+        file: "Cargo.toml",
+        patch: "@@ -2,0 +3 @@\n+version.workspace = true",
+        range: { start: 3, end: 3 },
+      },
+      {
+        file: "Cargo.toml",
+        patch: "@@ -2,0 +3 @@\n+lints.workspace = true",
+        range: { start: 3, end: 3 },
+      },
+      {
+        file: "Cargo.toml",
+        patch: "@@ -2,0 +3 @@\n+lints = { workspace = true }",
+        range: { start: 3, end: 3 },
+      },
+      {
+        file: "package.json",
+        patch: '@@ -4,0 +5 @@\n+  "homepage": "https://acme.dev",',
+        range: { start: 5, end: 5 },
+      },
     ];
     for (const { file, patch, range } of cases) {
       const result = validateRiskAttributes(
@@ -387,6 +412,255 @@ describe("validateRiskAttributes", () => {
     expect(result.issues.some((i) => i.includes("c2"))).toBe(true);
     expect(result.issues.some((i) => i.includes("c1"))).toBe(false);
   });
+
+  it.each([
+    [
+      "confirms a dependency added in a later hunk after a scripts hunk",
+      {
+        file: "package.json",
+        patch: [
+          "@@ -5,2 +5,3 @@",
+          '   "scripts": {',
+          '     "build": "tsc",',
+          '+    "lint": "oxlint",',
+          "@@ -40,1 +41,2 @@",
+          '     "zod": "^3.25.0",',
+          '+    "left-pad": "^1.3.0",',
+        ],
+        line: 42,
+        expected: ["new-dependency"],
+      },
+    ],
+    [
+      "drops a later-hunk script that a dependencies hunk would carry",
+      {
+        file: "package.json",
+        patch: [
+          "@@ -10,2 +10,3 @@",
+          '   "dependencies": {',
+          '     "zod": "^3.25.0",',
+          '+    "left-pad": "^1.3.0",',
+          "@@ -30,1 +31,2 @@",
+          '     "build": "tsc",',
+          '+    "test": "vitest run",',
+        ],
+        line: 32,
+        expected: [],
+      },
+    ],
+    [
+      "drops later-hunk package metadata after a dependencies table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,3 @@",
+          " [workspace.dependencies]",
+          ' serde = "1.0"',
+          '+anyhow = "1"',
+          "@@ -30,1 +31,2 @@",
+          ' edition = "2021"',
+          '+rust-version = "1.80"',
+        ],
+        line: 32,
+        expected: [],
+      },
+    ],
+    [
+      "drops a later-hunk plugin artifactId after a dependencies hunk",
+      {
+        file: "pom.xml",
+        patch: [
+          "@@ -20,2 +20,3 @@",
+          "     <dependency>",
+          "       <groupId>org.slf4j</groupId>",
+          "+      <artifactId>slf4j-api</artifactId>",
+          "@@ -60,2 +61,3 @@",
+          "       <plugin>",
+          "         <groupId>org.apache.maven.plugins</groupId>",
+          "+        <artifactId>maven-shade-plugin</artifactId>",
+        ],
+        line: 63,
+        expected: [],
+      },
+    ],
+    [
+      "confirms a later-hunk workspace dependency in a Cargo table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,3 @@",
+          " [dependencies]",
+          ' serde = "1.0"',
+          '+anyhow = "1"',
+          "@@ -20,1 +21,2 @@",
+          " tokio.workspace = true",
+          "+tracing.workspace = true",
+        ],
+        line: 22,
+        expected: ["new-dependency"],
+      },
+    ],
+    [
+      "drops a dependency moved to workspace inheritance with no table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -10,1 +10,1 @@",
+          '-serde = "1.0"',
+          "+serde.workspace = true",
+        ],
+        line: 10,
+        expected: [],
+      },
+    ],
+    [
+      "drops a dependency moved to workspace inheritance in its table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,2 @@",
+          " [dependencies]",
+          '-serde = "1.0"',
+          "+serde.workspace = true",
+        ],
+        line: 9,
+        expected: [],
+      },
+    ],
+    [
+      "drops a workspace move that keeps its features as a dotted key",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,3 @@",
+          " [dependencies]",
+          '-serde = { version = "1.0", features = ["derive"] }',
+          "+serde.workspace = true",
+          '+serde.features = ["derive"]',
+        ],
+        line: 10,
+        expected: [],
+      },
+    ],
+    [
+      "drops a workspace move inside a dependency's own sub-table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,2 @@",
+          " [dependencies.serde]",
+          '-version = "1.0"',
+          "+workspace = true",
+        ],
+        line: 9,
+        expected: [],
+      },
+    ],
+    [
+      "confirms a dependency added as its own sub-table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,0 +8,2 @@",
+          "+[dependencies.tracing]",
+          "+workspace = true",
+        ],
+        line: 9,
+        expected: ["new-dependency"],
+      },
+    ],
+    [
+      "drops a workspace move in a target-qualified sub-table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,2 @@",
+          " [target.'cfg(unix)'.dependencies.nix]",
+          '-version = "0.29"',
+          "+workspace = true",
+        ],
+        line: 9,
+        expected: [],
+      },
+    ],
+    [
+      "confirms a new sub-table beside a bumped one",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,5 @@",
+          " [dependencies.serde]",
+          '-version = "1.0"',
+          '+version = "1.1"',
+          "+[dependencies.tracing]",
+          '+version = "0.1"',
+        ],
+        line: 11,
+        expected: ["new-dependency"],
+      },
+    ],
+    [
+      "drops a workspace move in a quoted sub-table",
+      {
+        file: "Cargo.toml",
+        patch: [
+          "@@ -8,2 +8,2 @@",
+          ' [dependencies."serde"]',
+          '-version = "1.0"',
+          "+workspace = true",
+        ],
+        line: 9,
+        expected: [],
+      },
+    ],
+  ])("%s", (_title, { file, patch, line, expected }) => {
+    const chunks = [
+      trioChunk({
+        file,
+        riskSurface: ["new-dependency"],
+        addedRanges: [{ start: line, end: line }],
+      }),
+    ];
+
+    const result = validateRiskAttributes(chunks, [
+      { file, patch: patch.join("\n") },
+    ]);
+
+    expect(result.chunks[0]?.riskSurface).toEqual(expected);
+  });
+
+  it.each([
+    ["catalog", "catalog:"],
+    ["github", "github:sindresorhus/left-pad"],
+    ["gitlab", "gitlab:acme/left-pad"],
+    ["bitbucket", "bitbucket:acme/left-pad"],
+    ["gist", "gist:11081aaa281"],
+    ["jsr", "jsr:^1.0.0"],
+    ["portal", "portal:../left-pad"],
+    ["patch", "patch:left-pad@npm%3A1.3.0#./left-pad.patch"],
+  ])(
+    "confirms a %s dependency in a hunk with no visible section",
+    (_protocol, value) => {
+      const patch = [
+        "@@ -12,1 +12,2 @@",
+        '     "zod": "^3.25.0",',
+        `+    "left-pad": "${value}",`,
+      ].join("\n");
+      const chunks = [
+        trioChunk({
+          file: "package.json",
+          riskSurface: ["new-dependency"],
+          addedRanges: [{ start: 13, end: 13 }],
+        }),
+      ];
+
+      const result = validateRiskAttributes(chunks, [
+        { file: "package.json", patch },
+      ]);
+
+      expect(result.chunks[0]?.riskSurface).toEqual(["new-dependency"]);
+    },
+  );
 
   it("preserves valid attribute notes and removes dropped attributes' notes", () => {
     const chunks = [
