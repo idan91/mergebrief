@@ -10,7 +10,7 @@ import { getServerLogger } from "./server/logger";
 const SERVICE_NAME = "mergebrief-web";
 // The bundle's static files: a cold page load would otherwise be a root trace
 // per asset.
-const UNTRACED_PATH_PREFIXES = ["/assets/", "/favicon.svg"];
+const UNTRACED_PATH_PREFIXES = ["/assets/", "/favicon"];
 
 async function startWebTracing(): Promise<void> {
   const env = getServerEnv();

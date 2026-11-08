@@ -62,6 +62,29 @@ describe("root route head", () => {
     expect(hrefs.some((href) => href.includes("gstatic"))).toBe(false);
   });
 
+  it("links the pixel-exact 16px icon ahead of the scalable mark", async () => {
+    const links = await resolveHeadLinks();
+    const icons = links.filter((link) => link.rel === "icon");
+
+    expect(icons.map((link) => [link.href, link.sizes])).toEqual([
+      ["/favicon-16.png", "16x16"],
+      ["/favicon.svg", undefined],
+    ]);
+  });
+
+  it("shares the image only as an absolute URL", async () => {
+    const resolved = await resolveHead();
+    const meta = resolved.meta ?? [];
+    const imageTags = meta.filter(
+      (tag) => tag?.property === "og:image" || tag?.name === "twitter:image",
+    );
+
+    expect(imageTags).toHaveLength(2);
+    for (const tag of imageTags) {
+      expect(String(tag?.content)).toMatch(/^https?:\/\/[^/]+\/og-image\.png$/);
+    }
+  });
+
   it("reads both descriptions from the catalog", async () => {
     const owned = appI18n.t("shell.headMeta.description");
     const descriptions = await resolveDescriptions();

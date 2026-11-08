@@ -5,7 +5,7 @@ import { defineConfig, type DefaultTheme, type UserConfig } from "vitepress";
 
 import { findDeadAnchors, formatDeadAnchors } from "../src/anchors/check";
 import { slugifyHeading } from "../src/anchors/slug";
-import { buildFaviconLink, buildFontPreloads } from "../src/head";
+import { buildFontPreloads, buildIconLinks } from "../src/head";
 import { readSiteLabels } from "../src/labels";
 import { createLinkRule, readGitHubRef } from "../src/links";
 import { LINK_RULE_NAME } from "../src/links/consts";
@@ -50,7 +50,7 @@ const config: UserConfig<DefaultTheme.Config> = {
   cleanUrls: true,
   lastUpdated: false,
   appearance: "dark",
-  head: [buildFaviconLink(base)],
+  head: buildIconLinks(base),
   ignoreDeadLinks: "localhostLinks",
   markdown: {
     anchor: { slugify: slugifyHeading },

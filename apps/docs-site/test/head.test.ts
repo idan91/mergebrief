@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFaviconLink, buildFontPreloads } from "../src/head";
+import { buildFontPreloads, buildIconLinks } from "../src/head";
 
 describe("buildFontPreloads", () => {
   it("preloads only the latin 400 sans and mono files", () => {
@@ -39,18 +39,33 @@ describe("buildFontPreloads", () => {
   });
 });
 
-describe("buildFaviconLink", () => {
-  it("links the svg favicon under the site base", () => {
-    expect(buildFaviconLink("/docs/")).toEqual([
-      "link",
-      { rel: "icon", type: "image/svg+xml", href: "/docs/favicon.svg" },
+describe("buildIconLinks", () => {
+  it("links the 16px, svg and touch icons under the site base", () => {
+    expect(buildIconLinks("/docs/")).toEqual([
+      [
+        "link",
+        {
+          rel: "icon",
+          type: "image/png",
+          sizes: "16x16",
+          href: "/docs/favicon-16.png",
+        },
+      ],
+      [
+        "link",
+        { rel: "icon", type: "image/svg+xml", href: "/docs/favicon.svg" },
+      ],
+      ["link", { rel: "apple-touch-icon", href: "/docs/apple-touch-icon.png" }],
     ]);
   });
 
   it("adds the slash a base written without one is missing", () => {
-    expect(buildFaviconLink("/docs")).toEqual([
-      "link",
-      { rel: "icon", type: "image/svg+xml", href: "/docs/favicon.svg" },
+    const hrefs = buildIconLinks("/docs").map(([, attrs]) => attrs["href"]);
+
+    expect(hrefs).toEqual([
+      "/docs/favicon-16.png",
+      "/docs/favicon.svg",
+      "/docs/apple-touch-icon.png",
     ]);
   });
 });

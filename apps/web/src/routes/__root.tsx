@@ -11,6 +11,11 @@ import { Button } from "@web/components/Button";
 import { PageError } from "@web/components/PageError";
 import { NavigationProgress } from "@web/components/NavigationProgress";
 import { buildPageTitle } from "@web/utils/pageTitle";
+import {
+  buildShareImageUrl,
+  buildShareMeta,
+  readPublicOrigin,
+} from "@web/utils/share-image";
 import { StatePage } from "@web/components/StatePage";
 import {
   AccountMenu,
@@ -28,6 +33,8 @@ const THEME_COLOR = "#0a0a0c";
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: ({ match }) => {
     const description = appI18n.t("shell.headMeta.description");
+    const shareImageUrl = buildShareImageUrl(readPublicOrigin());
+    const shareMeta = buildShareMeta(shareImageUrl);
     const title =
       // oxlint-disable-next-line no-underscore-dangle -- a global miss keeps status success; the router flags it only here
       match._notFound
@@ -56,9 +63,15 @@ export const Route = createRootRouteWithContext<RouterContext>()({
           content: description,
         },
         { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary" },
+        ...shareMeta,
       ],
       links: [
+        {
+          rel: "icon",
+          href: "/favicon-16.png",
+          type: "image/png",
+          sizes: "16x16",
+        },
         { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
         { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
         {
