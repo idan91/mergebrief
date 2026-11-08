@@ -6,6 +6,7 @@
 :root {
   --mb-hue: 286;
   --mb-gray-c: 0.01;
+  --mb-brand: #e91f00;
 
   --mb-ground: oklch(98.6% calc(var(--mb-gray-c) / 3) var(--mb-hue));
   --mb-surface-1: oklch(96.6% var(--mb-gray-c) var(--mb-hue));

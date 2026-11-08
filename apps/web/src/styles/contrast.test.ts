@@ -286,6 +286,20 @@ describe("palette contrast", () => {
     expect(failures).toEqual([]);
   });
 
+  it("keeps the brand mark at 3:1 on every surface", async () => {
+    const colorOf = await resolvePalette();
+    const failures: string[] = [];
+
+    for (const surface of SURFACES) {
+      const ratio = computeContrast(colorOf("--color-brand"), colorOf(surface));
+      if (ratio < MARKS_MIN) {
+        failures.push(`--color-brand on ${surface}: ${ratio.toFixed(2)}`);
+      }
+    }
+
+    expect(failures).toEqual([]);
+  });
+
   it("gives every concern a branch in the concern-color mixin", async () => {
     const mixins = await readFile(fileURLToPath(MIXINS_URL), "utf8");
 

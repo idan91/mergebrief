@@ -6,7 +6,7 @@ import { renderInRouter } from "../../test/router";
 import { Header } from ".";
 
 describe("Header", () => {
-  it("renders the wordmark as a link to Home inside a banner", async () => {
+  it("renders the lockup as a link to Home inside a banner", async () => {
     await renderInRouter(<Header />);
 
     const banner = screen.getByRole("banner");
@@ -15,7 +15,19 @@ describe("Header", () => {
     expect(wordmark.getAttribute("href")).toBe("/");
   });
 
-  it("puts the end slot after the wordmark", async () => {
+  it("names the lockup once and hides its mark and wordmark", async () => {
+    await renderInRouter(<Header />);
+
+    const lockup = screen.getByRole("link", { name: "MergeBrief" });
+    const drawings = [...lockup.querySelectorAll("svg")];
+
+    expect(drawings).toHaveLength(2);
+    expect(
+      drawings.every((svg) => svg.getAttribute("aria-hidden") === "true"),
+    ).toBe(true);
+  });
+
+  it("puts the end slot after the lockup", async () => {
     await renderInRouter(
       <Header end={<span data-testid="end">Account</span>} />,
     );

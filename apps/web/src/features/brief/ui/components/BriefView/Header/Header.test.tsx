@@ -123,10 +123,11 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
 }
 
 describe("Header identity row", () => {
-  it("renders wordmark, title, repo and PR link on one line", async () => {
+  it("renders the home mark, title, repo and PR link on one line", async () => {
     await renderHeader();
-    const wordmark = screen.getByRole("link", { name: "MergeBrief" });
-    expect(wordmark.getAttribute("href")).toBe("/");
+    const home = screen.getByRole("link", { name: "MergeBrief" });
+    expect(home.getAttribute("href")).toBe("/");
+    expect(home.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Tighten the cross-param leak",
     );

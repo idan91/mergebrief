@@ -4,6 +4,7 @@ description: A calm, dark reading surface for understanding a pull request befor
 colors:
   accent: "#e1e1e1"
   accent-ink: "#1b1b1b"
+  brand: "#e91f00"
   ground: "#0a0a0c"
   surface-1: "#111114"
   surface-2: "#15151a"
@@ -204,7 +205,8 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Accent** (#e1e1e1, the `--brand-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, the Generate button, focus rings, the selected diff rows, the revision marks, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1b1b1b, derived at 22% lightness).
+- **Accent** (#e1e1e1, the `--accent-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, the Generate button, focus rings, the selected diff rows, the revision marks, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1b1b1b, derived at 22% lightness).
+- **Brand** (#e91f00, `--color-brand`): the mark, wherever it appears: the Header lockup, the Brief header's home link and the sign-in page.
 
 ### Neutral
 
@@ -230,7 +232,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
 
-**The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--brand-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
+**The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--theme-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
 **The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach. The concern marks are the one exception: Doc, Spec and Test share hues with Open, Warning and Closed and stay apart from them only by sitting darker, and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
@@ -272,7 +274,7 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 
 ## Layout
 
-One centred column, 1080px wide at most, with a 24px gutter that becomes 16px under 760px; the header shares the gutter, so its wordmark and account trigger line up with the column. The Header is one 52px tier, transparent, with a Line hairline under it. Its right end is the account trigger: a pill holding the avatar, concentric in the pill's cap, and a caret; its menu offers Settings, a Language group where language selection is enabled, Keyboard shortcuts (not on touch) and Sign out.
+One centred column, 1080px wide at most, with a 24px gutter that becomes 16px under 760px; the header shares the gutter, so its lockup and account trigger line up with the column. The Header is one 52px tier, transparent, with a Line hairline under it. Its left end is the lockup, one link named MergeBrief: the mark in Brand at 1.3em beside the wordmark at 20px, 0.4em apart, the wordmark in Text 1. Its right end is the account trigger: a pill holding the avatar, concentric in the pill's cap, and a caret; its menu offers Settings, a Language group where language selection is enabled, Keyboard shortcuts (not on touch) and Sign out.
 
 Spacing uses one scale: 2, 4, 8, 12, 16, 24, 32, 48, 64. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
 
@@ -280,13 +282,13 @@ The list splits at a fold. Rows that need the reviewer (open, not a draft, and n
 
 Under 760px the filters collapse behind one button and the controls take their own line; under 400px View and Sort may wrap under the Filters button. Status labels become icons with hidden text. The page never scrolls sideways down to 320px.
 
-**Sign-in.** A signed-out viewer of any page gets one centred column, 360px wide at most, with no header: the 28px mark, a Headline, a 15px lead, a full-width 44px accent button and one quiet note.
+**Sign-in.** A signed-out viewer of any page gets one centred column, 360px wide at most, with no header: the 48px mark in Brand, a Headline, a 15px lead, a full-width 44px accent button and one quiet note.
 
 **Settings.** Home's shell: the same Header, gutter and column, with the heading in Display and the panel 32px below it (24px under 760px). A viewer with one tab gets no rail. An Operator gets a 184px rail beside the panel, 48px apart and pinned 24px from the top, where the current tab takes Surface 3 on an 8px corner. On a phone the rail becomes a row of tabs over a hairline.
 
-**Brief page.** Above phone width the header keeps two tiers, solid on the ground. At 1120px and under the sidebar becomes a bar along the bottom that opens its lists in a bottom sheet.
+**Brief page.** Above phone width the header keeps two tiers, solid on the ground. Its home link is the 32px mark alone, in Brand, named MergeBrief. At 1120px and under the sidebar becomes a bar along the bottom that opens its lists in a bottom sheet.
 
-**Phone reader.** A phone is 880px wide or less, or sideways: `(orientation: landscape) and (height <= 500px) and (width <= 1120px) and (pointer: coarse)`. Height keys the sideways case because a large phone lands past the width line, the coarse pointer keeps a short desktop window out, and the orientation keeps a split-screen portrait pane upright. Upright, three bars frame the reading, 44 + 56 + 56: a 44px row with back and the wordmark, then the title once the page title has scrolled away; a chunk's 56px two-line head pinned under it, with the path over its counts and Viewed; a 56px bar at the bottom edge with Brief controls, the chunk indicator that opens the Sidebar sheet, and previous and next, which Changes leaves out because its chunks are not on the page. Sideways, all of it folds into one 44px row, and a chunk's head parks behind the row, which names the chunk from then on; a fold or Viewed from the row that collapses the chunk parks its head there too. Focus mode has no row, so its head stays pinned. Controls in these bars are 44px targets. The bottom bar pads for the home indicator and the sideways row for the notch, both from safe-area insets.
+**Phone reader.** A phone is 880px wide or less, or sideways: `(orientation: landscape) and (height <= 500px) and (width <= 1120px) and (pointer: coarse)`. Height keys the sideways case because a large phone lands past the width line, the coarse pointer keeps a short desktop window out, and the orientation keeps a split-screen portrait pane upright. Upright, three bars frame the reading, 44 + 56 + 56: a 44px row with back and the 24px mark, then the title once the page title has scrolled away; a chunk's 56px two-line head pinned under it, with the path over its counts and Viewed; a 56px bar at the bottom edge with Brief controls, the chunk indicator that opens the Sidebar sheet, and previous and next, which Changes leaves out because its chunks are not on the page. Sideways, all of it folds into one 44px row, and a chunk's head parks behind the row, which names the chunk from then on; a fold or Viewed from the row that collapses the chunk parks its head there too. Focus mode has no row, so its head stays pinned. Controls in these bars are 44px targets. The bottom bar pads for the home indicator and the sideways row for the notch, both from safe-area insets.
 
 ## Elevation & Depth
 
@@ -317,7 +319,7 @@ One family, Phosphor, copied icon by icon into `apps/web/src/components/icons/<p
 - **Fill.** Stroke by default. Fill is the "on" form of the same icon (selected, active, checked), plus the icons whose meaning is the fill: the four review marks.
 - **Direction by rotation.** One `caret-down` for every caret and disclosure, one `arrow-up` for every arrow, turned in quarter steps by CSS. No mirrored files.
 - **The `Icon` component** owns the contract: `name` from the set, `size` (12, 14, 16), `color`, `rotation`, `className` and an optional `label`. Without a label it is decorative, `aria-hidden` with `focusable="false"`, and the control or row around it carries the meaning; with one it takes `role="img"`. An override is a visible prop, never a second file.
-- **Brand glyphs** (GitHub, the provider marks) ride the same component and props; their own viewBox and fill are the only difference. A full logo, and the product's own mark, sit outside the set.
+- **Brand glyphs** (GitHub, the provider marks) ride the same component and props; their own viewBox and fill are the only difference. A full logo, and the product's own mark, sit outside the set: `mergebrief-mark.svg` and `mergebrief-wordmark.svg` are written by `tools/brand`, the wordmark Archivo at width 112 and weight 700 outlined to paths, so no font loads for it. Clear space around the mark is at least 1/8 of its height.
 - **Text glyphs** are typography, not icons: `↳`, `▪`, `×` and `·` stay text, and the spinner stays CSS. Every other glyph is an svg from the set.
 
 ## Components

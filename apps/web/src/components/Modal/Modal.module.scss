@@ -50,7 +50,7 @@
     // The textarea's focus border is a one-off lift above --color-outline-2,
     // scoped to the focused state; it derives from the hue and grey chroma
     // like every other grey.
-    --textarea-focus-border: oklch(39% var(--gray-c) var(--brand-hue));
+    --textarea-focus-border: oklch(39% var(--gray-c) var(--theme-hue));
 
     inline-size: functions.to-rem(460px);
     max-inline-size: 92vw;

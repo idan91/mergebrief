@@ -13,25 +13,26 @@
     // lightness step, so the palette moves together and every contrast holds
     // (DESIGN.md, the One Hue and Tinted Grey rules). The accent is a white:
     // chroma 0 at 91%, so nothing on screen carries the hue but the greys.
-    --brand-hue: 286;
+    --theme-hue: 286;
     --accent-l: 91%;
     --accent-c: 0;
     --gray-c: 0.01;
-    --gray-950: oklch(14.6% var(--gray-c) var(--brand-hue));
-    --gray-900: oklch(17.9% var(--gray-c) var(--brand-hue));
-    --gray-850: oklch(19.8% var(--gray-c) var(--brand-hue));
-    --gray-800: oklch(24.1% var(--gray-c) var(--brand-hue));
-    --gray-750: oklch(22.9% var(--gray-c) var(--brand-hue));
-    --gray-700: oklch(29.2% var(--gray-c) var(--brand-hue));
-    --gray-650: oklch(35.5% calc(var(--gray-c) * 2) var(--brand-hue));
-    --gray-400: oklch(68.9% var(--gray-c) var(--brand-hue));
-    --gray-100: oklch(94.4% calc(var(--gray-c) / 3) var(--brand-hue));
+    --gray-950: oklch(14.6% var(--gray-c) var(--theme-hue));
+    --gray-900: oklch(17.9% var(--gray-c) var(--theme-hue));
+    --gray-850: oklch(19.8% var(--gray-c) var(--theme-hue));
+    --gray-800: oklch(24.1% var(--gray-c) var(--theme-hue));
+    --gray-750: oklch(22.9% var(--gray-c) var(--theme-hue));
+    --gray-700: oklch(29.2% var(--gray-c) var(--theme-hue));
+    --gray-650: oklch(35.5% calc(var(--gray-c) * 2) var(--theme-hue));
+    --gray-400: oklch(68.9% var(--gray-c) var(--theme-hue));
+    --gray-100: oklch(94.4% calc(var(--gray-c) / 3) var(--theme-hue));
     --green-400: #5fc88f;
     --red-400: #e06c6c;
     --amber-400: #d9a45c;
-    --brand-400: oklch(var(--accent-l) var(--accent-c) var(--brand-hue));
+    --accent-400: oklch(var(--accent-l) var(--accent-c) var(--theme-hue));
     --blue-400: #7da7d9;
     --violet-400: #a98fd1;
+    --vermilion-500: #e91f00;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
 
@@ -41,7 +42,7 @@
     // surface-3 sits below outline-1 on purpose: a menu's fill is darker
     // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
-    --color-focus-ground: oklch(11.5% 0.008 var(--brand-hue)); // focus mode
+    --color-focus-ground: oklch(11.5% 0.008 var(--theme-hue)); // focus mode
     --color-scrim: rgb(0 0 0 / 55%);
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
@@ -53,11 +54,11 @@
 
     // Text already read: titles a reviewer has reviewed, chip text. Between
     // text-1 and text-2 on purpose; the step from text-1 is the signal.
-    --color-text-read: oklch(84% var(--gray-c) var(--brand-hue));
+    --color-text-read: oklch(84% var(--gray-c) var(--theme-hue));
 
     // Faint floor for readable text: 6:1 on the page background, 5.1:1 on
     // surface-3; the contrast test holds both lines.
-    --color-text-3: oklch(64.5% var(--gray-c) var(--brand-hue));
+    --color-text-3: oklch(64.5% var(--gray-c) var(--theme-hue));
 
     // Ghost: decorative separators only (e.g. slim row separators).
     // Deliberately below contrast, NEVER for text a reader must parse;
@@ -71,7 +72,11 @@
     // ── Status and accent ────────────────────────────────────────────────
     // The one accent, always light: a fill under dark text and small marks
     // on a dark page (DESIGN.md, the Light Accent Rule).
-    --color-accent: var(--brand-400);
+    --color-accent: var(--accent-400);
+
+    // The brand: the mark wherever it appears. Never a state, never focus
+    // (DESIGN.md, Brand); the contrast test holds it at the marks line.
+    --color-brand: var(--vermilion-500);
     --color-positive: var(--green-400);
     --color-negative: var(--red-400);
     --color-warning: var(--amber-400);
@@ -98,7 +103,7 @@
 
     // ── Other semantic colors ────────────────────────────────────────────
     --color-on-primary: oklch(
-      22% calc(var(--accent-c) * 0.55) var(--brand-hue)
+      22% calc(var(--accent-c) * 0.55) var(--theme-hue)
     );
 
     // The light-mode half of the two light-dark() pairs in base.scss. The app

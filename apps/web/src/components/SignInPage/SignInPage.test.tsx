@@ -19,6 +19,12 @@ function readSignIn() {
 describe("SignInPage", () => {
   afterEach(cleanup);
 
+  it("names the brand mark by the product name", () => {
+    render(<SignInPage heading="Sign in" />);
+
+    expect(screen.getByRole("img", { name: "MergeBrief" })).toBeTruthy();
+  });
+
   it("takes focus a swapped-out screen dropped to the body", () => {
     const { rerender } = render(<Button>Row</Button>);
     screen.getByRole("button", { name: "Row" }).focus();

@@ -51,23 +51,21 @@
     background: color-mix(in srgb, var(--color-surface-1) 45%, transparent);
   }
 
-  // line-height: 1 — inherited line boxes drift the visible baselines ~2px.
-  .wordmark {
+  .home {
     display: inline-flex;
     flex: none;
     align-items: center;
-    min-block-size: functions.to-rem(24px);
-    color: var(--color-text-1);
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1;
-    text-decoration: none;
-    white-space: nowrap;
+    justify-content: center;
+    color: var(--color-brand);
 
     &:focus-visible {
       @include mixins.focus-ring;
     }
+  }
+
+  .mark {
+    inline-size: 32px;
+    block-size: 32px;
   }
 
   .titleBlock {
@@ -441,7 +439,22 @@
       white-space: nowrap;
     }
 
-    .header[data-title-out] .wordmark {
+    .home {
+      justify-content: flex-start;
+      min-inline-size: functions.to-rem(44px);
+      min-block-size: functions.to-rem(43px);
+
+      &:focus-visible {
+        outline-offset: -2px;
+      }
+    }
+
+    .mark {
+      inline-size: 24px;
+      block-size: 24px;
+    }
+
+    .header[data-title-out] .home {
       display: none;
     }
 

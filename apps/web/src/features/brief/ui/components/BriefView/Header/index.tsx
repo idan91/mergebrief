@@ -24,6 +24,7 @@ import {
   IconSizes,
 } from "@web/components/Icon/types";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
+import MergeBriefMark from "@web/components/icons/mergebrief-mark.svg?react";
 import { AccountMenu } from "@web/features/account";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure";
@@ -237,8 +238,12 @@ export function Header({
         {/* Lead is inert on wide viewports (display: contents, one flex
             line); at 880px and under it is the row's title cell. */}
         <div className={styles["lead"]}>
-          <Link className={styles["wordmark"]} to="/">
-            {PRODUCT_NAME}
+          <Link aria-label={PRODUCT_NAME} className={styles["home"]} to="/">
+            <MergeBriefMark
+              aria-hidden="true"
+              className={styles["mark"]}
+              focusable="false"
+            />
           </Link>
           <div className={styles["titleBlock"]}>
             <span
