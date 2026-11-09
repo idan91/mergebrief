@@ -10,6 +10,21 @@
     border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
     border-radius: var(--radius-lg);
     background: var(--color-card);
+
+    &[data-stuck] {
+      border-start-start-radius: 0;
+      border-start-end-radius: 0;
+    }
+
+    &[data-motion="on"] {
+      transition:
+        border-start-start-radius var(--motion-base) var(--ease-out),
+        border-start-end-radius var(--motion-base) var(--ease-out);
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
+    }
   }
 
   // Normally content-sized and fixed; on very short viewports it shrinks

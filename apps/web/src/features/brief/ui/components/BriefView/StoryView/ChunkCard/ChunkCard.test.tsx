@@ -10,7 +10,10 @@ import {
   within,
 } from "@testing-library/react";
 import { act, useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { intersectionObservers } from "@web/test/setup";
+import { placeStickyTarget, stubStickyRule } from "@web/test/sticky";
 
 import {
   createReviewFlowStore,
@@ -801,5 +804,54 @@ describe("ChunkCard chunk actions", () => {
     expect(
       within(dialog).queryByRole("link", { name: /open on github/i }),
     ).toBeNull();
+  });
+});
+
+describe("ChunkCard stuck head", () => {
+  const STICKY_TOP_PX = 100;
+  let stickyRule: HTMLStyleElement | undefined;
+
+  function readHead(): HTMLElement {
+    const head = screen.getByTestId("brief-chunk").firstElementChild;
+    if (!(head instanceof HTMLElement)) {
+      throw new Error("the chunk card has no head");
+    }
+    return head;
+  }
+
+  beforeEach(() => {
+    stickyRule = stubStickyRule(
+      '[data-testid="brief-chunk"] > div:first-child',
+      STICKY_TOP_PX,
+    );
+  });
+
+  afterEach(() => {
+    stickyRule?.remove();
+    intersectionObservers.length = 0;
+  });
+
+  it("marks the head stuck while it is pinned under the stack", () => {
+    renderCard();
+
+    placeStickyTarget(readHead(), STICKY_TOP_PX, STICKY_TOP_PX);
+
+    expect(readHead().dataset["stuck"]).toBe("");
+  });
+
+  it("leaves a head that rests below the stack unmarked", () => {
+    renderCard();
+
+    placeStickyTarget(readHead(), STICKY_TOP_PX, STICKY_TOP_PX + 300);
+
+    expect(readHead().hasAttribute("data-stuck")).toBe(false);
+  });
+
+  it("arms the head's motion once its first reading has painted", async () => {
+    renderCard();
+
+    placeStickyTarget(readHead(), STICKY_TOP_PX, STICKY_TOP_PX);
+
+    await waitFor(() => expect(readHead().dataset["motion"]).toBe("on"));
   });
 });

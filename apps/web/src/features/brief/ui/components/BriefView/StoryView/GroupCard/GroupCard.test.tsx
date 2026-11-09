@@ -10,7 +10,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -22,6 +22,8 @@ import {
   type SessionWrites,
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
+import { intersectionObservers } from "@web/test/setup";
+import { placeStickyTarget, stubStickyRule } from "@web/test/sticky";
 import {
   buildBriefViewModel,
   getRiskAttributeInlineLabel,
@@ -187,5 +189,58 @@ describe("GroupCard reopen a dismissed risk", () => {
         appI18n.t("brief.group.reopenAnnounce"),
       ),
     );
+  });
+});
+
+describe("GroupCard stuck card", () => {
+  const STICKY_TOP_PX = 140;
+  let stickyRule: HTMLStyleElement | undefined;
+
+  beforeEach(() => {
+    stickyRule = stubStickyRule("article", STICKY_TOP_PX);
+  });
+
+  afterEach(() => {
+    stickyRule?.remove();
+    intersectionObservers.length = 0;
+  });
+
+  it("marks the card stuck while it is pinned under the stack", () => {
+    renderCard(writesSpy());
+    const card = screen.getByRole("article");
+
+    placeStickyTarget(card, STICKY_TOP_PX, STICKY_TOP_PX);
+
+    expect(card.dataset["stuck"]).toBe("");
+  });
+
+  it("clears the stuck mark once the card scrolls back to rest", () => {
+    renderCard(writesSpy());
+    const card = screen.getByRole("article");
+    placeStickyTarget(card, STICKY_TOP_PX, STICKY_TOP_PX);
+
+    placeStickyTarget(card, STICKY_TOP_PX, STICKY_TOP_PX + 200);
+
+    expect(card.hasAttribute("data-stuck")).toBe(false);
+  });
+
+  it("arms the card's motion once its first reading has painted", async () => {
+    renderCard(writesSpy());
+    const card = screen.getByRole("article");
+
+    placeStickyTarget(card, STICKY_TOP_PX, STICKY_TOP_PX);
+
+    await waitFor(() => expect(card.dataset["motion"]).toBe("on"));
+  });
+
+  it("never watches a card the stacked layout leaves unpinned", () => {
+    stickyRule?.remove();
+    renderCard(writesSpy());
+    const card = screen.getByRole("article");
+
+    expect(() => placeStickyTarget(card, STICKY_TOP_PX, STICKY_TOP_PX)).toThrow(
+      "nothing watches the line",
+    );
+    expect(card.hasAttribute("data-stuck")).toBe(false);
   });
 });

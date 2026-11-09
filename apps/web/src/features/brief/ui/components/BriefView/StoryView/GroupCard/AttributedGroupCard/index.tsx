@@ -1,5 +1,5 @@
 import { Trans, useTranslation } from "react-i18next";
-import { memo } from "react";
+import { memo, useRef } from "react";
 
 import { Button } from "@web/components/Button";
 import { ChunkStrip } from "../../../ChunkStrip";
@@ -14,6 +14,7 @@ import {
   type AttributedGroupView,
 } from "../../../../../../model/utils/view-model";
 import { RiskSurface } from "../RiskSurface";
+import { useStuckAttributes } from "../../../hooks/useStuckAttributes";
 import { useAttributedGroupCardFacade } from "./useAttributedGroupCardFacade";
 
 export interface AttributedGroupCardProps extends Omit<
@@ -46,6 +47,8 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
     setEvidenceTarget,
     toggleRiskGroup,
   } = useAttributedGroupCardFacade({ group, model });
+  const cardRef = useRef<HTMLElement | null>(null);
+  useStuckAttributes(cardRef);
   const headingId = deriveGroupHeadingId(group.id);
   const showReclassify =
     group.group.uncertain && !isReclassified && !flagsReadOnly;
@@ -66,7 +69,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
     );
 
   return (
-    <article className={`${styles["card"]} reveal`} id={id}>
+    <article className={`${styles["card"]} reveal`} id={id} ref={cardRef}>
       <div className={styles["head"]}>
         <GroupCardHead
           dominant={dominant}

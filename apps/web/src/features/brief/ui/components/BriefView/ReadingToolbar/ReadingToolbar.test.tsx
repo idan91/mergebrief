@@ -2,11 +2,22 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
-import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
+import {
+  intersectionObservers,
+  resetMediaQueries,
+  setMediaQueryMatches,
+} from "@web/test/setup";
+import { placeStickyTarget, stubStickyRule } from "@web/test/sticky";
 
 import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils";
 import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
@@ -330,5 +341,61 @@ describe("ReadingToolbar stylesheet skins", () => {
 
     expect(label.get("color")).toBe("var(--color-text-1)");
     expect(label.get("font-weight")).toBe("500");
+  });
+});
+
+describe("ReadingToolbar stuck state", () => {
+  const STICKY_TOP_PX = 120;
+  let stickyRule: HTMLStyleElement | undefined;
+
+  function pinToolbar(top: number): void {
+    placeStickyTarget(
+      screen.getByTestId("reading-toolbar"),
+      STICKY_TOP_PX,
+      top,
+    );
+  }
+
+  beforeEach(() => {
+    stickyRule = stubStickyRule(
+      '[data-testid="reading-toolbar"]',
+      STICKY_TOP_PX,
+    );
+  });
+
+  afterEach(() => {
+    stickyRule?.remove();
+    intersectionObservers.length = 0;
+  });
+
+  it("marks the bar stuck while it is pinned under the header", () => {
+    renderToolbar();
+
+    pinToolbar(STICKY_TOP_PX);
+
+    expect(screen.getByTestId("reading-toolbar").dataset["stuck"]).toBe("");
+  });
+
+  it("clears the stuck mark once the bar scrolls back to rest", () => {
+    renderToolbar();
+    pinToolbar(STICKY_TOP_PX);
+
+    pinToolbar(STICKY_TOP_PX + 200);
+
+    expect(
+      screen.getByTestId("reading-toolbar").hasAttribute("data-stuck"),
+    ).toBe(false);
+  });
+
+  it("arms the bar's motion once its first reading has painted", async () => {
+    renderToolbar();
+
+    pinToolbar(STICKY_TOP_PX);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("reading-toolbar").dataset["motion"]).toBe(
+        "on",
+      ),
+    );
   });
 });

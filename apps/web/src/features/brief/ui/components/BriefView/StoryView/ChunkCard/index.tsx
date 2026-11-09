@@ -36,6 +36,7 @@ import { ChunkFacts } from "./ChunkFacts";
 import { ChunkFactsPlacements } from "./ChunkFacts/types";
 import { FileCommentBand } from "./FileCommentBand";
 import { useFileCommentComposer } from "./useFileCommentComposer";
+import { useStuckAttributes } from "../../hooks/useStuckAttributes";
 import { Icon } from "@web/components/Icon";
 import {
   IconNames,
@@ -180,6 +181,8 @@ export const ChunkCard = memo(function ChunkCard({
   const togglesThisPair = useRef(0);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
   const actionsRef = useRef<HTMLButtonElement | null>(null);
+  const headRef = useRef<HTMLDivElement | null>(null);
+  useStuckAttributes(headRef);
   const large = isLargeChunk(chunk);
   const changedLines = countChangedLines(chunk);
   // Selected per chunk so this card re-renders only when ITS slice changes,
@@ -293,7 +296,7 @@ export const ChunkCard = memo(function ChunkCard({
       // the scroll, never leave it behind.
       tabIndex={-1}
     >
-      <div className={styles["head"]}>
+      <div className={styles["head"]} ref={headRef}>
         {/* oxlint-disable-next-line house/no-raw-button -- disclosure with a user-select: text requirement no shared component models */}
         <button
           className={styles["toggle"]}

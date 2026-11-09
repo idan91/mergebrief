@@ -22,6 +22,49 @@
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
+
+    // The bleed spans .main's inline padding in base.scss, whose end side
+    // carries --sidebar-w; ReadingToolbar.stylesheet.test.ts compares. At
+    // z-index -1 it paints over the bar's own border, so the resting clip
+    // stops inside that border. Its top reaches 1px under the header:
+    // --top-bar-h rounds the header's fractional height, and the sub-pixel
+    // row between them would show the story scrolling behind.
+    &::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset-block: -2px -1px;
+      inset-inline: calc(-1px - var(--main-gutter));
+      border-block-end: 1px solid var(--color-outline-1);
+      background: var(--color-surface-1);
+      clip-path: inset(
+        2px calc(1px + var(--main-gutter)) 1px round
+          calc(var(--radius-panel) - 1px)
+      );
+    }
+
+    &[data-stuck] {
+      border-color: transparent;
+
+      &::before {
+        clip-path: inset(0 round 0);
+      }
+    }
+
+    &[data-motion="on"] {
+      transition: border-color var(--motion-base) var(--ease-out);
+
+      &::before {
+        transition: clip-path var(--motion-base) var(--ease-out);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        &,
+        &::before {
+          transition: none;
+        }
+      }
+    }
   }
 
   // Hidden, its measured height publishes 0px to the sticky stack.

@@ -13,6 +13,7 @@ import {
 } from "../FilterDisclosure";
 import { RiskAttrsDisclosure } from "../RiskAttrsDisclosure";
 import { ChangeStepper } from "../ChangeStepper";
+import { useStuckAttributes } from "../hooks/useStuckAttributes";
 import { COLLAPSE_PRESSED } from "../consts";
 import type { SupportingCollapseState } from "../types";
 import styles from "./ReadingToolbar.module.scss";
@@ -58,6 +59,7 @@ export function ReadingToolbar({
   const { t } = useTranslation();
   const { jumpPrev, jumpNext } = revisionNav;
   const barRef = useRef<HTMLDivElement | null>(null);
+  useStuckAttributes(barRef);
 
   // Sticky chunk headers pin below the bar via the measured height; 0px
   // whenever the bar unmounts. The CSS-side fallback is 0px too; there is

@@ -61,6 +61,23 @@
     border-start-start-radius: var(--radius-panel);
     border-start-end-radius: var(--radius-panel);
     background: var(--color-well);
+
+    &[data-stuck] {
+      border-start-start-radius: 0;
+      border-start-end-radius: 0;
+    }
+
+    &[data-motion="on"] {
+      transition:
+        border-start-start-radius var(--motion-base) var(--ease-out),
+        border-start-end-radius var(--motion-base) var(--ease-out);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .head[data-motion="on"] {
+      transition: none;
+    }
   }
 
   .toggle {
@@ -286,7 +303,9 @@
       inline-size: 100%;
       block-size: 100%;
       border-radius: 0;
-      border-start-end-radius: var(--radius-panel);
+
+      // The head's own corner, frame by frame while it eases square.
+      border-start-end-radius: inherit;
     }
   }
 
@@ -340,7 +359,9 @@
       inline-size: functions.to-rem(44px);
       block-size: 100%;
       border-radius: 0;
-      border-start-end-radius: var(--radius-panel);
+
+      // The head's own corner, frame by frame while it eases square.
+      border-start-end-radius: inherit;
     }
   }
 }
