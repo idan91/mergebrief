@@ -105,7 +105,7 @@ describe("migration check checkAppSchemaWith", () => {
     const client = await freshPglite();
     await client.query(
       `insert into drizzle.__drizzle_migrations (hash, created_at)
-       values ('brief-131-test-future', 9999999999999)`,
+       values ('test-future', 9999999999999)`,
     );
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(true);

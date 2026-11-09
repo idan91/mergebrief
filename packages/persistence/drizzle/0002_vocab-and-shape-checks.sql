@@ -1,5 +1,5 @@
 -- Custom migration: DB-enforce the closed vocabularies + the generation
--- kind/baseline shape (PR #23 review). Hand-maintained; drizzle-kit does not
+-- kind/baseline shape. Hand-maintained; drizzle-kit does not
 -- regenerate this file. (Drizzle migrations are forward-only by design — no
 -- down step; rollback of this file is DROP CONSTRAINT for each name below.)
 --

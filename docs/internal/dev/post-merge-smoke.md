@@ -122,7 +122,7 @@ fake generator adapter exists.
 
 1. Push a trivial commit to `TESTREPO` PR `#N`:
    ```sh
-   git commit --allow-empty -m "smoke: brief-19 wait ux" && git push
+   git commit --allow-empty -m "smoke: wait ux" && git push
    ```
 2. Confirm delivery in ngrok inspector (POST `/api/webhooks/github` → 200).
 3. **Immediately** open the PR's row from the picker

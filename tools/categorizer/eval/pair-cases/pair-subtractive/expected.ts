@@ -1,7 +1,6 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
-// Subtractive increment: rev2 reverts the health route entirely — the file leaves the PR. Spec pair 6 RIGHT: the emptied group dies.
+// Revision-pair case: AUTHORED fixture (own-repo file shapes,
+// difflib-generated diffs; PR locator is a placeholder).
+// Subtractive increment: rev2 reverts the health route entirely; the file leaves the PR. Spec pair 6 RIGHT: the emptied group dies.
 import type { PairEvalProperty } from "../../pairs";
 import { coverage, groupsOwning, untouchedGroupSurvives } from "../props";
 

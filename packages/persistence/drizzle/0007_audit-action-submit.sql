@@ -1,4 +1,4 @@
--- BRIEF-23: `audit_log.action` gains 'submit' (the review-submit route's
+-- `audit_log.action` gains 'submit' (the review-submit route's
 -- emit). Closed-vocabulary swap in lockstep with `AuditAction` in
 -- `src/types.ts` — same DROP + ADD pattern as migration 0003 (forward-only;
 -- rollback = drop and re-add the 0002 list).

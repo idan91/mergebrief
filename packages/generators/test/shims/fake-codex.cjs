@@ -69,7 +69,7 @@ function drainStdinThen(fn) {
 }
 
 // Startup-check surface: `--version`; `login status` as the auth-probe boundary
-// (real-CLI equivalent probed at adapter implementation, PR 6).
+// (real-CLI equivalent probed at adapter implementation).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
   if (scenario === "version-broken") {
@@ -91,7 +91,7 @@ if (argv[0] === "login" && argv[1] === "status") {
 }
 
 // `--output-schema <file>` handoff: record what the adapter passed so tests
-// can assert the tempfile contents (PR 6).
+// can assert the tempfile contents.
 const schemaFlag = argv.indexOf("--output-schema");
 if (schemaFlag !== -1 && process.env.SHIM_SCHEMA_COPY) {
   try {

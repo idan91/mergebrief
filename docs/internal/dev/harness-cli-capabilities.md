@@ -17,7 +17,6 @@
 - Codex source (main branch): `codex-rs/exec/src/exec_events.rs`, `codex-rs/exec/src/lib.rs`, `codex-rs/exec/src/event_processor_with_human_output.rs`, `codex-rs/exec/src/event_processor_with_jsonl_output.rs` — <https://github.com/openai/codex>
 - Cursor CLI docs: <https://cursor.com/docs/cli/reference/parameters>, <https://cursor.com/docs/cli/headless>, <https://cursor.com/docs/cli/reference/output-format>, <https://cursor.com/docs/cli/reference/authentication>; authenticated execution runs on `cursor-agent 2026.08.25-3e8eec8` + `@cursor/sdk` smokes, darwin/arm64 (2026-08-27)
 - OpenCode docs: <https://opencode.ai/docs/cli/>; source (dev branch): `packages/opencode/src/cli/cmd/run.ts` — <https://github.com/sst/opencode> (NOT installed locally)
-- Project memory: `~/.claude/projects/-Users-idan-Projects-Code-code-review/memory/brief-14-27-28-implementation-2026-07.md` (codex hang observation)
 
 ---
 

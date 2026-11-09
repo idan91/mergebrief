@@ -1,7 +1,7 @@
 ALTER TABLE "brief" ADD COLUMN "anchor_state" text;--> statement-breakpoint
 ALTER TABLE "brief" ADD COLUMN "anchor_reason" text;--> statement-breakpoint
 
--- BRIEF-143 anchor provenance vocabulary, DB-enforced like migration 0002's
+-- Anchor provenance vocabulary, DB-enforced like migration 0002's
 -- closed vocabs (keep in lockstep with `AnchorStates`/`FreshRestartReasons`
 -- in packages/generators/src/contract/provenance.ts). NULL = a row predating
 -- the stamp. (Drizzle migrations are forward-only — no down step; rollback is

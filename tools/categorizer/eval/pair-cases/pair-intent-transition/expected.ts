@@ -1,6 +1,5 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
+// Revision-pair case: AUTHORED fixture (own-repo file shapes,
+// difflib-generated diffs; PR locator is a placeholder).
 // Intent transition: rev1 misses the asked-for health endpoint; rev2 delivers it. Spec pair 4 twin: statedButMissing flips on delivery.
 import type { PairEvalProperty } from "../../pairs";
 import { coverage } from "../props";
@@ -11,7 +10,7 @@ const B = "packages/api/src/routes/health.ts";
 export const pairProperties: PairEvalProperty[] = [
   coverage([A, B]),
   // Precondition: the base revision reported the health ask as missing.
-  // Keyword-matched per the BRIEF-54 bounded exception ("health" is a
+  // Keyword-matched under the bounded keyword exception ("health" is a
   // planted marker in the authored title/body).
   {
     id: "base-reports-missing-health",

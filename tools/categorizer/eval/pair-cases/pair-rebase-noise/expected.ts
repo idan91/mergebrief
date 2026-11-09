@@ -1,6 +1,5 @@
-// BRIEF-143 revision-pair case: AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
+// Revision-pair case: AUTHORED fixture (own-repo file shapes,
+// difflib-generated diffs; PR locator is a placeholder).
 // Rebase noise: the base gained two lines above redact.ts's PR change and
 // left the change as it was, so its group carries with its range moved down
 // two; health.ts changed and re-looks.

@@ -1,7 +1,6 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
-// Boundary restructure: rev2 unifies health+status around a shared probe — merge/split among re-looked groups only. Spec §Mechanism merge/split rule.
+// Revision-pair case: AUTHORED fixture (own-repo file shapes,
+// difflib-generated diffs; PR locator is a placeholder).
+// Boundary restructure: rev2 unifies health+status around a shared probe: merge/split among re-looked groups only. Spec §Mechanism merge/split rule.
 import type { PairEvalProperty } from "../../pairs";
 import { coverage, groupsOwning, untouchedGroupSurvives } from "../props";
 
@@ -14,7 +13,7 @@ export const pairProperties: PairEvalProperty[] = [
   untouchedGroupSurvives(A),
   coverage([A, B, C]),
   // Merge/split among re-looked groups: descent keeps ids from the previous
-  // partition — no freshly minted ids for these files.
+  // partition, no freshly minted ids for these files.
   {
     id: "restructure-ids-descend",
     description:

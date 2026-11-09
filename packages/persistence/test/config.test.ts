@@ -306,7 +306,7 @@ describe("config: DATABASE_URL_FILE", () => {
   });
 
   it("reads through the real filesystem by default", () => {
-    const dir = mkdtempSync(join(tmpdir(), "brief-131-dsn-"));
+    const dir = mkdtempSync(join(tmpdir(), "persistence-dsn-"));
     const path = join(dir, "db-url");
     writeFileSync(path, `${VALID_URL}\n`);
     const config = ok(loadConfig(fileEnv(path)));

@@ -1,5 +1,4 @@
--- BRIEF-40 (ADR 0018 D15; ADR 0016 #4 as amended 2026-07-23): the GitHub
--- credential pair moves off `reviewer_session`/`api_token` into ONE
+-- The GitHub credential pair moves off `reviewer_session`/`api_token` into ONE
 -- `github_grant` row per authorization, referenced by FK — a single physical
 -- copy makes refresh divergence (single-use refresh token copied into two
 -- rows) unrepresentable.
@@ -60,7 +59,7 @@ DO $$
 BEGIN
 	IF EXISTS (SELECT 1 FROM "reviewer_session" WHERE "grant_id" IS NULL)
 		OR EXISTS (SELECT 1 FROM "api_token" WHERE "grant_id" IS NULL) THEN
-		RAISE EXCEPTION 'BRIEF-40 grant backfill left rows without grant_id';
+		RAISE EXCEPTION 'grant backfill left rows without grant_id';
 	END IF;
 END $$;--> statement-breakpoint
 ALTER TABLE "api_token" ALTER COLUMN "grant_id" SET NOT NULL;--> statement-breakpoint

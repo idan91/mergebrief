@@ -2,8 +2,8 @@ import type { EvalProperty } from "../../properties";
 import { chunksFor, dominantCategories, fires } from "../../briefQueries";
 
 /**
- * components#7 — a brand-new CopyButton component (types + impl + scss +
- * test + barrel export), +326 -0. THE BRIEF-55 seed case: the observed FP
+ * components#7: a brand-new CopyButton component (types + impl + scss +
+ * test + barrel export), +326 -0. The seed case: the observed FP
  * stamped `cross-service` on the new prop-types file ("exported public
  * API surface") although nothing consumes it yet. The cross-service
  * properties are the measurement target for any description tightening.
@@ -12,7 +12,7 @@ export const properties: EvalProperty[] = [
   {
     id: "no-cross-service-on-new-types-file",
     description:
-      "the new CopyButton.types.ts must not fire cross-service — a new file has no existing external consumers (BRIEF-55 FP)",
+      "the new CopyButton.types.ts must not fire cross-service — a new file has no existing external consumers",
     // The length guard blocks a vacuous pass: no validator forces chunks
     // to cover every diff file, so "file never chunked" must FAIL here,
     // not pass the case's headline property.

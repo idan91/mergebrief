@@ -137,11 +137,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/eval/cases/copybutton-new-export/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "tools/categorizer/eval/cases/pure-move-persistence/expected.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -150,41 +145,6 @@
   "tools/categorizer/eval/cases/schema-change-provenance/expected.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-boundary-restructure/expected.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-intent-transition/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-meaning-changing/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-new-material/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-risk-add/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-risk-remove/expected.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "tools/categorizer/eval/pair-cases/pair-subtractive/expected.ts": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "tools/categorizer/eval/run.ts": {

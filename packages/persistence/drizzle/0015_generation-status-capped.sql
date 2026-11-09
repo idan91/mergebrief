@@ -1,4 +1,4 @@
--- BRIEF-20: `generation.status` gains 'capped' — the terminal skip a repo's
+-- `generation.status` gains 'capped' — the terminal skip a repo's
 -- daily generation cap produces (spend guardrail). Closed-vocabulary swap in
 -- lockstep with `GenerationStatus` in `src/types.ts` — same DROP + ADD
 -- pattern as migration 0003 (forward-only; rollback = drop and re-add the

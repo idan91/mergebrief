@@ -16,7 +16,7 @@ extra spend beyond the one Brief generation.
 
 ## 0. Prerequisites
 
-- The deployed stack running per [`brief-19-smoke.md`](post-merge-smoke.md)
+- The deployed stack running per [`post-merge-smoke.md`](post-merge-smoke.md)
   §1–2 (compose up, ngrok tunnel, dev App webhook + callback URLs set). The
   worker must be running — this feature only lights up on a **draft PR with a
   generated Brief**.
@@ -35,10 +35,10 @@ extra spend beyond the one Brief generation.
 As `AUTHOR`, in `TESTREPO`:
 
 ```sh
-git checkout -b brief-43-manual
+git checkout -b author-state-manual
 echo "// scratch" >> some-file.ts
-git commit -am "wip: brief-43 manual test"
-git push -u origin brief-43-manual
+git commit -am "wip: author-state manual test"
+git push -u origin author-state-manual
 gh pr create --draft --title "author-state manual test" --fill
 ```
 

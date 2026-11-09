@@ -1,4 +1,4 @@
--- BRIEF-2 schema additions (ADR 0018 amended 2026-07-05). NOTE for operators:
+-- Schema additions. NOTE for operators:
 -- the `gh_refresh_token_ciphertext NOT NULL` add has no DEFAULT and so assumes
 -- `reviewer_session` is EMPTY at apply time — true in M1 (reviewer OAuth ships
 -- in a later PR, so no session rows exist yet). If you somehow have live
@@ -7,7 +7,7 @@
 ALTER TABLE "pull_request" ADD COLUMN "entry_comment_id" bigint;--> statement-breakpoint
 ALTER TABLE "reviewer_session" ADD COLUMN "gh_refresh_token_ciphertext" text NOT NULL;--> statement-breakpoint
 
--- Hand-appended (BRIEF-2): add `superseded` to the generation.status closed
+-- Hand-appended: add `superseded` to the generation.status closed
 -- vocabulary in lockstep with the `as const` map in src/types.ts, mirroring
 -- 0002's register-first protocol. drizzle-kit does not manage this CHECK, so
 -- the swap is DROP CONSTRAINT + ADD CONSTRAINT (forward-only; rollback = drop

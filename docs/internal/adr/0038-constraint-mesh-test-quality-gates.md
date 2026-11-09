@@ -179,7 +179,7 @@ only, never runs the eval.
 
 ### 11. QA procedure ratchet
 
-Every step in `pre-release-testing.md`, `brief-19-smoke.md`,
+Every step in `pre-release-testing.md`, `post-merge-smoke.md`,
 `generator-smoke-recipe.md` gets one disposition tag: `automated: <gate>`
 (deleted from the manual pass), `manual-until: <ticket/trigger>`, or
 `manual-forever: <reason>`. The pre-release doc becomes a gates-index plus
