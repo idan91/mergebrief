@@ -69,11 +69,20 @@
     inset-inline-start: 2px;
     inset-block-start: calc(50% - var(--track-h) / 2);
     display: block;
-    inline-size: calc((100% - 4px) * var(--fill));
+    inline-size: calc(100% - 4px);
     block-size: var(--track-h);
     border-radius: var(--radius-pill);
     background: var(--color-text-2);
-    transition: inline-size var(--motion-slow) var(--ease-out);
+    clip-path: inset(
+      0 calc((1 - var(--fill)) * 100%) 0 0 round var(--radius-pill)
+    );
+    transition: clip-path var(--motion-slow) var(--ease-out);
+
+    &:dir(rtl) {
+      clip-path: inset(
+        0 0 0 calc((1 - var(--fill)) * 100%) round var(--radius-pill)
+      );
+    }
   }
 
   .segment[data-current] .fill {

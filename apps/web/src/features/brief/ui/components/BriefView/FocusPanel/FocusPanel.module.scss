@@ -17,7 +17,7 @@
     box-shadow: var(--shadow-float);
     transition:
       opacity 220ms var(--ease-out),
-      transform 260ms var(--ease-drawer),
+      transform var(--motion-slide) var(--ease-drawer),
       visibility 0s linear 0s;
 
     &[data-state="closed"] {

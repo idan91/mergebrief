@@ -50,7 +50,11 @@
 
     &[aria-disabled="true"] {
       cursor: default;
-      opacity: 0.4;
+
+      @include mixins.dimmed(var(--opacity-disabled)) {
+        border-color: functions.dim(var(--color-outline-2));
+        color: functions.dim(var(--color-text-2));
+      }
     }
 
     @include mixins.focus-visible;

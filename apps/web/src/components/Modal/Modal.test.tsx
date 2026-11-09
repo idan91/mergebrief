@@ -301,6 +301,18 @@ describe("Modal list dialogs", () => {
     expect(list.get("scroll-padding-block")).toBe(ringRoom);
   });
 
+  it("caps a list dialog's height and widens the cap on short screens", () => {
+    const box = readDeclarations(MODAL_RULES, LIST_BOX);
+    const shortBox = readDeclarations(
+      MODAL_RULES,
+      LIST_BOX,
+      SHORT_SCREEN_MEDIA,
+    );
+
+    expect(box.get("max-block-size")).toBe("min(45rem, 100dvh - 6rem)");
+    expect(shortBox.get("max-block-size")).toBe("calc(100dvh - 1.5rem)");
+  });
+
   it("hands a drag past the list's end to the box on short screens", () => {
     const box = readDeclarations(MODAL_RULES, LIST_BOX, SHORT_SCREEN_MEDIA);
     const list = readDeclarations(MODAL_RULES, LIST, SHORT_SCREEN_MEDIA);

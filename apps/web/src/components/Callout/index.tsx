@@ -38,7 +38,7 @@ export interface CalloutProps {
   placement?: Placement;
   /** Size to content instead of the fixed 320px column. */
   fit?: boolean;
-  /** Label density: the padding of a one-line name, not a card. */
+  /** The tooltip tier: a one-line name with a chip's corner and a light shadow, not a card. */
   compact?: boolean;
   /** The content owns its padding and width: a list whose rows run to the edge. */
   flush?: boolean;

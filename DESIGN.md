@@ -9,6 +9,7 @@ colors:
   ground: "#020203"
   focus-ground: "#000000"
   chrome: "#09090b"
+  card: "#0d0d10"
   surface-1: "#111114"
   surface-2: "#15151a"
   surface-3: "#1c1c22"
@@ -88,9 +89,9 @@ typography:
 rounded:
   xs: "2px"
   sm: "4px"
-  chip: "5px"
+  chip: "6px"
   md: "8px"
-  panel: "10px"
+  panel: "12px"
   lg: "12px"
   pill: "999px"
   circle: "50%"
@@ -208,6 +209,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 - **Ground** (#020203): the page and the Header, one ground with no band. Focus mode drops to **Focus Ground**, black, one flat fill, so it stays below the page.
 - **Chrome** (`--color-chrome`, Surface 1 at 45% over the ground, about #09090b): the Brief header's compare row and the sidebar's column, panel and narrow bar, one fill so they cannot drift apart.
+- **Card** (`--color-card`, Surface 1 at 80% over the ground in OKLCH, about #0d0d10): the change-group card's fill.
 - **Scrim** (black at 55%): behind dialogs and sheets.
 - **Surface 1, 2, 3** (#111114, #15151a, #1c1c22): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
 - **Well** (Ground 25% into Surface 1): the diff's code and a chunk's head, the one surface a step below the card it sits in.
@@ -299,14 +301,13 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 - **URL box at rest** (`inset 0 0 0 1px` of Text 1 at 9%, plus `0 14px 32px -16px rgb(0 0 0 / 60%)`): a faint edge and a soft lift.
 - **URL box focused** (the same edge, plus `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
-- **What floats** (`0 18px 44px -10px rgb(0 0 0 / 70%)`): menus, callouts, and focus mode's pill and panel.
+- **What floats** (`0 18px 44px -10px rgb(0 0 0 / 70%)`): menus, popovers, callouts, dialogs over their scrim, and focus mode's pill and panel.
+- **Tooltips** (`0 4px 12px rgb(0 0 0 / 40%)`): a compact callout, a one-line label rather than a surface.
 - **Toasts and sheets** (`0 16px 48px rgb(0 0 0 / 55%)`).
-
-A dialog takes no shadow; the scrim separates it.
 
 ## Shapes
 
-Small, consistent corners: 4px for key caps, 5px for chips, 8px for controls and toasts, 10px for the list, the URL box, menus and callouts, 12px for dialogs and a sheet's top corners. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people, on two more tokens: the avatar is a circle (`--radius-circle`, 50%) and the account trigger a pill (`--radius-pill`, 999px). The pill has two more uses. A status pill that rides inside a line of text or a diff takes it: the read-only chip, a revision tag, the warming chip, a thread count, a conversation chip and a Changes-only group's category, as do focus mode's pill and tab and the details `i`. So do marks with no corner to speak of: a spinner, a progress fill, a scrollbar thumb, a status dot and the sheet's grip. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+Small, consistent corners on four steps: 4px for key caps and inner corners, 6px for chips, badges and tooltips, 8px for controls and toasts, 12px for every surface: the list, the URL box, menus, callouts, dialogs and a sheet's top corners. A surface's inner corner is its radius less its inset. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (6px), `--radius-md` (8px), `--radius-panel` (12px) and `--radius-lg` (12px). Four are named by size and two by the role that wears them, so a chip or a panel follows its role rather than a neighbour's step. Round is kept for people, on two more tokens: the avatar is a circle (`--radius-circle`, 50%) and the account trigger a pill (`--radius-pill`, 999px). The pill has two more uses. A status pill that rides inside a line of text or a diff takes it: the read-only chip, a revision tag, the warming chip, a thread count, a conversation chip and a Changes-only group's category, as do focus mode's pill and tab and the details `i`. So do marks with no corner to speak of: a spinner, a progress fill, a scrollbar thumb, a status dot and the sheet's grip. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
 
 ## Icons
 
@@ -331,7 +332,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 - **Primary:** Brand fill under a white label: the primary action of a view, Generate on Home, Submit and the dialogs' confirm on the Brief page, Sign in. One per view: on the Brief page the header's Submit is it, so a chunk's Next, a comment composer's submit and a thread's Post and Save take Secondary. Hover takes Brand Strong and press mixes 12% of the ground into it in sRGB, so a primary only darkens and keeps its hue. The Submit button's draft count sits on black at 50% under a white number.
 - **Secondary:** transparent with a Line Strong border.
 - **Danger:** outline only: crimson text and a crimson edge at 55% over Line Strong; hover lifts the edge to full crimson over a 12% crimson tint. There is no filled Danger. In a destructive dialog Cancel and the confirm carry equal weight, so the heading asks the question, the body says what cannot be undone, and focus lands on Cancel.
-- **Disabled:** a Line edge and Text 2, with no fill. The primary keeps a Surface 2 fill with Text 3, so a disabled primary is never the brightest thing in a dialog.
+- **Disabled:** the variant's own edge, fill and label at 45% opacity (`--opacity-disabled`), with no hover or press change, so a disabled button keeps its shape and reads as a button. It stays focusable; while it shows the focus ring the edge, fill and label stay at 45% as colour rather than element opacity, so the ring keeps full strength and the control still reads as disabled. Every control dimmed this way does the same.
 - **Icon buttons:** borderless, Text 2, Surface 3 under the pointer with Text 1. The triggers that need a visible edge (the account trigger's pill, the details trigger's ring) draw their own.
 - **Press:** a Button or icon button scales to 0.97 over 120ms on the entrance curve; a toolbar button never scales, it can be a full-width heading, so it takes a background step instead, as rows and tabs do. No hover movement anywhere.
 
@@ -339,13 +340,13 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### URL box
 
-- **Style:** Surface 2 fill, faint edge, soft shadow, 10px corner, 44px tall. A link icon leads; the slash key hint sits at the end and gives way to the Generate button once text is entered.
+- **Style:** Surface 2 fill, faint edge, soft shadow, 12px corner, 44px tall. A link icon leads; the slash key hint sits at the end and gives way to the Generate button once text is entered.
 - **Focus:** Surface 3 fill, 2px accent ring, accent-cast shadow. The icon turns accent.
 - **Submitting:** the field is replaced by one line of status and a thin accent sweep along the bottom edge.
 
 ### List and rows
 
-- **Container:** Surface 1, 1px Line edge, 10px corner, Line dividers between rows. No card per row.
+- **Container:** Surface 1, 1px Line edge, 12px corner, Line dividers between rows. No card per row.
 - **Row:** two lines, 56px for the first row of a list and 57px after it, where the divider adds one. Line one is the mark, the title and chips. Line two is another author's chip when the row is someone else's, the source icon (URL pull requests only), repository, number and age, in Label type, on one baseline. Inline code in a title takes a chip. A code chip wider than the row is cut inside itself; a chip that follows words and doesn't fit is replaced whole by the title's ellipsis.
 - **Right edge:** generation state (generating, queued, failed) and the status, right-aligned and flush. Status is printed only when it is not Open.
 - **Hover:** Surface 2. Actions fade in over the right edge (opacity only, 120ms): Open on GitHub, and a menu with Copy link, Open on GitHub, Archive, Delete on the viewer's own URL rows and on installation rows in repositories the viewer administers, Delete attachment branch on those installation rows, and Regenerate leading it when a pasted row is behind, unless its last generation failed in a way a repeat paste fails again. On touch only the menu stays visible, so a phone row keeps its width for the title and repository.
@@ -355,7 +356,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### Chips
 
-- **Style:** 5px corner (a status pill takes the pill, see Shapes), soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row or a dialog: place in a stack, new commits (in the changed tint), unreachable, the review outcome above the receipt's tiles, and "Not an approval" in the receipt header, in Text 2. A filter chip keeps the Brief page's 26px and its check glyph.
+- **Style:** 6px corner (a status pill takes the pill, see Shapes), soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row or a dialog: place in a stack, new commits (in the changed tint), unreachable, the review outcome above the receipt's tiles, and "Not an approval" in the receipt header, in Text 2. A filter chip keeps the Brief page's 26px and its check glyph.
 - **States:** a pressed chip takes the changed tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
 - **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. The Brief header is the exception: its status and stack chips sit on the page ground with no list around them, so each keeps an edge, the status chip in its own colour at 35% and the neutral stack chip in Line Strong. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge.
 
@@ -369,9 +370,9 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### Menus and callouts
 
-- **Menu:** Surface 3, Line Strong border, 10px corner, the float shadow. Opens from its trigger's corner: opacity and scale from 0.97 over 180ms, ease-out. Items are Text 1 with Line Strong at 40% under the pointer. A menu that stays open while its content changes does not replay its entrance. On a phone the Brief's Filter and Risk attributes panels, which open inside Brief controls, rise as a sheet of their own instead, with no handle: up to 70% of the viewport upright, the space under the row sideways. Under 760px Home's filters open on the Bottom sheet.
-- **Callout:** the menu's surface, edge, corner and shadow. Opens after a 350ms pointer rest, or at once on keyboard focus where the anchor is focusable; a touch never opens it by hover. It enters like a menu, opacity and scale from 0.97 over 180ms, and takes no space when hidden. Within 600ms of one leaving, the next opens with no delay and no entrance. The SegmentedControl's own instant tip on the Brief page has not moved onto it yet.
-- **Dialog:** Surface 3 behind a Line Strong edge, 12px corner, 24px padding, 460px wide or up to 640 where it holds a list, over the scrim. One header and one footer: the Panel title with an optional 13px detail and a close button at its end, then right-aligned actions with Cancel before the primary. The box is the dialog's scroller and the footer pins to its bottom edge, so the actions stay reachable on a sideways phone. Two exceptions scroll a region inside the box so the header and footer stay put: the unresolved list in the Submit advisory and Mark ready, and the verification receipt's body, which holds the outcome, the tiles and a fixed-height section panel that scrolls on its own; its tab row scrolls sideways where its tabs do not fit, and scrolling past the end of the section panel carries on to the body, except where the primary pointer is coarse and the screen is taller than 500px: there it stops at the panel's end, whichever input scrolls. Where either region at its smallest still does not fit, the whole box scrolls like any other dialog: the header scrolls away and the footer stays pinned. On a screen 500px tall or less, a drag past the end of an inner scroller carries on to the one around it and stops at the box. The scrim fades over 160ms and the box takes opacity and scale from 0.98 over 180ms on the entrance curve; both leave over 120ms. The box itself never shows a focus ring; a dialog with one obvious first control (the dismiss reason field) focuses it on open, any other lands on the box.
+- **Menu:** Surface 3, Line Strong border, 12px corner, the float shadow. Opens from its trigger's corner: opacity and scale from 0.97 over 180ms, ease-out. Items are Text 1 with Line Strong at 40% under the pointer. A menu that stays open while its content changes does not replay its entrance. On a phone the Brief's Filter and Risk attributes panels, which open inside Brief controls, rise as a sheet of their own instead, with no handle: up to 70% of the viewport upright, the space under the row sideways. Under 760px Home's filters open on the Bottom sheet.
+- **Callout:** the menu's surface, edge, corner and shadow. A compact callout is the tooltip tier: a one-line name with the chip's 6px corner and the tooltip shadow. Opens after a 350ms pointer rest, or at once on keyboard focus where the anchor is focusable; a touch never opens it by hover. It enters like a menu, opacity and scale from 0.97 over 180ms, and takes no space when hidden. Within 600ms of one leaving, the next opens with no delay and no entrance. The SegmentedControl's own instant tip on the Brief page has not moved onto it yet; it wears the tooltip tier's corner, shadow and padding.
+- **Dialog:** Surface 3 behind a Line Strong edge, 12px corner, the float shadow, 24px padding, 460px wide or up to 640 where it holds a list, over the scrim. One header and one footer: the Panel title with an optional 13px detail and a close button at its end, then right-aligned actions with Cancel before the primary. The box is the dialog's scroller and the footer pins to its bottom edge, so the actions stay reachable on a sideways phone. Two exceptions scroll a region inside the box so the header and footer stay put: the unresolved list in the Submit advisory and Mark ready, whose box caps at 720px or the viewport less 96px, whichever is smaller, and on a screen 500px tall or less takes the viewport less 24px like any other dialog; and the verification receipt's body, which holds the outcome, the tiles and a fixed-height section panel that scrolls on its own; its tab row scrolls sideways where its tabs do not fit, and scrolling past the end of the section panel carries on to the body, except where the primary pointer is coarse and the screen is taller than 500px: there it stops at the panel's end, whichever input scrolls. Where either region at its smallest still does not fit, the whole box scrolls like any other dialog: the header scrolls away and the footer stays pinned. On a screen 500px tall or less, a drag past the end of an inner scroller carries on to the one around it and stops at the box. The scrim fades over 160ms and the box takes opacity and scale from 0.98 over 180ms on the entrance curve; both leave over 120ms. The box itself never shows a focus ring; a dialog with one obvious first control (the dismiss reason field) focuses it on open, any other lands on the box.
 
 ### Bottom sheet
 
@@ -393,7 +394,7 @@ The one sheet on narrow screens. It holds the Sidebar sheet, Brief controls, a c
 
 ### Motion
 
-Durations 120, 180 and 320ms, one 700ms spinner period every spinner reads through `--motion-spin`, the mark loader's 1.4s pass (`--motion-read`) with its bands 140ms apart on the entrance curve, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement; a plain colour or opacity change may keep the `ease` keyword. Both pages read the same three duration tokens and two curves. A third curve, `--ease-drawer` (`cubic-bezier(0.32, 0.72, 0, 1)`), slides the Brief page's focus panel. The Brief header collapses over 160ms on the entrance curve with transforms alone and applies its new height once. The sidebar slides its panel on the same curve and changes the column once. Some surfaces state their own durations on purpose: the dialog's 160ms scrim, the toast's 240 and 160ms, the focus panel's 220 and 260ms, the story step's 260ms, the 1.4s conversation flash. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate.
+Durations 120, 180 and 320ms, one 700ms spinner period every spinner reads through `--motion-spin`, the mark loader's 1.4s pass (`--motion-read`) with its bands 140ms apart on the entrance curve, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement; a plain colour or opacity change may keep the `ease` keyword. Both pages read the same three duration tokens and two curves. A third curve, `--ease-drawer` (`cubic-bezier(0.32, 0.72, 0, 1)`), slides the Brief page's focus panel. The Brief header collapses over 160ms on the entrance curve with transforms alone and applies its new height once. The sidebar slides its panel on the same curve and changes the column once. Some surfaces state their own durations on purpose: the dialog's 160ms scrim, the toast's 240 and 160ms, the focus panel's 220ms fade and its 260ms slide (`--motion-slide`), which the focus column and the chunk footer share, the 1.4s conversation flash. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate.
 
 **Reduced motion.** Movement goes and fades stay: only opacity, colour and shadow changes still transition. Rises and sheets fade in place, a press does not scale, a menu or callout appears at once, the navigation bar holds at 90%, spinners stop, and the mark loader pulses at half speed without moving.
 

@@ -57,6 +57,11 @@
       var(--color-surface-1) 45%,
       var(--color-background)
     );
+    --color-card: color-mix(
+      in oklch,
+      var(--color-surface-1) 80%,
+      var(--color-background)
+    );
 
     // ── Text ─────────────────────────────────────────────────────────────
     --color-text-1: var(--gray-100); // primary
@@ -198,13 +203,11 @@
     --font-size-touch-field: #{functions.to-rem(16px)};
 
     // ── Radius scale ─────────────────────────────────────────────────────
-    // Corners by role: two named by the thing that wears them, the rest
-    // by size; the chip and the panel take the odd values on purpose.
     --radius-xs: 2px; // tiny bars, markers, inner slivers
     --radius-sm: 4px; // key caps, callouts, inner corners
-    --radius-chip: 5px; // chips, row actions, the URL box's key hint
+    --radius-chip: 6px; // chips, badges, tooltips, the URL box key hint
     --radius-md: 8px; // controls, cards
-    --radius-panel: 10px; // the list, the URL box, menus, panels
+    --radius-panel: 12px; // the list, the URL box, menus, panels
     --radius-lg: 12px; // modals, sheets, outer group frames
     --radius-pill: 999px; // pills
     --radius-circle: 50%; // avatars, dots, round icon buttons
@@ -223,13 +226,15 @@
     --space-9: #{functions.to-rem(64px)};
 
     // ── Motion ───────────────────────────────────────────────────────────
-    // Three durations, the spinner period, the mark loader's pass and its
-    // stagger, and the curves; keyboard movement never animates.
+    // Three durations, the focus panel's slide, the spinner period, the mark
+    // loader's pass and its stagger, and the curves; keyboard movement never
+    // animates.
     // SIDEBAR_SLIDE_IN_MS and SIDEBAR_SLIDE_OUT_MS in
     // BriefView/Sidebar/consts.ts copy base and fast.
     --motion-fast: 120ms;
     --motion-base: 180ms;
     --motion-slow: 320ms;
+    --motion-slide: 260ms;
     --motion-spin: 700ms;
     --motion-read: 1.4s;
     --motion-read-stagger: 140ms;
@@ -285,10 +290,11 @@
     --focus-overlap: calc(var(--focus-card-end) - var(--focus-panel-start));
 
     // ── Elevation ────────────────────────────────────────────────────────
-    // Two steps and what floats.
     --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
-    --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
-    --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, callouts
+    --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // sheets, the toast, the lightbox
+    --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, popovers, dialogs
+    --shadow-tooltip: 0 4px 12px rgb(0 0 0 / 40%);
+    --opacity-disabled: 0.45;
 
     // --shadow-ring-clear is the transparent end-state of the jump-to flash
     // keyframes: it must keep --shadow-ring-accent's geometry or the

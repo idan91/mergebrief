@@ -21,7 +21,7 @@
 .content {
   display: block;
   min-block-size: 0;
-  padding: functions.to-rem(12px) functions.to-rem(14px);
+  padding: var(--space-4);
   border-radius: inherit;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -32,8 +32,18 @@
   max-width: functions.to-rem(320px);
 }
 
-.callout[data-compact] .content {
-  padding: functions.to-rem(7px) functions.to-rem(10px);
+.callout[data-compact] {
+  border-radius: var(--radius-chip);
+  box-shadow: var(--shadow-tooltip);
+
+  .content {
+    padding: functions.to-rem(6px) var(--space-3);
+  }
+
+  .title {
+    font-weight: 500;
+    line-height: 1.4;
+  }
 }
 
 .callout[data-flush] {
@@ -68,14 +78,14 @@
 
 .eyebrow {
   display: block;
-  margin-bottom: functions.to-rem(5px);
+  margin-bottom: var(--space-2);
   color: var(--color-text-2);
   font-size: var(--font-size-sm);
 }
 
 .title {
   display: block;
-  margin-bottom: functions.to-rem(4px);
+  margin-bottom: var(--space-2);
   font-size: var(--font-size-lg);
   font-weight: 600;
 
@@ -102,7 +112,7 @@
 
 .context {
   display: block;
-  margin-top: functions.to-rem(6px);
+  margin-top: var(--space-2);
   color: var(--color-text-2);
   font-size: var(--font-size-sm);
   line-height: 1.4;

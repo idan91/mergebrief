@@ -3,10 +3,6 @@
 @layer components {
   .button {
     gap: functions.to-rem(8px);
-
-    &[aria-disabled="true"] {
-      opacity: 0.4;
-    }
   }
 
   .key {
@@ -15,5 +11,10 @@
     @media (hover: none) {
       display: none;
     }
+  }
+
+  // The cap paints its own fill and edge, so Button's focused repaint misses it.
+  .button[aria-disabled="true"]:focus-visible .key {
+    opacity: var(--opacity-disabled);
   }
 }

@@ -26,7 +26,15 @@
 
     &[aria-disabled="true"] {
       cursor: default;
-      opacity: 0.6;
+
+      @include mixins.dimmed(var(--opacity-disabled)) {
+        color: functions.dim(var(--color-text-1));
+
+        .check,
+        .glyph {
+          color: functions.dim(var(--color-accent));
+        }
+      }
     }
   }
 

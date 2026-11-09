@@ -54,14 +54,13 @@
       grid-auto-flow: column;
     }
 
-    /* aria-disabled, never `disabled` — that drops focus at e.g. stepper
-       ends. Opacity dims the focus ring too, so undim it. */
+    /* aria-disabled, never `disabled`: that drops focus at e.g. stepper
+       ends. */
     &[aria-disabled="true"] {
       cursor: not-allowed;
-      opacity: 0.35;
 
-      &:focus-visible {
-        opacity: 1;
+      @include mixins.dimmed(var(--opacity-disabled)) {
+        color: functions.dim(var(--color-text-2));
       }
     }
   }

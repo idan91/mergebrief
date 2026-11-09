@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  compileStylesheet,
+  parseCompiledRules,
+  readDeclarations,
+} from "@web/test/compiled-css";
 import { SegmentedControl, type SegmentedOption } from ".";
 
 const OPTIONS: SegmentedOption<"full" | "changes">[] = [
@@ -119,5 +126,38 @@ describe("SegmentedControl", () => {
       fireEvent.mouseLeave(wrapper);
     }
     expect(wrapper?.getAttribute("data-tip-open")).toBeNull();
+  });
+});
+
+const TEST_FILE = fileURLToPath(import.meta.url);
+const COMPONENTS_DIRECTORY = join(dirname(TEST_FILE), "..");
+
+function readRules(stylesheet: string) {
+  const path = join(COMPONENTS_DIRECTORY, stylesheet);
+  return parseCompiledRules(compileStylesheet(path));
+}
+
+describe("SegmentedControl tip", () => {
+  it("takes the compact Callout's tooltip tier", () => {
+    const tip = readDeclarations(
+      readRules("SegmentedControl/SegmentedControl.module.scss"),
+      ".tip",
+    );
+    const calloutRules = readRules("Callout/Callout.module.scss");
+    const compact = readDeclarations(calloutRules, ".callout[data-compact]");
+    const compactContent = readDeclarations(
+      calloutRules,
+      ".callout[data-compact] .content",
+    );
+    const compactTitle = readDeclarations(
+      calloutRules,
+      ".callout[data-compact] .title",
+    );
+
+    expect(tip.get("border-radius")).toBe(compact.get("border-radius"));
+    expect(tip.get("box-shadow")).toBe(compact.get("box-shadow"));
+    expect(tip.get("padding")).toBe(compactContent.get("padding"));
+    expect(tip.get("font-weight")).toBe(compactTitle.get("font-weight"));
+    expect(tip.get("line-height")).toBe(compactTitle.get("line-height"));
   });
 });

@@ -20,6 +20,20 @@
   }
 }
 
+// Element opacity dims the element's own outline, so a dimmed control that
+// stays focusable undims while it shows the ring and the caller's content
+// dims its paint with `functions.dim` instead. No transition: opacity and
+// paint must swap in the same frame or the control flashes enabled.
+@mixin dimmed($opacity) {
+  opacity: $opacity;
+  transition: none;
+
+  &:focus-visible {
+    opacity: 1;
+    @content;
+  }
+}
+
 // A touch screen holds :hover after a tap, until the next tap elsewhere. Every
 // rule naming :hover sits inside this.
 @mixin hover {

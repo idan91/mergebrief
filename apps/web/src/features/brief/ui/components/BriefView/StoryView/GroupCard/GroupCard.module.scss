@@ -3,16 +3,10 @@
 
 @layer components {
   .card {
-    --card-fill: color-mix(
-      in oklch,
-      var(--color-surface-1) 80%,
-      var(--color-background)
-    );
-
     margin-block-end: functions.to-rem(40px);
     border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
     border-radius: var(--radius-lg);
-    background: var(--card-fill);
+    background: var(--color-card);
   }
 
   // Normally content-sized and fixed; on very short viewports it shrinks
@@ -86,7 +80,7 @@
   // The Changes view mounts the same Risk Surface outside a card; only the
   // card's copy takes the panel's label scale and paddings.
   .card > .body {
-    --scroller-bg: var(--card-fill);
+    --scroller-bg: var(--color-card);
 
     border-block-start: 1px solid var(--color-outline-1);
     border-end-end-radius: var(--radius-lg);

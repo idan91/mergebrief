@@ -17,6 +17,16 @@ $breakpoints: (
   @return math.div($px-size, $default-size) * 1em;
 }
 
+// The disabled dim as paint rather than element opacity, which would also
+// dim the element's outline.
+@function dim($color) {
+  @return color-mix(
+    in srgb,
+    #{$color} calc(var(--opacity-disabled) * 100%),
+    transparent
+  );
+}
+
 @function get-breakpoint($name) {
   @return map.get($breakpoints, $name);
 }

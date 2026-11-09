@@ -138,7 +138,7 @@
 
     // Off-screen until focused; reduced-motion media query zeroes the transition.
     transform: translateY(-150%);
-    transition: transform 0.15s;
+    transition: transform var(--motion-fast) var(--ease-out);
 
     &:focus-visible {
       transform: none;
