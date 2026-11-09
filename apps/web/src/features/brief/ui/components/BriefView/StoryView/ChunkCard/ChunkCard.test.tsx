@@ -532,6 +532,67 @@ describe("ChunkCard viewed mark", () => {
   });
 });
 
+describe("ChunkCard head facts", () => {
+  it("joins the concern and role as text in the head", () => {
+    renderCard();
+    const role = screen.getByText("Core");
+
+    expect(role.closest("[data-concern]")?.textContent).toBe(
+      "Implementation·Core",
+    );
+    expect(role.closest("[data-color]")).toBeNull();
+  });
+});
+
+describe("ChunkCard head tools", () => {
+  const shareChunk = {
+    deriveUrl: (chunkId: string) => `https://brief.test/?l=${chunkId}`,
+    commit: vi.fn(),
+  };
+
+  it("groups the copy and comment tools in one lane", () => {
+    renderCard({ shareChunk });
+    const buttons = within(screen.getByTestId("chunk-tools")).getAllByRole(
+      "button",
+    );
+    const names = buttons.map((button) => button.getAttribute("aria-label"));
+
+    expect(names).toEqual([
+      "Copy file path",
+      "Copy link to this chunk",
+      `Add a comment on ${chunk.file}`,
+    ]);
+  });
+
+  it("marks the comment tool pressed while the file composer is open", () => {
+    renderCard({ open: true });
+    const comment = within(screen.getByTestId("chunk-tools")).getByRole(
+      "button",
+      { name: `Add a comment on ${chunk.file}` },
+    );
+    expect(comment.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(comment);
+
+    expect(comment.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("marks the copy tool copied after a copy", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    renderCard();
+    const copy = within(screen.getByTestId("chunk-tools")).getByRole("button", {
+      name: "Copy file path",
+    });
+
+    fireEvent.click(copy);
+
+    await waitFor(() => expect(copy.dataset["state"]).toBe("copied"));
+  });
+});
+
 describe("ChunkCard chunk actions", () => {
   afterEach(cleanup);
 
@@ -563,6 +624,15 @@ describe("ChunkCard chunk actions", () => {
     expect(within(dialog).getByText("Implementation")).toBeTruthy();
     expect(within(dialog).getByText("Core")).toBeTruthy();
     expect(within(dialog).getByText("Read as counts only")).toBeTruthy();
+  });
+
+  it("keeps the role as its own badge inside the sheet", () => {
+    renderCard();
+    const { dialog } = openActions();
+    const role = within(dialog).getByText("Core");
+
+    expect(role.getAttribute("data-color")).not.toBeNull();
+    expect(role.closest("[data-concern]")).toBeNull();
   });
 
   it("requests the file comment composer from the menu and closes", () => {

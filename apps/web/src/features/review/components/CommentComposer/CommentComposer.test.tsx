@@ -35,6 +35,7 @@ import {
   type ReviewSessionPayload,
 } from "../../session";
 import { CommentComposer } from ".";
+import composerFormStyles from "./ComposerForm/ComposerForm.module.scss";
 import { useComposerFormFacade } from "./ComposerForm/useComposerFormFacade";
 import { buildUnsavedCommentKey } from "./unsaved-text-storage";
 import {
@@ -186,6 +187,15 @@ describe("CommentComposer actions", () => {
 
     const submit = screen.getByRole("button", { name: "Start review" });
     expect(submit.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
+  });
+
+  it("ranks Start review over Cancel through their own skins", () => {
+    renderComposer([]);
+
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    const submit = screen.getByRole("button", { name: "Start review" });
+    expect(cancel.dataset["variant"]).toBe(ButtonVariants.GHOST);
+    expect(submit.className).toContain(composerFormStyles["submit"]);
   });
 });
 

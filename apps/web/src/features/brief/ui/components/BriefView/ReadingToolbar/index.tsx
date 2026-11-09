@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 
 import { ToolbarButton } from "@web/components/ToolbarButton";
+import { ToolbarButtonVariants } from "@web/components/ToolbarButton/types";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
 import type { RiskAttrCycle } from "../hooks/useRiskAttrCycle";
@@ -41,7 +42,7 @@ export interface ReadingToolbarProps {
  * One sticky bar above the conversation slot, pinned below the header and
  * publishing its measured height as --toolbar-h so sticky chunk headers
  * stack beneath it. Two clusters split by auto-margin: left = what's shown,
- * right = where you are. The right cluster may be legitimately empty.
+ * right = what to do and where you are.
  */
 export function ReadingToolbar({
   filter,
@@ -99,6 +100,7 @@ export function ReadingToolbar({
           filter={filter.filter}
           hiddenInlineThreads={filter.hiddenInlineThreads}
           reviewers={filter.reviewers}
+          triggerVariant={ToolbarButtonVariants.GHOST}
           verdicts={filter.verdicts}
           onChange={filter.onChange}
         />
@@ -108,21 +110,13 @@ export function ReadingToolbar({
           cycle={riskAttrCycle}
           jumpToGroup={jumpToGroup}
           rail={rail}
+          triggerVariant={ToolbarButtonVariants.GHOST}
         />
       ) : null}
       <div className={styles["navCluster"]}>
-        {startReadThrough !== undefined ? (
-          <ToolbarButton onClick={startReadThrough}>
-            <span className={styles["labelShort"]}>
-              {t("brief.toolbar.startReadThroughShort")}
-            </span>
-            <span className={styles["labelLong"]}>
-              {t("brief.toolbar.startReadThrough")}
-            </span>
-          </ToolbarButton>
-        ) : null}
         <ToolbarButton
           aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
+          variant={ToolbarButtonVariants.GHOST}
           onClick={toggleCollapseSupporting}
         >
           {/* CSS swaps which label renders; the accessible name follows
@@ -134,6 +128,23 @@ export function ReadingToolbar({
             {t("brief.toolbar.collapseLong")}
           </span>
         </ToolbarButton>
+        {startReadThrough !== undefined ? (
+          <>
+            <span aria-hidden="true" className={styles["divider"]} />
+            <ToolbarButton
+              className={styles["readThrough"]}
+              variant={ToolbarButtonVariants.GHOST}
+              onClick={startReadThrough}
+            >
+              <span className={styles["labelShort"]}>
+                {t("brief.toolbar.startReadThroughShort")}
+              </span>
+              <span className={styles["labelLong"]}>
+                {t("brief.toolbar.startReadThrough")}
+              </span>
+            </ToolbarButton>
+          </>
+        ) : null}
         <ChangeStepper
           comparison={comparison}
           jumpNext={jumpNext}

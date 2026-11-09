@@ -71,6 +71,28 @@ describe("CopyButton", () => {
     expect(onCopy).not.toHaveBeenCalled();
   });
 
+  it("names the outcome in its callout while the feedback shows", async () => {
+    mockClipboard(vi.fn().mockRejectedValue(new Error("denied")));
+    render(<CopyButton label="Copy link to this chunk" text="x" />);
+    const button = screen.getByRole("button", {
+      name: "Copy link to this chunk",
+    });
+    vi.spyOn(button, "matches").mockImplementation(
+      (selector) => selector === ":focus-visible",
+    );
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip").textContent).toBe(
+      "Copy link to this chunk",
+    );
+
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("Copy failed"),
+    );
+    expect(button.getAttribute("aria-label")).toBe("Copy link to this chunk");
+  });
+
   it("resets the feedback after a moment", async () => {
     vi.useFakeTimers();
     try {

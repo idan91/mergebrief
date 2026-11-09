@@ -12,6 +12,7 @@ import {
   CARD_BORDERS_PX,
   CODE_GLYPH_PX,
   DEFAULT_REM_PX,
+  LANDSCAPE_HEAD_SHORTFALL_PX,
   MAIN_GUTTER_PX,
   NARROW_CARD_EDGE_PX,
   NARROW_MAIN_GUTTER_PX,
@@ -37,6 +38,7 @@ const PLEX_MONO_ADVANCE_EM = 0.6;
 const PHONE_QUERY = new RegExp(
   `(max-width: |width <= )${String(MOBILE_BREAKPOINT_PX)}px`,
 );
+const LANDSCAPE_QUERY = "(orientation: landscape)";
 const VAR_REFERENCE = /var\((--[\w-]+)\)/g;
 const REM_LENGTH = /(\d*\.?\d+)rem/g;
 const PX_LENGTH = /(\d*\.?\d+)px/g;
@@ -62,6 +64,10 @@ function isUnderPhoneQuery(rule: CompiledRule): boolean {
 
 function isUnderBleedQuery(rule: CompiledRule): boolean {
   return rule.media === CARD_BLEED_QUERY;
+}
+
+function isUnderLandscapeQuery(rule: CompiledRule): boolean {
+  return rule.media?.includes(LANDSCAPE_QUERY) === true;
 }
 
 /** The one rule for `selector` in `scope` that sets `property`. */
@@ -283,5 +289,31 @@ describe("phone wrap model stylesheet lengths", () => {
     const numberPx = readLengthPx(numberRule, "inline-size", phoneTokens);
 
     expect(2 * railPx + 2 * numberPx).toBe(SPLIT_NUMBERS_PX);
+  });
+});
+
+describe("sideways head stylesheet length", () => {
+  const chunkCardRules = readCompiledRules(
+    `${BRIEF_VIEW_DIRECTORY}/StoryView/ChunkCard/ChunkCard.module.scss`,
+  );
+
+  it("parks the sideways head its shortfall under the desktop head", () => {
+    const desktop = findRule(
+      chunkCardRules,
+      ".head",
+      "min-block-size",
+      isOutsideMedia,
+    );
+    const sideways = findRule(
+      chunkCardRules,
+      ".head",
+      "block-size",
+      isUnderLandscapeQuery,
+    );
+    const desktopPx = readLengthPx(desktop, "min-block-size", phoneTokens);
+    const sidewaysPx = readLengthPx(sideways, "block-size", phoneTokens);
+
+    expect(desktopPx - sidewaysPx).toBe(LANDSCAPE_HEAD_SHORTFALL_PX);
+    expect(readValue(sideways, "min-block-size")).toBe("0");
   });
 });

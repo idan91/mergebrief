@@ -6,6 +6,7 @@ import type { AttributeDisplayMeta } from "../../../../../../model/utils/repo-co
 import { isUnattributedRemainderChunk } from "../../../../../../model/utils/remainder";
 import {
   getConcernLabel,
+  getRoleLabel,
   riskChipView,
 } from "../../../../../../model/utils/view-model";
 import { FileStatusBadge } from "../FileStatusBadge";
@@ -14,6 +15,7 @@ import { RoleBadge } from "../RoleBadge";
 import styles from "./ChunkFacts.module.scss";
 import { OverflowRiskChip } from "./OverflowRiskChip";
 import { RiskChip } from "./RiskChip";
+import { ChunkFactsPlacements, type ChunkFactsPlacement } from "./types";
 
 export interface ChunkFactsProps {
   chunk: BriefChunk;
@@ -24,6 +26,8 @@ export interface ChunkFactsProps {
   reviewCommentCount: number;
   /** The review comments are ones this chunk addresses, not stray ones on its file. */
   addressesComments: boolean;
+  /** The head joins the role to the concern as text; the sheet keeps the role chip. */
+  placement?: ChunkFactsPlacement;
 }
 
 /**
@@ -38,10 +42,13 @@ export function ChunkFacts({
   draftCount,
   reviewCommentCount,
   addressesComments,
+  placement = ChunkFactsPlacements.SHEET,
 }: ChunkFactsProps) {
   const { t } = useTranslation();
   const riskChips = riskChipView(chunk.riskSurface);
   const concernLabel = getConcernLabel(t, chunk.concern);
+  const roleLabel = getRoleLabel(t, chunk.role);
+  const joinsRole = placement === ChunkFactsPlacements.HEAD;
   const reviewCountLabel = addressesComments
     ? t("brief.chunk.addressedCount", { count: reviewCommentCount })
     : t("brief.chunk.reviewCount", { count: reviewCommentCount });
@@ -60,11 +67,24 @@ export function ChunkFacts({
       ) : null}
       {isUnattributedRemainderChunk(chunk) ? null : (
         <>
-          <span className={styles["chip"]} data-concern={chunk.concern}>
-            <span className={styles["dot"]} />
-            {concernLabel}
-          </span>
-          <RoleBadge role={chunk.role} />
+          {joinsRole ? (
+            <span className={styles["concern"]} data-concern={chunk.concern}>
+              <span className={styles["dot"]} />
+              {concernLabel}
+              <span aria-hidden="true" className={styles["sep"]}>
+                ·
+              </span>
+              <span>{roleLabel}</span>
+            </span>
+          ) : (
+            <>
+              <span className={styles["chip"]} data-concern={chunk.concern}>
+                <span className={styles["dot"]} />
+                {concernLabel}
+              </span>
+              <RoleBadge role={chunk.role} />
+            </>
+          )}
           {fileStatus !== undefined ? (
             <FileStatusBadge status={fileStatus} />
           ) : null}

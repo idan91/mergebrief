@@ -314,6 +314,8 @@
       transparent
     );
     --shadow-inset-changed: inset 0 0 0 1px var(--color-changed-edge);
+    --shadow-field-focus: inset 0 0 0 3px
+      color-mix(in srgb, var(--color-accent) 16%, transparent);
     --color-well: color-mix(
       in srgb,
       var(--color-background) 25%,
@@ -325,8 +327,6 @@
       transparent
     );
     --color-field-edge: color-mix(in srgb, var(--color-text-1) 9%, transparent);
-    --shadow-field-focus: 0 0 0 2px
-      color-mix(in srgb, var(--color-accent) 50%, transparent);
     --header-pad-block: #{functions.to-rem(11px)};
     --header-line-gap: #{functions.to-rem(6px)};
 

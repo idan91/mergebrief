@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Popover } from "@web/components/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton";
+import type { ToolbarButtonVariant } from "@web/components/ToolbarButton/types";
 import {
   ConversationFilterPanel,
   type ConversationFilterPanelProps,
@@ -21,6 +22,8 @@ export interface FilterDisclosureProps extends ConversationFilterPanelProps {
   hiddenInlineThreads: number;
   /** The panel rises as a sheet, for a trigger that already sits in one. */
   sheet?: boolean;
+  /** The trigger's skin; ghost on the reading toolbar's strip. */
+  triggerVariant?: ToolbarButtonVariant;
 }
 
 /**
@@ -36,6 +39,7 @@ export function FilterDisclosure({
   hiddenInlineThreads,
   onChange,
   sheet,
+  triggerVariant,
 }: FilterDisclosureProps) {
   const { t } = useTranslation();
   const active = isFilterActive(filter);
@@ -56,6 +60,7 @@ export function FilterDisclosure({
           <ToolbarButton
             data-state={active ? "active" : "inactive"}
             data-testid="conversation-filter-trigger"
+            variant={triggerVariant}
           >
             {t("brief.toolbar.filterLabel")}
             {segments.map((segment, index) => (

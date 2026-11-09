@@ -50,5 +50,33 @@
       background: var(--color-changed-fill);
       color: var(--color-accent);
     }
+
+    // :where keeps the resting ghost at one class, so a call-site class can
+    // restate its label colour without out-ranking the states below.
+    &:where([data-variant="ghost"]) {
+      gap: var(--space-3);
+      min-block-size: functions.to-rem(32px);
+      padding-block: 0;
+      padding-inline: var(--space-4);
+      border-color: transparent;
+      color: var(--color-text-2);
+    }
+
+    &[data-variant="ghost"] {
+      @include mixins.hover {
+        &:hover {
+          color: var(--color-text-1);
+        }
+      }
+
+      &:is(
+        [aria-expanded="true"],
+        [aria-pressed="true"],
+        [aria-pressed="mixed"],
+        [data-state="active"]
+      ) {
+        color: var(--color-text-1);
+      }
+    }
   }
 }

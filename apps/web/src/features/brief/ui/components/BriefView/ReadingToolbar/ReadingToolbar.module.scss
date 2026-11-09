@@ -4,7 +4,7 @@
 @layer components {
   // Sticky below the header; the component publishes its measured height as
   // --toolbar-h for sticky chunk headers. flex-wrap: nowrap enforces the
-  // fixed height; NO overflow: hidden — a fixed-height box with overflow
+  // fixed height; NO overflow: hidden, since a fixed-height box with overflow
   // hidden clips its own anchored panels.
   .toolbar {
     position: sticky;
@@ -16,12 +16,12 @@
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: functions.to-rem(8px);
-    margin-block-end: functions.to-rem(14px);
-    padding: functions.to-rem(8px);
+    gap: var(--space-2);
+    margin-block-end: var(--space-4);
+    padding: var(--space-2);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-panel);
-    background: var(--color-background);
+    background: var(--color-surface-1);
   }
 
   // Hidden, its measured height publishes 0px to the sticky stack.
@@ -47,13 +47,23 @@
     }
   }
 
-  // Right cluster (WHERE YOU ARE) — split from the left by auto-margin; may
-  // be legitimately empty (>=1120 with Compare off).
   .navCluster {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-2);
     margin-inline-start: auto;
+  }
+
+  .divider {
+    flex: none;
+    inline-size: 1px;
+    block-size: 18px;
+    background: var(--color-outline-1);
+  }
+
+  .navCluster .readThrough {
+    color: var(--color-text-1);
+    font-weight: 500;
   }
 }

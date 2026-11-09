@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
@@ -15,6 +18,12 @@ import {
 } from "../reading/reading-position";
 import { createBriefViewStore } from "../store";
 import { ReadingToolbar, type ReadingToolbarProps } from ".";
+import {
+  compileStylesheet,
+  parseCompiledRules,
+  readDeclarations,
+} from "@web/test/compiled-css";
+import styles from "./ReadingToolbar.module.scss";
 
 afterEach(() => {
   cleanup();
@@ -230,19 +239,19 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
 });
 
 describe("ReadingToolbar read-through entry", () => {
-  it("starts the read-through from the nav cluster, ahead of collapse", () => {
+  it("starts the read-through from the nav cluster, after collapse", () => {
     const startReadThrough = vi.fn();
     renderToolbar({ startReadThrough });
     const button = screen.getByRole("button", { name: /Start read-through/ });
     const collapse = screen.getByRole("button", {
       name: /Collapse supporting/,
     });
-    const precedesCollapse =
-      button.compareDocumentPosition(collapse) &
+    const followsCollapse =
+      collapse.compareDocumentPosition(button) &
       Node.DOCUMENT_POSITION_FOLLOWING;
 
     expect(button.parentElement).toBe(collapse.parentElement);
-    expect(precedesCollapse).toBeTruthy();
+    expect(followsCollapse).toBeTruthy();
     fireEvent.click(button);
     expect(startReadThrough).toHaveBeenCalledOnce();
   });
@@ -252,5 +261,74 @@ describe("ReadingToolbar read-through entry", () => {
     expect(
       screen.queryByRole("button", { name: /Start read-through/ }),
     ).toBeNull();
+  });
+
+  it("sets the read-through apart from collapse with a divider", () => {
+    renderToolbar({ startReadThrough: vi.fn() });
+    const collapse = screen.getByRole("button", {
+      name: /Collapse supporting/,
+    });
+    const divider = collapse.nextElementSibling;
+
+    expect(divider?.className).toBe(styles["divider"]);
+    expect(divider?.getAttribute("aria-hidden")).toBe("true");
+    expect(divider?.nextElementSibling).toBe(
+      screen.getByRole("button", { name: /Start read-through/ }),
+    );
+  });
+
+  it("draws no divider without a read-through entry", () => {
+    const { container } = renderToolbar();
+    expect(container.querySelector(`.${styles["divider"]}`)).toBeNull();
+  });
+});
+
+describe("ReadingToolbar trigger skin", () => {
+  it("sets every trigger on the strip flat", () => {
+    renderToolbar({
+      filter: {
+        filter: DEFAULT_CONVERSATION_FILTER,
+        verdicts: [{ state: "APPROVED", humanCount: 2, botCount: 0 }],
+        reviewers: [{ login: "alice", isBot: false }],
+        hiddenInlineThreads: 0,
+        onChange: () => {},
+      },
+      startReadThrough: vi.fn(),
+    });
+    const triggers = [
+      screen.getByRole("button", { name: "Filter" }),
+      screen.getByRole("button", { name: /Risk attributes/ }),
+      screen.getByRole("button", { name: /Collapse supporting/ }),
+      screen.getByRole("button", { name: /Start read-through/ }),
+    ];
+    const variants = triggers.map((trigger) => trigger.dataset["variant"]);
+
+    expect(variants).toEqual(["ghost", "ghost", "ghost", "ghost"]);
+  });
+
+  it("gives the read-through the emphasised label", () => {
+    renderToolbar({ startReadThrough: vi.fn() });
+    const button = screen.getByRole("button", { name: /Start read-through/ });
+    expect(button.className).toContain(styles["readThrough"]);
+  });
+});
+
+describe("ReadingToolbar stylesheet skins", () => {
+  const testDirectory = dirname(fileURLToPath(import.meta.url));
+  const stylesheet = join(testDirectory, "ReadingToolbar.module.scss");
+  const rules = parseCompiledRules(compileStylesheet(stylesheet));
+
+  it("draws the divider as a short hairline", () => {
+    const divider = readDeclarations(rules, ".divider");
+
+    expect(divider.get("inline-size")).toBe("1px");
+    expect(divider.get("background")).toBe("var(--color-outline-1)");
+  });
+
+  it("lifts the read-through label to Text 1 at 500", () => {
+    const label = readDeclarations(rules, ".navCluster .readThrough");
+
+    expect(label.get("color")).toBe("var(--color-text-1)");
+    expect(label.get("font-weight")).toBe("500");
   });
 });

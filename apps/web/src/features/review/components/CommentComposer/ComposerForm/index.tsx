@@ -5,7 +5,7 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useId } from "react";
 
-import { Button } from "@web/components/Button";
+import { Button, ButtonVariants } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
@@ -126,13 +126,18 @@ export function ComposerForm({
         {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
             to <body> the moment saving starts. The store refuses a cancel
             or a second save mid-write and announces why. */}
-        <Button aria-disabled={saving || undefined} onClick={cancelComposer}>
+        <Button
+          aria-disabled={saving || undefined}
+          variant={ButtonVariants.GHOST}
+          onClick={cancelComposer}
+        >
           {t("review.comment.cancel")}
         </Button>
         <Button
           aria-busy={saving || undefined}
           aria-disabled={saving || undefined}
-          variant="secondary"
+          className={styles["submit"]}
+          variant={ButtonVariants.SECONDARY}
           onClick={composer.submit}
         >
           {submitLabel}

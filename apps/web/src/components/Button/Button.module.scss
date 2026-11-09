@@ -128,6 +128,7 @@
       border-color: transparent;
       border-radius: var(--radius-md);
       color: var(--color-text-2);
+      font-weight: 500;
 
       @include mixins.hover {
         &:not([aria-disabled="true"]):hover {

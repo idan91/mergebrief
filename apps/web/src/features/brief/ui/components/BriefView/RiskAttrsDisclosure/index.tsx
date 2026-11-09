@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Popover } from "@web/components/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton";
+import type { ToolbarButtonVariant } from "@web/components/ToolbarButton/types";
 import type { RiskAttrCycle } from "../hooks/useRiskAttrCycle";
 import { RiskBadge } from "../RiskBadge";
 import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
@@ -17,6 +18,8 @@ export interface RiskAttrsDisclosureProps {
   cycle: RiskAttrCycle;
   /** The panel rises as a sheet, for a trigger that already sits in one. */
   sheet?: boolean;
+  /** The trigger's skin; ghost on the reading toolbar's strip. */
+  triggerVariant?: ToolbarButtonVariant;
 }
 
 /**
@@ -30,6 +33,7 @@ export function RiskAttrsDisclosure({
   jumpToGroup,
   cycle,
   sheet,
+  triggerVariant,
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
   const chips = rail.entries.map((entry) => {
@@ -53,7 +57,7 @@ export function RiskAttrsDisclosure({
     <span className={styles["wrap"]}>
       <Popover offsetPx={DISCLOSURE_OFFSET_PX} portal={false}>
         <Popover.Trigger>
-          <ToolbarButton>
+          <ToolbarButton variant={triggerVariant}>
             {rail.floorFired ? (
               <span
                 aria-hidden="true"

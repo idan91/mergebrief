@@ -36,6 +36,7 @@ describe("Button stylesheet ghost variants", () => {
 
     expect(ghost.get("border-color")).toBe("transparent");
     expect(ghost.get("color")).toBe("var(--color-text-2)");
+    expect(ghost.get("font-weight")).toBe("500");
     expect(ghost.has("background")).toBe(false);
   });
 

@@ -52,10 +52,11 @@
     display: flex;
     inline-size: 100%;
     align-items: center;
-    gap: functions.to-rem(12px);
-    padding-block: functions.to-rem(11px);
-    padding-inline: functions.to-rem(16px)
-      calc(#{functions.to-rem(16px)} + var(--chunk-head-reserve));
+    gap: var(--space-4);
+    min-block-size: functions.to-rem(48px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5)
+      calc(var(--space-5) + var(--chunk-head-reserve));
     border: 1px solid var(--color-outline-1);
     border-start-start-radius: var(--radius-panel);
     border-start-end-radius: var(--radius-panel);
@@ -67,7 +68,7 @@
     min-inline-size: 0;
     flex: 0 1 auto;
     align-items: center;
-    gap: functions.to-rem(12px);
+    gap: var(--space-4);
     padding: 0;
     border: 0;
     background: transparent;
@@ -91,15 +92,6 @@
     color: var(--color-text-3);
   }
 
-  // Tighten the shared CopyButtons against the file name.
-  .copyPath {
-    margin-inline-start: functions.to-rem(-6px);
-  }
-
-  .copyLink {
-    margin-inline-start: functions.to-rem(-4px);
-  }
-
   .file {
     overflow: hidden;
     color: var(--color-text-1);
@@ -108,7 +100,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    // File paths are copyable despite the button parent — UA stylesheets
+    // File paths are copyable despite the button parent: UA stylesheets
     // make button text unselectable. Safari only honors the prefixed form
     // (WebKit bug 208677) and the build has no autoprefixer.
     // stylelint-disable-next-line property-no-vendor-prefix
@@ -122,11 +114,36 @@
     text-align: start;
   }
 
+  .tools {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2);
+    margin-inline-start: calc(-1 * var(--space-2));
+  }
+
+  @include mixins.hover {
+    .tools {
+      opacity: 0;
+      transition: opacity var(--motion-fast) var(--ease-out);
+    }
+
+    .head:hover .tools,
+    .head:has(:focus-visible) .tools,
+    .tools:has(
+      [aria-pressed="true"],
+      [data-state="copied"],
+      [data-state="failed"]
+    ) {
+      opacity: 1;
+    }
+  }
+
   .chips {
     display: flex;
     flex: none;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-4);
     margin-inline-start: auto;
     font-size: var(--font-size-sm);
   }
@@ -134,10 +151,10 @@
   .loc {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2);
     color: var(--color-text-3);
     font-variant-numeric: tabular-nums;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-lg);
     white-space: nowrap;
   }
 
@@ -235,9 +252,7 @@
       gap: functions.to-rem(10px);
     }
 
-    .copyPath,
-    .copyLink,
-    .fileCommentControl {
+    .tools {
       display: none;
     }
 
@@ -250,6 +265,7 @@
     }
 
     .loc {
+      font-size: var(--font-size-sm);
       grid-row: 2;
       grid-column: 1;
       padding-inline-start: var(--twist-lane);
@@ -283,6 +299,7 @@
       display: flex;
       align-items: center;
       block-size: functions.to-rem(44px);
+      min-block-size: 0;
       gap: functions.to-rem(10px);
       padding: 0;
       padding-inline-start: functions.to-rem(12px);
@@ -294,9 +311,7 @@
       gap: functions.to-rem(10px);
     }
 
-    .copyPath,
-    .copyLink,
-    .fileCommentControl {
+    .tools {
       display: none;
     }
 
@@ -310,6 +325,7 @@
 
     .loc {
       flex: none;
+      font-size: var(--font-size-sm);
       padding-inline-start: 0;
     }
 

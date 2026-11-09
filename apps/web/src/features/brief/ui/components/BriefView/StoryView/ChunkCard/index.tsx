@@ -33,6 +33,7 @@ import {
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ChunkActionsSheet } from "./ChunkActionsSheet";
 import { ChunkFacts } from "./ChunkFacts";
+import { ChunkFactsPlacements } from "./ChunkFacts/types";
 import { FileCommentBand } from "./FileCommentBand";
 import { useFileCommentComposer } from "./useFileCommentComposer";
 import { Icon } from "@web/components/Icon";
@@ -252,7 +253,18 @@ export const ChunkCard = memo(function ChunkCard({
         (comment) => !comment.outdated && comment.line !== undefined,
       );
 
-  const facts = (
+  const headFacts = (
+    <ChunkFacts
+      addressesComments={hasLinkedAddressedComments}
+      chunk={chunk}
+      draftCount={comments.length}
+      fileStatus={fileStatus}
+      placement={ChunkFactsPlacements.HEAD}
+      reviewCommentCount={chunkReviewComments.length}
+      riskMeta={riskMeta}
+    />
+  );
+  const sheetFacts = (
     <ChunkFacts
       addressesComments={hasLinkedAddressedComments}
       chunk={chunk}
@@ -341,22 +353,29 @@ export const ChunkCard = memo(function ChunkCard({
             <bdi dir="ltr">{displayFile}</bdi>
           </span>
         </button>
-        <CopyButton
-          className={styles["copyPath"]}
-          label={t("brief.chunk.copyFilePath")}
-          text={chunk.file}
-        />
-        {shareChunk !== undefined ? (
-          <CopyButton
-            className={styles["copyLink"]}
-            icon={IconNames.LINK}
-            label={t("brief.chunk.copyLink")}
-            onCopy={() => shareChunk.commit(chunk.id)}
-            text={() => shareChunk.deriveUrl(chunk.id)}
-          />
-        ) : null}
+        <span className={styles["tools"]} data-testid="chunk-tools">
+          <CopyButton label={t("brief.chunk.copyFilePath")} text={chunk.file} />
+          {shareChunk !== undefined ? (
+            <CopyButton
+              icon={IconNames.LINK}
+              label={t("brief.chunk.copyLink")}
+              onCopy={() => shareChunk.commit(chunk.id)}
+              text={() => shareChunk.deriveUrl(chunk.id)}
+            />
+          ) : null}
+          <IconButton
+            aria-label={addFileCommentLabel}
+            aria-pressed={fileComposer.composerOpen}
+            callout="top"
+            className={styles["fileCommentControl"]}
+            label={t("review.comment.commentOnFile")}
+            onClick={fileComposer.requestComposer}
+          >
+            <Icon name={IconNames.CHAT_TEXT} size={IconSizes.SM} />
+          </IconButton>
+        </span>
         <span className={styles["chips"]}>
-          {facts}
+          {headFacts}
           <span className={styles["loc"]}>
             <LocSign sign={LocSigns.ADD} count={chunk.loc.added} />{" "}
             <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
@@ -373,16 +392,6 @@ export const ChunkCard = memo(function ChunkCard({
           </Checkbox>
         </span>
         <IconButton
-          aria-label={addFileCommentLabel}
-          aria-pressed={fileComposer.composerOpen}
-          callout="left"
-          className={styles["fileCommentControl"]}
-          label={t("review.comment.commentOnFile")}
-          onClick={fileComposer.requestComposer}
-        >
-          <Icon name={IconNames.CHAT_TEXT} size={IconSizes.MD} />
-        </IconButton>
-        <IconButton
           aria-expanded={actionsOpen}
           aria-haspopup="dialog"
           className={styles["actions"]}
@@ -398,7 +407,7 @@ export const ChunkCard = memo(function ChunkCard({
           chunkId={chunk.id}
           close={closeActionsToTrigger}
           displayFile={displayFile}
-          facts={facts}
+          facts={sheetFacts}
           filePath={chunk.file}
           githubUrl={githubUrl}
           requestComment={fileComposer.revealComposer}

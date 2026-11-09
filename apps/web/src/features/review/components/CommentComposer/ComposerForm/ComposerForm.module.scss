@@ -1,19 +1,20 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .composer {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(8px);
-    margin-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(12px);
+    gap: var(--space-3);
+    margin-block: var(--space-3);
+    padding-inline: var(--space-4);
     font-family: var(--sans);
   }
 
   .meta {
     display: flex;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
+    gap: var(--space-5);
     color: var(--color-text-2);
     font-size: var(--font-size-sm);
     font-variant-numeric: tabular-nums;
@@ -32,6 +33,32 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
+  }
+
+  // Qualified by .actions to outrank Button's own single-class and state
+  // rules, whose module may load after this one.
+  .actions .submit {
+    border-color: var(--color-outline-3);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  // Button's focused dim repaints its own edge, not this raised skin.
+  .actions .submit[aria-disabled="true"]:focus-visible {
+    border-color: functions.dim(var(--color-outline-3));
+    background: functions.dim(var(--color-surface-2));
+  }
+
+  @include mixins.hover {
+    .actions .submit:not([aria-disabled="true"]):hover {
+      border-color: color-mix(
+        in srgb,
+        var(--color-outline-3) 60%,
+        var(--color-text-1)
+      );
+      background: var(--color-surface-3);
+    }
   }
 }
