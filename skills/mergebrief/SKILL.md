@@ -17,8 +17,9 @@ Rules that make unattended loops safe:
 - `mergebrief <command> --help` documents every flag and payload. This skill
   teaches the workflow; the CLI owns the reference.
 - [contract.md](contract.md) holds the wire contract, including the exit
-  table with next moves, the span rule, the delta union, and the risk-anchor
-  rule. Read it once before your first write of a session.
+  table with next moves, the span rule, the delta union, the risk-anchor
+  rule, and the intent check's shape. Read it once before your first write
+  of a session.
 
 ## Authority
 
@@ -109,7 +110,7 @@ submit-review`. Every operation the
    re-look. Clearing one is human-only, so carry every open item into the
    handoff.
 5. `mergebrief groups <n> --json`. The brief: change groups, chunks, risk
-   attributes. This is your reading order. `mergebrief context <n>` adds the
+   attributes, and the intent check. This is your reading order. `mergebrief context <n>` adds the
    repo-config snapshot when per-file weighting matters.
 6. Per group, run `mergebrief diff <n> --group <id>` and read the code.
    Record progress with `mergebrief chunk-read <n> <chunkId>` as you finish
@@ -129,6 +130,19 @@ submit-review`. Every operation the
    Clearing one (`mergebrief risk dismiss|address|reopen`) is the operator's
    act, and the server enforces that. Weigh open flags while reading, and
    name the ones your reading confirms or contradicts in the review body.
+10. The brief's `intentCheck` reads the change against its stated intent.
+    Its alarms are claims, weighed like open flags: every `maskedFixes`
+    item, each `deviations` item whose `acknowledged` is false, and an
+    `alignment.read` of `misaligned`. Check each against the code and name
+    it, confirmed or contradicted, in the review body. A `statedButMissing`
+    item is an ask the diff seems to leave undone: find its `quote` in the
+    PR or its ticket before you raise it, then look for the work in the
+    code. A `doneButUnstated` item is scope: decide whether it belongs in
+    this change. A `partial` read is one slice of a larger goal, an
+    ordinary outcome; `scopeNote` says when the ticket spans a series. With
+    no `intentCheck` the brief predates the check, and a `specificity` of
+    `broad` or `none` means the PR states no usable intent: say which once
+    and judge on the code alone.
 
 ## Judgment
 
@@ -141,8 +155,8 @@ code showed you. When the brief and the code disagree, the code wins, and
 the review body says so.
 
 The brief routes you; findings come from the code. Before you settle on the
-outcome, list the pull request's strongest claims and try to break each one
-against the code.
+outcome, list the pull request's strongest claims, the intent check's
+`accomplished` items among them, and try to break each one against the code.
 
 ## Failure
 
@@ -161,7 +175,7 @@ new session, and re-target the new span.
 ## Handoff
 
 End every run with the session state: chunks read against the total, each
-held draft as file:line and a one-line gist, dispositions recorded, the
-outcome set, open attention items left for the operator, and whether you
-submitted. When submit was not authorized, state exactly what
+held draft as file:line and a one-line gist, dispositions recorded, each
+open intent item the code confirmed or contradicted, the outcome set, open
+attention items left for the operator, and whether you submitted. When submit was not authorized, state exactly what
 `mergebrief submit` would publish, so the user can run it or grant it.

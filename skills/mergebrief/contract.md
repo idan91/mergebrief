@@ -106,6 +106,43 @@ across `addedRanges` and `removedRanges`, or 1 and 1 when both are empty. A
 signed-in reviewer normally clears flags in the web app, which needs none of
 this.
 
+## The intent check
+
+`groups --json` carries `intentCheck`: the change read against its stated
+intent, which is the PR title and description plus the tickets they link.
+A brief generated before the check existed has no `intentCheck`.
+
+- `specificity` is `precise`, `broad` or `none`. Only `precise` fills the
+  buckets; under `broad` or `none` every bucket is empty, and empty there
+  means no usable intent, never a clean result.
+- `scopeNote` is one sentence when the ticket deliberately spans more than
+  this PR, such as a stacked series, and empty otherwise.
+- Five buckets, each an array of `{intent, quote, sourceUrl, groupIds,
+  acknowledged}`. `groupIds` name `changeGroups` entries. `sourceUrl` is
+  empty when the quote comes from the PR title or description. The
+  generator drops a `deviations` or `maskedFixes` item whose `quote` it
+  cannot find verbatim in its source; on `accomplished` and
+  `statedButMissing` it keeps an empty or unverified `quote`, so check that
+  one against the source yourself.
+  - `accomplished`: asks the diff does.
+  - `statedButMissing`: asks the diff does not do. `groupIds` is empty.
+  - `doneButUnstated`: diff work no source asked for. `quote` and
+    `sourceUrl` are empty.
+  - `deviations`: asks the diff moves against. `acknowledged: true` means
+    the PR description owns the reversal.
+  - `maskedFixes`: claimed fixes where the diff touches only the problem's
+    signal, such as a demoted log, a skipped test or a raised threshold.
+- The generator sets `acknowledged`, and it carries meaning only on
+  `deviations`. No command writes it.
+- `primaryTicket` names the one ticket the PR is about, found in its title,
+  description or branch name, and is absent when none of them names one.
+- `alignment` is `{read, goal, response}`, read against the primary
+  ticket's goal. `read` is `aligned` (the diff delivers the goal),
+  `partial` (one slice of it, an ordinary outcome) or `misaligned` (it
+  does not serve the goal). `alignment` is absent when there is no primary
+  ticket, the ticket could not be read or states no goal to quote, the
+  intent is `broad` or `none`, or the goal quote did not verify.
+
 ## The delta union
 
 `mergebrief delta <n> --json` resolves your last-review checkpoint and emits
