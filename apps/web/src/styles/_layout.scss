@@ -34,9 +34,9 @@ $story-diff-reserve: $story-diff-floor + $story-diff-headroom;
 }
 
 // Below these widths the card stacks under the diff: the reading column
-// under 1124px plus 96px of gutters plus the sidebar's reserve.
-// StackedQueries in StorySplitter/types.ts mirrors all three. Include it
-// from a rule whose element sits inside .main.
+// under 1124px plus 96px of gutters, plus the collapsed sidebar's reserve.
+// StackedQueries in StorySplitter/types.ts mirrors both. Include it from a
+// rule whose element sits inside .main.
 @mixin when-story-stacks {
   @media (width <= 1220px) {
     :global(.main) & {
@@ -45,17 +45,17 @@ $story-diff-reserve: $story-diff-floor + $story-diff-headroom;
   }
 
   @media (width <= 1268px) {
-    :global(.main[data-sidebar="collapsed"]) & {
-      @content;
-    }
-  }
-
-  @media (width <= 1644px) {
+    :global(.main[data-sidebar="collapsed"]) &,
     :global(.main[data-sidebar="expanded"]) & {
       @content;
     }
   }
 }
+
+// Up to this width an expanded sidebar overlays the story and the page keeps
+// the collapsed reserve: its full reserve would take the story under the
+// 1268px stack point above. It is that point plus the panel's 23.5rem.
+$sidebar-overlay-max: 1644px;
 
 // Equal columns that wrap to one once a column would fall under 340px. The
 // floor is the breakpoint: a media query cannot see a narrowed container.

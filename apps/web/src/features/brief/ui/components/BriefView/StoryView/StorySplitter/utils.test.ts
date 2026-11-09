@@ -80,12 +80,8 @@ describe("resolveStackedQuery", () => {
   it("keys on the sidebar layout", () => {
     expect(resolveStackedQuery(undefined)).toBe(StackedQueries.BARE);
     expect(resolveStackedQuery("bar")).toBe(StackedQueries.BARE);
-    expect(resolveStackedQuery("collapsed")).toBe(
-      StackedQueries.SIDEBAR_COLLAPSED,
-    );
-    expect(resolveStackedQuery("expanded")).toBe(
-      StackedQueries.SIDEBAR_EXPANDED,
-    );
+    expect(resolveStackedQuery("collapsed")).toBe(StackedQueries.SIDEBAR);
+    expect(resolveStackedQuery("expanded")).toBe(StackedQueries.SIDEBAR);
   });
 });
 

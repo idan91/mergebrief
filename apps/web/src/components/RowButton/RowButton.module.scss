@@ -78,30 +78,26 @@
     }
   }
 
-  /* The modal unresolved-item pair: list-item cards over the modal ground. */
-  .rowButton[data-variant="card"] {
-    display: grid;
-    gap: functions.to-rem(4px);
+  .rowButton[data-variant="item"] {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
     min-height: 0;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
-    background: var(--color-background);
+    padding: var(--space-3);
+    border: 0;
+    border-radius: 0;
+    background: none;
+    line-height: 1.5;
+    transition: background-color var(--motion-fast) var(--ease-out);
 
-    /* The old card set no size — uncovered content took the root size. */
-    font-size: var(--font-size-root);
-
-    .cardEyebrow {
-      color: var(--color-text-3);
-      font-size: var(--font-size-sm);
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        border-radius: var(--radius-md);
+        background: var(--color-surface-2);
+      }
     }
 
-    b {
-      font-family: var(--mono);
-      font-size: var(--font-size-lg);
-      font-weight: 500;
-
-      /* Long mono file paths must wrap, not clip, on narrow viewports. */
-      overflow-wrap: anywhere;
+    &:focus-visible {
+      border-radius: var(--radius-md);
     }
   }
 
@@ -109,7 +105,8 @@
      Slim rows opt out EXPLICITLY (not by specificity): the ::before above
      already carries their target on every pointer type. */
   @media (pointer: coarse) {
-    .rowButton[data-variant="row"]:not([data-density="slim"]) {
+    .rowButton[data-variant="row"]:not([data-density="slim"]),
+    .rowButton[data-variant="item"] {
       min-height: functions.to-rem(44px);
     }
   }

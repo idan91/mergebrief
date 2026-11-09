@@ -6,7 +6,8 @@ import styles from "./RowButton.module.scss";
 
 export const RowButtonVariants = {
   ROW: "row",
-  CARD: "card",
+  /** A borderless row in a gate dialog's hairline list. */
+  ITEM: "item",
 } as const;
 export type RowButtonVariant = ValueOf<typeof RowButtonVariants>;
 
@@ -18,7 +19,7 @@ export type RowButtonDensity = ValueOf<typeof RowButtonDensities>;
 
 export type RowButtonBaseProps = {
   variant?: RowButtonVariant;
-  /** Row-only axis; card ignores it. */
+  /** Row-only axis; item ignores it. */
   density?: RowButtonDensity;
   /** aria-disabled + interaction guard; never the native attribute. */
   disabled?: boolean;

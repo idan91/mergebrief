@@ -379,10 +379,14 @@ describe("StorySplitter", () => {
     expect(screen.queryByRole("separator")).toBeNull();
   });
 
-  it("keys the stacked width on the sidebar layout", () => {
-    setMediaQueryMatches(StackedQueries.SIDEBAR_EXPANDED, true);
-    stubHarness({ sidebar: "collapsed" });
+  it("keys the stacked width on whether a sidebar column shows", () => {
+    setMediaQueryMatches(StackedQueries.SIDEBAR, true);
+    stubHarness({ sidebar: "bar" });
     expect(screen.getByRole("separator")).toBeTruthy();
+    cleanup();
+
+    stubHarness({ sidebar: "collapsed" });
+    expect(screen.queryByRole("separator")).toBeNull();
     cleanup();
 
     stubHarness({ sidebar: "expanded" });

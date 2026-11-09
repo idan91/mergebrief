@@ -5,6 +5,8 @@ import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { ModalFooter } from "./Footer";
 import { ModalHeader } from "./Header";
+import { UnresolvedGroup } from "./UnresolvedGroup";
+import { UnresolvedRow } from "./UnresolvedRow";
 import { useHeldChildren } from "./useHeldChildren";
 import styles from "./Modal.module.scss";
 
@@ -152,4 +154,6 @@ function ModalRoot({
 export const Modal = Object.assign(ModalRoot, {
   Header: ModalHeader,
   Footer: ModalFooter,
+  UnresolvedGroup,
+  UnresolvedRow,
 });

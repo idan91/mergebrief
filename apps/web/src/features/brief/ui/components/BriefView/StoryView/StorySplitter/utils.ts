@@ -58,11 +58,10 @@ export function deriveCardCeiling(columnWidth: number, gap: number): number {
 export function resolveStackedQuery(
   sidebar: SidebarLayout | undefined,
 ): StackedQuery {
-  if (sidebar === SidebarLayouts.COLLAPSED) {
-    return StackedQueries.SIDEBAR_COLLAPSED;
-  }
-  if (sidebar === SidebarLayouts.EXPANDED) {
-    return StackedQueries.SIDEBAR_EXPANDED;
+  const reservesColumn =
+    sidebar === SidebarLayouts.COLLAPSED || sidebar === SidebarLayouts.EXPANDED;
+  if (reservesColumn) {
+    return StackedQueries.SIDEBAR;
   }
   return StackedQueries.BARE;
 }

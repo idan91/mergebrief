@@ -274,7 +274,7 @@ const MODAL_STYLESHEET = join(TEST_DIRECTORY, "Modal.module.scss");
 const MODAL_RULES = parseCompiledRules(compileStylesheet(MODAL_STYLESHEET));
 const LIST_BOX = ".box:has(> .unresolvedList)";
 const LIST = ".unresolvedList";
-const LONG_LIST = ".unresolvedList:has(> :nth-child(2))";
+const LONG_LIST = ".unresolvedList:has(li:nth-child(2), > :nth-child(2))";
 
 describe("Modal list dialogs", () => {
   it("scrolls only the list between a fixed header and footer", () => {

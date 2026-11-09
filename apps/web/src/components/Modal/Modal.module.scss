@@ -153,14 +153,14 @@
     min-block-size: max-content;
     overflow-y: auto;
     overscroll-behavior: contain;
-    gap: functions.to-rem(8px);
+    gap: var(--space-5);
 
     // The padding and matching negative margins keep a row's focus ring
     // inside the list's scrollport, which would otherwise clip it.
     --ring-room: #{functions.to-rem(5px)};
 
     padding: var(--ring-room);
-    padding-block-end: functions.to-rem(8px);
+    padding-block-end: var(--space-3);
     margin-block-start: calc(-1 * var(--ring-room));
     margin-inline: calc(-1 * var(--ring-room));
     scroll-padding-block: var(--ring-room);
@@ -176,7 +176,7 @@
       )
       0 0 1 0;
 
-    &:has(> :nth-child(2)) {
+    &:has(li:nth-child(2), > :nth-child(2)) {
       min-block-size: functions.to-rem(120px);
     }
 

@@ -4,13 +4,19 @@
 @layer components {
   .submitBox {
     inline-size: functions.to-rem(640px);
-    max-block-size: min(84vh, functions.to-rem(720px));
+    max-block-size: min(
+      #{functions.to-rem(720px)},
+      calc(100dvh - #{functions.to-rem(96px)})
+    );
     overflow-y: auto;
-  }
 
-  // RowButton's card sets a row's main line in the mono for its path.
-  .riskAttribute {
-    font-family: var(--sans);
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      max-block-size: calc(100dvh - #{functions.to-rem(24px)});
+    }
   }
 
   .receiptBox {

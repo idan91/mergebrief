@@ -23,12 +23,12 @@ import {
   resolveInheritedDeclaration,
   scopeCompiledRules,
 } from "@web/test/compiled-css";
-import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
+import rowStyles from "@web/components/Modal/UnresolvedRow/UnresolvedRow.module.scss";
 import { MarkReadyModal } from ".";
 
-const ROW_BUTTON_STYLESHEET = join(
+const ROW_STYLESHEET = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../components/RowButton/RowButton.module.scss",
+  "../../../../../../components/Modal/UnresolvedRow/UnresolvedRow.module.scss",
 );
 
 const FLAGS: RiskFlag[] = [
@@ -79,39 +79,47 @@ function renderModal(
 describe("MarkReadyModal", () => {
   it("lists every flag regardless of read tracking and jumps on click", () => {
     const { jumpToFlag } = renderModal();
-    expect(screen.getByText("src/a.ts")).toBeTruthy();
-    expect(screen.getByText("src/b.ts")).toBeTruthy();
+    const flags = screen.getByRole("list", { name: "Risk flags 2" });
+    const rows = within(flags).getAllByRole("button");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "No testssrc/a.ts",
+      "Touches authsrc/b.ts",
+    ]);
     fireEvent.click(screen.getByRole("button", { name: /Touches auth/ }));
     expect(jumpToFlag).toHaveBeenCalledWith(FLAGS[1]);
   });
 
-  it("sets a flag's attribute small and dim above its mono path", () => {
+  it("leads a flag's row with its attribute beside the mono path", () => {
     renderModal();
-    const css = compileStylesheet(ROW_BUTTON_STYLESHEET);
-    const rules = scopeCompiledRules(parseCompiledRules(css), rowButtonStyles);
+    const css = compileStylesheet(ROW_STYLESHEET);
+    const rules = scopeCompiledRules(parseCompiledRules(css), rowStyles);
 
     const row = screen.getByRole("button", { name: /Touches auth/ });
     const attribute = within(row).getByText("Touches auth");
+    const fileName = within(row).getByText("b.ts");
 
     expect(resolveInheritedDeclaration(attribute, rules, "font-size")).toBe(
-      "var(--font-size-sm)",
+      resolveInheritedDeclaration(fileName, rules, "font-size"),
     );
-    expect(resolveInheritedDeclaration(attribute, rules, "color")).toBe(
-      "var(--color-text-3)",
+    expect(resolveInheritedDeclaration(attribute, rules, "font-family")).toBe(
+      "var(--sans)",
+    );
+    expect(resolveInheritedDeclaration(fileName, rules, "font-family")).toBe(
+      "var(--mono)",
     );
   });
 
   it("scrolls the flag list alone, its header and actions outside", () => {
     renderModal();
     const dialog = screen.getByRole("dialog");
-    const list = screen.getByRole("button", {
-      name: /Touches auth/,
-    }).parentElement;
+    const list = [...dialog.children].find(
+      (child) => child.className === modalStyles["unresolvedList"],
+    );
+    const row = screen.getByRole("button", { name: /Touches auth/ });
     const heading = screen.getByRole("heading", { level: 2 });
     const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
 
-    expect(list?.parentElement).toBe(dialog);
-    expect(list?.className).toBe(modalStyles["unresolvedList"]);
+    expect(list?.contains(row)).toBe(true);
     expect(list?.contains(heading)).toBe(false);
     expect(list?.contains(confirm)).toBe(false);
   });
@@ -119,7 +127,8 @@ describe("MarkReadyModal", () => {
   it("names a flagged path with a bidi override by a visible escape", () => {
     renderModal({ flags: [{ ...FLAGS[0]!, file: "src/\u202Etxt.exe" }] });
 
-    expect(screen.getByText("src/[U+202E]txt.exe")).toBeTruthy();
+    const row = screen.getByRole("button", { name: /No tests/ });
+    expect(row.textContent).toBe("No testssrc/[U+202E]txt.exe");
   });
 
   it("marks ready anyway with ONE click", () => {

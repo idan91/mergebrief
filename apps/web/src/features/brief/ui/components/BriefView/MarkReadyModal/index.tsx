@@ -12,8 +12,6 @@ import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Button } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { LinkButton } from "@web/components/LinkButton";
-import { RowButton } from "@web/components/RowButton";
-import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 import { Modal } from "@web/components/Modal";
 import {
   getRiskAttributeLabel,
@@ -93,6 +91,9 @@ export function MarkReadyModal({
     attributeLabel: getRiskAttributeLabel(t, flag.attr),
     caption: buildRepoPolicyCaption(t, flag),
   }));
+  const flagGroupHeading = t("pulls.markReadyModal.flagGroup", {
+    count: flags.length,
+  });
   const advisory =
     flags.length > 0
       ? t("pulls.markReadyModal.advisoryFlags")
@@ -119,26 +120,22 @@ export function MarkReadyModal({
       />
       {flags.length > 0 ? (
         <div className={styles["unresolvedList"]}>
-          {flagRows.map(({ flag, displayFile, attributeLabel, caption }) => (
-            <RowButton
-              disabled={busy}
-              key={flag.id}
-              variant="card"
-              onClick={() => jumpToFlag(flag)}
-            >
-              <span
-                className={rowButtonStyles["cardEyebrow"]}
-                data-deemphasized={flag.deEmphasized ? "" : undefined}
-                data-source={flag.source}
-              >
-                {attributeLabel}
-              </span>
-              <b>{displayFile}</b>
-              {caption === undefined ? null : (
-                <i data-kind="risk-caption">{caption}</i>
-              )}
-            </RowButton>
-          ))}
+          <Modal.UnresolvedGroup
+            count={flags.length}
+            heading={flagGroupHeading}
+          >
+            {flagRows.map(({ flag, displayFile, attributeLabel, caption }) => (
+              <Modal.UnresolvedRow
+                caption={caption}
+                disabled={busy}
+                key={flag.id}
+                path={displayFile}
+                riskDeemphasized={flag.deEmphasized}
+                riskLabel={attributeLabel}
+                onClick={() => jumpToFlag(flag)}
+              />
+            ))}
+          </Modal.UnresolvedGroup>
         </div>
       ) : null}
       {/* Count-only intent line: a factual count below the flags list, never

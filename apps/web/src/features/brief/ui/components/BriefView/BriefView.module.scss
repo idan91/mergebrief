@@ -1,9 +1,10 @@
 @use "functions";
+@use "layout";
 @use "mixins";
 
 @layer components {
-  // Set on :root because the toast and VersionNotice read the reserve
-  // outside the reading column.
+  // Set on :root because the toast and the page notices read the covered
+  // width outside the reading column.
   :root {
     // Only the Brief page pins a stack; elsewhere the registered 0px stands.
     &:has(.readingColumn) {
@@ -12,12 +13,20 @@
       );
     }
 
-    &:has(.readingColumn[data-sidebar="collapsed"]) {
+    &:has(.readingColumn[data-sidebar="collapsed"]),
+    &:has(.readingColumn[data-sidebar="expanded"]) {
       --sidebar-w: var(--sidebar-w-collapsed);
+      --sidebar-covered-w: var(--sidebar-w-collapsed);
     }
 
     &:has(.readingColumn[data-sidebar="expanded"]) {
-      --sidebar-w: var(--sidebar-w-expanded);
+      --sidebar-covered-w: var(--sidebar-w-expanded);
+    }
+
+    @media (width > #{layout.$sidebar-overlay-max}) {
+      &:has(.readingColumn[data-sidebar="expanded"]) {
+        --sidebar-w: var(--sidebar-w-expanded);
+      }
     }
 
     &:has(.readingColumn[data-sidebar="bar"]) {
@@ -43,8 +52,10 @@
 
     @media (width <= 1120px) {
       &:has(.readingColumn[data-sidebar]) {
-        /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+        /* stylelint-disable length-zero-no-unit -- calc() rejects a unitless 0 */
         --sidebar-w: 0px;
+        --sidebar-covered-w: 0px;
+        /* stylelint-enable length-zero-no-unit */
       }
     }
   }
@@ -72,7 +83,7 @@
 
   .diffTimeoutBand {
     margin-block: functions.to-rem(12px) functions.to-rem(20px);
-    margin-inline-end: var(--sidebar-w);
+    margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--page-gutter), env(safe-area-inset-left))
       max(var(--page-gutter), env(safe-area-inset-right));
 

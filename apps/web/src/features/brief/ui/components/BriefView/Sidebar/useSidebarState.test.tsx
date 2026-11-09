@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { REDUCED_MOTION_QUERY } from "@web/utils/motion";
+import { SIDEBAR_OVERLAY_QUERY } from "./consts";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 
@@ -238,6 +239,70 @@ describe("useSidebarState", () => {
     act(() => result.current.toggle());
 
     expect(result.current.expanded).toBe(true);
+  });
+});
+
+describe("useSidebarState on a load in the overlay range", () => {
+  afterEach(resetMediaQueries);
+
+  function storeOpen() {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "this-pr" }),
+    );
+  }
+
+  it("starts collapsed at 1440px though the stored sidebar is open", () => {
+    storeOpen();
+    setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, true);
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
+
+    expect(result.current.expanded).toBe(false);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+  });
+
+  it("starts open at 1700px where the stored sidebar is open", () => {
+    storeOpen();
+    setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, false);
+
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
+
+    expect(result.current.expanded).toBe(true);
+  });
+
+  it("opens and closes on a toggle at 1440px and persists each", () => {
+    storeOpen();
+    setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, true);
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
+
+    act(() => result.current.toggle());
+    expect(result.current.expanded).toBe(true);
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+
+    act(() => result.current.toggle());
+    expect(result.current.expanded).toBe(false);
+    expect(stored()).toEqual({ expanded: false, tab: "this-pr" });
+  });
+
+  it("keeps the stored open sidebar when a tab is picked closed", () => {
+    storeOpen();
+    setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, true);
+    const { result } = renderHook(() =>
+      useSidebarState("narrow", true, "brief-a"),
+    );
+
+    act(() => result.current.selectTab("revisions"));
+
+    expect(stored()).toEqual({ expanded: true, tab: "revisions" });
   });
 });
 

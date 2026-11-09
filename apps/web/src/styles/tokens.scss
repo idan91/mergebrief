@@ -379,10 +379,13 @@
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --chunk-head-reserve: 0px;
 
-    // The width the Sidebar currently reserves; BriefView sets it from the
-    // reading column's state.
+    // The width the Sidebar currently reserves, and the wider width it covers
+    // while an expanded panel overlays the story; BriefView sets both from
+    // the reading column's state.
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-w: 0px;
+    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+    --sidebar-covered-w: 0px;
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-reserve-bottom: 0px;
 

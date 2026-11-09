@@ -9,7 +9,7 @@
     inset-block-end: calc(
       #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom)
     );
-    inset-inline-start: calc((100% - var(--sidebar-w)) / 2);
+    inset-inline-start: calc((100% - var(--sidebar-covered-w)) / 2);
     z-index: 120;
     display: flex;
     gap: var(--space-4);

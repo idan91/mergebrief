@@ -13,14 +13,14 @@ describe("RowButton", () => {
     expect(button.getAttribute("data-density")).toBe("full");
   });
 
-  it("renders the card variant and slim density on request", () => {
+  it("renders the item variant and slim density on request", () => {
     render(
-      <RowButton density="slim" variant="card">
-        Card
+      <RowButton density="slim" variant="item">
+        Item
       </RowButton>,
     );
-    const button = screen.getByRole("button", { name: "Card" });
-    expect(button.getAttribute("data-variant")).toBe("card");
+    const button = screen.getByRole("button", { name: "Item" });
+    expect(button.getAttribute("data-variant")).toBe("item");
     expect(button.getAttribute("data-density")).toBe("slim");
   });
 

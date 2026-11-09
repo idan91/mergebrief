@@ -1,11 +1,11 @@
 import type { ValueOf } from "types/utils";
 
-// Values are the media queries themselves; they track the stack-split
-// breakpoints in StoryView.module.scss.
+// Values are the media queries themselves; they track when-story-stacks in
+// styles/_layout.scss. An expanded sidebar overlays the story wherever its
+// reserve would stack it, so it stacks where a collapsed one does.
 export const StackedQueries = {
   BARE: "(width <= 1220px)",
-  SIDEBAR_COLLAPSED: "(width <= 1268px)",
-  SIDEBAR_EXPANDED: "(width <= 1644px)",
+  SIDEBAR: "(width <= 1268px)",
 } as const;
 
 export type StackedQuery = ValueOf<typeof StackedQueries>;

@@ -11,7 +11,11 @@ import {
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
 import { prefersReducedMotion } from "@web/utils/motion";
-import { SIDEBAR_SLIDE_IN_MS, SIDEBAR_SLIDE_OUT_MS } from "./consts";
+import {
+  SIDEBAR_OVERLAY_QUERY,
+  SIDEBAR_SLIDE_IN_MS,
+  SIDEBAR_SLIDE_OUT_MS,
+} from "./consts";
 import {
   DEFAULT_SIDEBAR_PREFERENCE,
   readSidebarPreference,
@@ -49,9 +53,10 @@ export interface SidebarState {
 
 /**
  * The sidebar's state for the current viewport band. On desktop `expanded`
- * is the stored preference. Narrow keeps the sheet's open state for the
- * session only, always starting closed, and writes just the tab, so crossing
- * back to desktop restores what was stored. Hiding force-collapses the sheet
+ * is the stored preference, except that a load where the panel would overlay
+ * the story starts it collapsed without writing, and stays so until toggled.
+ * Narrow keeps the sheet's open state for the session only, always starting
+ * closed, and writes just the tab. Hiding force-collapses the sheet
  * but leaves the stored preference untouched; on desktop the caller derives
  * hidden from `expanded` and never writes here. A brief change closes the
  * sheet too, and the next brief's sidebar takes focus back.
@@ -65,6 +70,9 @@ export function useSidebarState(
     DEFAULT_SIDEBAR_PREFERENCE,
   );
   const latest = useRef(preference);
+  // What storage holds: it differs from `latest` only while a load in the
+  // overlay range keeps a stored open sidebar collapsed.
+  const stored = useRef(preference);
   const [motionReady, setMotionReady] = useState(false);
   // Tagged with the brief it opened on, so another brief reads it closed.
   const [sheetOpenFor, setSheetOpenFor] = useState<string | undefined>(
@@ -103,9 +111,12 @@ export function useSidebarState(
 
   // Before paint, so a client-side navigation never flashes the default.
   useLayoutEffect(() => {
-    const stored = readSidebarPreference();
-    latest.current = stored;
-    setPreference(stored);
+    const read = readSidebarPreference();
+    const overlaysStory = window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches;
+    const shown = overlaysStory ? { ...read, expanded: false } : read;
+    stored.current = read;
+    latest.current = shown;
+    setPreference(shown);
 
     const frame = window.requestAnimationFrame(() => setMotionReady(true));
     return () => window.cancelAnimationFrame(frame);
@@ -114,8 +125,9 @@ export function useSidebarState(
   const update = useCallback((patch: Partial<SidebarPreference>) => {
     const next = { ...latest.current, ...patch };
     latest.current = next;
+    stored.current = { ...stored.current, ...patch };
     setPreference(next);
-    writeSidebarPreference(next);
+    writeSidebarPreference(stored.current);
   }, []);
 
   const setExpanded = useCallback(

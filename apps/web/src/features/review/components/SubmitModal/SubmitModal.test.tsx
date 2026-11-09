@@ -17,8 +17,8 @@ import {
   resolveInheritedDeclaration,
   scopeCompiledRules,
 } from "@web/test/compiled-css";
-import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
+import rowStyles from "@web/components/Modal/UnresolvedRow/UnresolvedRow.module.scss";
 
 import {
   createReviewFlowStore,
@@ -27,11 +27,10 @@ import {
 import { ReviewFlowProvider } from "../../session/flow/provider";
 import type { Receipt } from "../../utils/receipt";
 import { SubmitModal, type SubmitModalProps } from ".";
-import styles from "./SubmitModal.module.scss";
 
-const ROW_BUTTON_STYLESHEET = join(
+const ROW_STYLESHEET = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../components/RowButton/RowButton.module.scss",
+  "../../../../components/Modal/UnresolvedRow/UnresolvedRow.module.scss",
 );
 
 function receipt(): Receipt {
@@ -512,16 +511,43 @@ describe("SubmitModal advisory view", () => {
   it("scrolls the advisory list alone, its header and actions outside", () => {
     renderModal({ unresolvedItems: items });
     const dialog = screen.getByRole("dialog", { name: /before you submit/i });
-    const list = screen.getByRole("button", {
-      name: /open risk/i,
-    }).parentElement;
+    const list = [...dialog.children].find(
+      (child) => child.className === modalStyles["unresolvedList"],
+    );
+    const row = screen.getByRole("button", { name: /open risk/i });
     const heading = screen.getByRole("heading", { name: /before you submit/i });
     const continueButton = screen.getByRole("button", { name: /^continue$/i });
 
-    expect(list?.parentElement).toBe(dialog);
-    expect(list?.className).toBe(modalStyles["unresolvedList"]);
+    expect(list?.contains(row)).toBe(true);
     expect(list?.contains(heading)).toBe(false);
     expect(list?.contains(continueButton)).toBe(false);
+  });
+
+  it("groups items by kind under a counted heading, in kind order", () => {
+    renderModal({
+      unresolvedItems: [
+        {
+          id: "comment:2",
+          kind: "draft-comment",
+          label: "src/a.ts:+3",
+          targetId: "chunk-a",
+        },
+        ...items,
+        {
+          id: "flag:3",
+          kind: "open-risk",
+          label: "src/b.ts",
+          targetId: "chunk-b",
+        },
+      ],
+    });
+
+    const headings = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual(["Open risks 2", "Draft comments 2"]);
+    const risks = screen.getByRole("list", { name: "Open risks 2" });
+    expect(within(risks).getAllByRole("button")).toHaveLength(2);
   });
 
   it("captures the items at open: a mid-flow prop change never reshuffles", () => {
@@ -559,9 +585,10 @@ describe("SubmitModal advisory view", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: /unread unattributed lines/i }),
+      screen.getByRole("button", {
+        name: /unread unattributed lines,\s?src\/orphan\.ts/i,
+      }),
     ).toBeTruthy();
-    expect(screen.getByText("src/orphan.ts")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /^submit review$/i }),
     ).toBeNull();
@@ -570,7 +597,7 @@ describe("SubmitModal advisory view", () => {
     expect(submitButton()).toBeTruthy();
   });
 
-  it("sets a risk's attribute apart from its mono file path", () => {
+  it("sets a risk's attribute in its file name's size and colour", () => {
     renderModal({
       unresolvedItems: [
         {
@@ -582,42 +609,27 @@ describe("SubmitModal advisory view", () => {
         },
       ],
     });
+    const css = compileStylesheet(ROW_STYLESHEET);
+    const rules = scopeCompiledRules(parseCompiledRules(css), rowStyles);
 
     const row = screen.getByRole("button", { name: /open risk/i });
-    const attribute = within(row).getByText(/^Hot path/);
-    expect(attribute.className).toBe(styles["riskAttribute"]);
-  });
-
-  it("sets a risk's attribute in its path's size and colour", () => {
-    renderModal({
-      unresolvedItems: [
-        {
-          id: "risk:hot-path",
-          kind: "open-risk",
-          label: "src/a.ts",
-          riskAttribute: "Hot path",
-          targetId: "chunk-a",
-        },
-      ],
-    });
-    const css = compileStylesheet(ROW_BUTTON_STYLESHEET);
-    const rules = scopeCompiledRules(parseCompiledRules(css), rowButtonStyles);
-
-    const row = screen.getByRole("button", { name: /open risk/i });
-    const kind = within(row).getByText("Open risk");
-    const attribute = within(row).getByText(/^Hot path/);
-    const path = row.querySelector("b")!;
+    const attribute = within(row).getByText("Hot path");
+    const fileName = within(row).getByText("a.ts");
+    const directory = within(row).getByText("src/");
 
     for (const property of ["font-size", "color"]) {
       expect(resolveInheritedDeclaration(attribute, rules, property)).toBe(
-        resolveInheritedDeclaration(path, rules, property),
+        resolveInheritedDeclaration(fileName, rules, property),
       );
     }
-    expect(resolveInheritedDeclaration(kind, rules, "font-size")).toBe(
-      "var(--font-size-sm)",
+    expect(resolveInheritedDeclaration(attribute, rules, "font-family")).toBe(
+      "var(--sans)",
     );
-    expect(resolveInheritedDeclaration(kind, rules, "color")).toBe(
-      "var(--color-text-3)",
+    expect(resolveInheritedDeclaration(fileName, rules, "font-family")).toBe(
+      "var(--mono)",
+    );
+    expect(resolveInheritedDeclaration(directory, rules, "color")).toBe(
+      "var(--color-text-2)",
     );
   });
 });

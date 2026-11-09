@@ -1,14 +1,23 @@
 @use "functions";
 
+$notice-max: functions.to-rem(880px);
+
 @layer components {
   .notice {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: functions.to-rem(16px);
-    max-inline-size: functions.to-rem(880px);
+    max-inline-size: min(
+      #{$notice-max},
+      100% - var(--sidebar-covered-w) - 2 * var(--page-gutter)
+    );
     margin-block-end: functions.to-rem(20px);
-    margin-inline: auto;
+    margin-inline: max(
+        var(--page-gutter),
+        (100% - var(--sidebar-covered-w) - #{$notice-max}) / 2
+      )
+      var(--sidebar-covered-w);
     padding-block: functions.to-rem(10px);
     padding-inline: max(functions.to-rem(18px), env(safe-area-inset-left))
       max(functions.to-rem(18px), env(safe-area-inset-right));

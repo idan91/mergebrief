@@ -1,6 +1,79 @@
+import type { TFunction } from "i18next";
+import type { TranslationKey } from "i18n";
+
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import type { UnresolvedItem } from "../../utils/state";
-import type { SubmitGate, SubmitGateInputs, SubmitView } from "./types";
+import {
+  UnresolvedItemKinds,
+  type UnresolvedItemKind,
+} from "../../utils/types";
+import type {
+  AdvisoryGroup,
+  SubmitGate,
+  SubmitGateInputs,
+  SubmitView,
+  UnresolvedItemGroup,
+} from "./types";
+
+/** The advisory list's kinds, top to bottom: risk dispositions, then reading, then drafts. */
+const UNRESOLVED_KIND_RANKS: Record<UnresolvedItemKind, number> = {
+  [UnresolvedItemKinds.OPEN_RISK]: 0,
+  [UnresolvedItemKinds.MISSING_EVIDENCE]: 1,
+  [UnresolvedItemKinds.THIN_DISMISSAL]: 2,
+  [UnresolvedItemKinds.UNREVIEWED_CORE]: 3,
+  [UnresolvedItemKinds.UNREVIEWED_REMAINDER]: 4,
+  [UnresolvedItemKinds.DRAFT_COMMENT]: 5,
+};
+
+const UNRESOLVED_GROUP_HEADINGS: Record<UnresolvedItemKind, TranslationKey> = {
+  [UnresolvedItemKinds.OPEN_RISK]: "review.submit.groupOpenRisk",
+  [UnresolvedItemKinds.MISSING_EVIDENCE]: "review.submit.groupMissingEvidence",
+  [UnresolvedItemKinds.UNREVIEWED_CORE]: "review.submit.groupUnreviewedCore",
+  [UnresolvedItemKinds.UNREVIEWED_REMAINDER]:
+    "review.submit.groupUnreviewedRemainder",
+  [UnresolvedItemKinds.DRAFT_COMMENT]: "review.submit.groupDraftComment",
+  [UnresolvedItemKinds.THIN_DISMISSAL]: "review.submit.groupThinDismissal",
+};
+
+/** One group per kind present, in the list's kind order; items keep their order. */
+export function groupUnresolvedItems(
+  items: readonly UnresolvedItem[],
+): UnresolvedItemGroup[] {
+  const groups = new Map<UnresolvedItemKind, UnresolvedItem[]>();
+  for (const item of items) {
+    const group = groups.get(item.kind);
+    if (group === undefined) {
+      groups.set(item.kind, [item]);
+    } else {
+      group.push(item);
+    }
+  }
+
+  return [...groups]
+    .map(([kind, ofKind]) => ({ kind, items: ofKind }))
+    .toSorted(
+      (first, second) =>
+        UNRESOLVED_KIND_RANKS[first.kind] - UNRESOLVED_KIND_RANKS[second.kind],
+    );
+}
+
+/** The advisory list as rendered: a heading per kind, a kind label per row for assistive tech. */
+export function buildAdvisoryGroups(
+  t: TFunction,
+  items: readonly UnresolvedItem[],
+): AdvisoryGroup[] {
+  return groupUnresolvedItems(items).map((group) => ({
+    kind: group.kind,
+    heading: t(UNRESOLVED_GROUP_HEADINGS[group.kind], {
+      count: group.items.length,
+    }),
+    count: group.items.length,
+    rows: group.items.map((item) => ({
+      item,
+      kindLabel: t(UNRESOLVED_GROUP_HEADINGS[item.kind], { count: 1 }),
+    })),
+  }));
+}
 
 /** An open with unresolved items stops on the advisory list first. */
 export function pickEntryView(

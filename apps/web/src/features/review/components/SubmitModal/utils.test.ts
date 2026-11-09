@@ -6,6 +6,7 @@ import type { SubmitGateInputs } from "./types";
 import {
   deriveSubmitDescribedBy,
   deriveSubmitGate,
+  groupUnresolvedItems,
   pickEntryView,
 } from "./utils";
 
@@ -123,5 +124,38 @@ describe("deriveSubmitGate", () => {
 
     expect(gate.disabled).toBe(true);
     expect(gate.verdictRefusal).toBeUndefined();
+  });
+});
+
+describe("groupUnresolvedItems", () => {
+  function makeItem(id: string, kind: UnresolvedItem["kind"]): UnresolvedItem {
+    return { id, kind, label: `src/${id}.ts`, targetId: id };
+  }
+
+  it("orders kinds by rank and keeps each kind's items in order", () => {
+    const items = [
+      makeItem("draft", "draft-comment"),
+      makeItem("evidence", "missing-evidence"),
+      makeItem("core-1", "unreviewed-core"),
+      makeItem("risk-1", "open-risk"),
+      makeItem("core-2", "unreviewed-core"),
+      makeItem("risk-2", "open-risk"),
+    ];
+
+    const groups = groupUnresolvedItems(items).map((group) => [
+      group.kind,
+      group.items.map((item) => item.id),
+    ]);
+
+    expect(groups).toEqual([
+      ["open-risk", ["risk-1", "risk-2"]],
+      ["missing-evidence", ["evidence"]],
+      ["unreviewed-core", ["core-1", "core-2"]],
+      ["draft-comment", ["draft"]],
+    ]);
+  });
+
+  it("returns no groups for no items", () => {
+    expect(groupUnresolvedItems([])).toEqual([]);
   });
 });

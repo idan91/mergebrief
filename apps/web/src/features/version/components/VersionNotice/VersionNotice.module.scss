@@ -7,7 +7,7 @@
 
     /* stylelint-disable-next-line declaration-property-value-allowed-list -- sits over the header's 1px hairline: a border width, not rhythm */
     margin-block-start: -1px;
-    margin-inline-end: var(--sidebar-w);
+    margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--notice-gutter), env(safe-area-inset-left))
       max(var(--notice-gutter), env(safe-area-inset-right));
     border-block-start: 1px solid var(--color-outline-2);

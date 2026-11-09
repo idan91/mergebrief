@@ -1,4 +1,5 @@
 @use "functions";
+@use "layout";
 @use "mixins";
 
 @layer components {
@@ -50,7 +51,7 @@
     align-items: center;
     order: 2;
     inline-size: var(--sidebar-w-collapsed);
-    padding-block: functions.to-rem(10px) functions.to-rem(16px);
+    padding-block: var(--space-3) var(--space-5);
     padding-inline-end: functions.to-rem(1px);
     border-inline-start: 1px solid var(--color-outline-1);
     background: var(--color-chrome);
@@ -59,7 +60,7 @@
   .foot {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2);
     margin-block-start: auto;
   }
 
@@ -108,6 +109,18 @@
   .sidebar[data-motion="on"][data-sliding][data-state="expanded"] .panel {
     @starting-style {
       transform: translateX(100%);
+    }
+  }
+
+  // Overflow opens for the overlay's shadow: the slid-out panel spills only
+  // past the viewport edge, and a fixed box adds no scrollable overflow.
+  @media (width <= #{layout.$sidebar-overlay-max}) {
+    .sidebar[data-variant="desktop"] {
+      overflow: visible;
+    }
+
+    .panel {
+      box-shadow: var(--shadow-float);
     }
   }
 }

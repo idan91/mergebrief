@@ -1,3 +1,6 @@
+import type { UnresolvedItem } from "../../utils/state";
+import type { UnresolvedItemKind } from "../../utils/types";
+
 /** Everything the Submit control needs, including why it is off. */
 export interface SubmitAffordance {
   disabled: boolean;
@@ -48,4 +51,22 @@ export interface SubmitGate {
   receiptStaleWarning: string | undefined;
   verdictRefusal: string | undefined;
   receiptRefusal: string | undefined;
+}
+
+/** The advisory list's items of one kind, in the order they were derived. */
+export interface UnresolvedItemGroup {
+  kind: UnresolvedItemKind;
+  items: UnresolvedItem[];
+}
+
+export interface AdvisoryRow {
+  item: UnresolvedItem;
+  kindLabel: string;
+}
+
+export interface AdvisoryGroup {
+  kind: UnresolvedItemKind;
+  heading: string;
+  count: number;
+  rows: AdvisoryRow[];
 }
