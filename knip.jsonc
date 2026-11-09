@@ -139,7 +139,6 @@
       ],
     },
     "tools/baselines": { "entry": ["src/main.ts"] },
-    "tools/brand": { "entry": ["src/generate.ts", "src/outline-wordmark.ts"] },
     "tools/ingest-briefs": {
       "entry": ["src/index.ts", "src/main.ts", "src/testing/index.ts"],
     },
