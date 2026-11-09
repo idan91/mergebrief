@@ -1,21 +1,33 @@
 @use "functions";
-@use "mixins";
 
 @layer components {
   .header {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
     column-gap: var(--space-4);
     align-items: center;
     min-block-size: functions.to-rem(40px);
     padding-block: var(--space-1);
-    padding-inline: var(--space-5);
+    padding-inline: var(--space-5) var(--space-3);
     border: 1px solid transparent;
     border-radius: var(--radius-panel);
 
     &[data-selecting="true"] {
       border-color: var(--color-outline-2);
       background: var(--color-surface-2);
+    }
+  }
+
+  /* The 24px label overhangs the 20px slot, as the rows' does. */
+  .lead {
+    display: grid;
+    place-items: center;
+
+    > label {
+      justify-content: center;
+      min-inline-size: functions.to-rem(24px);
+      min-block-size: functions.to-rem(24px);
+      margin: calc(var(--space-1) * -1);
     }
   }
 
@@ -33,42 +45,6 @@
     }
   }
 
-  .start {
-    display: grid;
-    opacity: 0;
-    place-items: center;
-
-    > label {
-      justify-content: center;
-      min-inline-size: functions.to-rem(24px);
-      min-block-size: functions.to-rem(24px);
-    }
-
-    &:focus-within {
-      opacity: 1;
-    }
-  }
-
-  .header[data-selecting="true"] .start {
-    opacity: 1;
-  }
-
-  @include mixins.hover {
-    .header:hover .start {
-      opacity: 1;
-    }
-  }
-
-  @media (hover: none) {
-    .header:not([data-selecting="true"], :has(.start:focus-within)) {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .header:not([data-selecting="true"]) .start:not(:focus-within) {
-      display: none;
-    }
-  }
-
   .middle {
     margin: 0;
     color: var(--color-text-1);
@@ -79,14 +55,21 @@
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1);
     align-items: center;
     justify-content: flex-end;
   }
 
+  @media (width < 760px) {
+    .header {
+      column-gap: var(--space-3);
+      padding-inline: var(--space-4) var(--space-2);
+    }
+  }
+
   @media (width < 560px) {
     .header[data-selecting="true"] {
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: 20px minmax(0, 1fr);
     }
 
     .header[data-selecting="true"] .actions {

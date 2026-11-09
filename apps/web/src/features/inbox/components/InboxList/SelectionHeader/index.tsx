@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters, type InboxArchivedFilter } from "types/inbox";
 
-import { Button, ButtonVariants } from "@web/components/Button";
+import { Button, ButtonSizes, ButtonVariants } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { LinkButton } from "@web/components/LinkButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
@@ -41,8 +41,9 @@ export interface SelectionHeaderProps {
 
 /**
  * The row over the list, on the rows' own grid: the page checkbox over the
- * row checkboxes, the total or the selected count beside it, the way to every
- * matching row once the page is ticked, and the bulk actions at the end.
+ * rows' lead slot, the total or the selected count where the row titles
+ * start, the way to every matching row once the page is ticked, and the bulk
+ * actions at the end.
  */
 export function SelectionHeader({
   pageCount,
@@ -171,7 +172,7 @@ export function SelectionHeader({
       data-selecting={selecting}
       data-testid="selection-header"
     >
-      <span className={styles["start"]}>
+      <span className={styles["lead"]}>
         <Checkbox
           checked={allSelected || allMatching}
           disabled={busy}
@@ -188,16 +189,16 @@ export function SelectionHeader({
           <>
             <Button
               disabled={busy}
-              size="sm"
-              variant={ButtonVariants.SECONDARY}
+              size={ButtonSizes.SM}
+              variant={ButtonVariants.GHOST}
               onClick={onArchive}
             >
               {archiveLabel}
             </Button>
             <Button
               disabled={deleteHeld}
-              size="sm"
-              variant={ButtonVariants.DANGER}
+              size={ButtonSizes.SM}
+              variant={ButtonVariants.GHOST_DANGER}
               onClick={onDelete}
             >
               {deleteLabel}
@@ -207,8 +208,8 @@ export function SelectionHeader({
         {selecting ? (
           <Button
             disabled={busy}
-            size="sm"
-            variant={ButtonVariants.SECONDARY}
+            size={ButtonSizes.SM}
+            variant={ButtonVariants.GHOST}
             onClick={onClear}
           >
             {t("home.inbox.select.clear")}
@@ -216,8 +217,8 @@ export function SelectionHeader({
         ) : (
           <span className={styles["selectStart"]}>
             <Button
-              size="sm"
-              variant={ButtonVariants.SECONDARY}
+              size={ButtonSizes.SM}
+              variant={ButtonVariants.GHOST}
               onClick={onStartSelecting}
             >
               {t("home.inbox.select.start")}

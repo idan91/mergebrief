@@ -17,7 +17,7 @@ export function SettingsTabs({ tabs, active, onSelect }: SettingsTabsProps) {
   const ActivePanel = active.Panel;
 
   if (tabs.length < 2) {
-    return <ActivePanel active />;
+    return <ActivePanel active namedByRail={false} />;
   }
 
   function selectById(value: string) {
@@ -45,7 +45,7 @@ export function SettingsTabs({ tabs, active, onSelect }: SettingsTabsProps) {
         const shown = tab.id === active.id;
         return (
           <Tabs.Panel key={tab.id} value={tab.id}>
-            <tab.Panel active={shown} />
+            <tab.Panel active={shown} namedByRail />
           </Tabs.Panel>
         );
       })}

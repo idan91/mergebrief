@@ -7,6 +7,7 @@ import { useTokenSettings, SCOPE_UNCHOSEN } from "../../hooks/useTokenSettings";
 import { Button, ButtonVariants } from "@web/components/Button";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { renderedLocale } from "../../../../i18n/locale";
 import { SCOPE_LABEL_KEY, SCOPE_ORDER } from "./consts";
 import { CreatedToken } from "./CreatedToken";
@@ -18,14 +19,20 @@ import { describeToken, parseExpiryChoice, parseScopeChoice } from "./utils";
 export interface TokenSettingsProps {
   /** Only fetch/render once the viewer is known to be signed in. */
   enabled: boolean;
+  /** A rail beside the section names it; the heading then only reaches assistive tech. */
+  namedByRail?: boolean;
 }
 
 // An identifier, never copy: a translated binary name would be a broken instruction.
 const CLI_BINARY = "mergebrief";
+const HEADING_ID = "token-settings-heading";
 const SCOPE_HINT_ID = "token-scope-hint";
 const CREATE_BLOCKED_ID = "token-create-blocked";
 
-export function TokenSettings({ enabled }: TokenSettingsProps) {
+export function TokenSettings({
+  enabled,
+  namedByRail = false,
+}: TokenSettingsProps) {
   const { i18n, t } = useTranslation();
   const state = useTokenSettings(enabled);
   const locale = renderedLocale(i18n.resolvedLanguage);
@@ -60,6 +67,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
     revokedHere: state.revokedHereId === token.id,
     revoking: state.revokePendingId === token.id,
   }));
+  const heading = t("tokens.heading");
   // The shown-once Copy is the view's one primary while the token is up.
   const createVariant =
     state.mintedToken === null
@@ -67,11 +75,16 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
       : ButtonVariants.SECONDARY;
 
   return (
-    <section
-      aria-labelledby="token-settings-heading"
-      className={styles["root"]}
-    >
-      <h2 id="token-settings-heading">{t("tokens.heading")}</h2>
+    <section aria-labelledby={HEADING_ID} className={styles["root"]}>
+      {namedByRail ? (
+        <ScreenReaderOnly as="h2" id={HEADING_ID}>
+          {heading}
+        </ScreenReaderOnly>
+      ) : (
+        <h2 className={styles["heading"]} id={HEADING_ID}>
+          {heading}
+        </h2>
+      )}
       <p className={styles["copy"]}>
         <Trans
           components={[<code key="cli">{CLI_BINARY}</code>]}

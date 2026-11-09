@@ -39,14 +39,13 @@ export interface RowActionsProps {
 }
 
 /**
- * The right-edge actions a hover or the keyboard cursor reveals: Open on
- * GitHub when the repository is known, hidden on a touch screen, and a menu
- * with Copy link, Open on GitHub, Archive (Unarchive in the archived view)
- * and, on the rows the viewer may delete, Delete. An installation row an
- * admin may delete also offers the repository's attachment-branch purge.
- * Regenerate leads the menu when GitHub has commits the latest brief does
- * not cover, unless the latest generation failed in a way a repeat paste
- * fails again.
+ * The right-edge actions, in their own column so they never cover the title:
+ * Open on GitHub when the repository is known, and a menu with Copy link,
+ * Open on GitHub, Archive (Unarchive in the archived view), Delete where the
+ * viewer may, and the attachment-branch purge on an admin's installation row.
+ * A hover, focus or the keyboard cursor reveals both; a touch screen always
+ * shows the menu alone and reaches GitHub through it. Regenerate leads the
+ * menu when GitHub has commits the brief lacks, unless a repeat paste fails.
  */
 export function RowActions({
   item,
@@ -105,7 +104,6 @@ export function RowActions({
       <Menu placement="bottom-end">
         <Menu.Trigger>
           <IconButton
-            className={styles["trigger"]}
             label={t("home.inbox.actions.more")}
             size="md"
             variant="ghost"

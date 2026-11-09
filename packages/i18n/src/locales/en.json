@@ -1662,7 +1662,7 @@
     "editorModePreview": "Preview",
     "unsavedCommentLeavePrompt": "You have an unsaved comment. Leave this page and discard it?",
     "signIn": {
-      "heading": "Sign in to MergeBrief",
+      "heading": "Sign in",
       "lead": "Understand a pull request before you review it.",
       "settingsHeading": "Sign in to manage API tokens",
       "opening": "Opening GitHub…",
@@ -1908,7 +1908,7 @@
       "signIn": "Sign in with GitHub",
       "signInFailed": "Signing in didn't complete. Try again.",
       "accountNotAllowed": "This GitHub account isn't allowed on this instance. Ask whoever runs it for access.",
-      "accountNotAllowedOwner": "If you run this instance, add your GitHub id under operators in mergebrief.config.yaml and restart the api. gh api users/YOUR_LOGIN --jq .id prints it.",
+      "accountNotAllowedOwner": "If you run this instance, add your GitHub id under <0/> in <1/> and restart the api. <2/> prints it.",
       "githubUnavailable": "GitHub couldn't be reached. Try signing in again in a moment."
     },
     "shortcuts": {

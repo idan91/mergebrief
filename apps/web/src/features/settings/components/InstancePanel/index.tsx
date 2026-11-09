@@ -6,8 +6,8 @@ import { CappedNote } from "./CappedNote";
 import { PanelSkeleton } from "./PanelSkeleton";
 import { SpendFailure } from "./SpendFailure";
 import { SpendRefused } from "./SpendRefused";
+import { SpendMeter } from "./SpendMeter";
 import { SpendSentence } from "./SpendSentence";
-import { TickStrip } from "./TickStrip";
 import { SPEND_HEADING_ID } from "./consts";
 import { useHandedOffFocus } from "./hooks/useHandedOffFocus";
 import { SpendLevels } from "./types";
@@ -64,7 +64,7 @@ export function InstancePanel({ active }: SettingsPanelProps) {
         </p>
       ) : undefined}
       {view.cap === undefined ? undefined : (
-        <TickStrip
+        <SpendMeter
           cap={view.cap}
           level={reading.level}
           startedRuns={view.startedRuns}

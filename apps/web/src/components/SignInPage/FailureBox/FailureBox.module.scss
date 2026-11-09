@@ -1,0 +1,35 @@
+@layer components {
+  .box {
+    display: grid;
+    gap: var(--space-3);
+    padding-block: var(--space-4);
+    padding-inline: var(--space-5);
+    border: 1px solid
+      color-mix(in oklch, var(--color-negative) 40%, var(--color-outline-1));
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--color-negative) 6%, transparent);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+    text-align: start;
+  }
+
+  .why {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .owner {
+    color: var(--color-text-2);
+    overflow-wrap: anywhere;
+
+    code {
+      padding-inline: var(--space-2);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-2);
+      color: var(--color-text-read);
+      font-family: var(--mono);
+      font-size: var(--font-size-lg);
+      box-decoration-break: clone;
+    }
+  }
+}

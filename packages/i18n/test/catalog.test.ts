@@ -105,6 +105,7 @@ describe("hard-fail catalog gates", () => {
       "brief.masthead.coverage_one": 2,
       "brief.masthead.coverage_other": 2,
       "brief.reanchorBanner.hint": 3,
+      "home.signedOut.accountNotAllowedOwner": 3,
       "shell.attach.hint": 1,
       "shell.versionNotice.available": 1,
       "shell.versionNotice.security": 1,

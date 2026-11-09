@@ -1,10 +1,14 @@
 import { IconNames } from "@web/components/Icon/types";
 import { TokenSettings } from "@web/features/tokens";
 import { InstancePanel } from "./components/InstancePanel";
-import { SettingsTabIds, type SettingsTab } from "./types";
+import {
+  SettingsTabIds,
+  type SettingsPanelProps,
+  type SettingsTab,
+} from "./types";
 
-function TokensPanel() {
-  return <TokenSettings enabled />;
+function TokensPanel({ namedByRail }: SettingsPanelProps) {
+  return <TokenSettings enabled namedByRail={namedByRail} />;
 }
 
 /** Every settings tab, in rail order. A new tab also takes a `SettingsTabIds` id and a catalog label. */

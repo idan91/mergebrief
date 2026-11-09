@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveSpendReading, deriveTickFills, resolveCountKey } from "./utils";
+import {
+  deriveMeterFillPercent,
+  deriveSpendReading,
+  resolveCountKey,
+} from "./utils";
 
 const DAY_START = "2026-10-19T00:00:00.000Z";
 const RESETS_AT = "2026-10-20T00:00:00.000Z";
@@ -82,57 +86,21 @@ describe("resolveCountKey", () => {
   });
 });
 
-function countFilled(fills: readonly boolean[]): number {
-  const filled = fills.filter(Boolean).length;
-  return filled;
-}
-
-describe("deriveTickFills", () => {
-  it("draws one tick per run up to fifty", () => {
-    const fills = deriveTickFills(37, 50);
-
-    expect(fills).toHaveLength(50);
-    expect(countFilled(fills)).toBe(37);
+describe("deriveMeterFillPercent", () => {
+  it("fills the share of the cap started", () => {
+    expect(deriveMeterFillPercent(37, 50)).toBe(74);
   });
 
-  it("draws a short strip for a small cap", () => {
-    expect(deriveTickFills(2, 5)).toEqual([true, true, false, false, false]);
+  it("leaves the track empty before the first run", () => {
+    expect(deriveMeterFillPercent(0, 300)).toBe(0);
   });
 
-  it("scales a cap past fifty onto fifty ticks", () => {
-    const fills = deriveTickFills(99, 200);
-
-    expect(fills).toHaveLength(50);
-    expect(countFilled(fills)).toBe(24);
+  it("fills the track at the cap and past it", () => {
+    expect(deriveMeterFillPercent(50, 50)).toBe(100);
+    expect(deriveMeterFillPercent(53, 50)).toBe(100);
   });
 
-  it("fills one tick for the first run of a large cap", () => {
-    const filled = countFilled(deriveTickFills(1, 400));
-    expect(filled).toBe(1);
-  });
-
-  it("fills every tick at the cap and past it", () => {
-    const filled = countFilled(deriveTickFills(53, 50));
-    expect(filled).toBe(50);
-  });
-
-  it.each([49, 50])(
-    "fills exactly one tick per run under a cap of %i",
-    (cap) => {
-      for (let startedRuns = 0; startedRuns <= cap; startedRuns += 1) {
-        const filled = countFilled(deriveTickFills(startedRuns, cap));
-        expect(filled).toBe(startedRuns);
-      }
-    },
-  );
-
-  it("scales without dropping a run to float error", () => {
-    const filled = countFilled(deriveTickFills(58, 100));
-    expect(filled).toBe(29);
-  });
-
-  it("leaves the last tick empty one run short of a large cap", () => {
-    const filled = countFilled(deriveTickFills(199, 200));
-    expect(filled).toBe(49);
+  it("reads a zero cap as full", () => {
+    expect(deriveMeterFillPercent(0, 0)).toBe(100);
   });
 });

@@ -15,6 +15,8 @@ export type SettingsTabId = ValueOf<typeof SettingsTabIds>;
 export interface SettingsPanelProps {
   /** Its tab is the one shown; a panel that polls pauses while hidden. */
   readonly active: boolean;
+  /** The rail beside it names the panel, so the panel's own heading only needs to reach assistive tech. */
+  readonly namedByRail: boolean;
 }
 
 /** One tab in the registry: what the rail shows and the panel it opens. */

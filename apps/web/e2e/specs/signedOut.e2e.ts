@@ -20,7 +20,8 @@ test("signed out shows one heading and Sign in, never the URL box", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Sign in to MergeBrief",
+      name: "Sign in",
+      exact: true,
     }),
   ).toBeVisible();
   await expect(

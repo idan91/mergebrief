@@ -44,7 +44,7 @@ function mountPanel(active: boolean) {
     return (
       <I18nextProvider i18n={appI18n}>
         <QueryClientProvider client={queryClient}>
-          <InstancePanel active={shown} />
+          <InstancePanel active={shown} namedByRail />
         </QueryClientProvider>
       </I18nextProvider>
     );

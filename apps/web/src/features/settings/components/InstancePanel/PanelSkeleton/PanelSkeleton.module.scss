@@ -3,7 +3,7 @@
 @layer components {
   .skeleton {
     display: grid;
-    gap: functions.to-rem(14px);
+    gap: var(--space-4);
   }
 
   .line {
@@ -14,12 +14,12 @@
 
     &[data-size="lead"] {
       inline-size: 55%;
-      block-size: functions.to-rem(28px);
+      block-size: functions.to-rem(24px);
     }
 
     &[data-size="bar"] {
-      block-size: 6px;
-      margin-block-end: functions.to-rem(18px);
+      block-size: 4px;
+      margin-block-end: var(--space-5);
     }
 
     &[data-size="text"] {

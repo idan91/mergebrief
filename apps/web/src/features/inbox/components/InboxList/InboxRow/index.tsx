@@ -1,5 +1,5 @@
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { useRef, type CSSProperties, type Ref } from "react";
+import type { CSSProperties, Ref } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type InboxArchivedFilter,
@@ -8,7 +8,6 @@ import {
 } from "types";
 
 import { AuthorChip } from "@web/components/AuthorChip";
-import { Checkbox } from "@web/components/Checkbox";
 import {
   Chip,
   ChipElements,
@@ -24,6 +23,7 @@ import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./InboxRow.module.scss";
 import { RowActions } from "./RowActions";
 import { RowEnd } from "./RowEnd";
+import { RowLead } from "./RowLead";
 import { RowMark } from "./RowMark";
 import { useRowGeneration } from "./useRowGeneration";
 import {
@@ -69,13 +69,13 @@ export interface InboxRowProps {
 }
 
 /**
- * Two lines, 56px, behind a checkbox for the bulk actions. Line one: the
- * review mark, the title with inline code, the fact chips. Line two: the source icon on url rows, repository, number
- * and age. The right edge carries the generation state and the status when
- * it is not Open, and the actions a hover or the cursor reveals. The whole
- * row is one link to the brief, named by its states before its title; the
- * mark sits inside the link, so its callout can rise above the overlay and
- * a click on it still opens the row.
+ * Two lines, 56px: the title with its chips, then the source, repository,
+ * number and age. The lead slot holds the review mark, and the selection
+ * checkbox takes its place on hover, keyboard focus and while rows are being
+ * selected; the checkbox stays in the tab order and accessibility tree. The
+ * right edge carries the generation state, a status other than Open and the
+ * actions. The whole row is one link to the brief; the lead slot sits above
+ * it, so the pointer meets the slot and its state callout over the mark.
  */
 export function InboxRow({
   item,
@@ -108,10 +108,10 @@ export function InboxRow({
   const opening = pendingMatch !== false;
   const generation = useRowGeneration(item);
   const ageAt = pickAgeAt(item, sort);
-  const titleSegments = splitTitleCode(
+  const rowTitle =
     readRowTitle(item.title) ??
-      t("home.inbox.number", { number: item.prNumber }),
-  );
+    t("home.inbox.number", { number: item.prNumber });
+  const titleSegments = splitTitleCode(rowTitle);
   const repoLabel = item.repoSlug ?? item.repoId;
   const stackPosition =
     item.stack === undefined ? undefined : { ...item.stack };
@@ -122,10 +122,8 @@ export function InboxRow({
     "--notice-delay": NAVIGATION_NOTICE_DELAY,
   };
 
-  // The change event carries no modifier; the click before it does.
-  const shiftRef = useRef(false);
-  function handleSelect(checked: boolean): void {
-    onSelectRow(item, checked, shiftRef.current);
+  function handleSelect(checked: boolean, range: boolean): void {
+    onSelectRow(item, checked, range);
   }
   function handleRemoved(): void {
     onRemoved(item);
@@ -146,29 +144,22 @@ export function InboxRow({
       ref={rowRef}
       style={rowStyle}
     >
-      <span
-        className={styles["start"]}
-        onClickCapture={(event) => {
-          shiftRef.current = event.shiftKey;
-        }}
-      >
-        <Checkbox checked={selected} onChange={handleSelect}>
-          <ScreenReaderOnly>
-            {t("home.inbox.select.row", {
-              title:
-                readRowTitle(item.title) ??
-                t("home.inbox.number", { number: item.prNumber }),
-            })}
-          </ScreenReaderOnly>
-        </Checkbox>
-      </span>
+      <RowLead
+        className={styles["lead"]}
+        reviewState={item.reviewState}
+        selected={selected}
+        title={rowTitle}
+        onSelect={handleSelect}
+      />
       <Link
         className={styles["main"]}
         params={rowParams}
         to="/repos/$repoId/pulls/$prNumber"
       >
         <ScreenReaderOnly>{description}</ScreenReaderOnly>{" "}
-        <RowMark reviewState={item.reviewState} />
+        <span className={styles["state"]}>
+          <RowMark reviewState={item.reviewState} />
+        </span>
         <span className={styles["title"]}>
           <span className={styles["titleText"]} data-testid="inbox-row-title">
             {titleSegments.map((segment, position) =>

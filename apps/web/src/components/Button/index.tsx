@@ -19,6 +19,10 @@ export const ButtonVariants = {
   QUIET: "quiet",
   /** Negative ink and edge on no fill: a destructive action, its weight carried by the dialog's words. */
   DANGER: "danger",
+  /** No edge or fill at rest, a Surface 3 step under the pointer: actions in a bar beside text. */
+  GHOST: "ghost",
+  /** The ghost in negative ink. */
+  GHOST_DANGER: "ghost-danger",
 } as const;
 export type ButtonVariant = ValueOf<typeof ButtonVariants>;
 

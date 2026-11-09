@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from "react-i18next";
 
-import { CONFIG_FILE, EXAMPLE_CAP } from "../consts";
+import { CONFIG_FILE } from "@web/utils/instance-config";
+import { EXAMPLE_CAP } from "../consts";
 import { buildSpendBlock } from "./utils";
 import styles from "./CapConfig.module.scss";
 

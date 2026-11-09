@@ -1,11 +1,6 @@
 @layer components {
   .mark {
-    /* Above the row link's overlay, so the pointer reaches the mark. */
-    position: relative;
-    z-index: 2;
     display: grid;
-    grid-row: 1 / span 2;
-    grid-column: 1;
     place-items: center;
     inline-size: 20px;
     block-size: 20px;

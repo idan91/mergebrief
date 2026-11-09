@@ -1,4 +1,4 @@
-import { SignInFailures, type SignInFailure } from "contract";
+import type { SignInFailure } from "contract";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -8,7 +8,8 @@ import { PRODUCT_NAME } from "../Header/consts";
 import { Icon } from "../Icon";
 import { IconNames } from "../Icon/types";
 import MergeBriefMark from "../icons/mergebrief-mark.svg?react";
-import { SIGN_IN_FAILURE_COPY_KEYS } from "./consts";
+import MergeBriefWordmark from "../icons/mergebrief-wordmark.svg?react";
+import { FailureBox } from "./FailureBox";
 import styles from "./SignInPage.module.scss";
 
 export interface SignInPageProps {
@@ -20,7 +21,7 @@ export interface SignInPageProps {
   failure?: SignInFailure | undefined;
 }
 
-/** The whole screen for a visitor with no session: one heading, one action, no chrome. */
+/** The whole screen for a visitor with no session: one panel, one action, no chrome. */
 export function SignInPage({
   heading,
   lead,
@@ -56,13 +57,10 @@ export function SignInPage({
   }
 
   const href = buildSignInHref(returnTo);
-  const failureCopy =
-    failure === undefined ? undefined : t(SIGN_IN_FAILURE_COPY_KEYS[failure]);
   const label = opening
     ? t("shell.signIn.opening")
     : t("home.signedOut.signIn");
   const ariaBusy = opening ? true : undefined;
-  const accountNotAllowed = failure === SignInFailures.NOT_ALLOWED;
 
   return (
     <main
@@ -71,42 +69,46 @@ export function SignInPage({
       ref={mainRef}
       tabIndex={-1}
     >
-      <div className={styles["column"]}>
-        <MergeBriefMark
-          aria-label={PRODUCT_NAME}
-          className={styles["mark"]}
-          role="img"
-        />
-        <div className={styles["head"]}>
-          <h1 className={styles["heading"]}>{heading}</h1>
-          {lead === undefined ? null : <p className={styles["lead"]}>{lead}</p>}
-        </div>
-        {failureCopy === undefined ? null : (
-          <div className={styles["status"]}>
-            <p role="alert">{failureCopy}</p>
-            {accountNotAllowed ? (
-              <p className={styles["owner"]}>
-                {t("home.signedOut.accountNotAllowedOwner")}
-              </p>
-            ) : null}
+      <div className={styles["panel"]}>
+        <div className={styles["top"]}>
+          <span
+            aria-label={PRODUCT_NAME}
+            className={styles["lockup"]}
+            role="img"
+          >
+            <MergeBriefMark
+              aria-hidden="true"
+              className={styles["mark"]}
+              focusable="false"
+            />
+            <MergeBriefWordmark aria-hidden="true" focusable="false" />
+          </span>
+          <div className={styles["head"]}>
+            <h1 className={styles["heading"]}>{heading}</h1>
+            {lead === undefined ? null : (
+              <p className={styles["lead"]}>{lead}</p>
+            )}
           </div>
-        )}
-        <Button
-          as="a"
-          className={styles["signIn"]}
-          href={href}
-          aria-busy={ariaBusy}
-          variant="primary"
-          onClick={markOpening}
-        >
-          {opening ? (
-            <span aria-hidden="true" className={styles["spinner"]} />
-          ) : (
-            <Icon name={IconNames.GITHUB_LOGO} />
-          )}
-          {label}
-        </Button>
-        <p className={styles["note"]}>{t("shell.signIn.note")}</p>
+          {failure === undefined ? null : <FailureBox failure={failure} />}
+          <Button
+            as="a"
+            className={styles["signIn"]}
+            href={href}
+            aria-busy={ariaBusy}
+            variant="primary"
+            onClick={markOpening}
+          >
+            {opening ? (
+              <span aria-hidden="true" className={styles["spinner"]} />
+            ) : (
+              <Icon name={IconNames.GITHUB_LOGO} />
+            )}
+            {label}
+          </Button>
+        </div>
+        <div className={styles["footer"]}>
+          <p>{t("shell.signIn.note")}</p>
+        </div>
       </div>
     </main>
   );

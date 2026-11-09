@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { appI18n } from "@web/i18n/I18nProvider";
 import { Button } from "../Button";
 import { SignInPage } from "./index";
 
@@ -73,7 +74,28 @@ describe("SignInPage", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "isn't allowed on this instance",
     );
-    expect(screen.getByText(/under operators/)).toBeTruthy();
+    expect(screen.getByText(/add your GitHub id under/)).toBeTruthy();
+  });
+
+  it("sets the owner line's key, file and command as code", () => {
+    render(
+      <SignInPage failure={SignInFailures.NOT_ALLOWED} heading="Sign in" />,
+    );
+
+    const codes = [...document.querySelectorAll("code")].map(
+      (code) => code.textContent,
+    );
+    expect(codes).toEqual([
+      "operators",
+      "mergebrief.config.yaml",
+      "gh api users/YOUR_LOGIN --jq .id",
+    ]);
+  });
+
+  it("leaves the owner line's identifiers to code, not the catalog", () => {
+    const copy = appI18n.t("home.signedOut.accountNotAllowedOwner");
+
+    expect(copy.match(/<\/?\d+\/?>/g)).toEqual(["<0/>", "<1/>", "<2/>"]);
   });
 
   it("gives no setup line on any other failure", () => {
@@ -81,7 +103,21 @@ describe("SignInPage", () => {
       <SignInPage failure={SignInFailures.SIGN_IN_FAILED} heading="Sign in" />,
     );
 
-    expect(screen.queryByText(/under operators/)).toBeNull();
+    expect(screen.queryByText(/add your GitHub id under/)).toBeNull();
+  });
+
+  it("says GitHub could not be reached, with no setup line", () => {
+    render(
+      <SignInPage
+        failure={SignInFailures.GITHUB_UNAVAILABLE}
+        heading="Sign in"
+      />,
+    );
+
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /GitHub couldn't be reached/,
+    );
+    expect(screen.queryByText(/add your GitHub id under/)).toBeNull();
   });
 
   it("marks the button busy once pressed and resets on a restored page", () => {

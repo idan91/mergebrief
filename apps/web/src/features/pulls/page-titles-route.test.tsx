@@ -188,7 +188,7 @@ describe("page tab titles", () => {
     stubSessionEnded();
     await act(() => queryClient.refetchQueries({ queryKey: INBOX_KEY }));
 
-    await screen.findByRole("heading", { name: "Sign in to MergeBrief" });
+    await screen.findByRole("heading", { name: "Sign in" });
     await waitFor(() => {
       expect(document.title).toBe("Sign in · MergeBrief");
     });
@@ -202,7 +202,7 @@ describe("page tab titles", () => {
       reportSignedOut();
     });
 
-    await screen.findByRole("heading", { name: "Sign in to MergeBrief" });
+    await screen.findByRole("heading", { name: "Sign in" });
     await waitFor(() => {
       expect(document.title).toBe("Sign in · MergeBrief");
     });
@@ -273,7 +273,7 @@ describe("page tab titles", () => {
       makeInboxAnswer(makeTokenRefusedResponse),
     );
 
-    await screen.findByRole("heading", { name: "Sign in to MergeBrief" });
+    await screen.findByRole("heading", { name: "Sign in" });
     await waitFor(() => {
       expect(document.title).toBe("Sign in · MergeBrief");
     });
@@ -289,7 +289,7 @@ describe("page tab titles", () => {
     answerReads(makeInboxAnswer(makeTokenRefusedResponse));
     await act(() => queryClient.refetchQueries({ queryKey: INBOX_KEY }));
 
-    await screen.findByRole("heading", { name: "Sign in to MergeBrief" });
+    await screen.findByRole("heading", { name: "Sign in" });
     await waitFor(() => {
       expect(document.title).toBe("Sign in · MergeBrief");
     });
@@ -309,9 +309,7 @@ describe("page tab titles", () => {
     await waitFor(() => {
       expect(document.title).toBe("Briefs · MergeBrief");
     });
-    expect(
-      screen.queryByRole("heading", { name: "Sign in to MergeBrief" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Sign in" })).toBeNull();
   });
 
   it("keeps Home titled Briefs when the inbox read fails", async () => {
@@ -326,7 +324,7 @@ describe("page tab titles", () => {
   it("titles a signed-out Home Sign in on its first load", async () => {
     await loadAppAnswering(makeSignedOutResponse, "/", false);
 
-    await screen.findByRole("heading", { name: "Sign in to MergeBrief" });
+    await screen.findByRole("heading", { name: "Sign in" });
     await waitFor(() => {
       expect(document.title).toBe("Sign in · MergeBrief");
     });

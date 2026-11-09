@@ -255,13 +255,13 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 ### Hierarchy
 
 - **Display** (600, 1.875rem, 1.1, -0.02em): the personal line on Home and the Settings heading. One per screen. Under 760px it steps down to 24px.
-- **Headline** (600, 1.5rem, 1.2): the Brief's title at rest and the sign-in heading. The Brief's title collapses to 13px once the page scrolls; on a phone it is 20px in the page and 13px in the row.
+- **Headline** (600, 1.5rem, 1.2): the Brief's title at rest. The Brief's title collapses to 13px once the page scrolls; on a phone it is 20px in the page and 13px in the row.
 - **Group title** (600, 1.25rem): a change group's name in its card.
-- **Panel title** (600, 1.0625rem, 1.3): dialog titles and Settings panel headings.
+- **Panel title** (600, 1.0625rem, 1.3): dialog titles, Settings panel headings and the sign-in heading.
 - **Title** (600, 0.9375rem, 1.2): section headings such as the list heading.
 - **Row title** (500, Text 1 when it needs the reviewer and Text Read otherwise, whatever the layout, 0.9375rem, 20px line): one line, cut with an ellipsis.
-- **Lead** (400, 1.0625rem, 1.5): the line under the personal line and the Instance tab's count, 62 characters wide at most. The sign-in lead sits a step down at 15px.
-- **Reading** (400, 0.9375rem, 1.65, Text Read): the words of a brief, its overview, changelog and summaries.
+- **Lead** (400, 1.0625rem, 1.5): the line under the personal line, 62 characters wide at most. The sign-in lead is Small in Text 2.
+- **Reading** (400, 0.9375rem, 1.65, Text Read): the words of a brief, its overview, changelog and summaries. The Instance tab's count, cap and refusal copy take the same size and colour at a 1.6 line.
 - **Small** (400 to 600, 0.8125rem): controls, menus, the pager, code, the second line of a row with an 18px line and tabular numerals, the chunk and focus indicators with tabular numerals, and the URL box's slash hint. Running text sets at 400; chips, the chunk indicator and the focus indicator's label and current count at 500; titles and figures inside a panel at 600; buttons at 400 to 600. The shortcuts dialog's section headings take the Title step.
 - **Caption** (400, 500 or 600, 0.6875rem): the Brief page's badges and meta rows, a group's category chips, the generation warnings chip, the change stepper's count outside the Brief controls sheet, small section labels and every other key cap. Nothing smaller ships.
 
@@ -283,7 +283,7 @@ The list splits at a fold. Rows that need the reviewer (open, not a draft, and n
 
 Under 760px the filters collapse behind one button and the controls take their own line; under 400px View and Sort may wrap under the Filters button. Status labels become icons with hidden text. The page never scrolls sideways down to 320px.
 
-**Sign-in.** A signed-out viewer of any page gets one centred column, 360px wide at most, with no header: the 48px mark in Brand, a Headline, a 15px lead, a full-width 44px primary button and one quiet note.
+**Sign-in.** A signed-out viewer of any page gets one panel centred on the ground, 384px wide at most, with no header: Surface 1, a Line edge and a 12px corner. Inside sit the 24px mark in Brand beside the wordmark, a Panel title heading, a Small lead and a full-width 40px primary button, with one quiet note in a hairline footer. A refused account shows its reason in a failure box above the button.
 
 **Settings.** Home's shell: the same Header, gutter and column, with the heading in Display and the panel 32px below it (24px under 760px). A viewer with one tab gets no rail. An Operator gets a 184px rail beside the panel, 48px apart and pinned 24px from the top, where the current tab takes Surface 3 on an 8px corner. On a phone the rail becomes a row of tabs over a hairline.
 
@@ -333,6 +333,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 - **Secondary:** transparent with a Line Strong border.
 - **Danger:** outline only: crimson text and a crimson edge at 55% over Line Strong; hover lifts the edge to full crimson over a 12% crimson tint. There is no filled Danger. In a destructive dialog Cancel and the confirm carry equal weight, so the heading asks the question, the body says what cannot be undone, and focus lands on Cancel.
 - **Disabled:** the variant's own edge, fill and label at 45% opacity (`--opacity-disabled`), with no hover or press change, so a disabled button keeps its shape and reads as a button. It stays focusable; while it shows the focus ring the edge, fill and label stay at 45% as colour rather than element opacity, so the ring keeps full strength and the control still reads as disabled. Every control dimmed this way does the same.
+- **Ghost:** no edge or fill, Text 2, Surface 3 under the pointer with Text 1, on the 8px corner at either size: actions in a bar beside text, such as the Home selection row. The danger ghost keeps crimson ink and takes a 12% crimson tint under the pointer.
 - **Icon buttons:** borderless, Text 2, Surface 3 under the pointer with Text 1. The triggers that need a visible edge (the account trigger's pill, the details trigger's ring) draw their own.
 - **Press:** a Button or icon button scales to 0.97 over 120ms on the entrance curve; a toolbar button never scales, it can be a full-width heading, so it takes a background step instead, as rows and tabs do. No hover movement anywhere.
 
@@ -349,10 +350,10 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 - **Container:** Surface 1, 1px Line edge, 12px corner, Line dividers between rows. No card per row.
 - **Row:** two lines, 56px for the first row of a list and 57px after it, where the divider adds one. Line one is the mark, the title and chips. Line two is another author's chip when the row is someone else's, the source icon (URL pull requests only), repository, number and age, in Label type, on one baseline. Inline code in a title takes a chip. A code chip wider than the row is cut inside itself; a chip that follows words and doesn't fit is replaced whole by the title's ellipsis.
 - **Right edge:** generation state (generating, queued, failed) and the status, right-aligned and flush. Status is printed only when it is not Open.
-- **Hover:** Surface 2. Actions fade in over the right edge (opacity only, 120ms): Open on GitHub, and a menu with Copy link, Open on GitHub, Archive, Delete on the viewer's own URL rows and on installation rows in repositories the viewer administers, Delete attachment branch on those installation rows, and Regenerate leading it when a pasted row is behind, unless its last generation failed in a way a repeat paste fails again. On touch only the menu stays visible, so a phone row keeps its width for the title and repository.
-- **Selecting:** a pointer reserves a checkbox column and shows the box on hover or focus, so a reveal moves nothing. Touch gives the column no width until Select is pressed. A selection row sits under the filters on its own line, so the filters stay in view while rows are ticked: at rest it holds the total ("11 briefs", or "Showing 10 of 24 briefs" past one page), plus Select on touch, with the page checkbox hidden in its column like a row's box; once selecting, the page checkbox and every row's box show and the row takes a surface with the count, Archive, Delete and Clear selection.
+- **Hover:** Surface 2. Actions sit in their own column at the row's end and fade in (opacity only, 120ms): Open on GitHub, and a menu with Copy link, Open on GitHub, Archive, Delete on the viewer's own URL rows and on installation rows in repositories the viewer administers, Delete attachment branch on those installation rows, and Regenerate leading it when a pasted row is behind, unless its last generation failed in a way a repeat paste fails again. On touch only the menu stays visible, so a phone row keeps its width for the title and repository.
+- **Selecting:** the mark and the checkbox share one 20px slot at the row's start; the box takes the mark's place on hover, keyboard focus or while selecting, so a reveal moves nothing. On touch the slot keeps the mark and a tap on it opens the brief until Select is pressed. A selection row sits under the filters on its own line, so the filters stay in view while rows are ticked: at rest it holds the page checkbox and the total ("11 briefs", or "Showing 10 of 24 briefs" past one page), plus Select on touch; once selecting, every row's box shows and the row takes a surface with the count and ghost Archive, Delete and Clear selection.
 - **Keyboard cursor:** Surface 3 plus a 1px inset accent ring at 55%. It appears and moves with no animation. On the Brief page the current chunk wears the same ring on its own edge, over Surface 1.
-- **Accessible name:** the row link reads the review state, status, generation state and source in words before the title. The mark sits inside the link with a hover callout naming its state; icons are hidden from assistive technology.
+- **Accessible name:** the row link reads the review state, status, generation state and source in words before the title. The mark sits in the row's lead slot, outside the link, with a callout naming its state after a pointer rest or on keyboard focus; icons are hidden from assistive technology.
 
 ### Chips
 

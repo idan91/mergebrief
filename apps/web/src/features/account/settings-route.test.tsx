@@ -101,6 +101,37 @@ describe("the settings route", () => {
     expect(screen.queryByRole("heading", { name: "Daily runs" })).toBeNull();
   });
 
+  it("shows the API tokens heading when no rail names the section", async () => {
+    await loadSettings({
+      kind: ViewerStates.SIGNED_IN,
+      login: "octocat",
+      avatarUrl: "https://avatars.example/octocat.png",
+      operator: false,
+    });
+
+    const heading = await screen.findByRole("heading", { name: "API tokens" });
+
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(heading.classList.contains("sr-only")).toBe(false);
+  });
+
+  it("keeps the API tokens heading for assistive tech under the rail", async () => {
+    await loadSettings(
+      {
+        kind: ViewerStates.SIGNED_IN,
+        login: "octocat",
+        avatarUrl: "https://avatars.example/octocat.png",
+        operator: true,
+      },
+      "/settings?tab=tokens",
+    );
+
+    const heading = await screen.findByRole("heading", { name: "API tokens" });
+
+    expect(screen.getByRole("tab", { name: "API tokens" })).toBeTruthy();
+    expect(heading.classList.contains("sr-only")).toBe(true);
+  });
+
   it("puts an Operator's Instance tab on the rail", async () => {
     await loadSettings(
       {

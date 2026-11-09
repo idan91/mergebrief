@@ -1,20 +1,18 @@
-@use "functions";
-
 @layer components {
   .note {
     display: flex;
     align-items: flex-start;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3);
     max-width: 62ch;
-    margin: functions.to-rem(16px) 0 0;
+    margin: var(--space-5) 0 0;
     color: var(--color-text-read);
-    font-size: var(--font-size-lg);
-    line-height: 1.5;
+    font-size: var(--font-size-xl);
+    line-height: 1.6;
   }
 
   .icon {
     flex: none;
-    margin-block-start: functions.to-rem(1px);
+    margin-block-start: var(--space-2);
     color: var(--color-warning);
   }
 }

@@ -1,7 +1,7 @@
 import type { SpendView } from "contract";
 
 import {
-  MAX_TICKS,
+  FULL_PERCENT,
   MINUTES_PER_HOUR,
   MS_PER_MINUTE,
   NEAR_CAP_SHARE,
@@ -89,15 +89,15 @@ export function resolveCountKey(
   return "spend.startedOfCap";
 }
 
-/** One tick per run up to fifty; a started run always shows as a tick. */
-export function deriveTickFills(
+/** How much of the cap today's runs fill, in percent; a cap lowered mid-day leaves it full. */
+export function deriveMeterFillPercent(
   startedRuns: number,
   cap: number,
-): readonly boolean[] {
-  const count = Math.min(cap, MAX_TICKS);
+): number {
+  if (cap <= 0) {
+    return FULL_PERCENT;
+  }
   const counted = Math.min(startedRuns, cap);
-  const scaled = Math.floor((counted * count) / cap);
-  const filled = startedRuns > 0 ? Math.max(1, scaled) : 0;
-  const fills = Array.from({ length: count }, (_, index) => index < filled);
-  return fills;
+  const percent = (counted / cap) * FULL_PERCENT;
+  return percent;
 }
