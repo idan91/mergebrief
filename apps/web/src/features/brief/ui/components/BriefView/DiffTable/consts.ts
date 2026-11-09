@@ -43,3 +43,6 @@ export const GUEST_REASON_KEYS: Record<GuestRowReason, TranslationKey> = {
   [GuestRowReasons.PR_DIFF_UNAVAILABLE]: "brief.diff.guest.prDiffUnavailable",
   [GuestRowReasons.FILE_NOT_IN_BRIEF]: "brief.diff.guest.fileNotInBrief",
 };
+
+/** Marks a table's first rendered frame: a windowed list paints it in full then. */
+export const FIRST_PAINT_ATTRIBUTE = "data-first-paint";

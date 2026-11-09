@@ -47,10 +47,10 @@ export function scrollPageToTop(registry: ChunkWindowRegistry): void {
     },
     listenerOptions,
   );
-  // The header regrowing near the top shifts the page under the browser's
-  // own scroll anchoring, which can end the smooth scroll a few px short. A
-  // scrollbar drag sends none of the reader events, so a scroll that ends
-  // further down was the reader's and stays where it ended.
+  // A smooth scroll can still end a few px short of the top under load, with
+  // anchoring paused, as the header regrows. A scrollbar drag sends none of
+  // the reader events, so a scroll that ends further down was the reader's
+  // and stays where it ended.
   window.addEventListener(
     "scrollend",
     () => {

@@ -35,9 +35,10 @@ import {
   estimateChunkCardHeight,
   PHONE_CARD_METRICS,
 } from "../reading/chunk-height-model";
-import type {
-  GroupWindowOptions,
-  useGroupWindow,
+import {
+  CHUNK_WINDOW_INDEX_ATTR,
+  type GroupWindowOptions,
+  type useGroupWindow,
 } from "../reading/useGroupWindow";
 
 const windowEstimates = vi.hoisted(() => new Map<string, number>());
@@ -190,6 +191,20 @@ describe("StoryView chunk footer", () => {
 });
 
 describe("StoryView chunk column", () => {
+  it("gives every windowed card slot its own formatting context", () => {
+    renderStory(false);
+    const slots = [
+      ...document.querySelectorAll<HTMLElement>(
+        `[${STORY_CHUNKS_ATTR}] > [${CHUNK_WINDOW_INDEX_ATTR}]`,
+      ),
+    ];
+
+    expect(slots.length).toBeGreaterThan(0);
+    expect(slots.map((slot) => slot.style.display)).toEqual(
+      slots.map(() => "flow-root"),
+    );
+  });
+
   it("marks each group's chunk column for the splitter", () => {
     renderStory(false);
     const groups = screen.getAllByTestId("story-group");

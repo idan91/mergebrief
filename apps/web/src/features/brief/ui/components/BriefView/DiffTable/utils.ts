@@ -43,7 +43,7 @@ import {
   type SideRailInput,
   type UnderRowLayout,
 } from "./types";
-import { NO_SELECTION } from "./consts";
+import { FIRST_PAINT_ATTRIBUTE, NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import {
   type ExpandableEdge,
@@ -1093,4 +1093,27 @@ export function buildLineAnchor(
   const commentSide = side === SplitSides.LEFT ? DiffSides.OLD : DiffSides.NEW;
 
   return createSideAnchor(chunkId, file, sourceRows, indexes, commentSide);
+}
+
+/**
+ * Holds a just-mounted table at its list's first-paint visibility until a
+ * frame has rendered it: the browser records its real size then, and keeps
+ * that size while `content-visibility: auto` skips it later. The ref
+ * callback's cleanup drops the pending frame.
+ */
+export function holdFirstPaint(
+  node: HTMLElement | null,
+): (() => void) | undefined {
+  if (!node) {
+    return undefined;
+  }
+
+  node.setAttribute(FIRST_PAINT_ATTRIBUTE, "");
+  let frame = 0;
+  frame = requestAnimationFrame(() => {
+    frame = requestAnimationFrame(() => {
+      node.removeAttribute(FIRST_PAINT_ATTRIBUTE);
+    });
+  });
+  return () => cancelAnimationFrame(frame);
 }

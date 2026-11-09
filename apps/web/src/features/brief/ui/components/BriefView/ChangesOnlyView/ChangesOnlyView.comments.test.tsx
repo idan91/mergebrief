@@ -26,6 +26,7 @@ import { buildLineOwnersByFile } from "../../../../model/utils/line-owner";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
 import type { ChangesReviewWiring } from "./types";
+import { CHUNK_WINDOW_INDEX_ATTR } from "../reading/useGroupWindow";
 import { ChangesOnlyView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
@@ -496,6 +497,20 @@ describe("Previous Brief narrative cards take comments", () => {
     const slashBreak = path.querySelector("wbr");
 
     expect(slashBreak?.previousSibling?.textContent).toBe("src/");
+  });
+
+  it("gives every windowed card slot its own formatting context", () => {
+    const { view } = renderChanges();
+    const slots = [
+      ...view.container.querySelectorAll<HTMLElement>(
+        `[${CHUNK_WINDOW_INDEX_ATTR}]`,
+      ),
+    ];
+
+    expect(slots.length).toBeGreaterThan(0);
+    expect(slots.map((slot) => slot.style.display)).toEqual(
+      slots.map(() => "flow-root"),
+    );
   });
 
   it("matches the card markup snapshot", () => {

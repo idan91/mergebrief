@@ -3,12 +3,49 @@
 // determinism off the fixed SSR rect, the pinned-index range, the
 // hidden-pane latch, and the key→index contract. Real-geometry behavior
 // (measured heights, scroll to target) belongs to the perf specs.
+import type { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { act, render, screen } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { intersectionObservers } from "@web/test/setup";
 import { useGroupWindow, type GroupWindowOptions } from "./useGroupWindow";
+import { refuseScrollCompensation } from "./window-layout";
+
+/** The live virtualizer, read through to see the compensation rule it holds. */
+const captured = vi.hoisted(() => ({
+  virtualizer: undefined as
+    | { shouldAdjustScrollPositionOnItemSizeChange: unknown }
+    | undefined,
+}));
+
+vi.mock("@tanstack/react-virtual", async (importOriginal) => {
+  const original = await importOriginal<{
+    useWindowVirtualizer: typeof useWindowVirtualizer;
+  }>();
+  return {
+    ...original,
+    useWindowVirtualizer: (
+      ...args: Parameters<typeof original.useWindowVirtualizer>
+    ) => {
+      const virtualizer = original.useWindowVirtualizer(...args);
+      captured.virtualizer = virtualizer;
+      return virtualizer;
+    },
+  };
+});
+
+function readCompensation(): unknown {
+  return captured.virtualizer?.shouldAdjustScrollPositionOnItemSizeChange;
+}
+
+function stubScrollAnchoring(supported: boolean): void {
+  vi.stubGlobal("CSS", { supports: () => supported });
+  onTestFinished(() => {
+    vi.unstubAllGlobals();
+  });
+}
 
 // jsdom implements scrollTo as a loud not-implemented warning; the
 // virtualizer's internal scroll anchoring calls it on measurement changes.
@@ -40,6 +77,8 @@ const PAGE_HEIGHT = 100_000;
  * fires after the file's jsdom teardown and throws `window is not defined`.
  */
 const SCROLL_RESET_DELAY_MS = 150;
+/** A reload's restored position, short of the first card boundary. */
+const RESTORED_SCROLL_Y = 150;
 
 const KEYS = Array.from(
   { length: 40 },
@@ -96,6 +135,41 @@ describe("useGroupWindow", () => {
     expect(items.length).toBeGreaterThan(0);
     expect(items.length).toBeLessThan(KEYS.length);
     expect(current().totalSize).toBe(KEYS.length * 600);
+  });
+
+  it("reads the viewport top as the server does while it hydrates", async () => {
+    vi.stubGlobal("scrollY", RESTORED_SCROLL_Y);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const options: GroupWindowOptions = {
+      chunkKeys: KEYS,
+      estimateChunk: () => 600,
+    };
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(
+      <Harness options={options} onWindow={() => undefined} />,
+    );
+    document.body.append(container);
+    const tops: number[] = [];
+
+    await act(async () => {
+      const root = hydrateRoot(
+        container,
+        <Harness
+          options={options}
+          onWindow={(groupWindow) => tops.push(groupWindow.viewportTop)}
+        />,
+      );
+      onTestFinished(() => {
+        root.unmount();
+        container.remove();
+      });
+      await Promise.resolve();
+    });
+
+    expect(tops[0]).toBe(0);
+    expect(tops.at(-1)).toBe(RESTORED_SCROLL_Y);
   });
 
   it("server markup and the client's first render agree on the window", () => {
@@ -349,5 +423,35 @@ describe("useGroupWindow", () => {
       await Promise.resolve();
     });
     expect(current().active).toBe(true);
+  });
+
+  it("leaves size changes to the browser where it anchors scrolling", () => {
+    stubScrollAnchoring(true);
+    const { current } = renderHarness();
+    const first = readCompensation();
+
+    act(() => {
+      current().holdScrollCompensation(true);
+      current().holdScrollCompensation(false);
+    });
+
+    expect(first).toBe(refuseScrollCompensation);
+    expect(readCompensation()).toBe(refuseScrollCompensation);
+  });
+
+  it("keeps the library's rule where the browser cannot anchor", () => {
+    stubScrollAnchoring(false);
+    const { current } = renderHarness();
+
+    act(() => {
+      current().holdScrollCompensation(true);
+    });
+    const held = readCompensation();
+    act(() => {
+      current().holdScrollCompensation(false);
+    });
+
+    expect(held).toBe(refuseScrollCompensation);
+    expect(readCompensation()).toBeUndefined();
   });
 });

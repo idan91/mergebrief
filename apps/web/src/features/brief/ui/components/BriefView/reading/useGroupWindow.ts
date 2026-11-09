@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   defaultRangeExtractor,
   useWindowVirtualizer,
@@ -7,6 +14,10 @@ import {
 } from "@tanstack/react-virtual";
 
 import { useNearGroup } from "./useNearGroup";
+import {
+  refuseScrollCompensation,
+  resolveRestingCompensation,
+} from "./window-layout";
 
 /** Fixed constant, never a live viewport read: server and client must
  * derive the identical initial window or hydration mismatches. */
@@ -16,10 +27,6 @@ export const SSR_VIEWPORT_RECT = {
 } as const;
 
 const DEFAULT_OVERSCAN = 4;
-
-function refuseScrollCompensation(): boolean {
-  return false;
-}
 
 /**
  * The attribute every windowed card wrapper carries. The NAME is fixed by
@@ -56,6 +63,8 @@ export interface GroupWindow {
    * card's position within the list is `item.start - scrollMargin`.
    */
   scrollMargin: number;
+  /** The viewport's top as the window last read it, in document offset. */
+  viewportTop: number;
   /** False while a `[hidden]` ancestor keeps this list unmeasurable. */
   active: boolean;
   /** Index of a chunk key in this group, -1 when absent. */
@@ -80,6 +89,18 @@ interface LiveRefs {
   active: boolean;
 }
 
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+function readClientHydrating(): boolean {
+  return false;
+}
+
+function readServerHydrating(): boolean {
+  return true;
+}
+
 /**
  * Windows one group's chunk-card list against the page scroll.
  *
@@ -94,6 +115,13 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   const [listEl, setListEl] = useState<HTMLElement | null>(null);
   const [active, setActive] = useState(true);
   const [scrollMargin, setScrollMargin] = useState(0);
+  // The server reads the viewport at 0, so hydration does too; the restored
+  // scroll position arrives with the render after it.
+  const hydrating = useSyncExternalStore(
+    subscribeToNothing,
+    readClientHydrating,
+    readServerHydrating,
+  );
   const live = useRef<LiveRefs>({ virtualizer: null, active: true });
   const measurementsSnapshot = useRef<VirtualItem[]>([]);
 
@@ -206,6 +234,10 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     rangeExtractor,
   });
   live.current.virtualizer = virtualizer;
+  // In render: the cards' first measurements run in the commit's ref
+  // callbacks, before any effect could set it.
+  virtualizer.shouldAdjustScrollPositionOnItemSizeChange ??=
+    resolveRestingCompensation();
 
   // Latch: refs only advance while active, so a hidden pane keeps serving
   // its last visible window and the kept-warm DOM never changes shape.
@@ -259,12 +291,11 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     [keyIndex, virtualizer, pinJump],
   );
 
-  // `undefined` restores the library's own rule.
   const holdScrollCompensation = useCallback(
     (held: boolean) => {
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = held
         ? refuseScrollCompensation
-        : undefined;
+        : resolveRestingCompensation();
     },
     [virtualizer],
   );
@@ -275,6 +306,7 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     items: latchedItems.current,
     totalSize: latchedTotal.current,
     scrollMargin,
+    viewportTop: hydrating ? 0 : (virtualizer.scrollOffset ?? 0),
     active,
     indexOfKey,
     scrollToKey,

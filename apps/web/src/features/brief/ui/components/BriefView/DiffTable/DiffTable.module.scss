@@ -57,6 +57,13 @@
     container-type: inline-size;
   }
 
+  // A windowed card mounting with its top above the viewport sets visible
+  // (reading/window-layout.ts): it reaches its real height there, where
+  // scroll anchoring absorbs it, and `auto` keeps that size once skipped.
+  .viewport[data-first-paint] {
+    content-visibility: var(--diff-first-paint-visibility, auto);
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .viewport[data-state="arrived"] {
       animation: ink-settle var(--motion-base) var(--ease-out);

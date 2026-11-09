@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createChunkWindowRegistry } from "./chunk-windows";
 
@@ -123,5 +123,41 @@ describe("chunk window registry", () => {
 
     endSecond();
     expect(registry.isSmoothScrolling()).toBe(false);
+  });
+
+  describe("scroll anchoring", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function stubRootStyle(): { overflowAnchor: string } {
+      const style = { overflowAnchor: "" };
+      vi.stubGlobal("document", { documentElement: { style } });
+      return style;
+    }
+
+    it("pauses anchoring while a scripted scroll is in flight", () => {
+      const style = stubRootStyle();
+      const registry = createChunkWindowRegistry();
+
+      const end = registry.beginSmoothScroll();
+      expect(style.overflowAnchor).toBe("none");
+
+      end();
+      expect(style.overflowAnchor).toBe("");
+    });
+
+    it("keeps anchoring paused until the last hold and flight end", () => {
+      const style = stubRootStyle();
+      const registry = createChunkWindowRegistry();
+      const release = registry.holdScrollCompensation();
+      const end = registry.beginSmoothScroll();
+
+      release();
+      expect(style.overflowAnchor).toBe("none");
+
+      end();
+      expect(style.overflowAnchor).toBe("");
+    });
   });
 });

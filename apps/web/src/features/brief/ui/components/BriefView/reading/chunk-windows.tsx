@@ -43,6 +43,18 @@ function runOnce(run: () => void): () => void {
   };
 }
 
+/**
+ * The browser's scroll anchoring owns the reader's own scrolling. A scripted
+ * scroll in flight or a held landing owns the page instead: anchoring would
+ * move it under them, and they settle-correct against the real cards.
+ */
+function setScrollAnchoringPaused(paused: boolean): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  document.documentElement.style.overflowAnchor = paused ? "none" : "";
+}
+
 export function createChunkWindowRegistry(): ChunkWindowRegistry {
   const registrations = new Set<ChunkWindowRegistration>();
   let compensationHolds = 0;
@@ -51,6 +63,9 @@ export function createChunkWindowRegistry(): ChunkWindowRegistry {
     for (const registration of registrations) {
       registration.holdScrollCompensation(held);
     }
+  };
+  const syncScrollAnchoring = (): void => {
+    setScrollAnchoringPaused(compensationHolds > 0 || smoothScrolls > 0);
   };
   return {
     register(registration) {
@@ -75,17 +90,21 @@ export function createChunkWindowRegistry(): ChunkWindowRegistry {
       if (compensationHolds === 1) {
         applyHold(true);
       }
+      syncScrollAnchoring();
       return runOnce(() => {
         compensationHolds -= 1;
         if (compensationHolds === 0) {
           applyHold(false);
         }
+        syncScrollAnchoring();
       });
     },
     beginSmoothScroll() {
       smoothScrolls += 1;
+      syncScrollAnchoring();
       return runOnce(() => {
         smoothScrolls -= 1;
+        syncScrollAnchoring();
       });
     },
     isSmoothScrolling() {

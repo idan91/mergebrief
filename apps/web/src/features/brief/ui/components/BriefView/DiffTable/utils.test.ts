@@ -5,7 +5,7 @@ import {
   sliceChunkDiff,
   type ChunkRanges,
 } from "brief-core/chunk-layout";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../../model/types";
@@ -30,6 +30,7 @@ import {
   frameSpans,
   frameSpansOnPairs,
   groupEdgesByRow,
+  holdFirstPaint,
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
   resolveSpanLines,
@@ -38,6 +39,7 @@ import {
   resolveRowRef,
   unzipPairsByOwner,
 } from "./utils";
+import { FIRST_PAINT_ATTRIBUTE } from "./consts";
 
 const ROWS: DiffLine[] = [
   { kind: "ctx", origin: "expanded", content: "k", oldLine: 9, newLine: 9 },
@@ -571,5 +573,76 @@ describe("expand rows against the stored layout counts", () => {
     });
 
     expect(Math.max(...drawn)).toBeGreaterThan(0);
+  });
+});
+
+describe("holdFirstPaint", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFrames(): () => void {
+    const queue: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queue.push(callback);
+      return queue.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      queue[id - 1] = () => undefined;
+    });
+    return () => {
+      const due = queue.splice(0);
+      due.forEach((callback) => callback(0));
+    };
+  }
+
+  function makeNode() {
+    const attributes = new Set<string>();
+    const node = {
+      setAttribute: (name: string) => attributes.add(name),
+      removeAttribute: (name: string) => attributes.delete(name),
+    } as unknown as HTMLElement;
+    return { node, attributes };
+  }
+
+  it("marks the table until a whole frame has rendered it", () => {
+    const runFrame = stubFrames();
+    const { node, attributes } = makeNode();
+
+    holdFirstPaint(node);
+    runFrame();
+
+    expect(attributes.has(FIRST_PAINT_ATTRIBUTE)).toBe(true);
+    runFrame();
+    expect(attributes.has(FIRST_PAINT_ATTRIBUTE)).toBe(false);
+  });
+
+  it("drops the pending frame when the table unmounts first", () => {
+    const runFrame = stubFrames();
+    const { node, attributes } = makeNode();
+
+    const release = holdFirstPaint(node);
+    release?.();
+    runFrame();
+    runFrame();
+
+    expect(attributes.has(FIRST_PAINT_ATTRIBUTE)).toBe(true);
+  });
+
+  it("survives a requestAnimationFrame that runs its callback at once", () => {
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    const { node, attributes } = makeNode();
+
+    holdFirstPaint(node);
+
+    expect(attributes.has(FIRST_PAINT_ATTRIBUTE)).toBe(false);
+  });
+
+  it("does nothing on a detach", () => {
+    expect(holdFirstPaint(null)).toBeUndefined();
   });
 });

@@ -22,6 +22,8 @@ import {
   resolveChunkCardMetrics,
 } from "../reading/chunk-height-model";
 import { useChunkWindows } from "../reading/chunk-windows";
+import { WINDOW_LIST_STYLE } from "../reading/window-layout";
+import { WindowedCards } from "../reading/WindowedCards";
 import { useGroupWindow } from "../reading/useGroupWindow";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { getCategoryLabel } from "../../../../model/utils/view-model";
@@ -322,8 +324,7 @@ function deriveNarrativeHostId(chunk: RevisionNarrativeChunk): string {
 
 /**
  * Windowed narrative cards, same shape as the story pane's chunk column:
- * absolute cards in a totalSize column, explicit inline-size (absolute cards
- * have no intrinsic width). The card hosting the composer stays mounted
+ * cards in flow between empty tracks. The card hosting the composer stays mounted
  * offscreen, as a story card does. It joins the window registry only for
  * the scroll-compensation hold: nothing navigates to a narrative card by id.
  */
@@ -384,44 +385,25 @@ function WindowedNarrativeList({
     });
   }, [holdScrollCompensation, registry]);
 
+  function buildCard(index: number) {
+    const chunk = chunks[index];
+    if (!chunk) {
+      return undefined;
+    }
+    return (
+      <NarrativeChunkCard
+        brief={brief}
+        chunk={chunk}
+        jumpToChunk={jumpToChunk}
+        review={review}
+        spanRows={spanRows}
+      />
+    );
+  }
+
   return (
-    <div
-      ref={window.listRef}
-      style={{
-        position: "relative",
-        blockSize: window.totalSize,
-        inlineSize: "100%",
-      }}
-    >
-      {window.items.map((item) => {
-        const chunk = chunks[item.index];
-        if (!chunk) {
-          return null;
-        }
-        return (
-          <div
-            key={item.key}
-            data-index={item.index}
-            ref={window.measureElement}
-            style={{
-              position: "absolute",
-              // `top`, never `transform`, see WindowedChunkList: transform
-              // ancestors break the cards' sticky headers.
-              insetBlockStart: item.start - window.scrollMargin,
-              insetInlineStart: 0,
-              inlineSize: "100%",
-            }}
-          >
-            <NarrativeChunkCard
-              brief={brief}
-              chunk={chunk}
-              jumpToChunk={jumpToChunk}
-              review={review}
-              spanRows={spanRows}
-            />
-          </div>
-        );
-      })}
+    <div ref={window.listRef} style={WINDOW_LIST_STYLE}>
+      <WindowedCards window={window} buildCard={buildCard} />
     </div>
   );
 }

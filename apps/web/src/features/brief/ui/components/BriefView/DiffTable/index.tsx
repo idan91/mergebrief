@@ -26,6 +26,7 @@ import { UnderRows } from "./UnderRows";
 import { useDiffTableFacade } from "./useDiffTableFacade";
 import {
   deriveSideRail,
+  holdFirstPaint,
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
   resolveRowRef,
@@ -336,6 +337,7 @@ export function DiffTable(props: DiffTableProps) {
       <div
         className={styles["viewport"]}
         data-state={viewportState}
+        ref={holdFirstPaint}
         style={viewportStyle}
         onAnimationEnd={handleViewportAnimationEnd}
       >

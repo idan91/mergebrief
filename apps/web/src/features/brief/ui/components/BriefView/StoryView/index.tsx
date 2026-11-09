@@ -40,6 +40,8 @@ import {
 } from "../../../../model/utils/line-owner";
 import { resolveChunkCardMetrics } from "../reading/chunk-height-model";
 import { useChunkWindows } from "../reading/chunk-windows";
+import { WINDOW_LIST_STYLE } from "../reading/window-layout";
+import { WindowedCards } from "../reading/WindowedCards";
 import { useWrapColumns } from "../reading/useWrapColumns";
 import { useReadingPosition } from "../reading/reading-position";
 import {
@@ -403,73 +405,51 @@ function WindowedChunkList({
   };
 
   const listRef = useMergedRef(attachWrapper, window.listRef);
+  function buildCard(index: number) {
+    const chunk = group.chunks[index];
+    if (!chunk) {
+      return undefined;
+    }
+    // The window keys each card by file and chunk id: a DIFFERENT file landing
+    // on a reused positional id remounts clean. Same file + same id keeps the
+    // card (the common revision step), so chunk-subtree local state MUST be
+    // thread-id-scoped or gesture-transient.
+    return (
+      <ChunkCard
+        chunk={chunk}
+        riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
+        comparison={view.comparison}
+        diffView={diffView}
+        open={view.openChunks.has(chunk.id)}
+        addressedReviewComments={addressedReviewComments}
+        conversationComposer={view.conversationComposer}
+        conversationRows={view.conversationByChunk?.get(chunk.id)}
+        hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
+        fileThreads={view.lineThreadsByFile?.get(chunk.file)}
+        jumpToLine={view.jumpToLine}
+        shareChunk={view.shareChunk}
+        githubHead={githubHead}
+        actionsOpen={view.chunkActionsFor === chunk.id}
+        openActions={view.openChunkActions}
+        closeActions={view.closeChunkActions}
+        lineOwners={lineOwnersByFile.get(chunk.file)}
+        markReviewed={view.markReviewed}
+        marksDisabled={view.marksDisabled}
+        toggleChunk={view.toggleChunk}
+      />
+    );
+  }
 
   return (
     <div
       className={styles["chunks"]}
       data-story-chunks=""
       ref={listRef}
-      style={{
-        position: "relative",
-        blockSize: window.totalSize,
-        // Explicit: absolute cards give this column ZERO intrinsic width, so
-        // any content-sized ancestor (narrow flex uses align-items:start)
-        // would collapse it to 0.
-        inlineSize: "100%",
-      }}
+      style={WINDOW_LIST_STYLE}
       onBlur={handleBlur}
       onFocus={handleFocus}
     >
-      {window.items.map((item) => {
-        const chunk = group.chunks[item.index];
-        if (!chunk) {
-          return null;
-        }
-        return (
-          <div
-            key={item.key}
-            data-index={item.index}
-            ref={window.measureElement}
-            style={{
-              position: "absolute",
-              // `top`, never `transform`: a transformed ancestor becomes the
-              // containing block for the card's sticky header, and Chromium
-              // leaves stale sticky paint behind after programmatic jumps,
-              // headers detach from their cards.
-              insetBlockStart: item.start - window.scrollMargin,
-              insetInlineStart: 0,
-              inlineSize: "100%",
-            }}
-          >
-            {/* File-qualified key: a DIFFERENT file landing on a reused
-                positional id remounts clean. Same file + same id keeps the
-                card (the common revision step), so chunk-subtree local
-                state MUST be thread-id-scoped or gesture-transient. */}
-            <ChunkCard
-              chunk={chunk}
-              riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
-              comparison={view.comparison}
-              diffView={diffView}
-              open={view.openChunks.has(chunk.id)}
-              addressedReviewComments={addressedReviewComments}
-              conversationComposer={view.conversationComposer}
-              conversationRows={view.conversationByChunk?.get(chunk.id)}
-              hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
-              fileThreads={view.lineThreadsByFile?.get(chunk.file)}
-              jumpToLine={view.jumpToLine}
-              shareChunk={view.shareChunk}
-              githubHead={githubHead}
-              actionsOpen={view.chunkActionsFor === chunk.id}
-              openActions={view.openChunkActions}
-              closeActions={view.closeChunkActions}
-              lineOwners={lineOwnersByFile.get(chunk.file)}
-              markReviewed={view.markReviewed}
-              marksDisabled={view.marksDisabled}
-              toggleChunk={view.toggleChunk}
-            />
-          </div>
-        );
-      })}
+      <WindowedCards window={window} buildCard={buildCard} />
     </div>
   );
 }
