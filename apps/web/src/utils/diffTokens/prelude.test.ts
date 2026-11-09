@@ -68,6 +68,26 @@ describe("derivePrelude", () => {
   });
 });
 
+const DOC_BLOCK_GRAMMARS: GrammarName[] = [
+  GrammarNames.C,
+  GrammarNames.CPP,
+  GrammarNames.CSHARP,
+  GrammarNames.GO,
+  GrammarNames.JAVA,
+  GrammarNames.KOTLIN,
+  GrammarNames.PHP,
+  GrammarNames.RUST,
+  GrammarNames.SWIFT,
+];
+
+describe("derivePrelude on a side opening inside a doc block", () => {
+  it.each(DOC_BLOCK_GRAMMARS)("opens a block comment for %s", (grammar) => {
+    const text = [" * the body of a doc block", " */", "int a = 1;"].join("\n");
+
+    expect(derivePrelude(text, grammar)).toBe(Preludes.BLOCK_COMMENT);
+  });
+});
+
 const NEXT_AT_RULE = ["", "@media (width <= 760px) {"];
 
 interface SharedRuleCase {

@@ -38,6 +38,29 @@ const CASES: [string, GrammarName][] = [
   ["tools/run.py", GrammarNames.PYTHON],
   ["out/change.diff", GrammarNames.DIFF],
   ["out/change.patch", GrammarNames.DIFF],
+  ["cmd/server/main.go", GrammarNames.GO],
+  ["src/lib.rs", GrammarNames.RUST],
+  ["src/main/java/App.java", GrammarNames.JAVA],
+  ["public/index.php", GrammarNames.PHP],
+  ["src/main.c", GrammarNames.C],
+  ["include/stdio.h", GrammarNames.CPP],
+  ["src/a.cc", GrammarNames.CPP],
+  ["src/a.cpp", GrammarNames.CPP],
+  ["src/a.cxx", GrammarNames.CPP],
+  ["src/a.c++", GrammarNames.CPP],
+  ["include/a.hh", GrammarNames.CPP],
+  ["include/a.hpp", GrammarNames.CPP],
+  ["include/a.hxx", GrammarNames.CPP],
+  ["include/a.h++", GrammarNames.CPP],
+  ["include/a.ipp", GrammarNames.CPP],
+  ["include/a.inl", GrammarNames.CPP],
+  ["include/a.tpp", GrammarNames.CPP],
+  ["src/a.cppm", GrammarNames.CPP],
+  ["src/a.ixx", GrammarNames.CPP],
+  ["src/Program.cs", GrammarNames.CSHARP],
+  ["src/Main.kt", GrammarNames.KOTLIN],
+  ["build.gradle.kts", GrammarNames.KOTLIN],
+  ["Sources/App.swift", GrammarNames.SWIFT],
 ];
 
 const BASENAME_CASES: [string, GrammarName][] = [
@@ -73,7 +96,15 @@ describe("resolveGrammar", () => {
     expect(resolveGrammar("assets/photo.png")).toBeUndefined();
     expect(resolveGrammar("pnpm-lock.yaml.bak")).toBeUndefined();
     expect(resolveGrammar("LICENSE")).toBeUndefined();
+    expect(resolveGrammar("go.mod")).toBeUndefined();
+    expect(resolveGrammar("go.sum")).toBeUndefined();
+    expect(resolveGrammar("app/models/user.rb")).toBeUndefined();
     expect(resolveGrammar("")).toBeUndefined();
+  });
+
+  it("leaves a Blade template plain rather than reading it as PHP", () => {
+    expect(resolveGrammar("resources/views/welcome.blade.php")).toBeUndefined();
+    expect(resolveGrammar("views/Layout.BLADE.PHP")).toBeUndefined();
   });
 
   it("ignores directory names when matching a basename rule", () => {

@@ -31,6 +31,15 @@ const BLOCK_COMMENT_GRAMMARS = new Set<GrammarName>([
   GrammarNames.ASTRO,
   GrammarNames.SQL,
   GrammarNames.GRAPHQL,
+  GrammarNames.C,
+  GrammarNames.CPP,
+  GrammarNames.CSHARP,
+  GrammarNames.GO,
+  GrammarNames.JAVA,
+  GrammarNames.KOTLIN,
+  GrammarNames.PHP,
+  GrammarNames.RUST,
+  GrammarNames.SWIFT,
 ]);
 const RULE_GRAMMARS = new Set<GrammarName>([
   GrammarNames.CSS,

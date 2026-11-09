@@ -6,6 +6,7 @@ import {
   GrammarNames,
   TokenizeModes,
   TokenMessageKinds,
+  type GrammarName,
   type TokenizableRow,
   type TokensReply,
 } from "./types";
@@ -20,6 +21,22 @@ const TSX_ROWS: TokenizableRow[] = [
   { kind: DiffLineKinds.HUNK, content: "@@ -1,2 +1,2 @@" },
   { kind: DiffLineKinds.ADD, content: "const a = 1;" },
   { kind: DiffLineKinds.CTX, content: "const b = 2;" },
+];
+
+// A cold grammar import outlasts vi.waitFor's 1 s default: C++ pulls in five
+// modules. Kept under vite.config.ts's 20 s testTimeout so a hang fails here.
+const COLD_GRAMMAR_WAIT_MS = 10_000;
+
+const GRAMMAR_SAMPLES: [GrammarName, string][] = [
+  [GrammarNames.C, 'int main(void) { return printf("hi"); }'],
+  [GrammarNames.CPP, "template <typename T> class Box { T value; };"],
+  [GrammarNames.CSHARP, 'public class A { string b = "hi"; }'],
+  [GrammarNames.GO, 'func main() { fmt.Println("hi") }'],
+  [GrammarNames.JAVA, 'public class A { String b = "hi"; }'],
+  [GrammarNames.KOTLIN, 'fun main() { val a = "hi" }'],
+  [GrammarNames.PHP, 'function a($b) { return "hi" . $b; }'],
+  [GrammarNames.RUST, "fn main() { let a: u32 = 42; }"],
+  [GrammarNames.SWIFT, 'func a(b: Int) -> String { return "hi" }'],
 ];
 
 let sent: unknown[] = [];
@@ -223,4 +240,35 @@ describe("diff token worker", () => {
       readRowTokens(readTokensByRow(12), 1),
     );
   });
+});
+
+describe("diff token worker grammar loaders", () => {
+  it.each(GRAMMAR_SAMPLES)(
+    "colours a %s row through its grammar loader",
+    async (grammar, content) => {
+      await startWorkerModule();
+      sendToWorker({
+        kind: TokenMessageKinds.TOKENIZE,
+        requestId: 1,
+        sourceId: "chunk-1",
+        grammar,
+        mode: TokenizeModes.HUNK,
+        rows: [
+          { kind: DiffLineKinds.HUNK, content: "@@ -0,0 +1 @@" },
+          { kind: DiffLineKinds.ADD, content, newLine: 1 },
+        ],
+      });
+
+      await vi.waitFor(
+        () => {
+          expect(sent).toHaveLength(1);
+        },
+        { timeout: COLD_GRAMMAR_WAIT_MS },
+      );
+      const row = readTokensByRow(1).find(([index]) => index === 1)?.[1] ?? [];
+      const classIds = new Set(row.map((token) => token.classId));
+
+      expect(classIds.size).toBeGreaterThan(1);
+    },
+  );
 });
