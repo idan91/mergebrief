@@ -1045,7 +1045,7 @@ export const BriefSchema = z.object({
     .array(ReadingOrderStepSchema)
     .optional()
     .describe(
-      "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
+      "optional reading order over changeGroups: a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
     ),
   intentCheck: IntentCheckSchema.optional().describe(
     "the ticket-gated intent check. Optional on the read path only — pre-feature briefs lack it; generation always produces it (required on BriefGenerationSchema).",

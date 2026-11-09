@@ -26742,8 +26742,8 @@ exports[`request goldens > button-under-split sends the recorded request digests
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26762,8 +26762,8 @@ exports[`request goldens > copybutton-new-export sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26782,8 +26782,8 @@ exports[`request goldens > intent-adversarial-ticket sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26802,8 +26802,8 @@ exports[`request goldens > intent-broad-epic sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26822,8 +26822,8 @@ exports[`request goldens > intent-github-primary sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26842,8 +26842,8 @@ exports[`request goldens > intent-legit-demotion sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26862,8 +26862,8 @@ exports[`request goldens > intent-masked-fix sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26882,8 +26882,8 @@ exports[`request goldens > intent-none-no-ticket sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26902,8 +26902,8 @@ exports[`request goldens > intent-precise-ticket sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26922,8 +26922,8 @@ exports[`request goldens > intent-primary-plus-refs sends the recorded request d
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -26942,8 +26942,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 19919,
@@ -27152,8 +27152,8 @@ exports[`request goldens > multi-package-types sends the recorded request digest
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -27172,8 +27172,8 @@ exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 20195,
@@ -28351,8 +28351,8 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28366,8 +28366,8 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28386,8 +28386,8 @@ exports[`request goldens > pair-additive-multi-call sends the recorded request d
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 19919,
@@ -28401,8 +28401,8 @@ exports[`request goldens > pair-additive-multi-call sends the recorded request d
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 21433,
@@ -28459,8 +28459,8 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28474,8 +28474,8 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28494,8 +28494,8 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28509,8 +28509,8 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28529,8 +28529,8 @@ exports[`request goldens > pair-boundary-restructure-multi-call sends the record
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 19919,
@@ -28544,8 +28544,8 @@ exports[`request goldens > pair-boundary-restructure-multi-call sends the record
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 21433,
@@ -28602,8 +28602,8 @@ exports[`request goldens > pair-force-push-amend sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28622,8 +28622,8 @@ exports[`request goldens > pair-force-push-amend-multi-call sends the recorded r
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 21433,
@@ -28663,8 +28663,8 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28678,8 +28678,8 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28698,8 +28698,8 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28713,8 +28713,8 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28733,8 +28733,8 @@ exports[`request goldens > pair-media-description-edit sends the recorded reques
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30789,
@@ -28768,8 +28768,8 @@ exports[`request goldens > pair-media-fast-forward sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30789,
@@ -28803,8 +28803,8 @@ exports[`request goldens > pair-media-fast-forward-multi-call sends the recorded
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 21617,
@@ -28861,8 +28861,8 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28876,8 +28876,8 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28896,8 +28896,8 @@ exports[`request goldens > pair-real-sveltekit-2-0 sends the recorded request di
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 19919,
@@ -28954,8 +28954,8 @@ exports[`request goldens > pair-rebase-conflict-resolution sends the recorded re
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -28974,8 +28974,8 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -28989,8 +28989,8 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29009,8 +29009,8 @@ exports[`request goldens > pair-rebase-upstream-same-file sends the recorded req
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29029,8 +29029,8 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -29044,8 +29044,8 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29064,8 +29064,8 @@ exports[`request goldens > pair-risk-add-new-file sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -29079,8 +29079,8 @@ exports[`request goldens > pair-risk-add-new-file sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29099,8 +29099,8 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -29114,8 +29114,8 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29134,8 +29134,8 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -29149,8 +29149,8 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -29169,8 +29169,8 @@ exports[`request goldens > pure-move-persistence sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -29189,8 +29189,8 @@ exports[`request goldens > react-router-11768 sends the recorded request digests
   {
     "label": "grouping",
     "schema": {
-      "bytes": 7867,
-      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+      "bytes": 7856,
+      "sha256": "1678f9e84912702fe8f9e65097a4735aa37469384712f7fb09ab844cd933321d"
     },
     "system": {
       "bytes": 20202,
@@ -29779,8 +29779,8 @@ exports[`request goldens > repo-policy-scoped-attribute sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 10636,
-      "sha256": "508c50aff7be0a39ebb38e0186331a043f28a77f8765ee070cbc971a17162fde"
+      "bytes": 10625,
+      "sha256": "a312ef1862a75a113ac6c4c78cb02ddd511db99296e3b58f849ecfbe34105524"
     },
     "system": {
       "bytes": 28417,
@@ -29799,8 +29799,8 @@ exports[`request goldens > schema-change-provenance sends the recorded request d
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,

@@ -6104,8 +6104,8 @@ exports[`request goldens > delta-read-api-contract sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -6124,8 +6124,8 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26077,
@@ -6139,8 +6139,8 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 30605,
@@ -6159,8 +6159,8 @@ exports[`request goldens > summary-media-code-review-1141 sends the recorded req
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26261,
@@ -6194,8 +6194,8 @@ exports[`request goldens > summary-media-grafana-107803 sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26261,
@@ -6229,8 +6229,8 @@ exports[`request goldens > summary-media-home-assistant-55394 sends the recorded
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26261,
@@ -6264,8 +6264,8 @@ exports[`request goldens > summary-media-supabase-19466 sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 10601,
-      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
     },
     "system": {
       "bytes": 26261,
