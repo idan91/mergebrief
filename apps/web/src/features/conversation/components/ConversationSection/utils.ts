@@ -1,6 +1,5 @@
 import type { PrConversation } from "../../types";
 import { isStatedVerdict } from "../../utils/filter";
-import type { TFunction } from "i18next";
 
 /** Input that hands the scroll back to the reader. */
 const READER_INPUT_EVENTS = [
@@ -20,31 +19,44 @@ interface JumpSpot {
   threadId: number;
 }
 
+/** One count on the bar's head; the threads part carries its open count too. */
+export interface HeadSummaryPart {
+  i18nKey:
+    | "conversation.summaryReviews"
+    | "conversation.summaryComments"
+    | "conversation.summaryThreadsCounted";
+  count: number;
+  open?: number;
+}
+
 /**
  * Header totals with zero parts omitted, "0 threads" next to a visible
- * review reads as an undercount. Nothing to count = no summary at all.
+ * review reads as an undercount. Nothing to count = no parts at all.
  */
-export function headSummary(
-  t: TFunction,
+export function listHeadSummaryParts(
   conversation: PrConversation,
-): string | undefined {
+): HeadSummaryPart[] {
   const reviews = conversation.reviews.filter(isStatedVerdict).length;
   const comments = conversation.prComments.length;
   const threads = conversation.threads.length;
-  const parts: string[] = [];
+  const parts: HeadSummaryPart[] = [];
   if (reviews > 0) {
-    parts.push(t("conversation.summaryReviews", { count: reviews }));
+    parts.push({ i18nKey: "conversation.summaryReviews", count: reviews });
   }
   if (comments > 0) {
-    parts.push(t("conversation.summaryComments", { count: comments }));
+    parts.push({ i18nKey: "conversation.summaryComments", count: comments });
   }
   if (threads > 0) {
     const open = conversation.threads.filter(
       (thread) => !thread.isResolved,
     ).length;
-    parts.push(t("conversation.summaryThreads", { count: threads, open }));
+    parts.push({
+      i18nKey: "conversation.summaryThreadsCounted",
+      count: threads,
+      open,
+    });
   }
-  return parts.length === 0 ? undefined : parts.join(" · ");
+  return parts;
 }
 
 /**

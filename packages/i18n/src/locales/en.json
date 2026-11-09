@@ -611,6 +611,7 @@
       "ariaLabelGroupRiskSurface": "Risk surface of {{title}}",
       "noGroupFlags": "No risk-surface attributes on this group.",
       "groupOf": "Group {{index}} of {{total}}",
+      "position": "{{index}} of {{total}}",
       "dominantKind": "Dominant:",
       "secondaryKind": "Secondary:",
       "uncertain": "Uncertain",
@@ -842,7 +843,6 @@
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",
-      "eyebrowBrief": "Brief",
       "noDescription": "_No PR description provided._"
     },
     "masthead": {
@@ -853,8 +853,8 @@
       "coverage_one": "Covers <0/>..<1/> · {{count}} commit",
       "coverage_other": "Covers <0/>..<1/> · {{count}} commits",
       "originalDescription": "Original description",
-      "descriptionWords_one": "{{count}} word, as the author wrote it",
-      "descriptionWords_other": "{{count}} words, as the author wrote it",
+      "descriptionWords_one": "<0/> word, as the author wrote it",
+      "descriptionWords_other": "<0/> words, as the author wrote it",
       "descriptionEmpty": "Empty"
     },
     "media": {
@@ -1429,12 +1429,14 @@
     "unresolvingAction": "Unresolving…",
     "digestOutdated": "Outdated: anchored on earlier revisions",
     "digestGeneral": "Pull-request conversation",
-    "summaryReviews_one": "{{count}} review",
-    "summaryReviews_other": "{{count}} reviews",
-    "summaryComments_one": "{{count}} comment",
-    "summaryComments_other": "{{count}} comments",
+    "summaryReviews_one": "<0/> review",
+    "summaryReviews_other": "<0/> reviews",
+    "summaryComments_one": "<0/> comment",
+    "summaryComments_other": "<0/> comments",
     "summaryThreads_one": "{{count}} thread · {{open}} open",
     "summaryThreads_other": "{{count}} threads · {{open}} open",
+    "summaryThreadsCounted_one": "<0/> thread · <1/> open",
+    "summaryThreadsCounted_other": "<0/> threads · <1/> open",
     "digestCodeOnly": "Suggested change",
     "verdict": {
       "approved": "Approved",

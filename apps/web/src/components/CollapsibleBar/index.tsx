@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 import { Icon } from "../Icon";
 import { IconNames, IconRotations, IconSizes } from "../Icon/types";
-import { BarVariants, type BarHeadingLevel, type BarVariant } from "./types";
+import type { BarHeadingLevel } from "./types";
 import styles from "./CollapsibleBar.module.scss";
 
 export interface CollapsibleBarProps extends Omit<
@@ -12,7 +12,6 @@ export interface CollapsibleBarProps extends Omit<
 > {
   /** The level the page outline gives this bar; the bar styles every level alike. */
   headingLevel: BarHeadingLevel;
-  variant?: BarVariant;
   title: ReactNode;
   /** Quiet text after the title, shown open or closed. */
   summary?: ReactNode;
@@ -31,12 +30,12 @@ export interface CollapsibleBarProps extends Omit<
 }
 
 /**
- * A titled section whose heading is the disclosure: a full-width head with a
- * caret, the title and a summary, over a panel it opens and closes.
+ * One fold row of a `BarGroup`: a full-width head whose heading is the
+ * disclosure (caret, title, summary), over a panel that opens in place. The
+ * group draws the surface and the hairlines between rows.
  */
 export function CollapsibleBar({
   headingLevel: Heading,
-  variant = BarVariants.PANEL,
   title,
   summary,
   open,
@@ -64,7 +63,6 @@ export function CollapsibleBar({
       aria-labelledby={titleId}
       className={barClassName}
       data-bar-open={barOpen}
-      data-variant={variant}
     >
       <div className={styles["head"]}>
         <Heading className={styles["heading"]}>

@@ -4,12 +4,14 @@ import { OPEN_BAR_SELECTOR } from "@web/components/CollapsibleBar/consts";
 import type { HeldCardHeightRefs } from "./types";
 import { computeCardMinHeight, writeCardMinHeight } from "./utils";
 
-const OPEN_CHILD_BAR = `:scope > ${OPEN_BAR_SELECTOR}`;
+const OPEN_FOLD_ROW = `:scope > * > ${OPEN_BAR_SELECTOR}`;
 
 /**
- * Holds the stats card at the height of the summary plus the bar stack at
- * rest, so an opening bar grows below the card instead of stretching it.
- * Measures in the frame after a resize, never inside the observer callback.
+ * Holds the stats card at the height of the summary plus the stack's folds
+ * at rest, so an opening fold grows below the card instead of stretching it.
+ * Only a row of a group in the stack counts, never a bar inside a fold's
+ * panel. Measures in the frame after a resize, never inside the observer
+ * callback.
  */
 export function useHeldCardHeight(): HeldCardHeightRefs {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -27,7 +29,7 @@ export function useHeldCardHeight(): HeldCardHeightRefs {
 
     let collapsedStackHeight: number | undefined;
     const update = () => {
-      if (stack.querySelector(OPEN_CHILD_BAR) === null) {
+      if (stack.querySelector(OPEN_FOLD_ROW) === null) {
         collapsedStackHeight = stack.getBoundingClientRect().height;
       }
       const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap);

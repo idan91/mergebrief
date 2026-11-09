@@ -11,7 +11,7 @@ export interface FactBarProps {
   testId: string;
 }
 
-/** A bar that states facts instead of disclosing a panel: the collapsible bar's chrome, no toggle. */
+/** A row of facts in a `BarGroup`: a labelled head line, no toggle. */
 export function FactBar({ title, aside, children, testId }: FactBarProps) {
   return (
     <section className={styles["bar"]} data-testid={testId}>

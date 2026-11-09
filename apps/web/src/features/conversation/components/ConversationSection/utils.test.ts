@@ -2,15 +2,16 @@
 import type { PrLevelCommentView } from "contract";
 import type { ReviewVerdictState } from "types/conversation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { headSummary, markSmoothScroll, shouldRelandInPlace } from "./utils";
+import {
+  listHeadSummaryParts,
+  markSmoothScroll,
+  shouldRelandInPlace,
+} from "./utils";
 import type {
   ConversationReview,
   ConversationThread,
   PrConversation,
 } from "../../types";
-import { createI18n } from "i18n";
-
-const t = createI18n().t;
 
 function review(
   reviewId: number,
@@ -73,16 +74,18 @@ function buildConversation(
   };
 }
 
-describe("headSummary", () => {
-  it("returns nothing for an empty conversation", () => {
-    expect(headSummary(t, buildConversation())).toBeUndefined();
+describe("listHeadSummaryParts", () => {
+  it("returns no parts for an empty conversation", () => {
+    expect(listHeadSummaryParts(buildConversation())).toEqual([]);
   });
 
   it("omits zero parts, a body-only review never reads 0 threads", () => {
     const conversation = buildConversation({
       reviews: [review(1, "COMMENTED", "LGTM")],
     });
-    expect(headSummary(t, conversation)).toBe("1 review");
+    expect(listHeadSummaryParts(conversation)).toEqual([
+      { i18nKey: "conversation.summaryReviews", count: 1 },
+    ]);
   });
 
   it("ignores empty-bodied COMMENTED envelopes", () => {
@@ -90,25 +93,22 @@ describe("headSummary", () => {
       reviews: [review(1, "COMMENTED", "  ")],
       threads: [thread(11, true)],
     });
-    expect(headSummary(t, conversation)).toBe("1 thread · 0 open");
+    expect(listHeadSummaryParts(conversation)).toEqual([
+      { i18nKey: "conversation.summaryThreadsCounted", count: 1, open: 0 },
+    ]);
   });
 
-  it("threads carry the open count", () => {
-    const conversation = buildConversation({
-      threads: [thread(11), thread(12, true)],
-    });
-    expect(headSummary(t, conversation)).toBe("2 threads · 1 open");
-  });
-
-  it("joins all present kinds with pluralization", () => {
+  it("lists every present kind in order, threads with their open count", () => {
     const conversation = buildConversation({
       reviews: [review(1, "APPROVED"), review(2, "CHANGES_REQUESTED")],
       prComments: [prComment(21)],
-      threads: [thread(11)],
+      threads: [thread(11), thread(12, true)],
     });
-    expect(headSummary(t, conversation)).toBe(
-      "2 reviews · 1 comment · 1 thread · 1 open",
-    );
+    expect(listHeadSummaryParts(conversation)).toEqual([
+      { i18nKey: "conversation.summaryReviews", count: 2 },
+      { i18nKey: "conversation.summaryComments", count: 1 },
+      { i18nKey: "conversation.summaryThreadsCounted", count: 2, open: 1 },
+    ]);
   });
 });
 

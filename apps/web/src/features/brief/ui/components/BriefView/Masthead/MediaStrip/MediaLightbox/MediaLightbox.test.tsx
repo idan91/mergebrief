@@ -20,12 +20,13 @@ import {
   requireAttachmentAssetId,
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../../model/types";
+import { buildBriefViewModel } from "../../../../../../model/utils/view-model";
 import { briefFixture } from "../../../../../../test-utils/fixtures";
 import {
   buildDiagramSvg,
   buildSandboxFrameMarkup,
 } from "@web/components/MermaidDiagram/test-utils";
-import { Summary } from "../../Summary";
+import { Masthead } from "../..";
 
 const mermaid = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -55,10 +56,11 @@ function makeBrief(description: string): Brief {
   return { ...briefFixture, pr: { ...briefFixture.pr, description } };
 }
 
-function renderSummary(
+function renderMasthead(
   description = DESCRIPTION,
   videoAssets: VideoAssets = NO_VIDEO_ASSETS,
 ) {
+  const brief = makeBrief(description);
   return render(
     <AttachmentScopeProvider
       installed
@@ -67,7 +69,9 @@ function renderSummary(
       repoSlug={briefFixture.pr.repo}
     >
       <VideoAssetsScope value={videoAssets}>
-        <Summary brief={makeBrief(description)} />
+        <Masthead brief={brief} model={buildBriefViewModel(brief)}>
+          {null}
+        </Masthead>
         <Markdown content={`![Outside](${OUTSIDE_URL})`} renderHtml />
       </VideoAssetsScope>
     </AttachmentScopeProvider>,
@@ -127,7 +131,7 @@ describe("MediaLightbox", () => {
   });
 
   it("opens from a tile at its place with caption and counter", () => {
-    renderSummary();
+    renderMasthead();
 
     openTile("Open image: Outside");
 
@@ -140,7 +144,7 @@ describe("MediaLightbox", () => {
   });
 
   it("titles a caption-less pasted image by its kind, never its id", () => {
-    renderSummary(`![](${ASSET_URL})`);
+    renderMasthead(`![](${ASSET_URL})`);
 
     openTile("Open image");
 
@@ -150,7 +154,7 @@ describe("MediaLightbox", () => {
   });
 
   it("links the original on GitHub only for a GitHub host", () => {
-    renderSummary();
+    renderMasthead();
 
     openTile("Open image: Outside");
     expect(within(readDialog()).queryByRole("link")).toBeNull();
@@ -167,7 +171,7 @@ describe("MediaLightbox", () => {
   });
 
   it("steps with the arrow keys and buttons, wrapping at either end", () => {
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Before");
 
     pressKey("ArrowLeft");
@@ -183,7 +187,7 @@ describe("MediaLightbox", () => {
   });
 
   it("closes on Escape and returns focus to the tile that opened it", async () => {
-    renderSummary();
+    renderMasthead();
     const tile = openTile("Open image: Outside");
 
     pressKey("Escape");
@@ -196,7 +200,7 @@ describe("MediaLightbox", () => {
   });
 
   it("opens from an inline description image at its own place", () => {
-    renderSummary();
+    renderMasthead();
     fireEvent.click(
       screen.getByRole("button", { name: /original description/i }),
     );
@@ -213,7 +217,7 @@ describe("MediaLightbox", () => {
   });
 
   it("leaves an image outside the description as an image", () => {
-    renderSummary();
+    renderMasthead();
     fireEvent.click(
       screen.getByRole("button", { name: /original description/i }),
     );
@@ -227,7 +231,7 @@ describe("MediaLightbox", () => {
   });
 
   it("keeps a linked copy of a strip image as the author's link", () => {
-    renderSummary(
+    renderMasthead(
       `![Outside](${OUTSIDE_URL})\n\n[![Outside](${OUTSIDE_URL})](${OUTSIDE_URL})`,
     );
     fireEvent.click(
@@ -243,7 +247,7 @@ describe("MediaLightbox", () => {
   });
 
   it("shows the failed panel and keeps stepping", () => {
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Before");
 
     fireEvent.error(within(readDialog()).getByRole("img"));
@@ -259,7 +263,7 @@ describe("MediaLightbox", () => {
 
   it("shows a diagram's source when it cannot be drawn", async () => {
     mermaid.render.mockRejectedValue(new Error("Parse error"));
-    renderSummary();
+    renderMasthead();
 
     openTile("Open diagram: Sequence diagram");
 
@@ -273,7 +277,7 @@ describe("MediaLightbox", () => {
 
   it("zooms an image past the stage to its natural pixels and back", () => {
     stubStageSize(1200, 800);
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Outside");
 
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
@@ -289,7 +293,7 @@ describe("MediaLightbox", () => {
   it("draws natural pixels as CSS pixels on a dense screen", () => {
     stubStageSize(1200, 800);
     vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(2);
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Outside");
 
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
@@ -300,7 +304,7 @@ describe("MediaLightbox", () => {
 
   it("offers no zoom for an image that already fits", () => {
     stubStageSize(1200, 800);
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Outside");
 
     loadImage(within(readDialog()).getByRole("img"), 800, 600);
@@ -314,7 +318,7 @@ describe("MediaLightbox", () => {
   it("returns to fit on a click, but not on one that ends a drag", () => {
     stubStageSize(1200, 800);
     stubPointerCapture();
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Outside");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
@@ -345,7 +349,7 @@ describe("MediaLightbox", () => {
       "scrollBy",
     );
     Element.prototype.scrollBy = scrollBy;
-    renderSummary();
+    renderMasthead();
     openTile("Open image: Outside");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
@@ -365,7 +369,7 @@ describe("MediaLightbox", () => {
 
   it("opens the next item at fit after stepping from a zoomed one", () => {
     stubStageSize(1200, 800);
-    renderSummary(`![One](${OUTSIDE_URL})\n\n![Two](${OUTSIDE_URL}?2)`);
+    renderMasthead(`![One](${OUTSIDE_URL})\n\n![Two](${OUTSIDE_URL}?2)`);
     openTile("Open image: One");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
@@ -381,7 +385,7 @@ describe("MediaLightbox", () => {
     mermaid.render.mockResolvedValue({
       svg: buildSandboxFrameMarkup(buildDiagramSvg("0 0 1600 900")),
     });
-    renderSummary("```mermaid\nsequenceDiagram\n  C->>D: wide\n```");
+    renderMasthead("```mermaid\nsequenceDiagram\n  C->>D: wide\n```");
     openTile("Open diagram: Sequence diagram");
 
     fireEvent.click(
@@ -394,7 +398,7 @@ describe("MediaLightbox", () => {
   });
 
   it("leaves arrows on a focused player to seek, not step", () => {
-    renderSummary(VIDEO_DESCRIPTION, CONFIRMED_VIDEO);
+    renderMasthead(VIDEO_DESCRIPTION, CONFIRMED_VIDEO);
     openTile("Open video: Demo");
 
     const video = readDialog().querySelector("video");
@@ -407,7 +411,7 @@ describe("MediaLightbox", () => {
   });
 
   it("shows a failed video's panel and still steps both ways", () => {
-    renderSummary(VIDEO_DESCRIPTION, CONFIRMED_VIDEO);
+    renderMasthead(VIDEO_DESCRIPTION, CONFIRMED_VIDEO);
     openTile("Open video: Demo");
 
     const video = readDialog().querySelector("video");
@@ -430,7 +434,7 @@ describe("MediaLightbox", () => {
   });
 
   it("shows no arrows when the strip holds one item", () => {
-    renderSummary(`![Outside](${OUTSIDE_URL})`);
+    renderMasthead(`![Outside](${OUTSIDE_URL})`);
     openTile("Open image: Outside");
 
     expect(readDialog().textContent).toContain("1 of 1");

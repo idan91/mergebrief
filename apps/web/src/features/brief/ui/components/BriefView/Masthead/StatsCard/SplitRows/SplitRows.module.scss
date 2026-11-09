@@ -1,11 +1,10 @@
-@use "functions";
 @use "mixins";
 
 @layer components {
   .rows {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(18px);
+    gap: var(--space-4);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -17,16 +16,16 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: baseline;
-    gap: functions.to-rem(8px) functions.to-rem(12px);
+    gap: var(--space-2) var(--space-4);
+    font-size: var(--font-size-lg);
   }
 
   .name {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3);
     min-inline-size: 0;
-    color: var(--color-text-2);
-    font-size: var(--font-size-xl);
+    color: var(--color-text-1);
   }
 
   .dot {
@@ -39,15 +38,13 @@
 
   .loc {
     font-variant-numeric: tabular-nums;
-    font-size: var(--font-size-lg);
   }
 
   .percent {
     min-inline-size: 4ch;
     color: var(--color-text-1);
     font-variant-numeric: tabular-nums;
-    font-size: var(--font-size-xl);
-    font-weight: 600;
+    font-weight: 500;
     text-align: end;
   }
 

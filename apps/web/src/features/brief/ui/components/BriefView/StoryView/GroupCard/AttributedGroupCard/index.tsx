@@ -3,9 +3,7 @@ import { memo } from "react";
 
 import { Button } from "@web/components/Button";
 import { ChunkStrip } from "../../../ChunkStrip";
-import { GroupFacts } from "../../../GroupFacts";
-import { MetaRow } from "../../../GroupFacts/MetaRow";
-import { GroupFactsSurfaces } from "../../../GroupFacts/types";
+import { GroupCardHead } from "../GroupCardHead";
 import { SinceMarker } from "../SinceMarker";
 import styles from "../GroupCard.module.scss";
 import { deriveGroupHeadingId } from "../../../utils";
@@ -59,7 +57,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
     .map((category) => getCategoryInlineLabel(t, category))
     .join(t("brief.group.uncertainSeparator"));
   const sinceMarker =
-    sinceBaselineShortSha === undefined ? null : (
+    sinceBaselineShortSha === undefined ? undefined : (
       <SinceMarker
         baselineShortSha={sinceBaselineShortSha}
         changedFileCount={sinceChangedFileCount ?? 0}
@@ -70,17 +68,13 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
   return (
     <article className={`${styles["card"]} reveal`} id={id}>
       <div className={styles["head"]}>
-        <MetaRow
-          group={group}
-          total={model.groups.length}
-          trailing={sinceMarker}
-        />
-        <GroupFacts
+        <GroupCardHead
           dominant={dominant}
           group={group}
           headingId={headingId}
           isReclassified={isReclassified}
-          surface={GroupFactsSurfaces.CARD}
+          sinceMarker={sinceMarker}
+          total={model.groups.length}
         >
           {showReclassify ? (
             <div className={styles["reclassify"]}>
@@ -103,7 +97,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
               </span>
             </div>
           ) : null}
-        </GroupFacts>
+        </GroupCardHead>
       </div>
       <div className={styles["stripSection"]}>
         <ChunkStrip

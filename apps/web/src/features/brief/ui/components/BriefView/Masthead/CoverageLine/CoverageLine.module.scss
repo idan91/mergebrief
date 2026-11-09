@@ -1,13 +1,12 @@
 @layer components {
   .coverage {
     margin: 0;
-    color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
 
     code {
-      color: var(--color-text-2);
       font-family: var(--mono);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-lg);
     }
   }
 }

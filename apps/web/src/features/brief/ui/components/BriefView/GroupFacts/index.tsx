@@ -21,6 +21,10 @@ export interface GroupFactsProps {
   isReclassified?: boolean;
   headingId?: string | undefined;
   headingRef?: Ref<HTMLHeadingElement> | undefined;
+  /** Trailing the title on its line. */
+  titleAside?: ReactNode;
+  /** A meta line directly under the title. */
+  titleMeta?: ReactNode;
   /** The surface's own parts under the chips. */
   children?: ReactNode;
 }
@@ -33,6 +37,8 @@ export function GroupFacts({
   isReclassified = false,
   headingId,
   headingRef,
+  titleAside,
+  titleMeta,
   children,
 }: GroupFactsProps) {
   const { t } = useTranslation();
@@ -43,17 +49,29 @@ export function GroupFacts({
   const showCategories =
     attributedGroup !== undefined && dominant !== undefined;
 
+  const heading = (
+    <h2
+      className={styles["title"]}
+      data-variant={surface}
+      id={headingId}
+      ref={headingRef}
+      tabIndex={-1}
+    >
+      {name}
+    </h2>
+  );
+
   return (
     <>
-      <h2
-        className={styles["title"]}
-        data-variant={surface}
-        id={headingId}
-        ref={headingRef}
-        tabIndex={-1}
-      >
-        {name}
-      </h2>
+      {titleAside === undefined ? (
+        heading
+      ) : (
+        <div className={styles["titleLine"]}>
+          {heading}
+          {titleAside}
+        </div>
+      )}
+      {titleMeta}
       <p className={styles["summary"]}>
         <InlineCodeText text={summary} />
       </p>

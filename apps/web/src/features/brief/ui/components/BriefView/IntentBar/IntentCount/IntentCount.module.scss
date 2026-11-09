@@ -1,16 +1,14 @@
-@use "functions";
-
 @layer components {
   .countNum {
-    margin-inline-end: functions.to-rem(3px);
-    font-weight: 600;
+    margin-inline-end: var(--space-1);
+    color: var(--color-text-1);
     font-variant-numeric: tabular-nums;
+    font-weight: 500;
   }
 
   .count::after {
     content: "·";
-    margin-inline-start: functions.to-rem(12px);
-    opacity: 0.5;
+    margin-inline-start: var(--space-4);
   }
 
   .count:last-of-type::after {

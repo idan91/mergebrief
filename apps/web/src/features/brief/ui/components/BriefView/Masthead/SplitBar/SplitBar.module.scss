@@ -5,7 +5,7 @@
   .meter {
     display: flex;
     flex: 1;
-    gap: functions.to-rem(2px);
+    gap: var(--space-1);
     overflow: hidden;
     min-inline-size: functions.to-rem(80px);
     block-size: 6px;
@@ -24,11 +24,11 @@
   .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(4px) functions.to-rem(14px);
+    gap: var(--space-2) var(--space-5);
     margin: 0;
     padding: 0;
-    color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
     list-style: none;
   }
 
@@ -37,7 +37,7 @@
 
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-3);
   }
 
   .dot {
@@ -50,6 +50,6 @@
   .percent {
     color: var(--color-text-1);
     font-variant-numeric: tabular-nums;
-    font-weight: 600;
+    font-weight: 500;
   }
 }

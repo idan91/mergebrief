@@ -3,8 +3,7 @@
 
 @layer components {
   .marker {
-    color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    color: var(--color-text-2);
 
     &[data-state="changed"] {
       // Only this state is underlined, and a wrapped underline reads as a

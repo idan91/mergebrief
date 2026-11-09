@@ -8,7 +8,7 @@ import {
   buildBriefViewModel,
   type GroupView,
 } from "../../../../model/utils/view-model";
-import { resolveGroupSummary } from "./utils";
+import { hasLineTotal, resolveGroupSummary } from "./utils";
 
 function readRemainder(
   addedRanges: { start: number; end: number }[],
@@ -60,5 +60,24 @@ describe("resolveGroupSummary", () => {
     expect(resolveGroupSummary(appI18n.t, remainder)).toBe(
       appI18n.t("brief.unattributed.flagsOnlySummary"),
     );
+  });
+});
+
+describe("hasLineTotal", () => {
+  it("draws a total for an attributed group", () => {
+    const group = buildBriefViewModel(briefFixture).groups[0];
+    if (group === undefined) {
+      throw new Error("fixture has no group");
+    }
+
+    expect(hasLineTotal(group)).toBe(true);
+  });
+
+  it("draws a total for a remainder that holds changed lines", () => {
+    expect(hasLineTotal(readRemainder([{ start: 1, end: 2 }]))).toBe(true);
+  });
+
+  it("draws none for a remainder of flags alone", () => {
+    expect(hasLineTotal(readRemainder([]))).toBe(false);
   });
 });

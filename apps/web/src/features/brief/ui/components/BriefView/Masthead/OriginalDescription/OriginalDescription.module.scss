@@ -1,7 +1,7 @@
-@use "functions";
-
 @layer components {
-  .description {
-    margin-block-start: functions.to-rem(20px);
+  .count {
+    color: var(--color-text-1);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
   }
 }

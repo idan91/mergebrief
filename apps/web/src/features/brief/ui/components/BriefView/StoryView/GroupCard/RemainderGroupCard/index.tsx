@@ -1,8 +1,6 @@
 import type { UnattributedRemainderGroupView } from "../../../../../../model/utils/view-model";
 import { ChunkStrip } from "../../../ChunkStrip";
-import { GroupFacts } from "../../../GroupFacts";
-import { MetaRow } from "../../../GroupFacts/MetaRow";
-import { GroupFactsSurfaces } from "../../../GroupFacts/types";
+import { GroupCardHead } from "../GroupCardHead";
 import { deriveGroupHeadingId } from "../../../utils";
 import { RiskSurface } from "../RiskSurface";
 import { SinceMarker } from "../SinceMarker";
@@ -36,7 +34,7 @@ export function RemainderGroupCard({
   } = useRemainderGroupCardFacade({ group, model });
   const headingId = deriveGroupHeadingId(group.id);
   const sinceMarker =
-    sinceBaselineShortSha === undefined ? null : (
+    sinceBaselineShortSha === undefined ? undefined : (
       <SinceMarker
         baselineShortSha={sinceBaselineShortSha}
         changedFileCount={sinceChangedFileCount ?? 0}
@@ -47,15 +45,11 @@ export function RemainderGroupCard({
   return (
     <article className={`${styles["card"]} reveal`} id={id}>
       <div className={styles["head"]}>
-        <MetaRow
-          group={group}
-          total={model.groups.length}
-          trailing={sinceMarker}
-        />
-        <GroupFacts
+        <GroupCardHead
           group={group}
           headingId={headingId}
-          surface={GroupFactsSurfaces.CARD}
+          sinceMarker={sinceMarker}
+          total={model.groups.length}
         />
       </div>
       <div className={styles["stripSection"]}>

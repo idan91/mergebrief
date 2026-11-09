@@ -983,7 +983,9 @@ describe("ConversationSection outdated-thread revision jump", () => {
       // cannot dress totals up as data loss.
       renderSection(filterProps(parseConversationFilter({ reviewers: "bob" })));
       await waitFor(() =>
-        expect(screen.getByText(/2 threads · 1 open$/)).toBeDefined(),
+        expect(
+          screen.getByRole("button", { name: /^Conversation/ }).textContent,
+        ).toMatch(/2 threads · 1 open$/),
       );
       expect(screen.queryByText(/filtered/)).toBeNull();
     });

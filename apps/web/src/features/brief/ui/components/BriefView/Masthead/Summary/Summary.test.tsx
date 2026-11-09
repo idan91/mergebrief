@@ -30,7 +30,18 @@ import {
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../model/types";
 import { briefFixture } from "../../../../../test-utils/fixtures";
+import { useMediaGallery } from "../MediaStrip/useMediaGallery";
 import { Summary } from ".";
+
+interface StubbedSummaryProps {
+  brief: Brief;
+}
+
+/** The masthead's wiring: one gallery, handed to the summary. */
+function StubbedSummary({ brief }: StubbedSummaryProps) {
+  const gallery = useMediaGallery(brief);
+  return <Summary brief={brief} gallery={gallery} />;
+}
 
 const mermaid = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -95,7 +106,7 @@ function renderSummary(brief: Brief) {
       repoSlug={briefFixture.pr.repo}
     >
       <VideoAssetsScope value={NO_VIDEO_ASSETS}>
-        <Summary brief={brief} />
+        <StubbedSummary brief={brief} />
       </VideoAssetsScope>
     </AttachmentScopeProvider>,
   );
@@ -127,28 +138,29 @@ describe("Summary", () => {
     mermaid.render.mockReset();
   });
 
-  it("parses html in the description, never in the summary", () => {
+  it("never parses html in the summary", () => {
     const withHtml: Brief = {
       ...briefFixture,
       summary: 'Returns Result<T>. <img alt="Summary image" src="x.png" />',
-      pr: {
-        ...briefFixture.pr,
-        description:
-          '<img alt="Description image" src="https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00" />',
-      },
     };
-    render(<Summary brief={withHtml} />);
+    render(<StubbedSummary brief={withHtml} />);
 
     expect(screen.queryByRole("img", { name: "Summary image" })).toBeNull();
     expect(screen.getByTestId("brief-summary").textContent).toContain(
       '<img alt="Summary image"',
     );
+  });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /original description/i }),
-    );
+  it("names a Delta summary above its lede and a full brief not at all", () => {
+    renderSummary(makeBrief(LEDE, BEFORE_AND_AFTER));
+    expect(screen.queryByText("Delta brief")).toBeNull();
+    cleanup();
 
-    expect(screen.getByRole("img", { name: "Description image" })).toBeTruthy();
+    renderSummary({
+      ...makeBrief(LEDE, BEFORE_AND_AFTER),
+      artifactKind: LocalBriefKinds.DELTA,
+    });
+    expect(screen.getByText("Delta brief")).toBeTruthy();
   });
 
   it("orders shown Media, lede, changelog, pointer line, then the strip", () => {

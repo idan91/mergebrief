@@ -320,7 +320,7 @@ describe("brief screen characterization", () => {
     expect(section?.textContent).toContain("Comment contradicts code");
   });
 
-  it("places the intent bar in the masthead's bar stack", async () => {
+  it("places the intent bar in the masthead's folds", async () => {
     await renderBriefView({
       ...briefFixture,
       intentCheck: {
@@ -350,9 +350,9 @@ describe("brief screen characterization", () => {
       summary.compareDocumentPosition(intentBar!) &
       Node.DOCUMENT_POSITION_FOLLOWING;
     expect(following).toBeTruthy();
-    const stack = intentBar?.parentElement;
+    expect(intentBar?.parentElement).toBe(screen.getByTestId("masthead-folds"));
     const generatedBar = screen.getByTestId("generated-bar");
-    expect(stack?.contains(generatedBar)).toBe(true);
+    expect(screen.getByTestId("masthead").contains(generatedBar)).toBe(true);
     const afterGenerated =
       generatedBar.compareDocumentPosition(intentBar!) &
       Node.DOCUMENT_POSITION_FOLLOWING;

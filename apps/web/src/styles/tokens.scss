@@ -176,10 +176,10 @@
     // to-rem() so the scale follows the reader's browser font-size preference
     // (WCAG 1.4.4); the px arguments are the design values, exact at the 16px
     // root default. `md` was the retired 12px step and stays unassigned.
-    --font-size-sm: #{functions.to-rem(11px)}; // Caption: badges, eyebrows, meta rows, key caps
+    --font-size-sm: #{functions.to-rem(11px)}; // Caption: badges, chunk meta rows, key caps
     --font-size-lg: #{functions.to-rem(13px)}; // Small: sentences, control labels, code
     --font-size-xl: #{functions.to-rem(15px)}; // subheads, section titles
-    --font-size-2xl: #{functions.to-rem(17px)}; // panel / drawer titles
+    --font-size-2xl: #{functions.to-rem(17px)}; // Panel title, Group title
     --font-size-3xl: #{functions.to-rem(20px)}; // page titles
     --font-size-4xl: #{functions.to-rem(24px)}; // the brief header's PR title
     --font-size-display: #{functions.to-rem(30px)}; // the one line that owns a screen: Home's personal line and what replaces it

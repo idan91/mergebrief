@@ -11,8 +11,8 @@
       "summary card" auto
       "stack card" 1fr
       / layout.story-columns();
-    gap: functions.to-rem(24px) functions.to-rem(layout.$story-group-gap);
-    margin-block-end: functions.to-rem(14px);
+    gap: var(--space-6) functions.to-rem(layout.$story-group-gap);
+    margin-block-end: var(--space-5);
 
     @include layout.when-story-stacks {
       grid-template:
@@ -41,22 +41,13 @@
   .stack {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     min-inline-size: 0;
     grid-area: stack;
-    align-self: end;
+    align-self: start;
   }
 
-  .stack[data-state="empty"] {
-    display: none;
-
-    @include layout.when-story-stacks {
-      display: flex;
-    }
-  }
-
-  .stackedOnly,
-  .generatedBar {
+  .facts {
     display: none;
 
     @include layout.when-story-stacks {
@@ -65,7 +56,15 @@
   }
 
   @include mixins.for-phone {
-    :global(.main) .generatedBar {
+    :global(.main) .generatedRow {
+      display: none;
+    }
+
+    :global(.main) .facts > .splitRow {
+      border-block-start: 0;
+    }
+
+    :global(.main) .facts:not(:has(.splitRow)) {
       display: none;
     }
   }

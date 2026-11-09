@@ -267,7 +267,7 @@ describe("IntentBar", () => {
     expect(screen.getByText(/no stated intent was available/i)).toBeTruthy();
   });
 
-  it("renders the citation as a subtle neutral badge on its own row", () => {
+  it("trails the quote with its source as plain meta, never a chip", () => {
     const mixedSources: IntentCheck = {
       ...PRECISE,
       accomplished: [
@@ -292,10 +292,15 @@ describe("IntentBar", () => {
     const [linked] = screen.getAllByRole("link", {
       name: /^Ticket ?\(opens in a new tab\)$/,
     });
-    expect(linked?.getAttribute("data-color")).toBe("neutral");
-    expect(
-      screen.getByText("PR description").closest('[data-color="neutral"]'),
-    ).not.toBeNull();
+    expect(linked?.closest("li")?.textContent).toContain(
+      "keep the widget cache",
+    );
+    expect(linked?.closest("[data-color]")).toBeNull();
+    const described = screen.getByText("PR description");
+    expect(described.closest("li")?.textContent).toContain(
+      "a quote from the PR body",
+    );
+    expect(described.closest("[data-color]")).toBeNull();
   });
 
   it("titles the go-to button with its group's own title when provided", () => {
@@ -332,15 +337,15 @@ describe("IntentBar", () => {
     expect(jumpToGroup).toHaveBeenCalledWith("g2");
   });
 
-  it("gives every item a plain bullet, the jump is no longer the marker", () => {
+  it("lists items as hairline rows with no bullet marker", () => {
     const { container } = render(
       <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const items = container.querySelectorAll("[data-intent-bar] li");
-    // 3 bucket items + 1 ticket bullet, each carrying the ▪ marker.
+    expect(items.length).toBeGreaterThan(0);
     const marked = [...items].filter((li) => li.textContent?.includes("▪"));
-    expect(marked.length).toBe(items.length);
+    expect(marked).toHaveLength(0);
   });
 
   it("labels go-to buttons with ids only on multi-group claims", () => {
@@ -695,6 +700,23 @@ describe("IntentBar alarm buckets", () => {
       "Stated but missing",
       "Done but unstated",
     ]);
+  });
+
+  it("hides the split heads from sight and shows every bucket head", () => {
+    render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+
+    const splitHeads = ["Checks out", "Needs a look"].map((name) =>
+      screen.getByRole("heading", { level: 3, name }),
+    );
+    const hiddenSplitHeads = splitHeads.filter((node) =>
+      node.classList.contains("sr-only"),
+    );
+    const hiddenBucketHeads = screen
+      .getAllByRole("heading", { level: 4 })
+      .filter((node) => node.closest(".sr-only") !== null);
+    expect(hiddenSplitHeads).toHaveLength(2);
+    expect(hiddenBucketHeads).toEqual([]);
   });
 
   it("marks only the alarm headings, with the mark after the label", () => {

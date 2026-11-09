@@ -40,7 +40,12 @@ import type {
 } from "../../wiring";
 import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
-import { headSummary, markSmoothScroll, shouldRelandInPlace } from "./utils";
+import { HeadSummary } from "./HeadSummary";
+import {
+  listHeadSummaryParts,
+  markSmoothScroll,
+  shouldRelandInPlace,
+} from "./utils";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
@@ -376,8 +381,12 @@ export function ConversationSection({
   // are already dropped by `applyConversationFilter`.
   const verdicts = filtered?.reviews ?? [];
 
+  const summaryParts =
+    conversation === undefined ? [] : listHeadSummaryParts(conversation);
   const summary =
-    conversation === undefined ? undefined : headSummary(t, conversation);
+    summaryParts.length === 0 ? undefined : (
+      <HeadSummary parts={summaryParts} />
+    );
 
   const refreshAction = open ? (
     <Button

@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { OriginalDescription } from ".";
 
 describe("OriginalDescription", () => {
+  afterEach(cleanup);
+
   it("counts the words in the closed row and opens to the text", () => {
     render(<OriginalDescription description="Fix the leak in parsing" />);
 
@@ -12,6 +14,7 @@ describe("OriginalDescription", () => {
       name: /original description/i,
     });
     expect(toggle.textContent).toContain("5 words, as the author wrote it");
+    expect(toggle.querySelector("b")?.textContent).toBe("5");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Fix the leak in parsing")).toBeNull();
 
@@ -19,6 +22,18 @@ describe("OriginalDescription", () => {
 
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Fix the leak in parsing")).toBeTruthy();
+  });
+
+  it("parses the html the author wrote", () => {
+    render(
+      <OriginalDescription description='<img alt="Description image" src="https://github.com/user-attachments/assets/3e5dffc4-bd05-4a01-98e8-1c519ba4cf00" />' />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /original description/i }),
+    );
+
+    expect(screen.getByRole("img", { name: "Description image" })).toBeTruthy();
   });
 
   it("puts no description image in the page until opened", () => {

@@ -16,3 +16,8 @@ export function resolveGroupSummary(t: TFunction, group: GroupView): string {
   }
   return t("brief.unattributed.flagsOnlySummary");
 }
+
+/** A group draws a line total: core lines when attributed, every line for a remainder that holds some. */
+export function hasLineTotal(group: GroupView): boolean {
+  return isAttributedGroupView(group) || hasChangedLines(group);
+}

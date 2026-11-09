@@ -9,6 +9,7 @@ const SUMMARY_HEIGHT = 300;
 const ROW_GAP = 24;
 const COLLAPSED_STACK = 104;
 const OPEN_STACK = 420;
+const REFLOWED_STACK = 132;
 
 let notifyResize: (() => void) | undefined;
 
@@ -23,16 +24,21 @@ class StubResizeObserver {
 interface ProbeProps {
   stackHeight: number;
   barOpen: boolean;
+  nestedBarOpen?: boolean;
 }
 
-function Probe({ stackHeight, barOpen }: ProbeProps) {
+function Probe({ stackHeight, barOpen, nestedBarOpen = false }: ProbeProps) {
   const { gridRef, summaryRef, stackRef } = useHeldCardHeight();
 
   return (
     <div data-testid="grid" ref={gridRef} style={{ rowGap: `${ROW_GAP}px` }}>
       <div data-height={SUMMARY_HEIGHT} ref={summaryRef} />
       <div data-height={stackHeight} ref={stackRef}>
-        <section data-bar-open={barOpen ? "" : undefined} />
+        <div>
+          <section data-bar-open={barOpen ? "" : undefined}>
+            <section data-bar-open={nestedBarOpen ? "" : undefined} />
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -79,7 +85,7 @@ describe("useHeldCardHeight", () => {
     );
   });
 
-  it("keeps the held height while a bar in the stack is open", () => {
+  it("keeps the held height while a fold in the stack is open", () => {
     const { rerender } = render(
       <Probe barOpen={false} stackHeight={COLLAPSED_STACK} />,
     );
@@ -92,7 +98,7 @@ describe("useHeldCardHeight", () => {
     );
   });
 
-  it("measures the stack again once every bar is closed", () => {
+  it("measures the stack again once every fold is closed", () => {
     const { rerender } = render(<Probe barOpen stackHeight={OPEN_STACK} />);
     expect(readCardMin()).toBe("");
 
@@ -101,6 +107,21 @@ describe("useHeldCardHeight", () => {
 
     expect(readCardMin()).toBe(
       `${String(SUMMARY_HEIGHT + ROW_GAP + COLLAPSED_STACK)}px`,
+    );
+  });
+
+  it("still measures while only a bar inside a closed fold is open", () => {
+    const { rerender } = render(
+      <Probe barOpen={false} stackHeight={COLLAPSED_STACK} />,
+    );
+
+    rerender(
+      <Probe barOpen={false} nestedBarOpen stackHeight={REFLOWED_STACK} />,
+    );
+    resize();
+
+    expect(readCardMin()).toBe(
+      `${String(SUMMARY_HEIGHT + ROW_GAP + REFLOWED_STACK)}px`,
     );
   });
 

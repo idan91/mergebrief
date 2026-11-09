@@ -4,12 +4,10 @@ import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 
 import { Markdown } from "@web/components/Markdown";
-import { MediaLightboxScope } from "@web/components/Markdown/context";
 import type { Brief } from "../../../../../model/types";
 import { DeltaContext } from "../../DeltaContext";
 import { MediaStrip } from "../MediaStrip";
-import { useMediaGallery } from "../MediaStrip/useMediaGallery";
-import { OriginalDescription } from "../OriginalDescription";
+import type { MediaGallery } from "../MediaStrip/types";
 import { MediaPointer } from "./MediaPointer";
 import { ShownMedia } from "./ShownMedia";
 import { placeSummaryMedia } from "./utils";
@@ -17,20 +15,18 @@ import styles from "./Summary.module.scss";
 
 export interface SummaryProps {
   brief: Brief;
+  /** The brief's one media gallery; the masthead shares it with the description. */
+  gallery: MediaGallery;
 }
 
 /**
  * The brief's summary in full with its Summary Media around the lede, then
- * the description's Media, then the author's description. A Delta summary
- * shows no Summary Media.
+ * the description's Media. A Delta summary shows no Summary Media and names
+ * itself above the lede.
  */
-export function Summary({ brief }: SummaryProps) {
+export function Summary({ brief, gallery }: SummaryProps) {
   const { t } = useTranslation();
   const delta = brief.artifactKind === LocalBriefKinds.DELTA;
-  const eyebrow = delta
-    ? t("brief.summarySection.eyebrowDelta")
-    : t("brief.summarySection.eyebrowBrief");
-  const gallery = useMediaGallery(brief);
   const placed = placeSummaryMedia(
     delta ? undefined : brief.summaryMedia,
     gallery.entries,
@@ -46,29 +42,34 @@ export function Summary({ brief }: SummaryProps) {
       className={`${styles["summary"] ?? ""} reveal`}
       data-testid="brief-summary"
     >
-      <div className={styles["eyebrow"]}>{eyebrow}</div>
+      {delta ? (
+        <div className={styles["eyebrow"]}>
+          {t("brief.summarySection.eyebrowDelta")}
+        </div>
+      ) : null}
       <ShownMedia
         entries={placed.beforeLede}
         position={SummaryMediaPositions.BEFORE_LEDE}
         onOpen={openMedia}
       />
-      <Markdown content={prose.lede} />
+      <div className={styles["prose"]}>
+        <Markdown content={prose.lede} />
+      </div>
       <ShownMedia
         entries={placed.afterLede}
         position={SummaryMediaPositions.AFTER_LEDE}
         onOpen={openMedia}
       />
       {prose.changelog === undefined ? null : (
-        <Markdown content={prose.changelog} />
+        <div className={styles["prose"]}>
+          <Markdown content={prose.changelog} />
+        </div>
       )}
       {placed.pointer === undefined ? null : (
         <MediaPointer pointer={placed.pointer} onOpen={openMedia} />
       )}
       {delta ? <DeltaContext brief={brief} /> : null}
       <MediaStrip gallery={gallery} />
-      <MediaLightboxScope value={gallery.lightbox}>
-        <OriginalDescription description={brief.pr.description} />
-      </MediaLightboxScope>
     </section>
   );
 }

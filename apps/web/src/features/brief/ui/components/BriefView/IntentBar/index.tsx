@@ -8,9 +8,10 @@ import {
   type IntentCheck,
   type IntentItem,
 } from "brief-core/types";
-import { Badge } from "@web/components/Badge";
+import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import {
@@ -59,28 +60,34 @@ export interface IntentItemRowProps {
   ticketUrl?: string | undefined;
 }
 
-interface IntentSourceBadgeProps {
+interface IntentSourceProps {
   item: IntentItem;
   linked: boolean;
   sourceLabel: string;
 }
 
 /** Where the quote came from: a link, or "PR description" when there is no URL. */
-function IntentSourceBadge({
-  item,
-  linked,
-  sourceLabel,
-}: IntentSourceBadgeProps) {
+function IntentSource({ item, linked, sourceLabel }: IntentSourceProps) {
   const { t } = useTranslation();
 
   if (linked) {
-    return <Badge href={item.sourceUrl}>{sourceLabel}</Badge>;
+    return (
+      <span className={styles["source"]}>
+        <AccessibleLink
+          className={styles["sourceLink"]}
+          href={item.sourceUrl}
+          target="_blank"
+        >
+          {sourceLabel}
+        </AccessibleLink>
+      </span>
+    );
   }
   if (item.sourceUrl === "" && item.quote !== "") {
     return (
-      <Badge>
-        <span>{t("brief.intent.prDescription")}</span>
-      </Badge>
+      <span className={styles["source"]}>
+        {t("brief.intent.prDescription")}
+      </span>
     );
   }
   return null;
@@ -103,9 +110,6 @@ function IntentItemRow({
   const multiGroup = item.groupIds.length > 1;
   return (
     <li className={styles["item"]}>
-      <span aria-hidden="true" className={styles["marker"]}>
-        ▪
-      </span>
       <span className={styles["itemBody"]}>
         <span className={styles["intent"]}>
           <InlineCodeText text={item.intent} />
@@ -118,7 +122,7 @@ function IntentItemRow({
                 <InlineCodeText text={item.quote} />
               </q>
             ) : null}
-            <IntentSourceBadge
+            <IntentSource
               item={item}
               linked={linked}
               sourceLabel={sourceLabel}
@@ -264,15 +268,11 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
         ))}
       </span>
     );
-    const summary = available ? (
-      counts
-    ) : (
-      <span className={styles["unavailable"]}>
-        {t("brief.intent.unavailable", {
+    const summary = available
+      ? counts
+      : t("brief.intent.unavailable", {
           reason: t(UNAVAILABLE_REASON_KEY[specificity]),
-        })}
-      </span>
-    );
+        });
 
     const legend = available ? <IntentLegend /> : undefined;
     const showsInference =
@@ -320,9 +320,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
         {available ? (
           <div className={styles["split"]}>
             <div className={styles["splitCol"]}>
-              <h3 className={styles["splitHead"]}>
+              <ScreenReaderOnly as="h3">
                 {t("brief.intent.splitChecksOut")}
-              </h3>
+              </ScreenReaderOnly>
               {checksOut.length > 0 ? (
                 checksOut
               ) : (
@@ -332,9 +332,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               )}
             </div>
             <div className={styles["splitCol"]}>
-              <h3 className={styles["splitHead"]}>
+              <ScreenReaderOnly as="h3">
                 {t("brief.intent.splitNeedsALook")}
-              </h3>
+              </ScreenReaderOnly>
               {needsALook.length > 0 ? (
                 needsALook
               ) : (

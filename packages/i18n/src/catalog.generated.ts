@@ -147,6 +147,7 @@ export type Catalog = typeof en & {
     group: (typeof en)["brief"]["group"] & {
       ariaLabelGroupRiskSurface: "Risk surface of {{title}}";
       groupOf: "Group {{index}} of {{total}}";
+      position: "{{index}} of {{total}}";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
       selectedFlags_one: "{{count}} selected flag";
       selectedFlags_other: "{{count}} selected flags";
@@ -203,8 +204,6 @@ export type Catalog = typeof en & {
     masthead: (typeof en)["brief"]["masthead"] & {
       coverage_one: "Covers <0/>..<1/> · {{count}} commit";
       coverage_other: "Covers <0/>..<1/> · {{count}} commits";
-      descriptionWords_one: "{{count}} word, as the author wrote it";
-      descriptionWords_other: "{{count}} words, as the author wrote it";
     };
     media: (typeof en)["brief"]["media"] & {
       imageCount_one: "{{count}} image";
@@ -333,10 +332,6 @@ export type Catalog = typeof en & {
     showMore_one: "Show {{count}} more";
     showMore_other: "Show {{count}} more";
     srFacetSummary: ", {{humanCount}} from people, {{botCount}} from bots; filters the conversation";
-    summaryReviews_one: "{{count}} review";
-    summaryReviews_other: "{{count}} reviews";
-    summaryComments_one: "{{count}} comment";
-    summaryComments_other: "{{count}} comments";
     summaryThreads_one: "{{count}} thread · {{open}} open";
     summaryThreads_other: "{{count}} threads · {{open}} open";
   };

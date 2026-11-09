@@ -2,9 +2,16 @@
 @use "mixins";
 
 @layer components {
+  .titleLine {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
   .title {
     max-inline-size: functions.to-rem(760px);
-    margin-block-start: functions.to-rem(8px);
+    margin-block-start: var(--space-3);
     color: var(--color-text-1);
     font-size: var(--font-size-3xl);
     font-weight: 600;
@@ -13,6 +20,10 @@
 
     &[data-variant="card"] {
       @include mixins.focus-visible;
+
+      margin-block-start: 0;
+      font-size: var(--font-size-2xl);
+      line-height: 1.35;
     }
 
     &[data-variant="panel"]:focus {
@@ -22,7 +33,7 @@
 
   .summary {
     max-inline-size: functions.to-rem(690px);
-    margin-block-start: functions.to-rem(10px);
+    margin-block-start: var(--space-3);
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
     line-height: 1.55;
