@@ -35,6 +35,7 @@ interface HeaderParts {
   titleGhost: HTMLSpanElement;
   neighbour: HTMLSpanElement;
   comparisonRow: HTMLDivElement;
+  progressBar: HTMLDivElement;
 }
 
 type Box = Pick<DOMRect, "left" | "top" | "width" | "height" | "bottom">;
@@ -47,6 +48,7 @@ const REST_BOXES = {
   titleGhost: { left: 120, top: 11, width: 0, height: 0, bottom: 11 },
   neighbour: { left: 700, top: 12, width: 60, height: 24, bottom: 36 },
   comparisonRow: { left: 0, top: 81, width: 1440, height: 44, bottom: 125 },
+  progressBar: { left: 0, top: 126, width: 1440, height: 3, bottom: 129 },
 } satisfies Record<keyof HeaderParts, Box>;
 
 const COLLAPSED_BOXES = {
@@ -57,6 +59,7 @@ const COLLAPSED_BOXES = {
   titleGhost: { left: 120, top: 8, width: 0, height: 0, bottom: 8 },
   neighbour: { left: 440, top: 9, width: 60, height: 20, bottom: 29 },
   comparisonRow: { left: 0, top: 66, width: 1440, height: 44, bottom: 110 },
+  progressBar: { left: 0, top: 111, width: 1440, height: 3, bottom: 114 },
 } satisfies Record<keyof HeaderParts, Box>;
 
 let animations: RecordedAnimation[] = [];
@@ -100,11 +103,12 @@ function makeHeaderParts(): HeaderParts {
   const neighbour = document.createElement("span");
   const metaLine = document.createElement("span");
   const comparisonRow = document.createElement("div");
+  const progressBar = document.createElement("div");
 
   titleLine.append(title, neighbour);
   titleBlock.append(titleGhost, titleLine, metaLine);
   identityRow.append(titleBlock);
-  header.append(identityRow, comparisonRow);
+  header.append(identityRow, comparisonRow, progressBar);
   document.body.append(header);
 
   return {
@@ -115,6 +119,7 @@ function makeHeaderParts(): HeaderParts {
     titleGhost,
     neighbour,
     comparisonRow,
+    progressBar,
   };
 }
 
@@ -141,6 +146,7 @@ function renderCollapseMotion(parts: HeaderParts) {
   view.result.current.titleRef.current = parts.title;
   view.result.current.titleGhostRef.current = parts.titleGhost;
   view.result.current.comparisonRowRef.current = parts.comparisonRow;
+  view.result.current.progressBarRef.current = parts.progressBar;
   return view;
 }
 
@@ -217,6 +223,18 @@ describe("useCollapseMotion", () => {
     expect(findAnimation(parts.neighbour)?.keyframes[0]).toEqual({
       transform: "translate(260px, -4px)",
     });
+  });
+
+  it("slides the progress bar with the header's edge", () => {
+    const parts = makeHeaderParts();
+    const view = renderCollapseMotion(parts);
+
+    collapseHeader(parts, view);
+
+    expect(findAnimation(parts.progressBar)?.keyframes).toEqual([
+      { translate: "0 15px" },
+      { translate: "none" },
+    ]);
   });
 
   it("cancels a running collapse when the next one starts", () => {

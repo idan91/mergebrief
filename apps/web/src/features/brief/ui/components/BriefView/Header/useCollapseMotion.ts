@@ -24,6 +24,7 @@ export interface CollapseMotion {
   comparisonRowRef: RefObject<HTMLDivElement | null>;
   identityRowRef: RefObject<HTMLDivElement | null>;
   metaLineRef: RefObject<HTMLSpanElement | null>;
+  progressBarRef: RefObject<HTMLDivElement | null>;
   titleGhostRef: RefObject<HTMLSpanElement | null>;
   titleRef: RefObject<HTMLHeadingElement | null>;
 }
@@ -49,11 +50,20 @@ function playSlide(element: Element, offset: CollapsePoint): Animation {
   );
 }
 
+/** `translate`, not `transform`: the progress bar's own transform is its fill. */
+function playProgressSlide(progressBar: Element, offsetY: number): Animation {
+  return progressBar.animate(
+    [{ translate: `0 ${String(offsetY)}px` }, { translate: "none" }],
+    COLLAPSE_TIMING,
+  );
+}
+
 interface CollapseParts {
   comparisonRow: HTMLElement;
   header: HTMLElement;
   identityRow: HTMLElement;
   metaLine: HTMLElement;
+  progressBar: HTMLElement;
   title: HTMLElement;
   titleGhost: HTMLElement;
 }
@@ -71,6 +81,7 @@ function playCollapse(
     header,
     identityRow,
     metaLine,
+    progressBar,
     title,
     titleGhost,
   }: CollapseParts,
@@ -109,6 +120,7 @@ function playCollapse(
       ],
       { ...COLLAPSE_TIMING, pseudoElement: "::before" },
     ),
+    playProgressSlide(progressBar, shifts.bar),
     playSlide(identityRow, { x: 0, y: shifts.identity }),
     playSlide(metaLine, { x: 0, y: shifts.meta }),
     playSlide(comparisonRow, { x: 0, y: shifts.comparison }),
@@ -141,6 +153,7 @@ export function useCollapseMotion(
   const comparisonRowRef = useRef<HTMLDivElement>(null);
   const identityRowRef = useRef<HTMLDivElement>(null);
   const metaLineRef = useRef<HTMLSpanElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const titleGhostRef = useRef<HTMLSpanElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const startRef = useRef<CollapseLayout | undefined>(undefined);
@@ -191,6 +204,7 @@ export function useCollapseMotion(
     const header = headerRef.current;
     const identityRow = identityRowRef.current;
     const metaLine = metaLineRef.current;
+    const progressBar = progressBarRef.current;
     const title = titleRef.current;
     const titleGhost = titleGhostRef.current;
     const comparisonRow = comparisonRowRef.current;
@@ -199,6 +213,7 @@ export function useCollapseMotion(
       !header ||
       !identityRow ||
       !metaLine ||
+      !progressBar ||
       !title ||
       !titleGhost ||
       !comparisonRow
@@ -212,7 +227,15 @@ export function useCollapseMotion(
     }
 
     runningRef.current = playCollapse(
-      { comparisonRow, header, identityRow, metaLine, title, titleGhost },
+      {
+        comparisonRow,
+        header,
+        identityRow,
+        metaLine,
+        progressBar,
+        title,
+        titleGhost,
+      },
       { start, end, shifts, titleWidth: titleWidthRef.current },
     );
   }, [collapsed, headerRef, readLayout]);
@@ -222,6 +245,7 @@ export function useCollapseMotion(
     comparisonRowRef,
     identityRowRef,
     metaLineRef,
+    progressBarRef,
     titleGhostRef,
     titleRef,
   };

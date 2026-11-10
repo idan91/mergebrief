@@ -366,6 +366,7 @@ export function Header({
       <div
         aria-hidden="true"
         className={styles["progressBar"]}
+        ref={motion.progressBarRef}
         style={progressStyle}
       />
     </header>

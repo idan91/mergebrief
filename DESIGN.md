@@ -190,7 +190,7 @@ Calm comes from neutral greys and one pale accent. Structure comes from hairline
 
 - Dark only. A near-black page, flat from edge to edge; no glow, no page gradient and no backdrop blur, focus mode included.
 - Hairline borders and row dividers. No card per row.
-- One accent. It marks what needs the reviewer, and focus. The brand colour draws the mark and fills the one primary action.
+- One accent. It marks what needs the reviewer, and focus. The brand colour draws the mark, fills the one primary action and runs the Brief header's review progress bar.
 - Two-line rows of 56 to 57px. Titles at 15px; the smallest text is 11px.
 - Motion is rare and short. Keyboard movement never animates.
 
@@ -202,8 +202,8 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Accent** (#e1e1e1, the `--accent-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, focus rings, links, active controls, the selected diff rows, the revision marks, the value of a changed filter, the current page, progress and the avatar's ground.
-- **Brand** (#e91f00, `--color-brand`): the mark wherever it appears (the Header lockup, the Brief header's home link, the sign-in page), and the fill of the one primary action per view under **On Brand**, a pure white label at 4.51:1. **Brand Strong** (#d81b00) is the primary's hover and press.
+- **Accent** (#e1e1e1, the `--accent-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, focus rings, links, active controls, the selected diff rows, the revision marks, the value of a changed filter, the current page and the avatar's ground.
+- **Brand** (#e91f00, `--color-brand`): the mark wherever it appears (the Header lockup, the Brief header's home link, the sign-in page), the Brief header's review progress bar, and the fill of the one primary action per view under **On Brand**, a pure white label at 4.51:1. **Brand Strong** (#d81b00) is the primary's hover and press.
 
 ### Neutral
 
@@ -229,9 +229,9 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Named Rules
 
-**The Brand Colour Rule.** The brand appears in two places only: brand moments (the mark, its loader, the app tile) and the one primary action of a view. It is never a state, a link, focus, selection or decoration, and a view without a primary action shows no brand fill. Its label is pure white, so the primary only ever darkens on hover and press.
+**The Brand Colour Rule.** The brand appears in three places only: brand moments (the mark, its loader, the app tile), the one primary action of a view, and the Brief header's review progress bar. It is never a state, a link, focus, selection or decoration, and a view without a primary action shows no brand fill. Its label is pure white, so the primary only ever darkens on hover and press.
 
-**The Light Accent Rule.** The accent is always light: it draws small marks on a dark page (focus, links, active controls, selection, the cursor, progress and revision marks) and is never the primary button's fill; that is the brand's. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
+**The Light Accent Rule.** The accent is always light: it draws small marks on a dark page (focus, links, active controls, selection, the cursor and revision marks) and is never the primary button's fill; that is the brand's. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
 
 **The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--theme-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
@@ -287,7 +287,7 @@ Under 760px the filters collapse behind one button and the controls take their o
 
 **Settings.** Home's shell: the same Header, gutter and column, with the heading in Display and the panel 32px below it (24px under 760px). A viewer with one tab gets no rail. An Operator gets a 184px rail beside the panel, 48px apart and pinned 24px from the top, where the current tab takes Surface 3 on an 8px corner. On a phone the rail becomes a row of tabs over a hairline.
 
-**Brief page.** Above phone width the header keeps two tiers, solid on the ground. Its home link is the 32px mark alone, in Brand, named MergeBrief. At 1120px and under the sidebar becomes a bar along the bottom that opens its lists in a bottom sheet. The reading toolbar rests as a 12px-corner panel in the story column; pinned under the header, its fill runs from the screen's left edge to the sidebar's edge (the rail, or the open panel where it pushes the story), square, keeping only its bottom hairline, and its controls stay where they were. A chunk's head pinned under the stack squares its top corners, and so does a group's card where it pins beside its chunks; stacked under them, it never pins. Each change runs both ways over 180ms on the entrance curve: the toolbar's fill opens from the panel to the bleed while its panel border fades, and the corners square. A page that loads already scrolled, or a pane shown again while scrolled, shows the pinned look at once, and reduced motion makes every change instant.
+**Brief page.** Above phone width the header keeps two tiers, solid on the ground. Its home link is the 32px mark alone, in Brand, named MergeBrief. At 1120px and under the sidebar becomes a bar along the bottom that opens its lists in a bottom sheet. The reading toolbar rests as a 12px-corner panel in the story column; pinned under the header, its fill runs from the screen's left edge to the sidebar's edge (the rail, or the open panel where it pushes the story), square, keeping only its bottom hairline, and its controls stay where they were. A chunk's head pinned under the stack squares its top corners, and so does a group's card where it pins beside its chunks; stacked under them, it never pins. Each change runs both ways over 180ms on the entrance curve: the toolbar's fill opens from the panel to the bleed while its panel border fades, and the corners square. A page that loads already scrolled, or a pane shown again while scrolled, shows the pinned look at once, and reduced motion makes every change instant. The review progress bar runs under the header's bottom hairline, 3px and as wide as the header: Brand at 60% at the left edge, full Brand at 70% of the fill, lightening toward white at the leading edge. It rides the header's collapse with the header's edge, so it never crosses the comparison row.
 
 **Phone reader.** A phone is 880px wide or less, or sideways: `(orientation: landscape) and (height <= 500px) and (width <= 1120px) and (pointer: coarse)`. Height keys the sideways case because a large phone lands past the width line, the coarse pointer keeps a short desktop window out, and the orientation keeps a split-screen portrait pane upright. Upright, three bars frame the reading, 44 + 56 + 56: a 44px row with back and the 24px mark, then the title once the page title has scrolled away; a chunk's 56px two-line head pinned under it, with the path over its counts and Viewed; a 56px bar at the bottom edge with Brief controls, the chunk indicator that opens the Sidebar sheet, and previous and next, which Changes leaves out because its chunks are not on the page. Sideways, all of it folds into one 44px row, and a chunk's head parks behind the row, which names the chunk from then on; a fold or Viewed from the row that collapses the chunk parks its head there too. Focus mode has no row, so its head stays pinned. Controls in these bars are 44px targets. The bottom bar pads for the home indicator and the sideways row for the notch, both from safe-area insets.
 
@@ -295,7 +295,7 @@ Under 760px the filters collapse behind one button and the controls take their o
 
 Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the edges. Shadows appear only on things that float or that invite input. Everything that sits over content is solid, sticky bars and focus mode's floating pieces included, so code never shows through a control. No backdrop blur ships.
 
-**The Mechanism Gradient Rule.** A gradient never colours a surface. It survives only as a mechanism: the URL box's submit sweep, the scroll-edge shadows on the Sidebar's lists and a group card's file list, skeleton shimmer, a changed line's wash in a compared diff, the hatch on an empty split cell and a media placeholder, the fade at the foot of a clamped comment, and the mask at the media strip's edge.
+**The Mechanism Gradient Rule.** A gradient never colours a surface. It survives only as a mechanism: the URL box's submit sweep, the scroll-edge shadows on the Sidebar's lists and a group card's file list, skeleton shimmer, a changed line's wash in a compared diff, the hatch on an empty split cell and a media placeholder, the fade at the foot of a clamped comment, the mask at the media strip's edge, and the review progress bar's ramp toward its leading edge.
 
 ### Shadow Vocabulary
 
@@ -407,6 +407,6 @@ Durations 120, 180 and 320ms, one 700ms spinner period every spinner reads throu
 - Do keep every page flat: no page light and no blur. Don't add a gradient to a surface.
 - Do use amber for risk attributes, where the brief may be wrong, and the Amber Rule's listed exceptions. Don't use it for new commits, a count that is not a risk, or decoration.
 - Do use the accent for what needs the reviewer. Don't use it for decoration or for state.
-- Do keep the brand to the mark and the one primary action. Don't use it for a state, a link or a highlight.
+- Do keep the brand to the mark, the one primary action and the review progress bar. Don't use it for a state, a link or a highlight.
 - Do give every new token a plan: where the Brief page adopts it and what it replaces.
 - Don't add a card per row, a stat tile outside the verification receipt's three, an all-caps label, or monospace outside the Code Only Rule's list.
