@@ -6,8 +6,7 @@ import { useAnnouncer } from "@web/hooks/useAnnouncer";
 import type { ApiErrorCode } from "../../../../data/apiFetch";
 import { FailureSides } from "../../types";
 import { readFailureSide } from "../../utils";
-
-const MAIN_CONTENT_ID = "main-content";
+import { focusMainContent } from "../utils";
 
 export interface FailedInboxProps {
   code: ApiErrorCode;
@@ -42,9 +41,7 @@ export function FailedInbox({ code, onRetry }: FailedInboxProps) {
       setPending(false);
     }
     if (arrived) {
-      window.requestAnimationFrame(() =>
-        document.getElementById(MAIN_CONTENT_ID)?.focus(),
-      );
+      focusMainContent();
       return;
     }
     announcer.announce(detail);

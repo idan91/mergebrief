@@ -5,6 +5,7 @@ import {
 } from "types/inbox";
 import { describe, expect, it } from "vitest";
 
+import { ApiError, ApiErrorCodes } from "../../data/apiFetch";
 import { omitFields } from "@web/test/fields";
 import {
   buildInboxSearch,
@@ -14,6 +15,7 @@ import {
   pickAgeAt,
   splitAtFold,
   splitTitleCode,
+  readFailedReadCode,
   readInboxEmptiness,
 } from "./utils";
 import { InboxEmptinesses, type InboxItem } from "./types";
@@ -262,5 +264,23 @@ describe("runWithConcurrency", () => {
 
   it("answers an empty list at once", async () => {
     expect(await runWithConcurrency([], 4, async () => "x")).toEqual([]);
+  });
+});
+
+describe("readFailedReadCode", () => {
+  it("names no failure while the list's last read succeeded", () => {
+    expect(readFailedReadCode(null)).toBeUndefined();
+  });
+
+  it("carries the wire code of a refused read", () => {
+    const refused = new ApiError(ApiErrorCodes.GITHUB_UNAVAILABLE, 502, "/x");
+
+    expect(readFailedReadCode(refused)).toBe(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  });
+
+  it("names the server for a failure that carries no wire code", () => {
+    expect(readFailedReadCode(new TypeError("Failed to fetch"))).toBe(
+      ApiErrorCodes.INTERNAL_ERROR,
+    );
   });
 });

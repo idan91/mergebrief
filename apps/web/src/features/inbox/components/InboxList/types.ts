@@ -14,3 +14,9 @@ export interface PendingDelete {
   readonly items: readonly InboxItem[];
   readonly scope: ArchiveScope;
 }
+
+/** The keyboard cursor: its index in the rendered rows, -1 unplaced, and its key moves. */
+export interface InboxCursor {
+  readonly index: number;
+  readonly moveCount: number;
+}

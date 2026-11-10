@@ -2,9 +2,16 @@
 // `apiFetch` boundary, so the Home loader prefetches it through the same
 // authz gate the browser meets. A 401 is the signed-out Home and any other
 // refusal is the failed list, both answers rather than throws, so the page
-// keeps its header and URL box. The list never polls; a window focus
+// keeps its header and URL box. A refusal over a ready page throws instead,
+// so the reader keeps the list they are working in. A ready list polls while
+// the tab is visible; any other answer stops the poll and a window focus
 // re-reads it, at once after a failure.
-import { queryOptions, type QueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  type QueryClient,
+  type QueryFunctionContext,
+  type QueryState,
+} from "@tanstack/react-query";
 import { ProductActionIds, ProductOperations, ProductQueryIds } from "contract";
 
 import {
@@ -17,6 +24,7 @@ import {
 } from "../../data/apiFetch";
 import { readFailureKind, request } from "../../data/request";
 import type { WriteKindTable } from "../../data/request/types";
+import { LIVE_POLL_MS } from "@web/features/pulls/consts";
 import { INBOX_QUERY_ROOT } from "./consts";
 import { parseInboxResponse } from "./schemas";
 import {
@@ -34,6 +42,17 @@ import { buildInboxSearch } from "./utils";
 const INBOX_PATH = ProductOperations[ProductQueryIds.LIST_INBOX].path;
 const INBOX_STALE_MS = 15_000;
 
+function resolveInboxPollMs(
+  read: Pick<QueryState<InboxState>, "data" | "status">,
+): number | false {
+  const ready =
+    read.status === "success" && read.data?.kind === InboxStates.READY;
+  if (!ready) {
+    return false;
+  }
+  return LIVE_POLL_MS;
+}
+
 export function buildInboxQueryOptions(params: InboxQueryParams) {
   const search = buildInboxSearch(params);
   const path = `${INBOX_PATH}${search}`;
@@ -41,7 +60,11 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
     queryKey: [INBOX_QUERY_ROOT, search],
     staleTime: (query) =>
       query.state.data?.kind === InboxStates.FAILED ? 0 : INBOX_STALE_MS,
-    queryFn: async (): Promise<InboxState> => {
+    refetchInterval: (query) => resolveInboxPollMs(query.state),
+    queryFn: async ({
+      client,
+      queryKey,
+    }: QueryFunctionContext): Promise<InboxState> => {
       const response = await apiFetch(path, SIGNED_OUT_READ);
       if (response.status === 401) {
         return { kind: InboxStates.SIGNED_OUT };
@@ -51,6 +74,10 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
         // proxy speaking for a down server, never GitHub.
         const body: unknown = await response.json().catch(() => undefined);
         const code = readWireCode(body) ?? ApiErrorCodes.INTERNAL_ERROR;
+        const shown = client.getQueryData<InboxState>(queryKey);
+        if (shown?.kind === InboxStates.READY) {
+          throw new ApiError(code, response.status, path);
+        }
         return { kind: InboxStates.FAILED, code };
       }
 

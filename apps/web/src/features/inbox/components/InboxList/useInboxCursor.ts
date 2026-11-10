@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
+import type { InboxCursor } from "./types";
 
 const NO_CURSOR = -1;
 const STEP_BY_KEY: Record<string, number> = {
@@ -27,31 +28,62 @@ function readNextCursor(current: number, step: number, last: number): number {
   return Math.min(last, Math.max(0, current + step));
 }
 
+/** The cursor's last placement: the row it is on and where that row sat. */
+interface CursorPlacement extends InboxCursor {
+  readonly rowKey: string | undefined;
+}
+
+const UNPLACED: CursorPlacement = {
+  rowKey: undefined,
+  index: NO_CURSOR,
+  moveCount: 0,
+};
+
+/**
+ * The row the placement is on, wherever it sits now; when that row left,
+ * whatever row took its place, pulled back onto the last row.
+ */
+function resolveCursorIndex(
+  placement: CursorPlacement,
+  rowKeys: readonly string[],
+): number {
+  const found =
+    placement.rowKey === undefined
+      ? NO_CURSOR
+      : rowKeys.indexOf(placement.rowKey);
+  if (found !== NO_CURSOR) {
+    return found;
+  }
+  return Math.min(placement.index, rowKeys.length - 1);
+}
+
 /**
  * The keyboard cursor over the page's rows: j, k and the arrows move it,
- * stopping at either end; Enter opens the row under it. The cursor is the
- * index into the rows as rendered, above the fold then below it, and it
- * never animates. It returns -1 while no key has placed it, and a shorter
- * list pulls it back onto its last row. A key that would not move the
- * cursor is left to the page, so the arrows still scroll past either end.
- * x ticks or unticks the row under the cursor.
+ * stopping at either end; Enter opens the row under it, x ticks or unticks
+ * it. It stays on its row when a re-read adds or removes rows above it; when
+ * its own row leaves, the row in its place takes it, and a shorter list pulls
+ * it back onto its last row. The index counts rows as rendered and is -1
+ * until a key places it; `moveCount` counts key moves only. A key that would
+ * not move the cursor is left to the page, so the arrows scroll past an end.
  */
 export function useInboxCursor(
-  count: number,
+  rowKeys: readonly string[],
   onOpen: (index: number) => void,
   onToggleSelect?: (index: number) => void,
-): number {
-  const [cursor, setCursor] = useState(NO_CURSOR);
-  const last = count - 1;
+): InboxCursor {
+  const [placement, setPlacement] = useState(UNPLACED);
+  const index = resolveCursorIndex(placement, rowKeys);
+  const rowKey = rowKeys[index];
+  // Adjusted during render, not in an effect: a re-read that moved the row,
+  // or took it away, re-pins the cursor before anything paints.
+  const shifted = placement.rowKey !== rowKey || placement.index !== index;
+  if (shifted) {
+    setPlacement({ ...placement, rowKey, index });
+  }
+  const latestRowKeys = useLatestRef(rowKeys);
   const latestOpen = useLatestRef(onOpen);
   const latestToggle = useLatestRef(onToggleSelect);
-  const latestCursor = useLatestRef(cursor);
-
-  useEffect(() => {
-    if (cursor > last) {
-      setCursor(Math.max(NO_CURSOR, last));
-    }
-  }, [cursor, last]);
+  const latestIndex = useLatestRef(index);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
@@ -62,15 +94,20 @@ export function useInboxCursor(
         return;
       }
 
-      const current = latestCursor.current;
+      const current = latestIndex.current;
       const step = STEP_BY_KEY[event.key];
       if (step !== undefined) {
-        const next = readNextCursor(current, step, last);
+        const keys = latestRowKeys.current;
+        const next = readNextCursor(current, step, keys.length - 1);
         if (next === current) {
           return;
         }
         event.preventDefault();
-        setCursor(next);
+        setPlacement((previous) => ({
+          rowKey: keys[next],
+          index: next,
+          moveCount: previous.moveCount + 1,
+        }));
         return;
       }
 
@@ -94,7 +131,7 @@ export function useInboxCursor(
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [last, latestCursor, latestOpen, latestToggle]);
+  }, [latestIndex, latestOpen, latestRowKeys, latestToggle]);
 
-  return cursor;
+  return { index, moveCount: placement.moveCount };
 }

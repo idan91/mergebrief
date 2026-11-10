@@ -11,7 +11,7 @@ import {
   selectBriefRouteState,
   type BriefRouteState,
 } from "../../utils/briefRouteState";
-import { resolveOutagePollMs } from "../../utils/poll-backoff";
+import { resolvePollMs } from "../../utils/poll-backoff";
 import { resolveDbTimeline } from "../../utils/dbTimeline";
 import type { PrBriefPage, UsePrBriefPageInput } from "./types";
 import { useConversationFilterParams } from "./useConversationFilterParams";
@@ -58,7 +58,7 @@ export function usePrBriefPage({
       if (loaded === undefined) {
         return false;
       }
-      return resolveOutagePollMs(query.state, resolveMetaPollMs(loaded));
+      return resolvePollMs(query.state, resolveMetaPollMs(loaded));
     },
   }).data;
 

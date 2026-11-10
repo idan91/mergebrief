@@ -43,10 +43,10 @@ function isStaleRead(
 
 /**
  * A pending or running row polls its own status through the per-pull-request
- * read; the list itself never polls. Once the poll reports a terminal state
- * the list re-reads, so the row picks up its new brief and review state. A
- * stalled head has no job left to run, so it polls at the Brief page's
- * settled pace until a rerun moves it.
+ * read; the list's own 30-second poll is too slow to follow a run. Once the
+ * poll reports a terminal state the list re-reads, so the row picks up its
+ * new brief and review state. A stalled head has no job left to run, so it
+ * polls at the Brief page's settled pace until a rerun moves it.
  */
 export function useRowGeneration(item: InboxItem): InboxGeneration | undefined {
   const queryClient = useQueryClient();

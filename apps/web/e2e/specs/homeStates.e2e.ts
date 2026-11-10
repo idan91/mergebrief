@@ -17,6 +17,8 @@ import { clickUntilLanded } from "../support/page";
 
 /** Each try waits this long for the URL before clicking again. */
 const LANDING_TIMEOUT_MS = 2_000;
+/** Past the list's 30-second poll, so one re-read has fired. */
+const LIST_POLL_WAIT_MS = 31_000;
 
 async function openHomeAs(
   page: Page,
@@ -180,4 +182,37 @@ test("a failed list keeps the header and URL box and asks again on Try again", a
   );
   await expect(alert).toBeVisible();
   expect(faults).toEqual([]);
+});
+
+test("a failed re-read keeps the rows and says the list is behind", async ({
+  page,
+}, testInfo) => {
+  const faults = collectPageFaults(page);
+  await page.clock.install();
+  await page
+    .context()
+    .addCookies(buildStorageState(E2E_SESSION_COOKIE).cookies);
+  await page.goto("/");
+  const rows = page.getByTestId("inbox-row");
+  await expect(rows.first()).toBeVisible();
+  const shownRows = await rows.count();
+
+  const isInboxRead = (url: URL) => url.pathname === "/api/inbox";
+  await page.route(isInboxRead, (route) =>
+    route.fulfill({ status: 503, body: "service unavailable" }),
+  );
+  await page.clock.runFor(LIST_POLL_WAIT_MS);
+
+  const line = page.getByTestId("failed-read");
+  await expect(line).toContainText(
+    "This list could not be updated. The server did not answer.",
+  );
+  await expect(rows).toHaveCount(shownRows);
+  await expectNoSeriousAxeViolations(page, testInfo, "home-failed-read");
+
+  await page.unroute(isInboxRead);
+  await line.getByRole("button", { name: "Try again" }).click();
+  await expect(line).toHaveCount(0);
+  await expect(rows).toHaveCount(shownRows);
+  expect(faults.filter((fault) => fault.kind === "pageerror")).toEqual([]);
 });

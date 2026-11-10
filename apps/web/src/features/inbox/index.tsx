@@ -10,6 +10,10 @@ export { Controls, type ControlsProps } from "./components/Controls";
 export { EmptyInbox, type EmptyInboxProps } from "./components/EmptyInbox";
 export { FailedInbox, type FailedInboxProps } from "./components/FailedInbox";
 export {
+  FailedReadLine,
+  type FailedReadLineProps,
+} from "./components/FailedReadLine";
+export {
   NoInstallationLine,
   type NoInstallationLineProps,
 } from "./components/NoInstallationLine";

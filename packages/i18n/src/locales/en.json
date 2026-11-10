@@ -1914,6 +1914,10 @@
       "server": "The server did not answer. Try again in a moment.",
       "retry": "Try again"
     },
+    "failedRead": {
+      "github": "This list could not be updated. GitHub did not answer.",
+      "server": "This list could not be updated. The server did not answer."
+    },
     "signedOut": {
       "signIn": "Sign in with GitHub",
       "signInFailed": "Signing in didn't complete. Try again.",

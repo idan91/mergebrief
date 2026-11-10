@@ -94,7 +94,7 @@ export function InboxList({
   const ordered = [...above, ...below];
   const selection = useInboxSelection(ordered);
   const cursor = useInboxCursor(
-    ordered.length,
+    ordered.map(readRowKey),
     (index) => {
       const item = ordered[index];
       if (item === undefined) {
@@ -146,12 +146,13 @@ export function InboxList({
   const showFold = above.length > 0 && below.length > 0;
 
   // The page scrolls smoothly for anchors; a key press must land at once.
+  // Keyed on key moves: a re-read that shifts or removes the row never scrolls.
   useEffect(() => {
     cursorRowRef.current?.scrollIntoView({
       block: "nearest",
       behavior: "instant",
     });
-  }, [cursor]);
+  }, [cursor.moveCount]);
 
   // The row's menu returns focus to its trigger as it leaves; the heading
   // takes it on the next frame, and keeps it once the row is gone.
@@ -405,12 +406,12 @@ export function InboxList({
           <ol className={styles["list"]}>
             {above.map((item, index) => (
               <InboxRow
-                cursor={index === cursor}
+                cursor={index === cursor.index}
                 index={index}
                 item={item}
                 key={readRowKey(item)}
                 now={now}
-                rowRef={index === cursor ? cursorRowRef : undefined}
+                rowRef={index === cursor.index ? cursorRowRef : undefined}
                 selected={selection.isSelected(item)}
                 selecting={selecting}
                 sort={sort}
@@ -439,13 +440,15 @@ export function InboxList({
           >
             {below.map((item, index) => (
               <InboxRow
-                cursor={above.length + index === cursor}
+                cursor={above.length + index === cursor.index}
                 index={above.length + index}
                 item={item}
                 key={readRowKey(item)}
                 now={now}
                 rowRef={
-                  above.length + index === cursor ? cursorRowRef : undefined
+                  above.length + index === cursor.index
+                    ? cursorRowRef
+                    : undefined
                 }
                 selected={selection.isSelected(item)}
                 selecting={selecting}

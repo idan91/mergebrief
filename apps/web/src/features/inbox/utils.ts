@@ -8,7 +8,11 @@ import {
   PrStates,
 } from "types";
 
-import { ApiErrorCodes, type ApiErrorCode } from "../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCodes,
+  type ApiErrorCode,
+} from "../../data/apiFetch";
 import {
   AgeUnits,
   FailureSides,
@@ -158,6 +162,17 @@ export function splitTitleCode(title: string): readonly TitleSegment[] {
     segments.push({ kind: TitleSegmentKinds.TEXT, text: title.slice(cursor) });
   }
   return segments;
+}
+
+/** The wire code of the list's failed last read; absent while it succeeded. A codeless failure is the server's. */
+export function readFailedReadCode(error: unknown): ApiErrorCode | undefined {
+  if (error === null || error === undefined) {
+    return undefined;
+  }
+  if (error instanceof ApiError) {
+    return error.code;
+  }
+  return ApiErrorCodes.INTERNAL_ERROR;
 }
 
 /** GitHub when the API said GitHub did not answer; otherwise the server itself. */

@@ -61,7 +61,7 @@ import {
 import type { PrSummary, StoredBriefLayout } from "./types";
 import { isFullCommitSha } from "@web/utils/commit-sha";
 import { buildBriefReadHeaders } from "./utils/brief-read-headers";
-import { resolveOutagePollMs } from "./utils/poll-backoff";
+import { resolvePollMs } from "./utils/poll-backoff";
 
 /** A stored body is checked only for being an object; its reader parses the rest. */
 const storedObjectSchema = z.record(z.string(), z.unknown());
@@ -112,7 +112,7 @@ export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
     queryKey: ["pr-stack", repoId, prNumber],
     queryFn: () => readPrStack(repoId, prNumber),
     staleTime: STACK_STALE_MS,
-    refetchInterval: (query) => resolveOutagePollMs(query.state, LIVE_POLL_MS),
+    refetchInterval: (query) => resolvePollMs(query.state, LIVE_POLL_MS),
   });
 }
 

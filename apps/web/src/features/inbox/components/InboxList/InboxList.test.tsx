@@ -20,7 +20,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { InboxLayouts, InboxReviewStates, InboxSorts } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -582,6 +582,43 @@ describe("InboxList", () => {
       block: "nearest",
       behavior: "instant",
     });
+    scrollIntoView.mockRestore();
+  });
+
+  it("a re-read moves the cursor with its row and never scrolls", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const third = makeItem({ prNumber: 3, title: "Third" });
+    const newcomer = makeItem({ prNumber: 9, title: "Newcomer" });
+    const host: { setItems?: (items: InboxItem[]) => void } = {};
+    function ReReadHarness() {
+      const [items, setItems] = useState([first, second, third]);
+      host.setItems = setItems;
+      return (
+        <InboxList
+          items={items}
+          layout={InboxLayouts.FOLDED}
+          sort={InboxSorts.UPDATED}
+        />
+      );
+    }
+    function readCursorRowText(): string | null {
+      const row = readRows().find(
+        (candidate) => candidate.getAttribute("data-cursor") === "true",
+      );
+      return row?.textContent ?? null;
+    }
+    await renderInRouter(<ReReadHarness />);
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "j" });
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+
+    act(() => host.setItems?.([newcomer, first, second, third]));
+    expect(readCursorRowText()).toContain("Second");
+    act(() => host.setItems?.([newcomer, first, third]));
+    expect(readCursorRowText()).toContain("Third");
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
     scrollIntoView.mockRestore();
   });
 

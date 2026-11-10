@@ -22,6 +22,7 @@ import {
   Controls,
   EmptyInbox,
   FailedInbox,
+  FailedReadLine,
   InboxList,
   InstallFirst,
   NoInstallationLine,
@@ -49,7 +50,11 @@ import {
   type InboxPage,
   type InboxSearch,
 } from "../features/inbox/types";
-import { readInboxEmptiness } from "../features/inbox/utils";
+import {
+  readFailedReadCode,
+  readInboxEmptiness,
+} from "../features/inbox/utils";
+import type { ApiErrorCode } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
 import { useReloadOnChange } from "@web/hooks/useReloadOnChange";
 import { isDemoBuild } from "@web/utils/demo-build";
@@ -153,6 +158,11 @@ function Home() {
   // The hosted demo has no generator behind it, so the box would only refuse.
   const canGenerate = !isDemoBuild();
 
+  async function retryRead(): Promise<boolean> {
+    const result = await inbox.refetch();
+    return result.isSuccess && result.data.kind === InboxStates.READY;
+  }
+
   if (signedOut) {
     return (
       <SignInPage
@@ -167,13 +177,7 @@ function Home() {
   if (state.kind === InboxStates.FAILED) {
     content = (
       <div className={styles["lead"]}>
-        <FailedInbox
-          code={state.code}
-          onRetry={async () => {
-            const result = await inbox.refetch();
-            return result.data?.kind === InboxStates.READY;
-          }}
-        />
+        <FailedInbox code={state.code} onRetry={retryRead} />
         {canGenerate ? (
           <div className={styles["afterFailure"]}>
             <UrlBox />
@@ -185,8 +189,10 @@ function Home() {
     content = (
       <SignedInHome
         canGenerate={canGenerate}
+        failedRead={readFailedReadCode(inbox.error)}
         page={state.page}
         search={search}
+        onRetry={retryRead}
       />
     );
   }
@@ -249,9 +255,19 @@ export interface SignedInHomeProps {
   search: InboxSearch;
   /** False in the hosted demo, which cannot generate. */
   canGenerate: boolean;
+  /** Why the last read of the page on screen failed; absent while it is current. */
+  failedRead: ApiErrorCode | undefined;
+  /** Read the list again; true once it arrived. */
+  onRetry: () => Promise<boolean>;
 }
 
-function SignedInHome({ canGenerate, page, search }: SignedInHomeProps) {
+function SignedInHome({
+  canGenerate,
+  failedRead,
+  page,
+  search,
+  onRetry,
+}: SignedInHomeProps) {
   const state = useInboxSearchState(search, page.total, page.pageSize);
   const controls = useControlsFacade(page, search, state.choices, state.write);
   const changedCount = countChangedFilters(search);
@@ -313,6 +329,7 @@ function SignedInHome({ canGenerate, page, search }: SignedInHomeProps) {
             ) : null}
           </>
         )}
+        <FailedReadLine code={failedRead} onRetry={onRetry} />
       </div>
       {emptiness === InboxEmptinesses.EMPTY ? (
         <GhostMark className={styles["emptyInbox"]} />

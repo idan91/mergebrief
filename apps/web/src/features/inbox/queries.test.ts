@@ -124,6 +124,75 @@ describe("buildInboxQueryOptions", () => {
   });
 });
 
+describe("the inbox list poll", () => {
+  const options = buildInboxQueryOptions({});
+  const MALFORMED_PAGE = { ...WIRE_PAGE, counts: { new: "one" } };
+
+  function makeClient(): QueryClient {
+    return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  }
+
+  async function fetchFresh(client: QueryClient): Promise<void> {
+    await client.fetchQuery({ ...options, staleTime: 0 }).catch(() => {});
+  }
+
+  function readPollMs(client: QueryClient): number | false | undefined {
+    const query = client.getQueryCache().find({ queryKey: options.queryKey });
+    const interval = options.refetchInterval;
+    if (typeof interval !== "function" || query === undefined) {
+      throw new Error("the list has no poll pace to read");
+    }
+    return interval(query as never);
+  }
+
+  it("polls a ready list every thirty seconds", async () => {
+    const client = makeClient();
+    answerWith(200, WIRE_PAGE);
+    await fetchFresh(client);
+
+    expect(readPollMs(client)).toBe(30_000);
+  });
+
+  it("stops polling a signed-out list", async () => {
+    const client = makeClient();
+    answerWith(401, { code: "unauthorized" });
+    await fetchFresh(client);
+
+    expect(readPollMs(client)).toBe(false);
+  });
+
+  it("stops polling a failed list", async () => {
+    const client = makeClient();
+    answerWith(503, { code: "internal-error" });
+    await fetchFresh(client);
+
+    expect(readPollMs(client)).toBe(false);
+  });
+
+  it("keeps a ready page when a re-read over it fails", async () => {
+    const client = makeClient();
+    answerWith(200, WIRE_PAGE);
+    await fetchFresh(client);
+    answerWith(503, { code: "internal-error" });
+    await fetchFresh(client);
+
+    const state = client.getQueryState(options.queryKey);
+    expect(state?.data?.kind).toBe(InboxStates.READY);
+    expect(state?.error).toMatchObject({ code: "internal-error" });
+    expect(readPollMs(client)).toBe(false);
+  });
+
+  it("stops polling once a re-read throws over a ready page", async () => {
+    const client = makeClient();
+    answerWith(200, WIRE_PAGE);
+    await fetchFresh(client);
+    answerWith(200, MALFORMED_PAGE);
+    await fetchFresh(client);
+
+    expect(readPollMs(client)).toBe(false);
+  });
+});
+
 describe("deleteOwnPull", () => {
   it("DELETEs the inbox path and reads a 204 as deleted", async () => {
     answerEmpty();

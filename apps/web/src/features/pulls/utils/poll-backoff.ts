@@ -30,7 +30,7 @@ function isSignedOutRead(error: unknown): boolean {
  * that succeeds clears `error` and restores `healthyMs`. A read that needs
  * sign-in stops the poll: no later answer can differ until the viewer acts.
  */
-export function resolveOutagePollMs(
+export function resolvePollMs(
   read: PollRead,
   healthyMs: number | false,
 ): number | false {
