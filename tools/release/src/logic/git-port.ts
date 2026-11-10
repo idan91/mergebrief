@@ -136,6 +136,23 @@ const TOKEN_HELPER_ARGS = [
 const ANONYMOUS_ARGS = ["-c", "credential.interactive=false"] as const;
 const NO_PROMPT_ENV = { GIT_TERMINAL_PROMPT: "0" } as const;
 
+/** How one git child reads the public repository: the config args it starts with and the variables added to its env. */
+interface PublicReadAccess {
+  readonly args: readonly string[];
+  readonly env: ChildEnv;
+}
+
+/** Anonymous without a token; with one, the helper the push uses, so the token stays in that child's env. */
+function resolvePublicReadAccess(token: string | undefined): PublicReadAccess {
+  if (token === undefined) {
+    return { args: ANONYMOUS_ARGS, env: NO_PROMPT_ENV };
+  }
+  return {
+    args: TOKEN_HELPER_ARGS,
+    env: { ...NO_PROMPT_ENV, [PUBLISH_TOKEN_ENV]: token },
+  };
+}
+
 /** What execFileSync throws on a non-zero exit, as far as this port reads it. */
 interface ExecError {
   readonly stderr?: string | Buffer;
@@ -190,13 +207,14 @@ function tryGit(
 function listUrlTags(
   cwd: string,
   env: ChildEnv,
+  access: PublicReadAccess,
   url: string,
 ): readonly string[] | undefined {
   try {
     const listed = runGit(
       cwd,
-      [...ANONYMOUS_ARGS, "ls-remote", "--tags", "--refs", url],
-      { env: { ...env, ...NO_PROMPT_ENV } },
+      [...access.args, "ls-remote", "--tags", "--refs", url],
+      { env: { ...env, ...access.env } },
     );
     return parseTagRefs(listed);
   } catch (cause) {
@@ -514,19 +532,20 @@ function readPublicRefs(listed: string): PublicRefs {
   return refs;
 }
 
-/** Reads anonymously: the public repository is public, and only a push ever carries the token. */
+/** Reads as `access` says: anonymously by default, with the token only under `--authenticated-reads`. */
 function fetchPublicRefs(
   cwd: string,
   scratch: ScratchObjects,
+  access: PublicReadAccess,
   url: string,
 ): PublicRefs | undefined {
-  const env = { ...scratch.buildEnv(), ...NO_PROMPT_ENV };
+  const env = { ...scratch.buildEnv(), ...access.env };
   let listed: string;
   try {
     listed = runGit(
       cwd,
       [
-        ...ANONYMOUS_ARGS,
+        ...access.args,
         "ls-remote",
         url,
         PUBLIC_BRANCH_REF,
@@ -548,7 +567,7 @@ function fetchPublicRefs(
     runGit(
       cwd,
       [
-        ...ANONYMOUS_ARGS,
+        ...access.args,
         "fetch",
         "--quiet",
         "--no-tags",
@@ -669,6 +688,8 @@ export interface GitPortOptions {
   readonly env: ChildEnv;
   /** Where main and the records are read and the record pushed; `origin` unless a credential-free clone stands in. */
   readonly privateRemote?: string | undefined;
+  /** Set, the public repository is read with it, for a target that is still private; absent, anonymously. */
+  readonly publicReadToken?: string | undefined;
 }
 
 /** The real git under `cwd`; tags are read from the remote, never from local refs alone. */
@@ -676,6 +697,7 @@ export function createGitPort(cwd: string, options: GitPortOptions): GitPort {
   const env = stripCredentialVariables(options.env);
   const privateRemote = options.privateRemote ?? GIT_REMOTE;
   const scratch = createScratchObjects(cwd, env);
+  const publicRead = resolvePublicReadAccess(options.publicReadToken);
   return {
     fetchDefaultBranch() {
       const refspec = `+refs/heads/${DEFAULT_BRANCH}:${DEFAULT_BRANCH_REF}`;
@@ -684,7 +706,7 @@ export function createGitPort(cwd: string, options: GitPortOptions): GitPort {
       });
     },
     listPublicTags(url) {
-      return listUrlTags(cwd, env, url);
+      return listUrlTags(cwd, env, publicRead, url);
     },
     commitScratchRepo(dir) {
       commitEveryFile(dir, env);
@@ -779,7 +801,7 @@ export function createGitPort(cwd: string, options: GitPortOptions): GitPort {
       return countChanges(cwd, scratch.buildEnv(), parent, commit);
     },
     fetchPublic(url) {
-      return fetchPublicRefs(cwd, scratch, url);
+      return fetchPublicRefs(cwd, scratch, publicRead, url);
     },
     pushPublic(url, token, refspecs) {
       runGit(

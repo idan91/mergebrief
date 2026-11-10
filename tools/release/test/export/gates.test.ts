@@ -278,6 +278,20 @@ describe("the notes gate", () => {
     ]);
   });
 
+  it("names the token when authenticated reads find no public repo", () => {
+    const git = stubGitPort({ listPublicTags: () => undefined });
+    const context = makeContext(CLEAN_TREE, {
+      requiresPublicRepository: true,
+      publicRepository: { ...PUBLIC, authenticatesReads: true },
+    });
+
+    const outcome = checkNotesGate(context, git);
+
+    expect(!outcome.ok && outcome.error.reason).toBe(
+      "public repo Idan91/mergebrief not found; MERGEBRIEF_PUBLISH_TOKEN cannot read it, or it does not exist",
+    );
+  });
+
   it("refuses a missing public repo when publishing", () => {
     const git = stubGitPort({ listPublicTags: () => undefined });
     const context = makeContext(CLEAN_TREE, { requiresPublicRepository: true });

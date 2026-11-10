@@ -28,7 +28,7 @@ In order, it:
 
 The public repository's `release.yml` fires on the tag and publishes npm, the ghcr image and the GitHub Release. This repository's `release.yml` never publishes: its `verify` job sets `publish=false` unless the repository is `Idan91/mergebrief`.
 
-`--dry-run` stops after step 6, prints the plan and pushes nothing. The real run repeats every gate, so a dry run is a preview, never a prerequisite. The public repository is always read anonymously; only the push sees a token, and every other git call and every gate tool runs with credential-shaped variables removed from its environment.
+`--dry-run` stops after step 6, prints the plan and pushes nothing. The real run repeats every gate, so a dry run is a preview, never a prerequisite. The public repository is read anonymously unless `--authenticated-reads` is passed, which reads it with `MERGEBRIEF_PUBLISH_TOKEN` while it is still private and refuses without the token. The Publish workflow never passes that flag, because its gates job would then hold the token in the process that runs the build, so a private target is published from a local checkout. Otherwise only the push sees the token, and every other git call and every gate tool runs with credential-shaped variables removed from its environment.
 
 ### The Publish workflow
 
@@ -188,7 +188,7 @@ Every refusal prints one line naming what it found. Two different moves follow a
 - **The same version from a different source.** `0.1.0 already exported from 4e1a9c2; refusing 7b20f11`. Retry with the original SHA, or pick the next version.
 - **A version or source behind the last export.** `0.1.1 is not above 0.2.0, the last version exported; export a higher version`, or `<sha> does not contain <sha>, which 0.2.0 was exported from; export a later commit on main`. Exports go out in version order from a source that only moves forward.
 - **A tag that exists elsewhere.** `tag v0.1.0 exists at <sha>; tags never move`. Pick the next version.
-- **The public repository does not exist yet.** A dry run says `public repo Idan91/mergebrief not found; treating as no releases (dry run only)`; a real run refuses with `public repo Idan91/mergebrief not found; a publish needs it`.
+- **The public repository does not exist yet.** A dry run says `public repo Idan91/mergebrief not found; treating as no releases (dry run only)`; a real run refuses with `public repo Idan91/mergebrief not found; a publish needs it`. Under `--authenticated-reads` a dry run refuses too, with `public repo Idan91/mergebrief not found; MERGEBRIEF_PUBLISH_TOKEN cannot read it, or it does not exist`: the token lacks access to the private repository, or the repository is not created yet.
 
 ## Leaving the snapshot model
 

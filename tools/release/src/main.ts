@@ -13,21 +13,14 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mutable, Result } from "types/utils";
 
-import {
-  PUBLISH_TOKEN_ENV,
-  RELEASES_DIR,
-  REPOSITORY,
-  REPOSITORY_URL,
-} from "./consts";
+import { PUBLISH_TOKEN_ENV, RELEASES_DIR } from "./consts";
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
 import { createCommandRunner } from "./logic/command-runner";
 import { runExport } from "./logic/export";
-import type {
-  ExportOptions,
-  PublicRepository,
-  RepositorySlug,
-} from "./logic/export/types";
+import { resolvePublicRepositoryAccess } from "./logic/export/public-repository";
+import { resolveExportTokens } from "./logic/export/tokens";
+import type { ExportOptions } from "./logic/export/types";
 import { createGitPort, GitCommandError } from "./logic/git-port";
 import { runLicenses } from "./logic/licenses";
 import { createPnpmLicensesPort } from "./logic/licenses/pnpm-port";
@@ -66,11 +59,12 @@ const USAGE = [
   "      version.json over the stable notes files up to the tag; the tag must be the highest stable published",
   "  release release-body <tag> --out <file> the GitHub Release body for the tag",
   "  release export --version X.Y.Z --source <ref> [--dry-run [--expect-commit <sha>] | --emit <dir>]",
-  "                 [--out <dir>] [--public-remote <url>] [--private-remote <url>]",
+  "                 [--out <dir>] [--public-remote <url>] [--private-remote <url>] [--authenticated-reads]",
   "      the public snapshot of a commit on main, written to --out (a new temp dir when absent), checked,",
   `      then published as one commit and tag; a publish needs ${PUBLISH_TOKEN_ENV} set, a dry run pushes nothing;`,
   "      --emit runs no gate and writes the release bundle and plan.json for other jobs to gate and push,",
-  "      --expect-commit refuses a gated rebuild that is not the emitted commit",
+  "      --expect-commit refuses a gated rebuild that is not the emitted commit,",
+  `      --authenticated-reads reads the target repository with ${PUBLISH_TOKEN_ENV}, for a target that is still private`,
   "  release licenses                        every production dependency's license is allowed or excepted by name",
   `  release notices                         rewrite ${NOTICES_DIR} for the sharp-libvips and elkjs versions the lockfile holds`,
   "      reads that release's tag and the SPDX licence texts on GitHub; check fails while the two disagree",
@@ -272,22 +266,6 @@ function resolveOutDir(given: string | undefined): string {
   return resolveInvokedPath(given);
 }
 
-function isRepositorySlug(value: string): value is RepositorySlug {
-  return value.includes("/");
-}
-
-/** The repository the release goes to; `--public-remote` points a rehearsal at a scratch remote instead. */
-function resolvePublicRepository(given: string | undefined): PublicRepository {
-  if (given !== undefined) {
-    const slug: RepositorySlug = isRepositorySlug(given) ? given : `./${given}`;
-    return { slug, url: given };
-  }
-  return {
-    slug: `${REPOSITORY.owner}/${REPOSITORY.name}`,
-    url: `${REPOSITORY_URL}.git`,
-  };
-}
-
 /** Why the export's mode flags cannot go together, if they cannot. */
 function findModeConflict(parsed: ParsedArgv): string | undefined {
   const dryRun = parsed.flags.has("--dry-run");
@@ -315,7 +293,7 @@ function runExportCommand(argv: readonly string[]): ExitCode {
       "--public-remote",
       "--private-remote",
     ],
-    boolean: ["--dry-run"],
+    boolean: ["--dry-run", "--authenticated-reads"],
     maxPositionals: 0,
   });
   if (!parsed.ok) {
@@ -340,27 +318,28 @@ function runExportCommand(argv: readonly string[]): ExitCode {
   const emit = readValuedFlag(parsed.value, "--emit");
   const expectCommit = readValuedFlag(parsed.value, "--expect-commit");
   const dryRun = parsed.value.flags.has("--dry-run") || emit !== undefined;
-  const token = process.env[PUBLISH_TOKEN_ENV];
-  const tokenMissing = !dryRun && (token === undefined || token.length === 0);
-  if (tokenMissing) {
-    process.stderr.write(
-      `release: export without --dry-run publishes and needs ${PUBLISH_TOKEN_ENV} in the environment\n`,
-    );
+  const tokens = resolveExportTokens(process.env[PUBLISH_TOKEN_ENV], {
+    pushes: !dryRun,
+    authenticatesReads: parsed.value.flags.has("--authenticated-reads"),
+  });
+  if (!tokens.ok) {
+    process.stderr.write(`release: ${tokens.error}\n`);
     return ExitCodes.REFUSED;
   }
 
+  const access = resolvePublicRepositoryAccess(
+    readValuedFlag(parsed.value, "--public-remote"),
+    tokens.value,
+  );
   const options: Mutable<ExportOptions> = {
     version,
     source,
     out: resolveOutDir(readValuedFlag(parsed.value, "--out")),
     dryRun,
-    publicRepository: resolvePublicRepository(
-      readValuedFlag(parsed.value, "--public-remote"),
-    ),
+    publicRepository: access.repository,
   };
-  const forwardsToken = !dryRun && token !== undefined;
-  if (forwardsToken) {
-    options.token = token;
+  if (tokens.value.publish !== undefined) {
+    options.token = tokens.value.publish;
   }
   if (emit !== undefined) {
     options.emit = resolveInvokedPath(emit);
@@ -371,6 +350,7 @@ function runExportCommand(argv: readonly string[]): ExitCode {
   const git = createGitPort(REPO_ROOT, {
     env: process.env,
     privateRemote: readValuedFlag(parsed.value, "--private-remote"),
+    publicReadToken: access.readToken,
   });
   try {
     return exportTree(git, options);

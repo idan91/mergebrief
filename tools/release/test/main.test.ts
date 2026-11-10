@@ -16,10 +16,14 @@ interface MainRun {
 }
 
 /** Runs the CLI as the root script does; every case here stops before any git call. */
-function runMain(argv: readonly string[]): MainRun {
+function runMain(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): MainRun {
   const ran = spawnSync(process.execPath, ["--import", "tsx", MAIN, ...argv], {
     cwd: PACKAGE_DIR,
     encoding: "utf8",
+    env,
   });
   return { status: ran.status, output: `${ran.stdout}${ran.stderr}` };
 }
@@ -61,5 +65,38 @@ describe("argument errors never echo URL credentials", () => {
     expect(run.status).toBe(NODE_CRASH_EXIT);
     expect(run.output).toContain("ENOENT");
     expect(run.output).not.toContain(SECRET);
+  });
+});
+
+describe("the publish token an export needs", () => {
+  const tokenless = { ...process.env, MERGEBRIEF_PUBLISH_TOKEN: "" };
+
+  it("refuses authenticated reads in a dry run without the token", () => {
+    const argv = [...EXPORT_ARGS, "--dry-run", "--authenticated-reads"];
+
+    const run = runMain(argv, tokenless);
+
+    expect(run.status).toBe(ExitCodes.REFUSED);
+    expect(run.output).toContain(
+      "--authenticated-reads reads the target repository with MERGEBRIEF_PUBLISH_TOKEN",
+    );
+  });
+
+  it("refuses a publish without the token, as it did before the flag", () => {
+    const run = runMain(EXPORT_ARGS, tokenless);
+
+    expect(run.status).toBe(ExitCodes.REFUSED);
+    expect(run.output).toContain(
+      "release: export without --dry-run publishes and needs MERGEBRIEF_PUBLISH_TOKEN in the environment",
+    );
+  });
+
+  it("rejects a value given to the authenticated reads flag", () => {
+    const argv = [...EXPORT_ARGS, "--authenticated-reads=true"];
+
+    const run = runMain(argv, tokenless);
+
+    expect(run.status).toBe(ExitCodes.USAGE);
+    expect(run.output).toContain("unknown flag --authenticated-reads=true");
   });
 });

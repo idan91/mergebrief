@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runExport } from "../../src/logic/export";
 import { createGitPort } from "../../src/logic/git-port";
-import { GateNames } from "../../src/logic/export/types";
+import { GateNames, type PublicRepository } from "../../src/logic/export/types";
 import {
   makeGitRepos,
   makeNotesFile,
@@ -27,6 +27,8 @@ const CLEAN: Tree = {
   ".claude/settings.json": "{}\n",
 };
 
+const PUBLIC: PublicRepository = { slug: "Idan91/mergebrief", url: "unused" };
+
 function exportTree(tree: Tree, version = "0.1.0") {
   const repos = makeGitRepos(tree);
   made.push(repos.root);
@@ -44,10 +46,32 @@ function exportTree(tree: Tree, version = "0.1.0") {
       source: "main",
       out,
       dryRun: true,
-      publicRepository: { slug: "Idan91/mergebrief", url: "unused" },
+      publicRepository: PUBLIC,
     },
   );
   return { repos, out, result, printed };
+}
+
+/** A dry run over `CLEAN` whose target repository answers nothing. */
+function exportToUnreadableTarget(publicRepository: PublicRepository) {
+  const repos = makeGitRepos(CLEAN);
+  made.push(repos.root);
+  const git = createGitPort(repos.clone, { env: process.env });
+  const unreadable = {
+    ...git,
+    listPublicTags: () => undefined,
+    fetchPublic: () => undefined,
+  };
+  return runExport(
+    { git: unreadable, runner: stubCommandRunner().runner, print: () => {} },
+    {
+      version: "0.1.0",
+      source: "main",
+      out: join(repos.root, "out"),
+      dryRun: true,
+      publicRepository,
+    },
+  );
 }
 
 describe("running the export", () => {
@@ -96,6 +120,29 @@ describe("running the export", () => {
       error: { reason: "unclassified top-level path: notes/" },
     });
     expect(existsSync(out)).toBe(false);
+  });
+
+  it("plans a plain dry run against an empty repository when none answers", () => {
+    const result = exportToUnreadableTarget(PUBLIC);
+
+    expect(result.ok && result.value.gates?.passed).toBe(true);
+    expect(result.ok && result.value.publish?.parent).toBeUndefined();
+  });
+
+  it("stops a dry run that authenticates its reads at an unreadable target", () => {
+    const result = exportToUnreadableTarget({
+      ...PUBLIC,
+      authenticatesReads: true,
+    });
+
+    const stopped = result.ok ? result.value.gates?.verdicts.at(-1) : undefined;
+    expect(result.ok && result.value.gates?.passed).toBe(false);
+    const reason =
+      "public repo Idan91/mergebrief not found; MERGEBRIEF_PUBLISH_TOKEN cannot read it, or it does not exist";
+    expect(stopped).toMatchObject({
+      name: GateNames.NOTES,
+      outcome: { ok: false, error: { reason } },
+    });
   });
 
   it("refuses a version outside the release grammar", () => {

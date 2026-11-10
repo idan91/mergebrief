@@ -145,7 +145,7 @@ export interface GitPort {
     parent: string | undefined,
     commit: string,
   ): TreeChangeCounts;
-  /** Reads the public repository's refs anonymously and brings its main commit local; `undefined` when none answers. */
+  /** Reads the public repository's refs and brings its main commit local; `undefined` when none answers. */
   fetchPublic(url: string): PublicRefs | undefined;
   /** A plain push of `refspecs`, never forced. */
   pushPublic(url: string, token: string, refspecs: readonly string[]): void;

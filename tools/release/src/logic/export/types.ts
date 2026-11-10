@@ -63,6 +63,8 @@ export type RepositorySlug = `${string}/${string}`;
 export interface PublicRepository {
   readonly slug: RepositorySlug;
   readonly url: string;
+  /** `--authenticated-reads`: it exists and is private, so even a dry run refuses when it does not answer. */
+  readonly authenticatesReads?: boolean;
 }
 
 export interface ExportOptions {
@@ -78,6 +80,29 @@ export interface ExportOptions {
   readonly emit?: string;
   /** The commit an emit planned; a gated dry run refuses a rebuild that differs, so the gates checked what ships. */
   readonly expectCommit?: string;
+}
+
+/** What a run does with the publish token. */
+export interface ExportTokenUse {
+  /** A publish; a dry run and an emit push nothing. */
+  readonly pushes: boolean;
+  /** `--authenticated-reads`: the target repository is still private. */
+  readonly authenticatesReads: boolean;
+}
+
+/** The publish token, handed on only for what the run asked for. */
+export interface ExportTokens {
+  /** Pushes the release; absent when nothing is pushed. */
+  readonly publish?: string;
+  /** Reads the target repository; absent, it is read anonymously. */
+  readonly publicRead?: string;
+}
+
+/** How a run reaches the public repository: which one, and the token its reads carry. */
+export interface PublicRepositoryAccess {
+  readonly repository: PublicRepository;
+  /** Present only under `--authenticated-reads`; absent, the reads are anonymous. */
+  readonly readToken?: string;
 }
 
 export interface GateDeps {
@@ -112,7 +137,7 @@ export interface GateContext {
   /** `X.Y.Z` or `X.Y.Z-rc.N`, no `v`. */
   readonly version: string;
   readonly shipped: readonly string[];
-  /** A publish or an emit refuses a public repo that does not answer; a plain dry run plans against an empty one. */
+  /** A publish, an emit or any run that authenticates its reads refuses a public repo that does not answer; a plain dry run plans against an empty one. */
   readonly requiresPublicRepository: boolean;
   readonly publicRepository: PublicRepository;
 }

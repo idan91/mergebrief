@@ -17,6 +17,7 @@ import {
   collectCoAuthorTrailers,
   formatReleaseMessage,
 } from "./commit";
+import { formatMissingRepository } from "./report";
 import {
   type ExportError,
   type PublishAction,
@@ -111,7 +112,7 @@ function readPublicState(
     return { ok: true, value: { refs, notices: [] } };
   }
   if (input.requiresPublicRepository) {
-    return refuse(`public repo ${slug} not found; a publish needs it`);
+    return refuse(formatMissingRepository(input.publicRepository));
   }
   const notice = `public repo ${slug} not found; planning against an empty repository (dry run only)`;
   return { ok: true, value: { refs: NO_PUBLIC_REFS, notices: [notice] } };

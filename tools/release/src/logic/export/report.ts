@@ -1,9 +1,11 @@
+import { PUBLISH_TOKEN_ENV } from "../../consts";
 import {
   type ExportHeader,
   type GateVerdict,
   type LinkHit,
   type LinkHitKind,
   LinkHitKinds,
+  type PublicRepository,
   type PublishAction,
   PublishActions,
   type PublishPlan,
@@ -15,6 +17,15 @@ const HIT_VERBS: Readonly<Record<LinkHitKind, string>> = {
 };
 
 const DETAIL_INDENT = "  ";
+
+/** Why a run that needs the public repository stops when none answers there. */
+export function formatMissingRepository(repository: PublicRepository): string {
+  const cause =
+    repository.authenticatesReads === true
+      ? `${PUBLISH_TOKEN_ENV} cannot read it, or it does not exist`
+      : "a publish needs it";
+  return `public repo ${repository.slug} not found; ${cause}`;
+}
 
 export function formatLinkHit(hit: LinkHit): string {
   return `${hit.path}:${hit.line}: ${HIT_VERBS[hit.kind]} ${hit.target}`;

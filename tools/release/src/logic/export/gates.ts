@@ -6,7 +6,7 @@ import { GITLEAKS_CONFIG, GITLEAKS_IMAGE, RELEASES_DIR } from "../../consts";
 import type { CommandRunner, GitPort } from "../../types";
 import { checkReleases } from "../check";
 import { checkTreeLinks } from "./link-check";
-import { formatLinkHit } from "./report";
+import { formatLinkHit, formatMissingRepository } from "./report";
 import {
   type GateContext,
   type GateDeps,
@@ -152,7 +152,7 @@ export function checkNotesGate(
   const notices: string[] = [];
   if (tags === undefined) {
     if (context.requiresPublicRepository) {
-      return failGate(`public repo ${slug} not found; a publish needs it`);
+      return failGate(formatMissingRepository(context.publicRepository));
     }
     notices.push(
       `public repo ${slug} not found; treating as no releases (dry run only)`,

@@ -122,7 +122,8 @@ export function runExport(
   const requiresPublicRepository =
     !options.dryRun ||
     options.emit !== undefined ||
-    options.expectCommit !== undefined;
+    options.expectCommit !== undefined ||
+    options.publicRepository.authenticatesReads === true;
   const input = {
     version: header.version,
     source: commit.value,
