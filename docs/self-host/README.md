@@ -43,10 +43,11 @@ its own.
   Read your own with `docker compose stats --no-stream`, once idle and once
   while a brief generates, and size the host from the peak.
 
-## Cloud deployment trials
+## Cloud deployment
 
-- [Hetzner and EC2 deployment guide](cloud-deployment.md): database on the
-  VM, private RDS, or external Neon/Supabase, with HTTPS and validation.
+- [Hetzner and EC2 deployment guide](cloud-deployment.md): a pinned release
+  image on a VM, with the database on the VM, private RDS, or external
+  Neon/Supabase, plus HTTPS and validation.
 - [Provider research notes](cloud-provider-notes.md): official sources and
   connection details behind that guide.
 

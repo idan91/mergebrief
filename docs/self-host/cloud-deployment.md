@@ -1,34 +1,33 @@
-# Cloud deployment trial: Hetzner and EC2
+# Cloud deployment: Hetzner and EC2
 
-This guide is for an operator testing MergeBrief with a real domain and a
-small repository. It describes deployment; it does not provision resources.
-Provider documentation was checked on 2026-11-01. Commands below are for a
+This guide deploys a pinned MergeBrief release image on a VM with a real
+domain. It describes deployment; it does not provision resources. Provider
+documentation was checked on 2026-11-01. Commands below are for a
 fresh Ubuntu 24.04 LTS VM. Replace example domains and placeholders before
 running them. No example contains working credentials.
 
 Compose is the supported application deployment. Tracks H1 and H2 on Neon have
-each been run once, from source builds of main. H2 on Supabase and the EC2
-tracks have not been run.
+each been run once, from source builds of main. No track has been run from a
+release image yet. H2 on Supabase and the EC2 tracks have not been run at all.
 
-## Choose the experiment
+## Choose the deployment
 
 | Track | Application | Database | Purpose |
 | --- | --- | --- | --- |
-| H1 | Hetzner VM, Compose | Postgres on that VM | Cheapest complete self-host trial |
+| H1 | Hetzner VM, Compose | Postgres on that VM | Cheapest complete self-host |
 | H2 | Hetzner VM, Compose | Neon or Supabase | Managed DB connectivity and recovery |
 | E1 | EC2, Compose | Postgres on that EC2 instance | Same installation inside AWS |
 | E2 | EC2, Compose | Private RDS PostgreSQL | AWS private networking and managed DB |
-| E3 | EC2, Compose | Neon or Supabase | Cross-provider managed DB trial |
+| E3 | EC2, Compose | Neon or Supabase | Cross-provider managed DB |
 
 Start each track with a fresh database and a separate hostname/GitHub App.
-Do not point two independent trials at the same database: their workers
+Do not point two instances at the same database: their workers
 would consume the same jobs. Changing DATABASE_URL does not copy existing
 data. Moving an existing deployment requires backup, quiescing writers and
 restore; see [operations](operations.md).
 
 Start a VM at 2 vCPU and 4 GB RAM with at least 40 GB SSD. This is an initial
-sizing hypothesis, not a measured minimum. Image builds may require more
-memory than running the application. Keep one API and worker initially.
+sizing hypothesis, not a measured minimum. Keep one API and worker initially.
 The worker has two generation slots by default, one ordinary and one large.
 
 ## 1. Provision the VM
@@ -38,18 +37,18 @@ The worker has two generation slots by default, one ordinary and one large.
 Use these choices on Hetzner's **Create a server** screen. They apply to
 both H1 (local Postgres) and H2 (external Postgres).
 
-| Console section | Pick for the first trial | Reason |
+| Console section | Pick for a first deployment | Reason |
 | --- | --- | --- |
-| Type | Check **Cost-Optimized → x86 (Intel/AMD)** for an available size with at least **2 vCPU / 4 GB RAM / 40 GB SSD**. If unavailable, keep **Regular Performance → CPX22** | CPX22 has 2 vCPU, 4 GB RAM and 80 GB SSD, a reasonable starting point. Dedicated General Purpose is unnecessary for this trial. |
+| Type | Check **Cost-Optimized → x86 (Intel/AMD)** for an available size with at least **2 vCPU / 4 GB RAM / 40 GB SSD**. If unavailable, keep **Regular Performance → CPX22** | CPX22 has 2 vCPU, 4 GB RAM and 80 GB SSD, a reasonable starting point. Dedicated General Purpose is unnecessary at this size. |
 | Location | The location nearest your reviewers and external DB that offers the size | This is a proximity choice, not a measured latency result. |
 | Image | **OS Images → Ubuntu → 24.04** using the version dropdown | The console may default to a newer release; select 24.04 to match this guide. Use the plain OS image and install Docker as below. |
 | Networking | **Public IPv4 on**, **Public IPv6 on**, **Private networks off** | IPv4 simplifies DNS/SSH; IPv6 can help with direct Supabase access. A Hetzner private network does not automatically connect to Neon, Supabase or RDS. |
 | SSH keys | **Add SSH key**, then select your public key | Do this before creation rather than using an emailed root password. See the steps below. |
 | Volumes | **None** | The included SSD is enough initially. Docker's named Postgres volume lives on that disk; it is not a separately purchased Hetzner Volume. |
 | Firewalls | Create and select **mergebrief-test** with the rules below | Create it before buying the server. |
-| Backups | **Off for a disposable first trial**; enable if keeping useful data or configuration | Backups add to the server price. VM backups supplement, rather than replace, database backups. |
+| Backups | **Off for a disposable first deployment**; enable if keeping useful data or configuration | Backups add to the server price. VM backups supplement, rather than replace, database backups. |
 | Placement groups | **None** | A single server does not benefit from distributing servers across physical hosts. |
-| Labels | Optional: **app=mergebrief**, **environment=test** | Helps identify and clean up the trial. Leave blank if unnecessary. |
+| Labels | Optional: **app=mergebrief**, **environment=test** | Helps identify and clean up this VM. Leave blank if unnecessary. |
 | Cloud config | **Leave blank** | Follow the manual installation below. Do not paste application secrets here. |
 | Name | **mergebrief-h1-test** or **mergebrief-h2-test** | Makes the database track clear. |
 | Server count | **1** | All three app processes run on this VM. |
@@ -142,7 +141,7 @@ creating a firewall without applying it does not protect the server.
 
 Do not add inbound 3000, 3001 or 5432, even for external Postgres: that is an
 outbound connection initiated by the application. Leave outbound rules
-empty for this trial, permitting package downloads, DNS, GitHub/model HTTPS
+empty for a first deployment, permitting package downloads, DNS, GitHub/model HTTPS
 and the database connection. An attached Hetzner Firewall blocks unmatched
 inbound traffic and allows outbound traffic when no outbound rules exist.
 See [firewall semantics](https://docs.hetzner.com/cloud/firewalls/overview/).
@@ -161,13 +160,13 @@ alone does not establish this. Continue with section 2.
 
 ### EC2: E1, E2 or E3
 
-These steps follow AWS's documentation as of 2026-11-04. No trial has run them
+These steps follow AWS's documentation as of 2026-11-04. No track has run them
 yet. Console wording moves, so where a label differs, pick the nearest one.
 
 In the [EC2 console](https://console.aws.amazon.com/ec2/), select your region at
 the top right, then click **Launch instance**:
 
-| Console section | Pick for the first trial | Reason |
+| Console section | Pick for a first deployment | Reason |
 | --- | --- | --- |
 | Name | **mergebrief-e2-test** (or `e1`, `e3`) | Makes the database track clear. |
 | Application and OS Images | **Quick Start → Ubuntu → Ubuntu Server 24.04 LTS**, **64-bit (x86)** | Matches this guide. `t3` instances are x86. |
@@ -175,7 +174,7 @@ the top right, then click **Launch instance**:
 | Key pair | **Create new key pair**: name `mergebrief-admin`, type **ED25519**, format **.pem** | Your browser downloads the private key once. |
 | Network settings | Click **Edit**. Keep the default **VPC**, any **Subnet**, **Auto-assign public IP: Enable** | A default subnet routes to an internet gateway, so outbound GitHub and model traffic needs no NAT gateway. |
 | Firewall (security groups) | **Create security group** named `mergebrief-app`, with the rules below | Do not expose 3000, 3001 or 5432. |
-| Configure storage | **40 GiB gp3**. Under **Advanced**, set **Encrypted: Yes** | Image builds need the room. |
+| Configure storage | **40 GiB gp3**. Under **Advanced**, set **Encrypted: Yes** | Room for the images, the Postgres volume and logs. |
 | Advanced details | **Metadata version: V2 only (token required)**. Leave **IAM instance profile** empty | MergeBrief needs no AWS access keys. |
 
 | Type | Source |
@@ -219,7 +218,7 @@ Stopping a VM does not delete its storage or release every charge. Consult
 
 ## 2. Install Docker and HTTPS
 
-Install Docker Engine, Buildx and the Compose plugin using the
+Install Docker Engine and the Compose plugin using the
 [official Ubuntu apt-repository instructions](https://docs.docker.com/engine/install/ubuntu/).
 Use Compose v2.24 or newer. Install Caddy using its
 [official Ubuntu package instructions](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
@@ -232,7 +231,7 @@ sudo docker compose version
 ```
 
 The commands below use `sudo docker`; membership in the docker group is
-root-equivalent and is not required. Install `git`, `curl` and `openssl` if
+root-equivalent and is not required. Install `curl` and `openssl` if
 missing. Apply Ubuntu security updates before opening the application.
 Docker-published ports can bypass UFW, so keep the shipped loopback bindings
 and enforce the cloud firewall too.
@@ -261,37 +260,37 @@ Caddy does not include a rate limiter.
 
 ## 3. Select an exact application version
 
-### Testing current main from source
-
-Use a fresh checkout on the VM, authenticated through your normal repository
-access if private. Do not embed a GitHub token in the clone URL. Substitute
-the repository URL you have access to:
+Download the assets of the exact release you intend to deploy, as in the
+[Compose installation guide](compose.md). The host holds one folder, with no
+checkout of the repository and no build. These commands select `v0.1.0`, the
+first release; replace that version in every URL to select another one from
+the [releases page](https://github.com/Idan91/mergebrief/releases).
 
 ```sh
-mkdir -p ~/deploy
-cd ~/deploy
-git clone <repository-url> mergebrief
-cd mergebrief
-git fetch origin main
-git checkout --detach origin/main
-git rev-parse HEAD
+mkdir -p ~/deploy/mergebrief
+cd ~/deploy/mergebrief
 umask 077
+curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
+curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
 cp .env.example .env
 ```
 
-Record the full SHA with your test results. This fixes the trial to the main
-commit fetched at that moment. Do not run `git pull` during the experiment;
-move to a newer commit deliberately with
-[section 7](#7-move-a-source-build-to-a-newer-commit). The source build reports
-version `dev`; it is not a published release.
+For H2, E2 or E3, also download the external-database Compose file from the
+same release. Section 5B names it in `COMPOSE_FILE`, and Compose then reads it
+instead of `docker-compose.yml`:
 
-### Testing an existing release instead
+```sh
+curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
+```
 
-Download the chosen release's Compose file and `env.example` following
-[the release installation instructions](compose.md). For an external DB,
-download `docker-compose.external-db.yml` from that same release too. Pin an
-exact release, and use `docker compose pull` instead of the source build
-below. Do not assume a release or the registry's `dev` tag contains main.
+Each release's Compose files pin that release's exact image tag,
+`ghcr.io/idan91/mergebrief:0.1.0` here, never `latest`. Do not edit them: an
+upgrade replaces them byte for byte. Your own settings go in `.env` and
+`docker-compose.override.yml`. Finish sections 4 and 5 before starting the
+services.
+
+Contributors testing unpublished changes build from source instead: see the
+[appendix](#appendix-source-builds-for-contributors).
 
 ## 4. Configure GitHub, sessions and model access
 
@@ -356,7 +355,7 @@ Set `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`, and mount the file
 read-only into API and worker from `docker-compose.override.yml`, as the Compose
 guide requires. The image does not contain your config.
 
-For a trial, also choose a low daily generation cap in that file, following
+For a first deployment, also choose a low daily generation cap in that file, following
 [generator configuration](generators.md). This limits generation count, not
 token dollars; also use the model provider's available spending controls.
 
@@ -389,28 +388,24 @@ The shipped Compose derives the internal connection string automatically.
 Use hex literally here, without percent-encoding. Changing the variable
 later does not change the password of an already initialized Postgres role.
 
-Run from the checkout:
+Run from `~/deploy/mergebrief`:
 
 ```sh
-sudo docker pull postgres:17-alpine
-sudo docker compose build
-sudo docker compose up -d --wait --pull never
+sudo docker compose pull
+sudo docker compose up -d --wait
 sudo docker compose ps -a
 ```
 
-The build uses the selected checkout; `--pull never` prevents replacing it
-with a registry image. The explicit Postgres pull supplies the database image on a fresh host.
-Release installations instead use
-`sudo docker compose pull` and `sudo docker compose up -d --wait`.
+`pull` fetches the image the release's Compose file pins, and Postgres with it.
 
 Only web is reachable through Caddy. Postgres's host port remains loopback;
 API is only on the Compose network. Postgres data lives in its named volume.
-Never use `docker compose down -v` unless intentionally deleting trial data.
+Never use `docker compose down -v` unless intentionally deleting the instance's data.
 
 ## 5B. External database: H2, E2 or E3
 
 Use PostgreSQL 16 or newer, preferably 17 to match the bundled reference.
-Create an isolated database/project for the trial in a region near the VM.
+Create an isolated database/project for this instance in a region near the VM.
 The API and worker need the same database. The browser and web process do
 not need database credentials.
 
@@ -422,7 +417,7 @@ pooler, and do not replace Postgres with a provider's REST API. Follow your prov
 
 ### E2: private RDS from EC2
 
-These steps follow AWS's documentation as of 2026-11-04. No trial has run them
+These steps follow AWS's documentation as of 2026-11-04. No track has run them
 on RDS yet. The commands in steps 5 and 6, the migrations and the TLS check were
 rehearsed on Postgres 17 with a non-superuser admin, a TLS-only server and a
 private CA bundle.
@@ -439,13 +434,13 @@ private CA bundle.
    | DB instance identifier | `mergebrief-e2-test` | Becomes part of the endpoint. |
    | Master username | `postgres` | Used only to provision the app login below. |
    | Credentials management | **Self managed**. Generate a password in your password manager | You type it once in step 5. |
-   | Instance class | **Burstable classes → db.t4g.micro** | Enough for a trial. The app's budget below is 12 connections. |
+   | Instance class | **Burstable classes → db.t4g.micro** | Enough for a first deployment. The app's budget below is 12 connections. |
    | Storage | **General Purpose SSD (gp3)**, 20 GiB, encryption on | |
    | Compute resource | **Connect to an EC2 compute resource**, then your instance | See below. |
    | Certificate authority | Leave the default, `rds-ca-rsa2048-g1` | It is in every regional bundle. |
    | Initial database name | Leave empty | Step 6 creates the database with the right owner. |
    | Backups | Automated backups on, 7 days | |
-   | Deletion protection | Off for a trial | |
+   | Deletion protection | Off for a disposable database | |
 
    **Connect to an EC2 compute resource** does the private networking. RDS sets
    **Public access: No**, picks or creates a DB subnet group with private subnets
@@ -456,7 +451,7 @@ private CA bundle.
 2. Wait for status **Available**. On the database's **Connectivity & security**
    tab, copy the **Endpoint**. Use this DNS name, never a resolved IP, so hostname
    verification and failover keep working.
-3. On the VM, from the checkout, download your region's CA bundle from
+3. On the VM, from `~/deploy/mergebrief`, download your region's CA bundle from
    [AWS's list](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html#UsingWithRDS.SSL.CertificatesAllRegions).
    The `chmod` matters: the `umask 077` from section 3 leaves the file private,
    and the containers read it as UID 1000. A CA certificate is public.
@@ -522,8 +517,8 @@ Do not paste a short-lived RDS IAM authentication token into DATABASE_URL:
 the current static DSN configuration is not an IAM-token refresh integration.
 
 Private RDS is not reachable directly from Hetzner. Keep it private and
-establish a routed VPN/private connectivity if that is the experiment; for the
-first cross-cloud trial use Neon/Supabase.
+establish a routed VPN/private connectivity if that is what you are testing;
+for a first cross-cloud deployment use Neon/Supabase.
 
 ### H2/E3: Neon
 
@@ -539,7 +534,7 @@ once.
    | Region | The one closest to your VM. Every API and worker query crosses this link. |
 	
 2. Click **Connect**. If Neon offers an agent prompt, choose **wire it myself**:
-   that prompt edits the checkout's code and `.env`, and MergeBrief needs only
+   that prompt edits application code and `.env`, and MergeBrief needs only
    the connection string. Keep the default branch, compute, database and role.
    That role owns the database, so it can create the app's schemas.
 3. Turn off **Connection pooling**. Check that the hostname no longer contains
@@ -565,13 +560,13 @@ about 16 days of continuous running. The worker polls its queue every 2 seconds,
 so expect the compute not to scale to zero and the allowance to drain around the
 clock; this is not yet measured. When it runs out, Neon suspends the compute
 until the next billing period and the app loses its database. Keep the compute
-at 0.25 CU for a trial.
+at 0.25 CU for a first deployment.
 
 Continue with [Store the connection string](#store-the-connection-string).
 
 ### H2/E3: Supabase
 
-These steps follow Supabase's documentation as of 2026-11-03. No trial has run
+These steps follow Supabase's documentation as of 2026-11-03. No track has run
 them yet.
 
 1. In the [Supabase dashboard](https://supabase.com/dashboard), create a project:
@@ -595,7 +590,7 @@ them yet.
    or a space. Keep the host and the `postgres.<project-ref>` username as shown.
 4. Open the project's **Database Settings** page and download the CA certificate
    from its **SSL Configuration** section.
-5. On the VM, from the checkout, create the folder for it:
+5. On the VM, from `~/deploy/mergebrief`, create the folder for it:
 
    ```sh
    mkdir -p secrets
@@ -628,12 +623,12 @@ postgresql://postgres.abcdefghijklmnop:<url-encoded-password>@aws-0-eu-central-1
 The session pooler holds one database connection per client, and the Free plan's
 default pool size is 15. The `DATABASE_POOL_MAX=3` set below needs up to 12, so
 leave it at 3. Supabase's session mode is also the least proven path here: when
-you reach [section 6](#6-verify-the-trial-before-calling-it-successful), confirm
+you reach [section 6](#6-verify-the-deployment), confirm
 that a push actually produces a brief.
 
 ### Store the connection string
 
-Run these on the VM, from the checkout.
+Run these on the VM, from `~/deploy/mergebrief`.
 
 1. Create the file. Paste the single line, then save. Typing it into an editor
    keeps the password out of your shell history:
@@ -704,11 +699,11 @@ Run these on the VM, from the checkout.
    MERGEBRIEF_AUTO_MIGRATE=true
    ```
 
-5. Build and start:
+5. Pull and start:
 
    ```sh
-   sudo docker compose build
-   sudo docker compose up -d --wait --pull never
+   sudo docker compose pull
+   sudo docker compose up -d --wait
    sudo docker compose ps -a
    ```
 
@@ -718,7 +713,7 @@ override load. Compose file-backed secrets are mounted files, not an encrypted
 vault, so keep the `secrets` folder private. If your plan offers an IP
 allowlist, restrict the database to the VM's address too.
 
-A pool max of 3 is an initial small-trial choice. With one API, one worker,
+A pool max of 3 is an initial choice for a small instance. With one API, one worker,
 and large concurrency 1, the documented pool budget is 12 connections:
 `3 + (2 * 3 + 1 + 2)`. Leave capacity for migrations, administration and
 provider reservations. Raise the pool size only within the DB limit.
@@ -738,9 +733,21 @@ service:
 sudo docker compose down
 ```
 
-Never add `-v`: that deletes the Postgres volume. Then follow your provider's
-steps and [Store the connection string](#store-the-connection-string), merging
-the override with the one you have.
+Never add `-v`: that deletes the Postgres volume. An H1 folder installed from
+a release holds no external-database Compose file, because section 3 downloads
+it only for the external tracks. Download it now, from the release this
+instance runs: the first command prints the version `docker-compose.yml` pins,
+and a pin of `0.1.0` is `v0.1.0` in the URL. A source build skips this step,
+because its checkout already holds the file.
+
+```sh
+grep 'image: ghcr.io/idan91/mergebrief' docker-compose.yml
+curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
+```
+
+Then follow your provider's steps and
+[Store the connection string](#store-the-connection-string), merging the
+override with the one you have.
 
 Data does not move. The new database starts empty, so everyone signs in again
 and each pull request gets its next brief on its next push. Keep the same
@@ -750,7 +757,7 @@ To switch back, run `down` again, remove `COMPOSE_FILE` and `DATABASE_URL_FILE`
 from `.env`, take the database entries out of the override, and start the stack
 with the section 5A commands.
 
-## 6. Verify the trial before calling it successful
+## 6. Verify the deployment
 
 ```sh
 sudo docker compose ps -a
@@ -781,7 +788,7 @@ results of each test:
 - For external DB, confirm verified TLS using the provider's connection
   diagnostics or `pg_stat_ssl` from an authenticated application session.
 - Back up and restore into an isolated fresh database, then point an
-  isolated trial at it. Do not send duplicate webhooks or run two workers
+  isolated instance at it. Do not send duplicate webhooks or run two workers
   against production data while validating restore.
 
 For a local DB, use the [pg_dump and restore procedure](operations.md#backup)
@@ -806,23 +813,26 @@ a private address, such as `172.31.x.x`:
 dig +short <rds-endpoint>
 ```
 
-## 7. Move a source build to a newer commit
+## 7. Upgrade to a new release
 
-Back up first if the trial holds data you want to keep
-([backup](operations.md#backup)). API and worker apply new migrations when they
-start. From the checkout:
+Follow [upgrading to a new version](operations.md#upgrading-to-a-new-version).
+It covers the backup, the replacement Compose file, the external-database
+variant and rollback. Repeat the section 6 checks afterwards.
+
+Its commands run bare `docker`. On a VM set up by this guide, run them as
+written from a root shell, in the folder section 3 created. That folder sits
+under the home of the account that ran section 3: `/root` on Hetzner,
+`/home/ubuntu` on EC2.
 
 ```sh
-git fetch origin main
-git checkout --detach origin/main
-git rev-parse HEAD
-sudo docker compose build
-sudo docker compose up -d --wait --pull never
+sudo -s
+cd /root/deploy/mergebrief   # on EC2: /home/ubuntu/deploy/mergebrief
 ```
 
-Record the new SHA with your results, then repeat the section 6 checks. A
-release installation upgrades through [operations](operations.md#upgrading-to-a-new-version)
-instead.
+Do not put `sudo` in front of each line instead. `sudo` drops variables set
+before a command, and one of the upgrade commands passes the database
+connection string that way. Leave the root shell with `exit` when the upgrade
+is done.
 
 ## Troubleshooting and cleanup
 
@@ -842,11 +852,74 @@ instead.
 | API or worker logs `unable to verify the first certificate` | The DSN's `sslrootcert`, and that the bundle is for the database's region |
 | Too many DB connections | All pools and replicas, provider reservations and pool limits |
 
-To retire a trial, disable its GitHub webhook/App installation, save any
+To retire an instance, disable its GitHub webhook/App installation, save any
 needed data and secrets, stop Compose, and delete the intended cloud
 resources. Explicitly review VM disks, snapshots, Elastic/public IPs,
 managed databases, backup retention and DNS. Only delete volumes once data
-is no longer needed. Rotate/revoke trial-only credentials. Deleting EC2
+is no longer needed. Rotate/revoke credentials only that instance used. Deleting EC2
 does not delete its separately provisioned RDS database. Deleting the database
 does not remove its DB subnet group, private subnets or its `rds-ec2-n` and
 `ec2-rds-n` security groups. An Elastic IP keeps billing until released.
+
+## Appendix: source builds for contributors
+
+This path is for working on MergeBrief and testing unpublished changes. It is
+not an installation or upgrade path: a source build reports version `dev`,
+never checks for releases, and is not a published release. It needs `git` and
+Docker Buildx on the VM, and an image build may need more memory than running
+the application.
+
+### Build current main
+
+Replace section 3 with a fresh checkout, authenticated through your normal
+repository access if the repository is private. Do not embed a GitHub token in
+the clone URL. Substitute the repository URL you have access to:
+
+```sh
+mkdir -p ~/deploy
+cd ~/deploy
+git clone <repository-url> mergebrief
+cd mergebrief
+git fetch origin main
+git checkout --detach origin/main
+git rev-parse HEAD
+umask 077
+cp .env.example .env
+```
+
+Record the full SHA with your test results: it fixes the build to the main
+commit fetched at that moment. Do not run `git pull` while testing; move to a
+newer commit deliberately with
+[the steps below](#move-a-source-build-to-a-newer-commit).
+
+Follow sections 4 and 5 from the checkout, with one change. Wherever they run
+`sudo docker compose pull` and `sudo docker compose up -d --wait`, build
+instead:
+
+```sh
+sudo docker pull postgres:17-alpine
+sudo docker compose build
+sudo docker compose up -d --wait --pull never
+```
+
+The build uses the selected checkout, and `--pull never` stops Compose from
+replacing it with a registry image. The explicit Postgres pull supplies the
+database image on a fresh host; skip it on an external database.
+
+### Move a source build to a newer commit
+
+Back up first if the instance holds data you want to keep
+([backup](operations.md#backup)). API and worker apply new migrations when they
+start. From the checkout:
+
+```sh
+git fetch origin main
+git checkout --detach origin/main
+git rev-parse HEAD
+sudo docker compose build
+sudo docker compose up -d --wait --pull never
+```
+
+Record the new SHA with your results, then repeat the section 6 checks. A
+release installation upgrades through
+[operations](operations.md#upgrading-to-a-new-version) instead.

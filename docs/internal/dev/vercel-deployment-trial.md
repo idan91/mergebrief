@@ -174,7 +174,7 @@ Check that deployment protection does not block GitHub's webhook. Verify:
 3. Login succeeds on the stable hostname and cookies persist. Internal
    service routing preserves the Host/Origin assumptions used by the app.
 4. Activate the webhook and run the complete PR/generation/review checklist
-   in [the VM guide](../../self-host/cloud-deployment.md#6-verify-the-trial-before-calling-it-successful).
+   in [the VM guide](../../self-host/cloud-deployment.md#6-verify-the-deployment).
 5. Let HTTP services idle, then repeat login and generation. Confirm cold
    starts and API periodic tasks do not break expected behavior.
 6. Test attachments and media near the app's configured bounds, plus long
