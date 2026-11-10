@@ -164,7 +164,7 @@ spend:
 The key is optional and takes a positive whole number or `unlimited`.
 Omitting it, or the whole block, caps the instance at **300 a day** (the
 default); `maxGenerationsPerDay: unlimited` is the only way to run uncapped.
-The cap ships on because the app carries no request rate limit of its own,
+The cap ships on because the webhook route carries no rate limit of its own,
 so it is what stands between a burst of webhooks and your provider quota.
 There is no per-repo override: the cap is a ceiling, not fair share, so a
 busy repo can use the day's budget for the others. If that bites, raise the
@@ -730,6 +730,17 @@ shows as `effort: null` in the origin line rather than as a per-artifact
 warning. The origin line also shows the adapter class (`via anthropic
 (API)/…` vs `via claude-code (local CLI)/…`), so a CLI-generated Brief is
 never mistaken for an API one.
+
+### When the `claude-code` login stops authenticating
+
+If the `claude-code` provider's `claude -p` call stops authenticating, the
+`anthropic` provider with an API key is the fallback. In
+`mergebrief.config.yaml`, set `generator.provider: anthropic`, remove
+`command:` and `timeouts:`, which that provider refuses at boot, and check
+that `model:` is an API model id or absent. Put the key in
+`ANTHROPIC_API_KEY`, or in the variable `apiKeyEnv` names, and restart the
+worker. Generations then authenticate with that key, never the `claude`
+login.
 
 ### Length discipline and anchoring degrade on weaker models
 

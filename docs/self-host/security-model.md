@@ -100,6 +100,15 @@ name or a bare IP address.
 `api` publishes no port. It holds every credential and the database
 connection, and only `web` reaches it, over the compose network.
 
+### Rate limiting
+
+Apart from the per-reviewer
+[attachment upload quota](./attachments.md#upload-quota), the API has no
+built-in rate limiting, the webhook route included. Rate limit at your reverse
+proxy. [compose.md](./compose.md#rate-limit-the-webhook-route-at-your-proxy)
+says how to scope a limit to the webhook route and size it for GitHub's
+bursts.
+
 ### Sessions and tokens
 
 - **Sign-in.** The OAuth start sets a random state nonce in a `__Host-`
