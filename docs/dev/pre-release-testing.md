@@ -88,8 +88,10 @@ What the gates cover that this page used to walk by hand:
 Not gates yet:
 
 - [ ] CI green on the release commit. `manual-until: Actions billing is on`.
-      CI runs changed packages and their dependents behind one aggregate
-      check, so a release commit still runs every line above locally.
+      On a pull request CI runs changed packages and their dependents behind
+      one aggregate check. The push run on a release commit covers the whole
+      workspace, but it has never run, so a release commit still runs every
+      line above locally.
 - [ ] An eval report in the PR body for a generation-surface change. The
       presence job checks the body on those paths once billing is on; the
       harness itself is human-run and never enters CI (live spend).

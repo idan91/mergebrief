@@ -1,7 +1,16 @@
 name: CI
 
+# Pull requests everywhere. A push to main runs only in the release
+# repository, Idan91/mergebrief, which receives each release as one pushed
+# commit and has no pull request to hang a run on. In any other repository
+# every job skips on a push, so a merge there does not pay for the run its
+# pull request already had. Every job carries that condition, and a test in
+# tools/release holds it.
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 # Fork-safety bundle. No ambient scopes: every job re-grants
 # the minimum it needs, no checkout leaves credentials in .git/config for a
@@ -10,9 +19,12 @@ on:
 # a write-scoped token.
 permissions: {}
 
+# One group per pull request, where a newer push cancels the older run. A
+# push to main gets a group of its own by SHA and is never cancelled: every
+# release commit keeps its verdict.
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # The workspace root is a pnpm project too, and pnpm's `...[<ref>]` filter
@@ -25,6 +37,7 @@ env:
 jobs:
   lint:
     name: Lint
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -62,12 +75,15 @@ jobs:
       - name: Run lint
         env:
           # The PR base, named explicitly: the gate's local default is `main`,
-          # which is not the base of a stacked PR.
-          MERGEBRIEF_BASELINE_BASE: ${{ github.event.pull_request.base.sha }}
+          # which is not the base of a stacked PR. A push has no base and the
+          # first release commit no parent, so it names HEAD, as the release
+          # export's build gate does over the same tree.
+          MERGEBRIEF_BASELINE_BASE: ${{ github.event.pull_request.base.sha || 'HEAD' }}
         run: pnpm lint
 
   catalog:
     name: Catalog gate
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -101,6 +117,7 @@ jobs:
 
   secrets:
     name: Secret scan
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -113,19 +130,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Scans only the commits this PR adds, opening archives one level deep
+      # Scans only the commits a PR adds, opening archives one level deep
       # so a gzipped eval fixture is read. The release export's tree scan
       # reads the same config and depth, so one allowlist governs both gates.
+      # A push has no base branch, and the first release commit no parent,
+      # so it scans every commit HEAD reaches.
       # A binary blob gitleaks cannot open as an archive only logs an ERR
       # line and exits 0, so any ERR line fails the step.
-      - name: Run gitleaks on the PR commits
+      - name: Run gitleaks on the new commits
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
           set -o pipefail
+          commits="HEAD"
+          if [ -n "$BASE_REF" ]; then
+            commits="origin/${BASE_REF}..HEAD"
+          fi
           docker run --rm -v "$PWD:/repo" \
             ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
-            git /repo --log-opts="origin/${BASE_REF}..HEAD" --max-archive-depth 1 \
+            git /repo --log-opts="$commits" --max-archive-depth 1 \
             --config /repo/.github/gitleaks.toml --redact --no-banner --no-color --exit-code 1 \
             2>&1 | tee "$RUNNER_TEMP/gitleaks.log"
           if grep -qE '^[0-9]{1,2}:[0-9]{2}(AM|PM) ERR ' "$RUNNER_TEMP/gitleaks.log"; then
@@ -135,6 +158,7 @@ jobs:
 
   checks:
     name: ${{ matrix.check }}
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -186,6 +210,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+
+          # A push has no PR base, and the first release commit no parent to
+          # diff against: every package runs, the docs site included.
+          if [ -z "$BASE_SHA" ]; then
+            {
+              echo "base="
+              echo "run_all=true"
+              echo "docs_changed=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # A `pull_request` run checks out the merge ref, whose second
           # parent is the base tip, so BASE_SHA is an ancestor of HEAD and
@@ -299,6 +334,7 @@ jobs:
 
   e2e:
     name: E2E (browser)
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -336,6 +372,12 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "A push has no PR base; running the browser suite."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           base="$(git merge-base "$BASE_SHA" HEAD)"
           changed="$(git diff --name-only "$base" HEAD)"
@@ -406,6 +448,7 @@ jobs:
 
   image:
     name: Image build
+    if: github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -428,6 +471,11 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            echo "A push has no PR base; building the image."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           base="$(git merge-base "$BASE_SHA" HEAD)"
           changed="$(git diff --name-only "$base" HEAD)"
           if grep -qE '^(Dockerfile|docker-entrypoint\.sh|\.dockerignore|docker-compose[^/]*\.yml|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|package\.json|(apps|packages|tools)/[^/]+/package\.json|\.github/workflows/(ci|release)\.yml|\.github/scripts/image-boot-smoke\.sh|apps/web/src/(serve|instrument)\.ts|apps/web/src/server/.*|apps/web/vite\.config\.ts)$' <<<"$changed"; then
@@ -486,8 +534,9 @@ jobs:
     permissions: {}
     # The single branch-protection check. Path/graph filtering means the
     # per-check jobs legitimately skip, and a skipped required check blocks
-    # a PR forever — so the gate is this one job, which always reports.
-    if: always()
+    # a PR forever, so the gate is this one job, which always reports
+    # wherever the jobs above were asked to run.
+    if: always() && (github.event_name == 'pull_request' || github.repository == 'Idan91/mergebrief')
     needs:
       - lint
       - catalog
