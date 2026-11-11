@@ -12,6 +12,7 @@ import {
   CARD_BORDERS_PX,
   CODE_GLYPH_PX,
   DEFAULT_REM_PX,
+  DIFF_ROW_HEIGHT_PX,
   LANDSCAPE_HEAD_SHORTFALL_PX,
   MAIN_GUTTER_PX,
   NARROW_CARD_EDGE_PX,
@@ -202,6 +203,11 @@ const phoneRootRules = tokenRules.filter(
     (isOutsideMedia(rule) || isUnderPhoneQuery(rule)),
 );
 const phoneTokens = collectCustomProperties(phoneRootRules);
+const desktopTokens = collectCustomProperties(
+  tokenRules.filter(
+    (rule) => readSelector(rule) === ":root" && isOutsideMedia(rule),
+  ),
+);
 const baseRules = readCompiledRules(`${STYLES_DIRECTORY}/base.scss`);
 
 function readNarrowGutterPx(): number {
@@ -315,5 +321,19 @@ describe("sideways head stylesheet length", () => {
 
     expect(desktopPx - sidewaysPx).toBe(LANDSCAPE_HEAD_SHORTFALL_PX);
     expect(readValue(sideways, "min-block-size")).toBe("0");
+  });
+});
+
+describe("diff row stylesheet height", () => {
+  it("sets a diff row's line box to the row height the model counts", () => {
+    const rowRules = readCompiledRules(
+      `${SRC_DIRECTORY}components/DiffRows/DiffRows.module.scss`,
+    );
+    const fontRule = findRule(rowRules, ".line", "font-size", isOutsideMedia);
+    const lineRule = findRule(rowRules, ".line", "line-height", isOutsideMedia);
+    const fontPx = readLengthPx(fontRule, "font-size", desktopTokens);
+    const lineHeight = readLengthPx(lineRule, "line-height", desktopTokens);
+
+    expect(Math.round(fontPx * lineHeight)).toBe(DIFF_ROW_HEIGHT_PX);
   });
 });

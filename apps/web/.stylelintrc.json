@@ -51,6 +51,9 @@
         "font-size": [
           "/^(?![\\s\\S]*\\d\\s*((px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|%))/"
         ],
+        "line-height": [
+          "/^(0|(?![\\s\\S]*((?<![\\w.$]|[\\w-]-)\\d*\\.?\\d+(?![\\d.]|(px|rem)\\b)|(?<![\\w.]|var\\(#\\{)\\$))[\\s\\S]*)$/i"
+        ],
         "font": [
           "/^(inherit|initial|unset|revert(-layer)?|caption|icon|menu|message-box|small-caption|status-bar)$/"
         ],
@@ -65,7 +68,7 @@
         ]
       },
       {
-        "message": "Token bar: no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-sm..display, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification. Spacing (margin, padding, gap) reads a --space-* step, a custom property, a module-namespaced Sass variable (layout.$x) or 0: no length literal, no file-local Sass variable and no functions.to-rem() over a number."
+        "message": "Token bar: no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-sm..display, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification. Spacing (margin, padding, gap) reads a --space-* step, a custom property, a module-namespaced Sass variable (layout.$x) or 0: no length literal, no file-local Sass variable and no functions.to-rem() over a number. line-height reads a --line-height-* step, a px or rem length (functions.to-rem()), a custom property, a module-namespaced Sass variable, inherit or 0: no other number, no % or font-relative unit and no file-local Sass variable."
       }
     ]
   }

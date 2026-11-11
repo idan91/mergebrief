@@ -11,7 +11,7 @@
     font-size: var(--font-size-display);
     font-weight: 600;
     letter-spacing: -0.02em;
-    line-height: 1.1;
+    line-height: var(--line-height-display);
     text-wrap: balance;
   }
 
@@ -19,7 +19,7 @@
     max-inline-size: 62ch;
     color: var(--color-text-2);
     font-size: var(--font-size-2xl);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {

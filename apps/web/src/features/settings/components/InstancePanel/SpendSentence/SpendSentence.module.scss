@@ -5,7 +5,7 @@
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
     font-variant-numeric: tabular-nums;
-    line-height: 1.6;
+    line-height: var(--line-height-reading);
 
     b {
       color: var(--color-text-1);

@@ -19,7 +19,7 @@
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
     font-weight: 600;
-    line-height: 1.4;
+    line-height: var(--line-height-compact);
   }
 
   .counts {

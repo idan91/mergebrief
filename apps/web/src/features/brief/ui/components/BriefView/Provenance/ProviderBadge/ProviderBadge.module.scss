@@ -52,6 +52,6 @@
     border-inline-start: 1px solid var(--color-outline-1);
     font-size: var(--font-size-sm);
     letter-spacing: 0.08em;
-    line-height: 1;
+    line-height: var(--line-height-control);
   }
 }

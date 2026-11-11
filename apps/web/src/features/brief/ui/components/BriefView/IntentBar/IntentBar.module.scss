@@ -90,13 +90,13 @@
     color: var(--color-text-1);
     font-size: var(--font-size-xl);
     font-weight: 500;
-    line-height: 1.4;
+    line-height: var(--line-height-compact);
   }
 
   .itemMeta {
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
   }
 
   .source {

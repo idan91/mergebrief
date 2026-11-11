@@ -22,7 +22,7 @@
     margin: 0 0 var(--space-4);
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
-    line-height: 1.6;
+    line-height: var(--line-height-reading);
   }
 
   .code {
@@ -34,7 +34,7 @@
     background: var(--color-well);
     color: var(--color-text-read);
     font-size: var(--font-size-lg);
-    line-height: 1.6;
+    line-height: var(--line-height-reading);
     overflow-x: auto;
 
     code {

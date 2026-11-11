@@ -176,7 +176,7 @@
   color: var(--color-text-1);
   font-family: var(--mono);
   font-size: var(--font-size-lg);
-  line-height: 1.55;
+  line-height: var(--line-height-body);
   white-space: pre-wrap;
 
   > code {
@@ -196,7 +196,7 @@
 @mixin markdown-type {
   color: var(--color-text-read);
   font-size: var(--font-size-xl);
-  line-height: 1.65;
+  line-height: var(--line-height-reading);
 
   img {
     max-inline-size: 100%;
@@ -210,7 +210,7 @@
     margin-block: var(--space-5) var(--space-3);
     color: var(--color-text-1);
     font-weight: 600;
-    line-height: 1.65;
+    line-height: var(--line-height-reading);
   }
 
   h3 {

@@ -45,14 +45,14 @@ typography:
     letterSpacing: "-0.01em"
   group-title:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
-    fontSize: "1.0625rem"
+    fontSize: "1.25rem"
     fontWeight: 600
-    lineHeight: 1.35
+    lineHeight: 1.2
   panel-title:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 600
-    lineHeight: 1.3
+    lineHeight: 1.35
   title:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.9375rem"
@@ -67,17 +67,17 @@ typography:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "clamp(0.875rem, round(0.8rem + 0.2vw, 0.25px), 0.9375rem)"
     fontWeight: 400
-    lineHeight: 1.55
+    lineHeight: 1.5
   reading:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 400
-    lineHeight: 1.65
+    lineHeight: 1.7
   label:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 400
-    lineHeight: 1.4
+    lineHeight: 1.35
   caption:
     fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.6875rem"
@@ -253,18 +253,20 @@ Both are self-hosted through `@fontsource`, every subset behind its `unicode-ran
 
 **Character:** One family at every size. Hierarchy comes from size, weight and the step from Text 1 to Text 2, not from a second typeface. The scale is seven steps: 11, 13, 15, 17, 20, 24 and 30px, stated in rem so it follows the reader's browser font size. Weights are 400, 500 and 600; nothing else loads. Two token names run against the step names: Caption is `--font-size-sm` and Small is `--font-size-lg`, because `--font-size-md` was the retired 12px step between them and is not reused.
 
+Line height takes one of six steps, each a `--line-height-*` token named for its job: control 1 for single-line controls, display 1.1, heading 1.2, compact 1.35 for UI text, body 1.5 and reading 1.7 for code and long reading text. A row whose height other code counts sets a fixed line box instead: 16, 18, 20 or 22px. The diff row is the exception: 13px code on the reading step makes its 22px row, and a stylesheet test holds that product to the chunk height model's row height.
+
 The root stays at the browser's size, 16px by default. Only `body` is fluid: a clamp of 14 to 15px on `round(0.8rem + 0.2vw, 0.25px)`, which lands on quarter pixels (14.25 at 750 wide, 14.75 at 1000). That off-scale value is deliberate, and it reaches only text that inherits and names no step. Text fields take one more off-scale size on a touch screen, 16px, because iOS Safari zooms into a field set smaller.
 
 ### Hierarchy
 
 - **Display** (600, 1.875rem, 1.1, -0.02em): the personal line on Home and the Settings heading. One per screen. Under 760px it steps down to 24px.
 - **Headline** (600, 1.5rem, 1.2): the Brief's title at rest. The Brief's title collapses to 13px once the page scrolls; on a phone it is 20px in the page and 13px in the row.
-- **Group title** (600, 1.0625rem, 1.35): a change group's name in its card, and the summary's Overview and Changelog headings. The focus panel's group name is 1.25rem at 1.25.
-- **Panel title** (600, 1.0625rem, 1.3): dialog titles, Settings panel headings and the sign-in heading.
-- **Title** (600, 0.9375rem, 1.2): section headings such as the list heading, and the brief's fold rows (Original description, Intent check, Conversation) at a 1.3 line.
+- **Group title** (600, 1.25rem, 1.2): a change group's name in its card and in the focus panel, and the summary's Overview and Changelog headings.
+- **Panel title** (600, 1.0625rem, 1.35): dialog titles, Settings panel headings and the sign-in heading.
+- **Title** (600, 0.9375rem, 1.2): section headings such as the list heading, and the brief's fold rows (Original description, Intent check, Conversation) at a 1.35 line.
 - **Row title** (500, Text 1 when it needs the reviewer and Text Read otherwise, whatever the layout, 0.9375rem, 20px line): one line, cut with an ellipsis.
 - **Lead** (400, 1.0625rem, 1.5): the line under the personal line, 62 characters wide at most. The sign-in lead is Small in Text 2.
-- **Reading** (400, 0.9375rem, 1.65, Text Read): the words of a brief, its overview, changelog and summaries. The Instance tab's count, cap and refusal copy take the same size and colour at a 1.6 line.
+- **Reading** (400, 0.9375rem, 1.7, Text Read): the words of a brief, its overview, changelog and summaries, and the Instance tab's count, cap and refusal copy.
 - **Small** (400 to 600, 0.8125rem): controls, menus, the pager, code, a change group's meta line and since marker, the masthead's fact rows, the second line of a row with an 18px line and tabular numerals, the chunk and focus indicators with tabular numerals, and the URL box's slash hint. Running text sets at 400; chips, the chunk indicator and the focus indicator's label and current count at 500; titles and figures inside a panel at 600; buttons at 400 to 600. The shortcuts dialog's section headings take the Title step.
 - **Caption** (400, 500 or 600, 0.6875rem): the Brief page's badges and the chunk and sidebar meta rows, a group's category chips, the generation warnings chip, the change stepper's count outside the Brief controls sheet, small section labels and every other key cap. Nothing smaller ships.
 

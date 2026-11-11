@@ -18,7 +18,7 @@
     p {
       max-inline-size: functions.to-rem(632px);
       font-size: var(--font-size-2xl);
-      line-height: 1.55;
+      line-height: var(--line-height-body);
       text-wrap: pretty;
     }
   }

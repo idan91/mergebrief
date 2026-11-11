@@ -3,7 +3,6 @@
 
 $sign-w: functions.to-rem(16px);
 $sign-inset: functions.to-rem(2px);
-$row-line-height: 1.7;
 
 // A wrapped phone line hangs under its own indent, capped so a deep line
 // keeps room to wrap into: about 40% of the code columns either view fits.
@@ -17,11 +16,11 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     // Row height: 22px at this font size, the number the chunk height model
     // and the paint-skip estimate are both built on.
-    line-height: $row-line-height;
+    line-height: var(--line-height-reading);
 
     // The code's first line box, which a caller that resets the row's type
     // resets with it.
-    --diff-line-box: calc(var(--font-size-lg) * #{$row-line-height});
+    --diff-line-box: calc(var(--font-size-lg) * var(--line-height-reading));
 
     > td {
       padding-block: 0;

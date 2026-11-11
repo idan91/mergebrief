@@ -14,7 +14,7 @@
     margin-block-start: var(--space-3);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
 
     &:empty {
       margin-block-start: 0;

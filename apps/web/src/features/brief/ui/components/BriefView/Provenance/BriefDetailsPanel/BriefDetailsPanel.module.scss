@@ -27,7 +27,7 @@
     border-color: var(--color-outline-2);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-sm);
-    line-height: 1;
+    line-height: var(--line-height-control);
     vertical-align: middle;
 
     /* :hover doubled in so the open affordance survives the hover-open. */
@@ -147,7 +147,7 @@
     margin: 0;
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
 
     b {
       color: var(--color-text-1);

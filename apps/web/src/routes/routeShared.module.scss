@@ -14,7 +14,7 @@
 
       // Pinned: overrides the base heading defaults.
       font-weight: 600;
-      line-height: 1.55;
+      line-height: var(--line-height-body);
     }
 
     p {

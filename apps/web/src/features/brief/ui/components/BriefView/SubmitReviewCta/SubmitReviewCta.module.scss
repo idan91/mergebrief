@@ -3,7 +3,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-3);
-    line-height: 1;
+    line-height: var(--line-height-control);
   }
 
   .chip {
@@ -20,6 +20,6 @@
     font-size: var(--font-size-sm);
     font-variant-numeric: tabular-nums;
     font-weight: 600;
-    line-height: 1;
+    line-height: var(--line-height-control);
   }
 }

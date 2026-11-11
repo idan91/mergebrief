@@ -148,7 +148,7 @@ export const PHONE_HEAD_EXTRA_PX = 8;
 /** The sideways head's 44px row under the desktop's 48px. */
 export const LANDSCAPE_HEAD_SHORTFALL_PX = 4;
 
-/** The phone narrative head's counts line under the path: a 2px gap and an 11px line at 1.55, past the 24px jump row. */
+/** The phone narrative head's counts line under the path: a 2px gap and an 11px line at 1.5, past the 24px jump row. */
 export const PHONE_NARRATIVE_HEAD_EXTRA_PX = 14;
 
 /** Card chrome on one side of the mobile breakpoint, where the head takes two lines. */

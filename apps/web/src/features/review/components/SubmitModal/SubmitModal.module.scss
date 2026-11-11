@@ -104,7 +104,7 @@
     border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
     border-radius: var(--radius-md);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
 
     p {
       color: var(--color-warning);
@@ -120,7 +120,7 @@
     margin-block-end: var(--space-3-5);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
 
     &[data-kind="error"] {
       color: var(--color-negative);

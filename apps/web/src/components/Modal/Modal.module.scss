@@ -88,7 +88,7 @@
       background: var(--color-background);
       color: var(--color-text-1);
       font-size: var(--font-size-lg);
-      line-height: 1.55;
+      line-height: var(--line-height-body);
       resize: vertical;
 
       @include mixins.touch-field-text;
@@ -109,7 +109,7 @@
     margin-block: var(--space-3-5) var(--space-4-5);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
   }
 
   .wideBox {
@@ -234,7 +234,7 @@
     background: var(--color-surface-2);
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
 
     &[data-state="visible"] {
       display: block;

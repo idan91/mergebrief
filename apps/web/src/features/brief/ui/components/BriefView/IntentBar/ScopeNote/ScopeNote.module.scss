@@ -27,7 +27,7 @@
     margin: 0;
     padding-block-start: var(--space-1);
     color: var(--color-text-1);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
     text-wrap: pretty;
   }
 }

@@ -47,7 +47,7 @@
     border-inline-start: 2px solid var(--color-outline-2);
     color: var(--color-text-read);
     font-size: var(--font-size-lg);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
   }
 
   .groupHeading {
@@ -55,7 +55,7 @@
     color: var(--color-text-2);
     font-size: var(--font-size-sm);
     font-weight: 600;
-    line-height: 1.35;
+    line-height: var(--line-height-compact);
   }
 
   .itemRow {
@@ -108,7 +108,7 @@
     margin-block-start: var(--space-1);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
-    line-height: 1.45;
+    line-height: var(--line-height-body);
   }
 
   .empty {

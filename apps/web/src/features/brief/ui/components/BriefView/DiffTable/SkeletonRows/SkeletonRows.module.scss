@@ -63,7 +63,7 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
     background: var(--color-well);
     font-family: var(--mono);
     font-size: var(--font-size-lg);
-    line-height: 1.7;
+    line-height: var(--line-height-reading);
   }
 
   .fill {

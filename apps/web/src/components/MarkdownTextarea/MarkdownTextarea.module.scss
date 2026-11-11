@@ -108,7 +108,7 @@
     // mono inside fences and the suggestion diff card.
     font-family: var(--sans);
     font-size: var(--font-size-lg);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
 
     // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
     // long comment scrolls instead of swallowing the page; the manual

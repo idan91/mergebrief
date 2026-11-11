@@ -10,7 +10,7 @@
     padding-block: 0 var(--space-4);
     padding-inline: var(--under-row-inset) var(--space-4-5);
     font-family: var(--sans);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
     white-space: normal;
 
     // The colSpan cell is as wide as the table, so the composer pins to the

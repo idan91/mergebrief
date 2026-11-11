@@ -88,7 +88,7 @@
     background: var(--color-well);
     font-family: var(--mono);
     font-size: var(--font-size-lg);
-    line-height: 1.7;
+    line-height: var(--line-height-reading);
   }
 
   // Equal halves by construction: the two code columns share what the rail

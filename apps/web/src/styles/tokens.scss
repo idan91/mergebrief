@@ -175,8 +175,8 @@
     --font-size-sm: #{functions.to-rem(11px)}; // Caption: badges, chunk meta rows, key caps
     --font-size-lg: #{functions.to-rem(13px)}; // Small: sentences, control labels, code
     --font-size-xl: #{functions.to-rem(15px)}; // subheads, section titles
-    --font-size-2xl: #{functions.to-rem(17px)}; // Panel title, Group title
-    --font-size-3xl: #{functions.to-rem(20px)}; // page titles
+    --font-size-2xl: #{functions.to-rem(17px)}; // Panel title
+    --font-size-3xl: #{functions.to-rem(20px)}; // page titles, Group title
     --font-size-4xl: #{functions.to-rem(24px)}; // the brief header's PR title
     --font-size-display: #{functions.to-rem(30px)}; // the one line that owns a screen: Home's personal line and what replaces it
 
@@ -197,6 +197,14 @@
 
     // Off the scale: text fields on a touch screen (mixins.touch-field-text).
     --font-size-touch-field: #{functions.to-rem(16px)};
+
+    // ── Line-height steps ────────────────────────────────────────────────
+    --line-height-control: 1;
+    --line-height-display: 1.1;
+    --line-height-heading: 1.2;
+    --line-height-compact: 1.35;
+    --line-height-body: 1.5;
+    --line-height-reading: 1.7;
 
     // ── Radius scale ─────────────────────────────────────────────────────
     --radius-xs: 2px; // tiny bars, markers, inner slivers
@@ -343,8 +351,10 @@
     --header-control-h: #{functions.to-rem(32px)};
     --header-title-font: var(--font-size-4xl);
 
-    // The 1.2 mirrors .title's line-height.
-    --header-title-line: calc(var(--header-title-font) * 1.2);
+    // Mirrors .title's line-height.
+    --header-title-line: calc(
+      var(--header-title-font) * var(--line-height-heading)
+    );
     --header-identity-h: calc(
       var(--header-title-line) + var(--header-line-gap) + var(--header-meta-h)
     );

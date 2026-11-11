@@ -8,7 +8,7 @@
     overscroll-behavior: contain;
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
     overflow-wrap: anywhere;
 
     &:focus-visible {

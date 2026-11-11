@@ -25,7 +25,7 @@
     display: -webkit-box;
     min-inline-size: 0;
     overflow: hidden;
-    line-height: 1.35;
+    line-height: var(--line-height-compact);
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;

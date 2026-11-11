@@ -40,7 +40,7 @@
     background: var(--color-background);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
-    line-height: 1.6;
+    line-height: var(--line-height-reading);
   }
 
   .replyNote {

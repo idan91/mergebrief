@@ -16,7 +16,7 @@
     color: var(--color-text-1);
     font-size: var(--font-size-xl);
     font-weight: 600;
-    line-height: 1.45;
+    line-height: var(--line-height-body);
   }
 
   .list {
@@ -42,7 +42,7 @@
       min-inline-size: 0;
       color: var(--color-text-1);
       font-size: var(--font-size-lg);
-      line-height: 1.4;
+      line-height: var(--line-height-compact);
     }
   }
 
@@ -60,7 +60,7 @@
     padding-block: var(--space-2);
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
-    line-height: 1.4;
+    line-height: var(--line-height-compact);
 
     svg {
       inline-size: 14px;

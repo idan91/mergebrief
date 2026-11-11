@@ -9,7 +9,7 @@
     border-radius: var(--radius-md);
     background: color-mix(in oklch, var(--color-negative) 6%, transparent);
     font-size: var(--font-size-lg);
-    line-height: 1.5;
+    line-height: var(--line-height-body);
     text-align: start;
   }
 

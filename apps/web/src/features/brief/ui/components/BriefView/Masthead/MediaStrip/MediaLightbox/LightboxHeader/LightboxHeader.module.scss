@@ -19,7 +19,7 @@
     overflow: hidden;
     font-size: var(--font-size-lg);
     font-weight: 600;
-    line-height: 1.4;
+    line-height: var(--line-height-compact);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

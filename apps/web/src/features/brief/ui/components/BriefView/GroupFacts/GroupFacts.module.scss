@@ -15,15 +15,13 @@
     color: var(--color-text-1);
     font-size: var(--font-size-3xl);
     font-weight: 600;
-    line-height: 1.25;
+    line-height: var(--line-height-heading);
     text-wrap: balance;
 
     &[data-variant="card"] {
       @include mixins.focus-visible;
 
       margin-block-start: 0;
-      font-size: var(--font-size-2xl);
-      line-height: 1.35;
     }
 
     &[data-variant="panel"]:focus {
@@ -36,7 +34,7 @@
     margin-block-start: var(--space-3);
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
-    line-height: 1.55;
+    line-height: var(--line-height-body);
     text-wrap: pretty;
   }
 }

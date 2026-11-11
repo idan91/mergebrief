@@ -61,7 +61,7 @@
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
     font-variant-numeric: tabular-nums;
-    line-height: 1.35;
+    line-height: var(--line-height-compact);
     text-align: end;
   }
 
@@ -72,7 +72,7 @@
     color: var(--color-text-read);
     font-size: var(--font-size-lg);
     font-weight: 500;
-    line-height: 1.35;
+    line-height: var(--line-height-compact);
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
@@ -84,7 +84,7 @@
     align-items: baseline;
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
-    line-height: 1.4;
+    line-height: var(--line-height-compact);
   }
 
   .facts {
