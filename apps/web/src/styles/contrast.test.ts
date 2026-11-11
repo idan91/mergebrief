@@ -12,10 +12,13 @@ import {
 } from "@web/test/compiled-css";
 
 import {
+  type Declarations,
   decodeChannel,
+  parseColor,
   readShare,
   readTokenDeclarations,
   resolvePalette,
+  resolveTokenValue,
   type Rgb,
 } from "./test-utils";
 
@@ -26,6 +29,10 @@ import {
 const MIXINS_URL = new URL("./_mixins.scss", import.meta.url);
 const BADGE_URL = new URL(
   "../components/Badge/Badge.module.scss",
+  import.meta.url,
+);
+const INBOX_ROW_URL = new URL(
+  "../features/inbox/components/InboxList/InboxRow/InboxRow.module.scss",
   import.meta.url,
 );
 
@@ -41,6 +48,24 @@ const BADGE_WORDS_MIN = 4.5;
 const BADGE_TINT = /var\(--badge-color\)\s+(\d+)%/;
 const BADGE_COLOR_TOKEN = /^var\((--[\w-]+)\)$/;
 const PERCENT = 100;
+
+// A checkbox's and a field's boundary at rest, held at WCAG 1.4.11's 3:1
+// against every fill a control sits on or holds, the Inbox's selected row
+// included.
+const CONTROL_EDGE = "--color-control-edge";
+const CONTROL_SURFACES = [
+  "--color-background",
+  "--color-chrome",
+  "--color-card",
+  "--color-well",
+  "--color-surface-1",
+  "--color-surface-2",
+  "--color-surface-3",
+] as const;
+const SELECTED_ROW_SURFACE = "--inbox-row-selected";
+const COLOR_MIX =
+  /^color-mix\(\s*in (srgb|oklch),\s*(.+?)\s+([\d.]+)%,\s*(.+?)\s*\)$/;
+const OKLCH_PARTS = /^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*\)$/;
 
 // A selected diff row lifts the well by the selected tint and its number
 // cells by the gutter tint, both read from the tokens. Code and syntax
@@ -118,6 +143,51 @@ function mixSrgb(top: Rgb, bottom: Rgb, topShare: number): Rgb {
     Math.round(topGreen * topShare + bottomGreen * bottomShare),
     Math.round(topBlue * topShare + bottomBlue * bottomShare),
   ];
+}
+
+function parseOklchParts(value: string): [number, number, number] {
+  const parts = OKLCH_PARTS.exec(value);
+  if (parts === null) {
+    throw new Error(`not a plain oklch literal: ${value}`);
+  }
+  return [Number(parts[1]), Number(parts[2]), Number(parts[3])];
+}
+
+function resolveSurface(declarations: Declarations, name: string): Rgb {
+  const value = resolveTokenValue(declarations, name);
+  const mix = COLOR_MIX.exec(value);
+  if (mix === null) {
+    return parseColor(value);
+  }
+
+  const [, space, top = "", percent, bottom = ""] = mix;
+  const share = Number(percent) / PERCENT;
+  if (space === "srgb") {
+    return mixSrgb(parseColor(top), parseColor(bottom), share);
+  }
+  const topParts = parseOklchParts(top);
+  const bottomParts = parseOklchParts(bottom);
+  const [lightness, chroma, hue] = topParts.map(
+    (part, index) => part * share + (bottomParts[index] ?? 0) * (1 - share),
+  );
+  return parseColor(
+    `oklch(${String(lightness)}% ${String(chroma)} ${String(hue)})`,
+  );
+}
+
+function readSelectedRowFill(): string {
+  const rules = parseCompiledRules(
+    compileStylesheet(fileURLToPath(INBOX_ROW_URL)),
+  );
+  const fill = rules
+    .find((rule) =>
+      rule.selectors.some((selector) => selector.includes("data-selected")),
+    )
+    ?.declarations.get("--row-bg");
+  if (fill === undefined) {
+    throw new Error("no selected row fill in InboxRow");
+  }
+  return fill;
 }
 
 function readBadgeTint(
@@ -330,6 +400,25 @@ describe("palette contrast", () => {
     }
 
     expect(colors).not.toEqual([]);
+    expect(failures).toEqual([]);
+  });
+
+  it("keeps the control edge at 3:1 on every surface a control sits on", async () => {
+    const declarations = new Map(await readTokenDeclarations());
+    declarations.set(SELECTED_ROW_SURFACE, readSelectedRowFill());
+    const edge = resolveSurface(declarations, CONTROL_EDGE);
+    const failures: string[] = [];
+
+    for (const surface of [...CONTROL_SURFACES, SELECTED_ROW_SURFACE]) {
+      const ratio = computeContrast(
+        edge,
+        resolveSurface(declarations, surface),
+      );
+      if (ratio < MARKS_MIN) {
+        failures.push(`${CONTROL_EDGE} on ${surface}: ${ratio.toFixed(2)}`);
+      }
+    }
+
     expect(failures).toEqual([]);
   });
 

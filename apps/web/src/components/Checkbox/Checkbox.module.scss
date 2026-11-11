@@ -17,7 +17,11 @@
 
     @include mixins.hover {
       &:where(:not(:has(> .input:disabled))):hover .box {
-        border-color: var(--color-text-4);
+        border-color: color-mix(
+          in srgb,
+          var(--color-control-edge) 60%,
+          var(--color-text-1)
+        );
       }
     }
 
@@ -58,7 +62,7 @@
     flex-shrink: 0;
     width: 14px;
     height: 14px;
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-control-edge);
     border-radius: var(--radius-xs);
     background: var(--color-surface-2);
     transition:

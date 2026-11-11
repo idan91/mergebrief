@@ -80,7 +80,7 @@
       min-block-size: functions.to-rem(84px);
       padding-block: var(--space-3-5);
       padding-inline: var(--space-4);
-      border: 1px solid var(--color-outline-2);
+      border: 1px solid var(--color-control-edge);
       border-radius: var(--radius-md);
       outline: none;
       background: var(--color-background);
@@ -90,12 +90,7 @@
       resize: vertical;
 
       @include mixins.touch-field-text;
-
-      &:focus-visible {
-        border-color: var(--color-outline-3);
-
-        @include mixins.focus-ring;
-      }
+      @include mixins.focus-visible;
     }
   }
 }
@@ -203,7 +198,7 @@
     inline-size: 100%;
     padding-block: var(--space-3-5);
     padding-inline: var(--space-4);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-control-edge);
     border-radius: var(--radius-md);
     background: var(--color-background);
     color: var(--color-text-1);

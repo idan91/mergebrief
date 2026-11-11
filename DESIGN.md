@@ -19,6 +19,7 @@ colors:
   text-3: "#8d8d94"
   line: "#1f1f24"
   line-strong: "#2b2b31"
+  control-edge: "#68686f"
   state-open: "#5fc88f"
   state-merged: "#a98fd1"
   state-closed: "#df6b7d"
@@ -220,7 +221,8 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 - **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
 - **Text 2** (#9a9aa1): the second line of a row, labels, quiet icons.
 - **Text 3** (#8d8d94): placeholder text and unreachable rows. The floor for readable text, set so it clears 5:1 on Surface 3.
-- **Line, Line Strong** (#1f1f24, #2b2b31): row dividers and the list edge, then control borders.
+- **Line, Line Strong** (#1f1f24, #2b2b31): row dividers and the list edge, then the borders of buttons, filters and frames.
+- **Control Edge** (#68686f, `--color-control-edge`): a form control's edge at rest: a checkbox's box, and every text field and select, the URL box and the Markdown field included.
 
 ### State (fixed meaning, hue may be tuned)
 
@@ -240,9 +242,9 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to teal and pink to magenta; Implementation and Generated draw from them. The concern marks are the one exception: Doc shares Open's green and Spec sits by Warning's amber, apart only by sitting darker; Test sits 14° from the brand and clears its lane on chroma alone, 71% of the brand's; and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
-**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.08 (the focus ground is black, 0), surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, a raised edge 0.39 (a dialog field's focus and the composer's submit), the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
+**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.08 (the focus ground is black, 0), surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, a raised edge 0.39 (the composer's submit), the control edge 0.52, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
-**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. The primary's white label is held at the AA line, 4.5:1, on the brand and on Brand Strong. A badge's words are held there too, on their own 12% tint over every surface, at rest and under the pointer. Focus always shows a 2px accent ring, except in the Markdown field, which marks focus with its own edge in accent and a soft accent glow inside it (`--shadow-field-focus`).
+**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. A form control's edge at rest is 3:1 or better on every surface a control sits on or holds, the Inbox's selected row included, and a checkbox lifts it 40% toward Text 1 under the pointer. One deliberate exception: a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. The primary's white label is held at the AA line, 4.5:1, on the brand and on Brand Strong. A badge's words are held there too, on their own 12% tint over every surface, at rest and under the pointer. Focus always shows a 2px accent ring, except in the Markdown field, which marks focus with its own edge in accent and a soft accent glow inside it (`--shadow-field-focus`).
 
 ## Typography
 
@@ -306,7 +308,7 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 ### Shadow Vocabulary
 
-- **URL box at rest** (`inset 0 0 0 1px` of Text 1 at 9%, plus `0 14px 32px -16px rgb(0 0 0 / 60%)`): a faint edge and a soft lift.
+- **URL box at rest** (`inset 0 0 0 1px` of Control Edge, plus `0 14px 32px -16px rgb(0 0 0 / 60%)`): a control's edge and a soft lift.
 - **URL box focused** (the same edge, plus `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
 - **What floats** (`0 18px 44px -10px rgb(0 0 0 / 70%)`): menus, popovers, callouts, dialogs over their scrim, and focus mode's pill and panel.
 - **Raised in place** (`0 12px 40px rgb(0 0 0 / 22%)`, `--shadow-elevation-md`): a comment thread and an addressed comment in the diff, the mention list and the self-review chip's popover.
@@ -350,7 +352,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### URL box
 
-- **Style:** Surface 2 fill, faint edge, soft shadow, 12px corner, 44px tall. A link icon leads; the slash key hint sits at the end and gives way to the Generate button once text is entered.
+- **Style:** Surface 2 fill, Control Edge, soft shadow, 12px corner, 44px tall. A link icon leads; the slash key hint sits at the end and gives way to the Generate button once text is entered.
 - **Focus:** Surface 3 fill, 2px accent ring, accent-cast shadow. The icon turns accent.
 - **Submitting:** the field is replaced by one line of status and a thin accent sweep along the bottom edge.
 

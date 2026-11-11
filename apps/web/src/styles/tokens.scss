@@ -83,7 +83,8 @@
     // ── Outline / border ─────────────────────────────────────────────────
     --color-outline-1: var(--gray-800); // hairline dividers, default borders
     --color-outline-2: var(--gray-700); // strong borders, frames, halos
-    --color-outline-3: var(--gray-600); // a focused field's edge
+    --color-outline-3: var(--gray-600); // the composer submit's raised edge
+    --color-control-edge: oklch(52% var(--gray-c) var(--theme-hue));
 
     // ── Status and accent ────────────────────────────────────────────────
     --color-accent: var(--accent-400);
@@ -336,7 +337,6 @@
       var(--color-accent) 55%,
       transparent
     );
-    --color-field-edge: color-mix(in srgb, var(--color-text-1) 9%, transparent);
     --header-pad-block: #{functions.to-rem(11px)};
     --header-line-gap: #{functions.to-rem(6px)};
 
