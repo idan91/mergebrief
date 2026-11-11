@@ -93,7 +93,7 @@ describe("root route head", () => {
     const readColor = await resolvePalette();
     const shipped = parseColor(String(themeColor?.content));
 
-    expect(shipped).toEqual(readColor("--color-background"));
+    expect(shipped).toEqual(readColor("--color-ground"));
   });
 
   it("reads both descriptions from the catalog", async () => {

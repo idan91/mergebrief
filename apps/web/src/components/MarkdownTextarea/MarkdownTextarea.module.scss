@@ -106,7 +106,7 @@
 
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
-    font-family: var(--sans);
+    font-family: var(--font-sans);
     font-size: var(--font-size-2);
     line-height: var(--line-height-body);
 

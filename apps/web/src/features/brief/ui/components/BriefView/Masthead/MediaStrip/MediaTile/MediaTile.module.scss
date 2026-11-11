@@ -41,7 +41,7 @@
 
     &:has([data-state="failed"]) {
       border-style: dashed;
-      border-color: var(--color-text-4);
+      border-color: var(--color-decorative);
       background: transparent;
     }
   }

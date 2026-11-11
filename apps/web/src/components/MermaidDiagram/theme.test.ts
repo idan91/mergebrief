@@ -61,7 +61,7 @@ describe("buildMermaidConfig", () => {
   it("paints each theme token and reads it back as rgb", () => {
     vi.stubGlobal("OffscreenCanvas", StubOffscreenCanvas);
     const root = stubRoot(
-      "--color-background: oklch(0.2 0.01 250); --color-text-1: oklch(0.9 0 0 / 20%); --color-surface-2: nonsense",
+      "--color-ground: oklch(0.2 0.01 250); --color-text-1: oklch(0.9 0 0 / 20%); --color-surface-2: nonsense",
     );
 
     const config = buildMermaidConfig(root);
@@ -75,7 +75,7 @@ describe("buildMermaidConfig", () => {
 
   it("keeps Mermaid's own colours where nothing paints off screen", () => {
     vi.stubGlobal("OffscreenCanvas", undefined);
-    const root = stubRoot("--color-background: oklch(0.2 0.01 250)");
+    const root = stubRoot("--color-ground: oklch(0.2 0.01 250)");
 
     expect(buildMermaidConfig(root).themeVariables).not.toHaveProperty(
       "background",

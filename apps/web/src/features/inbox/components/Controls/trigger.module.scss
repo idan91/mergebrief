@@ -28,8 +28,8 @@
     }
 
     &[data-state="changed"] {
-      border-color: var(--color-changed-edge);
-      background: var(--color-changed-fill);
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-subtle);
 
       .value {
         color: var(--color-accent);

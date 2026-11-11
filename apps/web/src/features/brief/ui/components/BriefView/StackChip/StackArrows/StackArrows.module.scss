@@ -31,7 +31,7 @@
     block-size: auto;
     border: 0;
     border-radius: 0;
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
 
     @include mixins.hover {
       &:not([aria-disabled="true"]):hover {

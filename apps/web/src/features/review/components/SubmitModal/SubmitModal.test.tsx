@@ -623,10 +623,10 @@ describe("SubmitModal advisory view", () => {
       );
     }
     expect(resolveInheritedDeclaration(attribute, rules, "font-family")).toBe(
-      "var(--sans)",
+      "var(--font-sans)",
     );
     expect(resolveInheritedDeclaration(fileName, rules, "font-family")).toBe(
-      "var(--mono)",
+      "var(--font-mono)",
     );
     expect(resolveInheritedDeclaration(directory, rules, "color")).toBe(
       "var(--color-text-2)",

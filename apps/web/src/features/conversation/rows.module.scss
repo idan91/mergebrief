@@ -54,7 +54,7 @@
 
   .slimSep {
     flex-shrink: 0;
-    color: var(--color-text-4);
+    color: var(--color-decorative);
   }
 
   /* Text-carrying chips (WCAG 1.4.1); factual tones — resolved is NOT a
@@ -81,7 +81,7 @@
 
     &[data-state="after-brief"] {
       border-color: var(--color-line-strong);
-      color: var(--color-text-read);
+      color: var(--color-text-soft);
     }
 
     &[data-state="approved"],
@@ -137,7 +137,7 @@
   }
 
   .revision {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
   }
 
   .detail {

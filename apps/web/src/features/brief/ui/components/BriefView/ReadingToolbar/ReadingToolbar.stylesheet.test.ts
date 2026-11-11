@@ -35,7 +35,7 @@ function readRules(path: string): CompiledRule[] {
 
 describe("ReadingToolbar stylesheet", () => {
   it("rests as a rounded panel in the story column", () => {
-    expect(resting.get("border-radius")).toBe("var(--radius-panel)");
+    expect(resting.get("border-radius")).toBe("var(--radius-lg)");
     expect(resting.get("border")).toBe("1px solid var(--color-line)");
     expect(resting.has("margin-inline")).toBe(false);
   });
@@ -63,7 +63,7 @@ describe("ReadingToolbar stylesheet", () => {
 
   it("clips the backdrop inside the panel's border at rest", () => {
     expect(backdrop.get("clip-path")).toBe(
-      `inset(2px calc(1px + ${BLEED}) 1px round calc(var(--radius-panel) - 1px))`,
+      `inset(2px calc(1px + ${BLEED}) 1px round calc(var(--radius-lg) - 1px))`,
     );
   });
 

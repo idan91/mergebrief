@@ -17,7 +17,7 @@
   --mb-line: oklch(90.5% var(--mb-gray-c) var(--mb-hue));
   --mb-line-strong: oklch(85.5% var(--mb-gray-c) var(--mb-hue));
   --mb-text-1: oklch(21% calc(var(--mb-gray-c) / 3) var(--mb-hue));
-  --mb-text-read: oklch(31% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-soft: oklch(31% var(--mb-gray-c) var(--mb-hue));
   --mb-text-2: oklch(47% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(51% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(22% 0 var(--mb-hue));
@@ -39,7 +39,7 @@
   --mb-line: oklch(24.1% var(--mb-gray-c) var(--mb-hue));
   --mb-line-strong: oklch(29.2% var(--mb-gray-c) var(--mb-hue));
   --mb-text-1: oklch(94.4% calc(var(--mb-gray-c) / 3) var(--mb-hue));
-  --mb-text-read: oklch(84% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-soft: oklch(84% var(--mb-gray-c) var(--mb-hue));
   --mb-text-2: oklch(68.9% var(--mb-gray-c) var(--mb-hue));
   --mb-text-3: oklch(64.5% var(--mb-gray-c) var(--mb-hue));
   --mb-accent: oklch(91% 0 var(--mb-hue));
@@ -151,7 +151,7 @@
 }
 
 .vp-doc {
-  color: var(--mb-text-read);
+  color: var(--mb-text-soft);
 }
 
 .vp-doc :is(h1, h2, h3, h4, h5, h6, strong) {

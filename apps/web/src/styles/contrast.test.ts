@@ -54,7 +54,7 @@ const PERCENT = 100;
 // included.
 const CONTROL_EDGE = "--color-control-edge";
 const CONTROL_SURFACES = [
-  "--color-background",
+  "--color-ground",
   "--color-chrome",
   "--color-card",
   "--color-well",
@@ -90,20 +90,20 @@ const SELECTED_ROW_WORDS = [
   "--syn-invalid",
   "--syn-regexp",
   "--syn-bracket",
-  "--emphasis-comment",
-  "--emphasis-keyword",
+  "--syn-comment-emphasis",
+  "--syn-keyword-emphasis",
 ] as const;
 
 const SURFACES = [
-  "--color-background",
+  "--color-ground",
   "--color-surface-1",
   "--color-surface-2",
   "--color-surface-3",
 ] as const;
-const PAGE_SURFACES = ["--color-background", "--color-surface-1"] as const;
+const PAGE_SURFACES = ["--color-ground", "--color-surface-1"] as const;
 const WORDS = [
   "--color-text-1",
-  "--color-text-read",
+  "--color-text-soft",
   "--color-text-2",
   "--color-text-3",
   "--color-diff-add-text",
@@ -330,7 +330,7 @@ describe("palette contrast", () => {
     const colorOf = await resolvePalette();
     const declarations = await readTokenDeclarations();
     const well = mixSrgb(
-      colorOf("--color-background"),
+      colorOf("--color-ground"),
       colorOf("--color-surface-1"),
       WELL_BACKGROUND_SHARE,
     );
@@ -355,7 +355,7 @@ describe("palette contrast", () => {
     const colorOf = await resolvePalette();
     const declarations = await readTokenDeclarations();
     const well = mixSrgb(
-      colorOf("--color-background"),
+      colorOf("--color-ground"),
       colorOf("--color-surface-1"),
       WELL_BACKGROUND_SHARE,
     );

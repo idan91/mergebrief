@@ -11,7 +11,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
 @layer components {
   .line {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     font-size: var(--font-size-2);
 
     // Row height: 22px at this font size, the number the chunk height model
@@ -175,7 +175,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     min-inline-size: var(--diff-number-w);
 
     // The gutter carries line numbers, so it is text under WCAG 1.4.3;
-    // `--color-text-4` measures about 1.5:1 here. It is the lowest step of the
+    // `--color-decorative` measures about 1.5:1 here. It is the lowest step of the
     // scale that clears AA against the chunk body (5.5:1).
     color: var(--color-text-3);
     text-align: end;

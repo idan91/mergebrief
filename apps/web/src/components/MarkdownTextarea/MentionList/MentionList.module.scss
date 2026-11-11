@@ -8,14 +8,14 @@
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
-    box-shadow: var(--shadow-elevation-md);
+    box-shadow: var(--shadow-raised);
 
     &[data-variant="floating"] {
       // Clears a dialog's sticky footer, which is later in the DOM at z-index 1.
       z-index: functions.get-z-index("raised");
       margin: 0;
       overflow-y: auto;
-      border-radius: var(--radius-panel);
+      border-radius: var(--radius-lg);
       background: var(--color-surface-3);
       box-shadow: var(--shadow-float);
     }

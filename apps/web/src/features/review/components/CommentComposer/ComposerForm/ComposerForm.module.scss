@@ -8,7 +8,7 @@
     gap: var(--space-3);
     margin-block: var(--space-3);
     padding-inline: var(--space-4);
-    font-family: var(--sans);
+    font-family: var(--font-sans);
   }
 
   .meta {
@@ -21,7 +21,7 @@
   }
 
   .location[data-anchor="line"] {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
   }
 
   .error {

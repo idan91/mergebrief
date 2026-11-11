@@ -65,7 +65,7 @@
     padding-block: 0;
     padding-inline: var(--space-3);
     color: var(--color-warning);
-    font-family: var(--sans);
+    font-family: var(--font-sans);
     font-size: var(--font-size-1);
     letter-spacing: normal;
     vertical-align: middle;
@@ -133,7 +133,7 @@
   }
 
   .modelId {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     font-size: var(--font-size-1);
     overflow-wrap: anywhere;
   }

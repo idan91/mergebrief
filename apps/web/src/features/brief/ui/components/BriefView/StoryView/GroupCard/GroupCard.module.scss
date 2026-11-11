@@ -91,8 +91,8 @@
     // so the scroll region can't collapse to zero height.
     min-block-size: functions.to-rem(96px);
     flex: 0 999 auto;
-    border-end-end-radius: var(--radius-panel);
-    border-end-start-radius: var(--radius-panel);
+    border-end-end-radius: var(--radius-lg);
+    border-end-start-radius: var(--radius-lg);
   }
 
   // The Changes view mounts the same Risk Surface outside a card; only the

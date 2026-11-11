@@ -38,16 +38,16 @@
 
     &[aria-pressed="true"],
     &[data-state="active"] {
-      border-color: var(--color-changed-edge);
-      background: var(--color-changed-fill);
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-subtle);
       color: var(--color-accent);
     }
 
     /* Mixed: the dashed edge carries the half state without colour. */
     &[aria-pressed="mixed"] {
-      border-color: var(--color-changed-edge);
+      border-color: var(--color-accent-edge);
       border-style: dashed;
-      background: var(--color-changed-fill);
+      background: var(--color-accent-tint-subtle);
       color: var(--color-accent);
     }
 

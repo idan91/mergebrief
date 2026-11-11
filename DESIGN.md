@@ -14,7 +14,7 @@ colors:
   surface-2: "#15151a"
   surface-3: "#1c1c21"
   text-1: "#ececef"
-  text-read: "#cacad1"
+  text-soft: "#cacad1"
   text-2: "#9a9aa1"
   text-3: "#8d8d94"
   line: "#1f1f24"
@@ -92,7 +92,6 @@ rounded:
   sm: "4px"
   chip: "6px"
   md: "8px"
-  panel: "12px"
   lg: "12px"
   pill: "999px"
   circle: "50%"
@@ -124,13 +123,13 @@ components:
   url-box:
     backgroundColor: "{colors.surface-2}"
     textColor: "{colors.text-1}"
-    rounded: "{rounded.panel}"
+    rounded: "{rounded.lg}"
     height: "44px"
   url-box-focus:
     backgroundColor: "{colors.surface-3}"
   list:
     backgroundColor: "{colors.surface-1}"
-    rounded: "{rounded.panel}"
+    rounded: "{rounded.lg}"
   list-row:
     height: "56px"
     padding: "8px 16px"
@@ -139,7 +138,7 @@ components:
   list-row-cursor:
     backgroundColor: "{colors.surface-3}"
   chip:
-    textColor: "{colors.text-read}"
+    textColor: "{colors.text-soft}"
     rounded: "{rounded.chip}"
     height: "20px"
     padding: "0 6px"
@@ -150,7 +149,7 @@ components:
     textColor: "{colors.accent}"
   menu:
     backgroundColor: "{colors.surface-3}"
-    rounded: "{rounded.panel}"
+    rounded: "{rounded.lg}"
   dialog:
     backgroundColor: "{colors.surface-3}"
     rounded: "{rounded.lg}"
@@ -218,7 +217,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 - **Surface 1, 2, 3** (#111116, #15151a, #1c1c21): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
 - **Well** (Ground 25% into Surface 1, about #0d0d11, the same fill as Card by a different mix): the diff's code and a chunk's head, a step below the Surface 1 chunk card it sits in.
 - **Text 1** (#ececef): titles that need the reviewer (new, updated since your review, in progress), headings.
-- **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
+- **Text Soft** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
 - **Text 2** (#9a9aa1): the second line of a row, labels, quiet icons.
 - **Text 3** (#8d8d94): placeholder text and unreachable rows. The floor for readable text, set so it clears 5:1 on Surface 3.
 - **Line, Line Strong** (#1f1f24, #2b2b31): row dividers and the list edge, then the borders of buttons, filters and frames.
@@ -230,7 +229,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### State tints
 
-A state fill is its colour over transparent at one of four strengths, each about half again the one below: **Faint** 5% (`--tint-faint`), **Subtle** 8%, **Medium** 12% and **Strong** 18%. Warning, crimson, green and the accent read them through `--color-<state>-tint-<strength>` tokens (`--color-warning-tint-medium`), and a fill whose colour varies by row or badge mixes its colour at a strength token. Faint washes an added or deleted line and the sign-in failure box. Subtle is the changed tint and the generation warnings chip. Medium is a chip, a badge, the danger hover, the pager's current page, the ticket notice and an added or removed diff row under the pointer. Strong is a warning chip under the pointer and a word-diff mark. An edge in a state colour, an unchanged diff row's 6% of Text 1 under the pointer, the selected diff row's 14% and 24%, the revision wash, the scroll flash and a surface lifted toward the accent are each their component's own.
+A state fill is its colour over transparent at one of four strengths, each about half again the one below: **Faint** 5% (`--tint-faint`), **Subtle** 8%, **Medium** 12% and **Strong** 18%. Warning, crimson, green and the accent read them through `--color-<state>-tint-<strength>` tokens (`--color-warning-tint-medium`), and a fill whose colour varies by row or badge mixes its colour at a strength token. Faint washes an added or deleted line and the sign-in failure box. Subtle is the accent tint and the generation warnings chip. Medium is a chip, a badge, the danger hover, the pager's current page, the ticket notice and an added or removed diff row under the pointer. Strong is a warning chip under the pointer and a word-diff mark. An edge in a state colour, an unchanged diff row's 6% of Text 1 under the pointer, the selected diff row's 14% and 24%, the revision wash, the scroll flash and a surface lifted toward the accent are each their component's own.
 
 ### Concern (marks only)
 
@@ -246,7 +245,7 @@ A state fill is its colour over transparent at one of four strengths, each about
 
 **The Four Lanes Rule.** Green, violet, crimson and amber belong to states, and vermilion to the brand. A hue inside one of them reads as that state or as the brand. Crimson sits 19° from the brand and stays apart on chroma, 62% of the brand's; the lane-separation test holds every state and concern colour within 20° of the brand's OKLCH hue to at least 0.05 darker or at most 75% of its chroma. The free lanes are blue to teal and pink to magenta; Implementation and Generated draw from them. The concern marks are the one exception: Doc shares Open's green and Spec sits by Warning's amber, apart only by sitting darker; Test sits 14° from the brand and clears its lane on chroma alone, 71% of the brand's; and Config sits beside Merged in the violet lane at nearly its lightness. Context carries the rest: a concern mark always sits beside its concern's name, and a state colour never does.
 
-**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.08 (the focus ground is black, 0), surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, a raised edge 0.39 (the composer's submit), the control edge 0.52, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
+**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the decorative grey doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the theme hue (`--theme-hue`) changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.08 (the focus ground is black, 0), surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, a raised edge 0.39 (the composer's submit), the control edge 0.52, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
 **Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. A form control's edge at rest is 3:1 or better on every surface a control sits on or holds, the Inbox's selected row included, and a checkbox lifts it 40% toward Text 1 under the pointer. One deliberate exception: a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. The primary's white label is held at the AA line, 4.5:1, on the brand and on Brand Strong. A badge's words are held there too, on their own 12% tint over every surface, at rest and under the pointer. Focus always shows a 2px accent ring, except in the Markdown field, which marks focus with its own edge in accent and a soft accent glow inside it (`--shadow-field-focus`).
 
@@ -270,9 +269,9 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 - **Group title** (600, 1.25rem, 1.2): a change group's name in its card and in the focus panel, and the summary's Overview and Changelog headings.
 - **Panel title** (600, 1.0625rem, 1.35): dialog titles, Settings panel headings and the sign-in heading.
 - **Title** (600, 0.9375rem, 1.2): section headings such as the list heading, and the brief's fold rows (Original description, Intent check, Conversation) at a 1.35 line.
-- **Row title** (500, Text 1 when it needs the reviewer and Text Read otherwise, whatever the layout, 0.9375rem, 20px line): one line, cut with an ellipsis.
+- **Row title** (500, Text 1 when it needs the reviewer and Text Soft otherwise, whatever the layout, 0.9375rem, 20px line): one line, cut with an ellipsis.
 - **Lead** (400, 1.0625rem, 1.5): the line under the personal line, 62 characters wide at most. The sign-in lead is Small in Text 2.
-- **Reading** (400, 0.9375rem, 1.7, Text Read): the words of a brief, its overview, changelog and summaries, and the Instance tab's count, cap and refusal copy.
+- **Reading** (400, 0.9375rem, 1.7, Text Soft): the words of a brief, its overview, changelog and summaries, and the Instance tab's count, cap and refusal copy.
 - **Small** (400 to 600, 0.8125rem): controls, menus, the pager, code, a change group's meta line and since marker, the masthead's fact rows, the second line of a row with an 18px line and tabular numerals, the chunk and focus indicators with tabular numerals, and the URL box's slash hint. Running text sets at 400; chips, the chunk indicator and the focus indicator's label and current count at 500; titles and figures inside a panel at 600; buttons at 400 to 600. The shortcuts dialog's section headings take the Title step.
 - **Caption** (400, 500 or 600, 0.6875rem): the Brief page's badges and the chunk and sidebar meta rows, a group's category chips, the generation warnings chip, the change stepper's count outside the Brief controls sheet, small section labels and every other key cap. Nothing smaller ships.
 
@@ -282,7 +281,7 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 
 **The Code Only Rule.** Monospace appears only for code and what identifies code. The whole list: inline code and code blocks, diffs with their line numbers, file paths, commit hashes, branch names, model ids with the effort beside them, and key caps. Everything else is the sans, and a count sets in the sans with tabular numerals: header stats, added and deleted lines, positions like Group 1 of 3, labels, chips and headings.
 
-**The Amber Rule.** Amber means look here or this brief may be wrong, nothing else: risk attributes (the chips, the Risk attributes count and the group card's risk notes), generation warnings, repo-config trouble, a group's Uncertain classification chip, and the Submit dialog's warning that the pull request has newer commits. A de-emphasised risk attribute drops to neutral. Its deliberate exceptions are cautions someone must act on: the Settings spend meter near or at its cap and the capped note, the version notice, a primary ticket that could not be read and the diff-timeout notice. A misaligned ticket read stays neutral. Gold is not amber: it belongs to the landing page, the docs and brand badges, never to a state. A Home row's New commits chip is not a warning: new commits are a change to read, so it takes the changed tint. The Brief's own Newer commits control takes the changed tint. "Not an approval" is a neutral fact chip.
+**The Amber Rule.** Amber means look here or this brief may be wrong, nothing else: risk attributes (the chips, the Risk attributes count and the group card's risk notes), generation warnings, repo-config trouble, a group's Uncertain classification chip, and the Submit dialog's warning that the pull request has newer commits. A de-emphasised risk attribute drops to neutral. Its deliberate exceptions are cautions someone must act on: the Settings spend meter near or at its cap and the capped note, the version notice, a primary ticket that could not be read and the diff-timeout notice. A misaligned ticket read stays neutral. Gold is not amber: it belongs to the landing page, the docs and brand badges, never to a state. A Home row's New commits chip is not a warning: new commits are a change to read, so it takes the accent tint. The Brief's own Newer commits control takes the accent tint. "Not an approval" is a neutral fact chip.
 
 ## Layout
 
@@ -315,14 +314,14 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 - **URL box at rest** (`inset 0 0 0 1px` of Control Edge, plus `--shadow-lift`, `0 14px 32px -16px rgb(0 0 0 / 60%)`): a control's edge and a soft lift.
 - **URL box focused** (the same edge, plus `--shadow-lift-focus`: `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
 - **What floats** (`0 18px 44px -10px rgb(0 0 0 / 70%)`): menus, popovers, callouts, dialogs over their scrim, and focus mode's pill and panel.
-- **Raised in place** (`0 12px 40px rgb(0 0 0 / 22%)`, `--shadow-elevation-md`): a comment thread and an addressed comment in the diff, the mention list and the self-review chip's popover.
+- **Raised in place** (`0 12px 40px rgb(0 0 0 / 22%)`, `--shadow-raised`): a comment thread and an addressed comment in the diff, the mention list and the self-review chip's popover.
 - **Tooltips** (`0 4px 12px rgb(0 0 0 / 40%)`): a compact callout, a one-line label rather than a surface.
 - **Toasts and sheets** (`0 16px 48px rgb(0 0 0 / 55%)`).
 - **Markdown field focused** (`inset 0 0 0 3px` of the accent at 16%): a soft glow inside the field's accent edge.
 
 ## Shapes
 
-Small, consistent corners on four steps: 4px for key caps and inner corners, 6px for chips, badges and tooltips, 8px for controls and toasts, 12px for every surface: the list, the URL box, menus, callouts, dialogs and a sheet's top corners. A surface's inner corner is its radius less its inset. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (6px), `--radius-md` (8px), `--radius-panel` (12px) and `--radius-lg` (12px). Four are named by size and two by the role that wears them, so a chip or a panel follows its role rather than a neighbour's step. Round is kept for people, on two more tokens: the avatar is a circle (`--radius-circle`, 50%) and the account trigger a pill (`--radius-pill`, 999px). The pill has two more uses. A status pill that rides inside a line of text or a diff takes it: the read-only chip, a revision tag, the warming chip, a thread count, a conversation chip and a Changes-only group's category, as do focus mode's pill and tab and the details `i`. So do marks with no corner to speak of: a spinner, a progress fill, a scrollbar thumb, a status dot and the sheet's grip. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+Small, consistent corners on four steps: 4px for key caps and inner corners, 6px for chips, badges and tooltips, 8px for controls and toasts, 12px for every surface: the list, the URL box, menus, callouts, dialogs and a sheet's top corners. A surface's inner corner is its radius less its inset. Five tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (6px), `--radius-md` (8px) and `--radius-lg` (12px). Four are named by size and one by the role that wears it, so a chip follows its role rather than a neighbour's step. Round is kept for people, on two more tokens: the avatar is a circle (`--radius-circle`, 50%) and the account trigger a pill (`--radius-pill`, 999px). The pill has two more uses. A status pill that rides inside a line of text or a diff takes it: the read-only chip, a revision tag, the warming chip, a thread count, a conversation chip and a Changes-only group's category, as do focus mode's pill and tab and the details `i`. So do marks with no corner to speak of: a spinner, a progress fill, a scrollbar thumb, a status dot and the sheet's grip. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
 
 ## Icons
 
@@ -372,14 +371,14 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### Chips
 
-- **Style:** 6px corner (a status pill takes the pill, see Shapes), soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row or a dialog: place in a stack, new commits (in the changed tint), unreachable, the review outcome above the receipt's tiles, and "Not an approval" in the receipt header, in Text 2. A filter chip keeps the Brief page's 26px and its check glyph.
-- **States:** a pressed chip takes the changed tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
+- **Style:** 6px corner (a status pill takes the pill, see Shapes), soft tint (Text 1 at 7%), no border, the sans at 500 in Text Soft. A fact chip is 20px tall and states one thing about a row or a dialog: place in a stack, new commits (in the accent tint), unreachable, the review outcome above the receipt's tiles, and "Not an approval" in the receipt header, in Text 2. A filter chip keeps the Brief page's 26px and its check glyph.
+- **States:** a pressed chip takes the accent tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
 - **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. The Brief header is the exception: its status and stack chips sit on the page ground with no list around them, so each keeps an edge, the status chip in its own colour at 35% and the neutral stack chip in Line Strong. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge. A badge that links keeps its tint under the pointer, draws its edge in its colour at 35% and lifts its words a fifth of the way to Text 1, as a link lifts; a deeper tint would take Closed below 4:1 on Surface 3.
 
 ### Filters, sort and pager
 
-- **Filter:** 28px, 8px corner, Line Strong border, Text 1, Surface 2 under the pointer. It shows its name only; a value appears when it is set, and several values show as a count. A changed filter takes the changed tint and an accent value. Every multi-select filter opens with an "All …" row, ticked while nothing narrower is chosen; Status's ticks all four statuses. Author, List and Installation fold under More filters. Clear sits beside View and Sort.
-- **Toolbar buttons and the segmented control** on the Brief page wear the filter's skin: the same edge and corner, the changed tint when pressed or active; the active segment adds a 1px inset accent edge. A mixed state keeps a dashed edge so it never rests on colour alone. The reading toolbar's own strip is the exception: its triggers are ghosts, with no edge at rest, Text 2 lifting to Text 1, the same changed tint when pressed, and the background step on press; "What these mean" keeps the boxed skin.
+- **Filter:** 28px, 8px corner, Line Strong border, Text 1, Surface 2 under the pointer. It shows its name only; a value appears when it is set, and several values show as a count. A changed filter takes the accent tint and an accent value. Every multi-select filter opens with an "All …" row, ticked while nothing narrower is chosen; Status's ticks all four statuses. Author, List and Installation fold under More filters. Clear sits beside View and Sort.
+- **Toolbar buttons and the segmented control** on the Brief page wear the filter's skin: the same edge and corner, the accent tint when pressed or active; the active segment adds a 1px inset accent edge. A mixed state keeps a dashed edge so it never rests on colour alone. The reading toolbar's own strip is the exception: its triggers are ghosts, with no edge at rest, Text 2 lifting to Text 1, the same accent tint when pressed, and the background step on press; "What these mean" keeps the boxed skin.
 - **Review filter:** lists each review mark beside its name and doubles as the legend.
 - **View:** Needs you first (the fold) or Mixed (one list). Named like a filter: its value shows once changed.
 - **Pager:** numbered, 30px bordered squares; the current page takes the accent tint. The range reads "1 to 25 of 290".

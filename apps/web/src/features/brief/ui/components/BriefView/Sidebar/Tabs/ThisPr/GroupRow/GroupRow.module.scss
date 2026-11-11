@@ -15,7 +15,7 @@
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-text-2);
-    font-family: var(--sans);
+    font-family: var(--font-sans);
     text-align: start;
     cursor: pointer;
     transition:
@@ -42,7 +42,7 @@
     }
 
     &[data-current] {
-      background: var(--color-changed-fill);
+      background: var(--color-accent-tint-subtle);
       color: var(--color-text-1);
 
       .name {
@@ -69,7 +69,7 @@
     display: -webkit-box;
     grid-column: 2;
     overflow: hidden;
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
     font-size: var(--font-size-2);
     font-weight: 500;
     line-height: var(--line-height-compact);

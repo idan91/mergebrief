@@ -61,7 +61,7 @@
     inline-size: functions.to-rem(400px);
     max-inline-size: calc(100vw - functions.to-rem(32px));
     overflow: hidden;
-    border-radius: var(--radius-panel);
+    border-radius: var(--radius-lg);
     outline: none;
   }
 }

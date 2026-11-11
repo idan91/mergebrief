@@ -6,11 +6,11 @@
   flex-direction: column;
   width: functions.to-rem(320px);
   border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-lg);
   background: var(--color-surface-3);
   box-shadow: var(--shadow-float);
   white-space: normal;
-  font-family: var(--sans);
+  font-family: var(--font-sans);
 
   // The pointer may travel into the callout — to copy text today, to
   // interact tomorrow (safePolygon keeps it open on the way in).

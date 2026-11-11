@@ -16,7 +16,7 @@ $sign-stroke: 1.5px;
     --skeleton-tint: 4%;
     --skeleton-hatch-fill: color-mix(
       in srgb,
-      var(--color-background) 70%,
+      var(--color-ground) 70%,
       var(--color-surface-1)
     );
     --skeleton-hatch: repeating-linear-gradient(

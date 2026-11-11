@@ -75,7 +75,7 @@
     // RTL moves the ellipsis to the start so the file name is cut last; under
     // RTL, `end` is the left edge a short path keeps.
     direction: rtl;
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     text-align: end;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -11,6 +11,7 @@ const CLASSES_FILE = fileURLToPath(
     import.meta.url,
   ),
 );
+const PALETTE_DECLARATION = /--syn-[a-z-]+(?<!-emphasis):/g;
 
 describe("syntax tokens", () => {
   it("defines one --syn token per palette entry with its hex", async () => {
@@ -19,7 +20,9 @@ describe("syntax tokens", () => {
     for (const entry of SYNTAX_PALETTE) {
       expect(tokens).toContain(`--syn-${entry.token}: ${entry.hex};`);
     }
-    expect(tokens.match(/--syn-[a-z-]+:/g)).toHaveLength(SYNTAX_PALETTE.length);
+    expect(tokens.match(PALETTE_DECLARATION)).toHaveLength(
+      SYNTAX_PALETTE.length,
+    );
   });
 
   it("names every palette token in the code text class list", async () => {

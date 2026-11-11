@@ -24,9 +24,9 @@
     display: flex;
     flex-direction: column;
     min-block-size: 100vh;
-    background: var(--color-background);
+    background: var(--color-ground);
     color: var(--color-text-1);
-    font-family: var(--sans);
+    font-family: var(--font-sans);
     font-size: var(--font-size-root);
     line-height: var(--line-height-body);
     -webkit-font-smoothing: antialiased;
@@ -101,7 +101,7 @@
 
   ::selection {
     background: color-mix(in srgb, var(--color-text-1) 18%, transparent);
-    color: light-dark(var(--color-surface-1), var(--color-inverse));
+    color: light-dark(var(--color-surface-1), var(--color-selection-text));
   }
 
   .faint {

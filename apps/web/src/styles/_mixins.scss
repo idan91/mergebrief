@@ -6,7 +6,7 @@
 // sites that paint the ring on a SIBLING of the focused control
 // (`.input:focus-visible + .track`); everything else uses `focus-visible`.
 @mixin focus-ring {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 
   @media (prefers-contrast: more) {
@@ -190,7 +190,7 @@
   border-radius: var(--radius-md);
   background: var(--color-surface-1);
   color: var(--color-text-1);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-2);
   line-height: var(--line-height-body);
   white-space: pre-wrap;
@@ -210,7 +210,7 @@
 // Headings arrive demoted (h1 to h3, h2 to h4), and a demoted h1 cannot be
 // told from an authored h3, so each level carries one style serving both.
 @mixin markdown-type {
-  color: var(--color-text-read);
+  color: var(--color-text-soft);
   font-size: var(--font-size-3);
   line-height: var(--line-height-reading);
 
@@ -357,7 +357,7 @@
   border-start-start-radius: var(--radius-lg);
   border-start-end-radius: var(--radius-lg);
   background: var(--color-surface-1);
-  box-shadow: var(--shadow-elevation-lg);
+  box-shadow: var(--shadow-sheet);
 }
 
 @mixin safe-area-bleed($edge, $bleed, $needs-inline-size: false) {

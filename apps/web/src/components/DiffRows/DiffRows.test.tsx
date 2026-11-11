@@ -134,7 +134,7 @@ function readEmphasisedTokenColours(container: HTMLElement): string[] {
   for (const run of runs) {
     for (const token of LIFTED_TOKENS) {
       const span = run.querySelector(`span[class*="syn-${token}"]`);
-      const selectors = readLiftSelectors(`--emphasis-${token}`);
+      const selectors = readLiftSelectors(`--syn-${token}-emphasis`);
       const lifted = selectors.some((selector) => span?.matches(selector));
       colours.push(`${token}:${lifted ? "lifted" : "base"}`);
     }

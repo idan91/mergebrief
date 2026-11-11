@@ -37,8 +37,8 @@ describe("ChunkCard stylesheet", () => {
 
   it("rounds the head's top corners at rest", () => {
     expect(readTopRadii(".head")).toEqual([
-      "var(--radius-panel)",
-      "var(--radius-panel)",
+      "var(--radius-lg)",
+      "var(--radius-lg)",
     ]);
   });
 

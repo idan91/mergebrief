@@ -5,7 +5,7 @@
 @layer components {
   .chunk {
     margin-block-end: functions.to-rem(layout.$chunk-card-gap);
-    border-radius: var(--radius-panel);
+    border-radius: var(--radius-lg);
     background: var(--color-surface-1);
 
     // The frame is split between the head and the body, since the head stays
@@ -28,8 +28,8 @@
     }
 
     &[data-state="collapsed"] .head {
-      border-end-start-radius: var(--radius-panel);
-      border-end-end-radius: var(--radius-panel);
+      border-end-start-radius: var(--radius-lg);
+      border-end-end-radius: var(--radius-lg);
     }
 
     &[data-state="collapsed"][data-large] .head {
@@ -58,8 +58,8 @@
     padding-inline: var(--space-5)
       calc(var(--space-5) + var(--chunk-head-reserve));
     border: 1px solid var(--color-line);
-    border-start-start-radius: var(--radius-panel);
-    border-start-end-radius: var(--radius-panel);
+    border-start-start-radius: var(--radius-lg);
+    border-start-end-radius: var(--radius-lg);
     background: var(--color-well);
 
     &[data-stuck] {
@@ -109,7 +109,7 @@
   .file {
     overflow: hidden;
     color: var(--color-text-1);
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     font-size: var(--font-size-2);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -189,8 +189,8 @@
     // chunk-height-model.ts copies these borders; chunk-height-model.stylesheets.test.ts compares.
     border: 1px solid var(--color-line);
     border-block-start: 0;
-    border-end-start-radius: var(--radius-panel);
-    border-end-end-radius: var(--radius-panel);
+    border-end-start-radius: var(--radius-lg);
+    border-end-end-radius: var(--radius-lg);
   }
 
   // One line in the empty-diff note's reserved height, so a card held at

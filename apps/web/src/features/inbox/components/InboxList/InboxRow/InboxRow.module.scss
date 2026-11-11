@@ -32,13 +32,13 @@
     }
 
     &:first-child {
-      border-start-start-radius: var(--radius-panel);
-      border-start-end-radius: var(--radius-panel);
+      border-start-start-radius: var(--radius-lg);
+      border-start-end-radius: var(--radius-lg);
     }
 
     &:last-child {
-      border-end-start-radius: var(--radius-panel);
-      border-end-end-radius: var(--radius-panel);
+      border-end-start-radius: var(--radius-lg);
+      border-end-end-radius: var(--radius-lg);
     }
 
     @include mixins.hover {
@@ -156,7 +156,7 @@
     }
 
     &:focus-visible::after {
-      outline: 2px solid var(--focus-ring);
+      outline: 2px solid var(--color-focus-ring);
       outline-offset: -2px;
     }
   }
@@ -168,7 +168,7 @@
     block-size: functions.to-rem(20px);
     min-inline-size: 0;
     overflow-x: clip;
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
     font-size: var(--font-size-3);
     font-weight: 500;
     line-height: functions.to-rem(20px);
@@ -190,7 +190,7 @@
       padding-inline: var(--space-2);
       border-radius: var(--radius-chip);
       background: color-mix(in srgb, var(--color-text-1) 8%, transparent);
-      font-family: var(--mono);
+      font-family: var(--font-mono);
       font-size: var(--font-size-2);
       font-weight: 400;
       text-overflow: ellipsis;

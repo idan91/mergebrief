@@ -460,7 +460,7 @@ const STYLESHEET_SLICE_CASES: readonly StylesheetSliceCase[] = [
       "  background: color-mix(",
       "    in oklch,",
       "    var(--color-accent) 85%,",
-      "    var(--color-background)",
+      "    var(--color-ground)",
       "  );",
       "  color: red;",
       "}",

@@ -27,7 +27,7 @@
     padding-block: var(--space-5);
     padding-inline: var(--space-5);
     border: 1px solid var(--color-line);
-    border-radius: var(--radius-panel);
+    border-radius: var(--radius-lg);
     background: var(--color-surface-1);
   }
 
@@ -76,7 +76,7 @@
 
   .chunkFile {
     color: var(--color-text-2);
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     font-size: var(--font-size-2);
   }
 
@@ -138,7 +138,7 @@
     padding-block: functions.to-rem(20px);
     padding-inline: var(--space-5);
     border: 1px dashed var(--color-line-strong);
-    border-radius: var(--radius-panel);
+    border-radius: var(--radius-lg);
     background: var(--color-surface-1);
     color: var(--color-text-2);
     font-size: var(--font-size-3);

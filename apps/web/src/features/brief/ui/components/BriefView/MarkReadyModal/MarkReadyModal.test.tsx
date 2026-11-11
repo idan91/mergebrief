@@ -102,10 +102,10 @@ describe("MarkReadyModal", () => {
       resolveInheritedDeclaration(fileName, rules, "font-size"),
     );
     expect(resolveInheritedDeclaration(attribute, rules, "font-family")).toBe(
-      "var(--sans)",
+      "var(--font-sans)",
     );
     expect(resolveInheritedDeclaration(fileName, rules, "font-family")).toBe(
-      "var(--mono)",
+      "var(--font-mono)",
     );
   });
 

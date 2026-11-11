@@ -15,13 +15,13 @@
     }
 
     &:first-child {
-      border-start-start-radius: var(--radius-panel);
-      border-start-end-radius: var(--radius-panel);
+      border-start-start-radius: var(--radius-lg);
+      border-start-end-radius: var(--radius-lg);
     }
 
     &:last-child {
-      border-end-start-radius: var(--radius-panel);
-      border-end-end-radius: var(--radius-panel);
+      border-end-start-radius: var(--radius-lg);
+      border-end-end-radius: var(--radius-lg);
     }
 
     @include mixins.hover {
@@ -46,7 +46,7 @@
     }
 
     &:focus-visible::after {
-      outline: 2px solid var(--focus-ring);
+      outline: 2px solid var(--color-focus-ring);
       outline-offset: -2px;
     }
   }
@@ -56,7 +56,7 @@
     gap: var(--space-3);
     align-items: center;
     min-inline-size: 0;
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
     font-size: var(--font-size-3);
     line-height: functions.to-rem(20px);
   }
@@ -95,7 +95,7 @@
   }
 
   .revision {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {

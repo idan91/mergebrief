@@ -105,7 +105,7 @@
     }
 
     > td:focus-visible {
-      outline: 2px solid var(--focus-ring);
+      outline: 2px solid var(--color-focus-ring);
       outline-offset: -2px;
     }
 
@@ -126,7 +126,7 @@
   .filler {
     background: color-mix(
       in srgb,
-      var(--color-background) 70%,
+      var(--color-ground) 70%,
       var(--color-surface-1)
     );
     background-image: repeating-linear-gradient(

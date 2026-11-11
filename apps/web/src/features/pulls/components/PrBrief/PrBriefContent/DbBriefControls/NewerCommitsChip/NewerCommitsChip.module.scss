@@ -25,9 +25,9 @@ $detach-action-below: 480px;
     display: inline-flex;
     align-items: stretch;
     block-size: functions.to-rem(24px);
-    border: 1px solid var(--color-changed-edge);
+    border: 1px solid var(--color-accent-edge);
     border-radius: var(--radius-md);
-    font-family: var(--sans);
+    font-family: var(--font-sans);
     font-size: var(--font-size-1);
     font-weight: 500;
 
@@ -61,7 +61,7 @@ $detach-action-below: 480px;
     align-items: center;
     gap: var(--space-2-5);
     padding-inline: var(--space-3);
-    background: var(--color-changed-fill);
+    background: var(--color-accent-tint-subtle);
     color: var(--color-accent);
     white-space: nowrap;
   }
@@ -79,8 +79,8 @@ $detach-action-below: 480px;
     align-items: center;
     gap: var(--space-2);
     padding-inline: var(--space-3);
-    border-inline-start: 1px solid var(--color-changed-edge);
-    color: var(--color-text-read);
+    border-inline-start: 1px solid var(--color-accent-edge);
+    color: var(--color-text-soft);
     white-space: nowrap;
   }
 

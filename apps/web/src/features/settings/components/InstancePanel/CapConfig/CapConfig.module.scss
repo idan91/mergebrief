@@ -5,7 +5,7 @@
     border-block-start: 1px solid var(--color-line);
 
     code {
-      font-family: var(--mono);
+      font-family: var(--font-mono);
       font-size: var(--font-size-2);
     }
   }
@@ -20,7 +20,7 @@
   .copy {
     max-width: 62ch;
     margin: 0 0 var(--space-4);
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
     font-size: var(--font-size-3);
     line-height: var(--line-height-reading);
   }
@@ -32,7 +32,7 @@
     border: 1px solid var(--color-line);
     border-radius: var(--radius-lg);
     background: var(--color-well);
-    color: var(--color-text-read);
+    color: var(--color-text-soft);
     font-size: var(--font-size-2);
     line-height: var(--line-height-reading);
     overflow-x: auto;

@@ -21,7 +21,7 @@
     --gray-900: oklch(17.9% var(--gray-c) var(--theme-hue));
     --gray-850: oklch(19.8% var(--gray-c) var(--theme-hue));
     --gray-800: oklch(24.1% var(--gray-c) var(--theme-hue));
-    --gray-750: oklch(22.9% var(--gray-c) var(--theme-hue));
+    --gray-825: oklch(22.9% var(--gray-c) var(--theme-hue));
     --gray-700: oklch(29.2% var(--gray-c) var(--theme-hue));
     --gray-600: oklch(39% var(--gray-c) var(--theme-hue));
     --gray-650: oklch(35.5% calc(var(--gray-c) * 2) var(--theme-hue));
@@ -34,20 +34,18 @@
     --violet-400: #a98fd1;
     --vermilion-500: #e91f00;
     --vermilion-600: #d81b00;
-    --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
-    --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
+    --font-sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
 
     // ── Surfaces ─────────────────────────────────────────────────────────
-    // Four tiers: ≤4/255 per channel is not a perceivable distinction, so
-    // sunken wells sit at page level rather than earning a fifth tier.
-    // surface-3 sits below line on purpose: a menu's fill is darker
-    // than the hairline that edges it.
-    --color-background: var(--gray-950); // page bg AND sunken wells
+    // surface-3 sits below the line colour on purpose: a menu's fill is
+    // darker than the hairline that edges it.
+    --color-ground: var(--gray-950);
     --color-focus-ground: #000; // focus mode, below the page
     --color-scrim: rgb(0 0 0 / 55%);
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
-    --color-surface-3: var(--gray-750); // top: toasts, chips, highest hovers
+    --color-surface-3: var(--gray-825); // top: toasts, chips, highest hovers
 
     // One fill for the chrome that frames the reading: the Brief header's
     // compare row and the sidebar's column, panel and narrow bar. Opaque, so
@@ -55,30 +53,30 @@
     --color-chrome: color-mix(
       in srgb,
       var(--color-surface-1) 45%,
-      var(--color-background)
+      var(--color-ground)
     );
     --color-card: color-mix(
       in oklch,
       var(--color-surface-1) 80%,
-      var(--color-background)
+      var(--color-ground)
     );
 
     // ── Text ─────────────────────────────────────────────────────────────
     --color-text-1: var(--gray-100); // primary
     --color-text-2: var(--gray-400); // muted / secondary
 
-    // Text already read: titles a reviewer has reviewed, chip text. Between
-    // text-1 and text-2 on purpose; the step from text-1 is the signal.
-    --color-text-read: oklch(84% var(--gray-c) var(--theme-hue));
+    // Titles a reviewer has reviewed, chip text. Between text-1 and text-2 on
+    // purpose; the step from text-1 is the signal.
+    --color-text-soft: oklch(84% var(--gray-c) var(--theme-hue));
 
     // Faint floor for readable text: 6:1 on the page background, 5.1:1 on
     // surface-3; the contrast test holds both lines.
     --color-text-3: oklch(64.5% var(--gray-c) var(--theme-hue));
 
-    // Ghost: decorative separators only (e.g. slim row separators).
+    // Separators only (e.g. slim row separators).
     // Deliberately below contrast, NEVER for text a reader must parse;
     // line numbers count as text (WCAG 1.4.3) and use text-3.
-    --color-text-4: var(--gray-650);
+    --color-decorative: var(--gray-650);
 
     // ── Lines ────────────────────────────────────────────────────────────
     --color-line: var(--gray-800); // hairline dividers, default borders
@@ -156,10 +154,7 @@
 
     // ── Other semantic colors ────────────────────────────────────────────
     --color-count-on-fill: rgb(0 0 0 / 50%);
-
-    // The light-mode half of the two light-dark() pairs in base.scss. The app
-    // ships dark-only today; the pair is kept so a light scheme stays possible.
-    --color-inverse: #fff;
+    --color-selection-text: #fff;
 
     // Diff line text: desaturated for long code runs, near text-1 lightness
     // — the hue alone carries add/del.
@@ -206,9 +201,9 @@
 
     // Inside an emphasis fill the dim syntax classes step up to keep 4.5:1;
     // the keyword lands at 5.9:1 on the add fill over the list panel.
-    --emphasis-comment: #a8b1ba;
-    --emphasis-keyword: #ffa1ab;
-    --focus-ring: var(--color-accent);
+    --syn-comment-emphasis: #a8b1ba;
+    --syn-keyword-emphasis: #ffa1ab;
+    --color-focus-ring: var(--color-accent);
     --ring-room: #{functions.to-rem(5px)};
 
     // ── Type scale ───────────────────────────────────────────────────────
@@ -256,8 +251,7 @@
     --radius-sm: 4px; // key caps, callouts, inner corners
     --radius-chip: 6px; // chips, badges, tooltips, the URL box key hint
     --radius-md: 8px; // controls, cards
-    --radius-panel: 12px; // the list, the URL box, menus, panels
-    --radius-lg: 12px; // modals, sheets, outer group frames
+    --radius-lg: 12px; // the list, the URL box, menus, panels, modals, sheets
     --radius-pill: 999px; // pills
     --radius-circle: 50%; // avatars, dots, round icon buttons
 
@@ -343,8 +337,8 @@
     --focus-overlap: calc(var(--focus-card-end) - var(--focus-panel-start));
 
     // ── Elevation ────────────────────────────────────────────────────────
-    --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
-    --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // sheets, the toast, the lightbox
+    --shadow-raised: 0 12px 40px rgb(0 0 0 / 22%);
+    --shadow-sheet: 0 16px 48px rgb(0 0 0 / 55%); // sheets, the toast, the lightbox
     --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, popovers, dialogs
     --shadow-tooltip: 0 4px 12px rgb(0 0 0 / 40%);
     --shadow-lift: 0 14px 32px -16px rgb(0 0 0 / 60%); // the URL box at rest
@@ -361,26 +355,24 @@
     // animation jumps.
     --shadow-ring-accent: #{functions.ring(var(--color-accent), 2px)};
     --shadow-ring-clear: #{functions.ring(transparent, 2px)};
-
-    // The changed tint: a pressed filter, an active segment, a revision mark.
-    --color-changed-fill: color-mix(
+    --color-accent-tint-subtle: color-mix(
       in srgb,
       var(--color-accent) var(--tint-subtle),
       transparent
     );
-    --color-changed-edge: color-mix(
+    --color-accent-edge: color-mix(
       in srgb,
       var(--color-accent) 45%,
       transparent
     );
-    --shadow-inset-changed: #{functions.inset-ring(var(--color-changed-edge))};
+    --shadow-inset-accent: #{functions.inset-ring(var(--color-accent-edge))};
     --shadow-field-focus: #{functions.inset-ring(
         color-mix(in srgb, var(--color-accent) 16%, transparent),
         3px
       )};
     --color-well: color-mix(
       in srgb,
-      var(--color-background) 25%,
+      var(--color-ground) 25%,
       var(--color-surface-1)
     );
     --color-cursor-ring: color-mix(

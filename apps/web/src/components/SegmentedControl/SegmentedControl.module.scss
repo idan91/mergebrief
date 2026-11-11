@@ -71,8 +71,8 @@
     }
 
     &[data-state="active"] {
-      background: var(--color-changed-fill);
-      box-shadow: var(--shadow-inset-changed);
+      background: var(--color-accent-tint-subtle);
+      box-shadow: var(--shadow-inset-accent);
       color: var(--color-accent);
     }
 

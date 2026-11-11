@@ -15,7 +15,7 @@
   }
 
   .path {
-    font-family: var(--mono);
+    font-family: var(--font-mono);
     font-size: var(--font-size-2);
     line-height: var(--line-height-body);
     overflow-wrap: anywhere;
@@ -45,7 +45,7 @@
 
     dd {
       margin-block-start: var(--space-1);
-      color: var(--color-text-read);
+      color: var(--color-text-soft);
       font-variant-numeric: tabular-nums;
       font-size: var(--font-size-2);
     }

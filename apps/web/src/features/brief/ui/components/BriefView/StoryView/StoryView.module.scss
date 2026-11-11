@@ -92,8 +92,8 @@
     inset-block-start: var(--sticky-stack-h);
     z-index: functions.get-z-index("chunk-head-corners");
     display: block;
-    block-size: var(--radius-panel);
-    margin-block-end: calc(-1 * var(--radius-panel));
+    block-size: var(--radius-lg);
+    margin-block-end: calc(-1 * var(--radius-lg));
     background: var(--color-focus-ground);
   }
 

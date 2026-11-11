@@ -45,7 +45,7 @@ const SHAPE_BORDER_TOKEN: DesignToken = "--color-text-3";
 
 /** Mermaid's theme variables, each read from the design token it follows. */
 export const DIAGRAM_THEME_TOKENS: Readonly<Record<string, DesignToken>> = {
-  background: "--color-background",
+  background: "--color-ground",
   primaryColor: "--color-surface-2",
   primaryTextColor: "--color-text-1",
   primaryBorderColor: SHAPE_BORDER_TOKEN,
@@ -62,14 +62,14 @@ export const DIAGRAM_THEME_TOKENS: Readonly<Record<string, DesignToken>> = {
   actorBkg: "--color-surface-2",
   actorBorder: SHAPE_BORDER_TOKEN,
   actorTextColor: "--color-text-1",
-  actorLineColor: "--color-text-4",
+  actorLineColor: "--color-decorative",
   signalColor: "--color-text-3",
   signalTextColor: "--color-text-2",
   labelBoxBkgColor: "--color-surface-1",
   labelBoxBorderColor: SHAPE_BORDER_TOKEN,
   labelTextColor: "--color-text-1",
   loopTextColor: "--color-text-2",
-  edgeLabelBackground: "--color-background",
+  edgeLabelBackground: "--color-ground",
   clusterBkg: "--color-surface-1",
   clusterBorder: SHAPE_BORDER_TOKEN,
 };
