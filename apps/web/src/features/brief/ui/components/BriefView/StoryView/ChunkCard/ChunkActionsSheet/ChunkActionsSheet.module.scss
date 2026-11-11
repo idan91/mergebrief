@@ -4,9 +4,9 @@
 @layer components {
   .summary {
     display: grid;
-    gap: functions.to-rem(8px);
-    padding-block: functions.to-rem(4px) functions.to-rem(12px);
-    padding-inline: functions.to-rem(16px);
+    gap: var(--space-3);
+    padding-block: var(--space-2) var(--space-4);
+    padding-inline: var(--space-5);
     border-block-end: 1px solid var(--color-outline-1);
   }
 
@@ -22,17 +22,17 @@
   .rows {
     display: grid;
     overflow-y: auto;
-    padding-block: functions.to-rem(4px);
+    padding-block: var(--space-2);
   }
 
   .row {
     display: flex;
-    gap: functions.to-rem(12px);
+    gap: var(--space-4);
     align-items: center;
     justify-content: space-between;
     min-block-size: functions.to-rem(44px);
     padding-block: 0;
-    padding-inline: functions.to-rem(16px);
+    padding-inline: var(--space-5);
     border: 0;
     background: transparent;
     color: var(--color-text-1);

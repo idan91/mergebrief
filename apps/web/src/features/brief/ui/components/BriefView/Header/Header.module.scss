@@ -31,7 +31,7 @@
   .identityRow {
     display: flex;
     align-items: center;
-    gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
+    gap: clamp(var(--space-3-5), 1.5vw, var(--space-5));
     min-block-size: var(--header-identity-min);
     padding-block: var(--header-pad-block);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
@@ -42,8 +42,7 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: functions.to-rem(8px)
-      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
     min-block-size: var(--header-comparison-min);
     padding-block: functions.to-rem(5px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
@@ -104,7 +103,7 @@
   .titleLine {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     min-inline-size: 0;
   }
 
@@ -116,7 +115,7 @@
     display: flex;
     align-items: center;
     flex-wrap: nowrap;
-    gap: clamp(functions.to-rem(8px), 1vw, functions.to-rem(12px));
+    gap: clamp(var(--space-3), 1vw, var(--space-4));
     min-inline-size: 0;
     font-size: var(--font-size-sm);
 
@@ -184,14 +183,14 @@
     align-items: center;
     min-block-size: var(--header-control-h);
     padding-block: 0;
-    padding-inline: functions.to-rem(14px);
+    padding-inline: var(--space-4-5);
   }
 
   .detailsRegion {
     display: flex;
     flex: none;
     align-items: center;
-    gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+    gap: clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
     margin-inline-start: auto;
   }
 
@@ -241,8 +240,8 @@
   .statsGroup > * + .stat,
   .statsGroup > * + span:not([class]) > .stat {
     border-inline-start: 1px solid var(--color-outline-1);
-    padding-inline-start: functions.to-rem(14px);
-    margin-inline-start: functions.to-rem(14px);
+    padding-inline-start: var(--space-4-5);
+    margin-inline-start: var(--space-4-5);
   }
 
   .comparisonCluster {
@@ -251,8 +250,7 @@
     min-inline-size: 0;
     align-items: center;
     flex-wrap: wrap;
-    gap: functions.to-rem(8px)
-      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
   }
 
   .header[data-focus] {
@@ -342,7 +340,7 @@
       block-size: functions.to-rem(43px);
       min-block-size: 0;
       padding-block: 0;
-      padding-inline: 0 functions.to-rem(16px);
+      padding-inline: 0 var(--space-5);
     }
 
     .back {
@@ -363,7 +361,7 @@
     .lead {
       display: flex;
       align-items: center;
-      gap: functions.to-rem(10px);
+      gap: var(--space-3-5);
       min-inline-size: 0;
     }
 
@@ -385,14 +383,14 @@
 
     .header[data-focus] .identityRow > .terminalSlot {
       display: inline-flex;
-      margin-inline-start: functions.to-rem(8px);
+      margin-inline-start: var(--space-3);
     }
   }
 
   @include mixins.for-landscape-phone {
     .identityRow {
       padding-inline: env(safe-area-inset-left)
-        max(functions.to-rem(16px), env(safe-area-inset-right));
+        max(var(--space-5), env(safe-area-inset-right));
     }
 
     .header:has([data-landscape-row]) .identityRow {

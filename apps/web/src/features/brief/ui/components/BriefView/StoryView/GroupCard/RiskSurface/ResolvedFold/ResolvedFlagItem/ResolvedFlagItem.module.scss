@@ -5,7 +5,7 @@
   .resolvedItem {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
   }
 
   .resolvedChip {

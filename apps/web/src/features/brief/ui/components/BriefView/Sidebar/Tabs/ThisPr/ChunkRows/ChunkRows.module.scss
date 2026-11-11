@@ -16,7 +16,7 @@
     align-items: center;
     inline-size: 100%;
     min-block-size: functions.to-rem(44px);
-    padding-inline: functions.to-rem(10px);
+    padding-inline: var(--space-3-5);
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;

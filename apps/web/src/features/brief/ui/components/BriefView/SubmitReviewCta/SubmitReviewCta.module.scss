@@ -4,7 +4,7 @@
   .cta {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     line-height: 1;
   }
 

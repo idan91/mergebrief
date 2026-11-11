@@ -65,9 +65,9 @@ $mark-min: functions.to-rem(24px);
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: functions.to-rem(12px);
+    gap: var(--space-4);
     min-block-size: functions.to-rem(22px);
-    margin-block-start: functions.to-rem(2px);
+    margin-block-start: var(--space-1);
     font-size: var(--font-size-sm);
   }
 

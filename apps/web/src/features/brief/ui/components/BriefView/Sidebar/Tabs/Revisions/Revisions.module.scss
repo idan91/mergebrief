@@ -22,8 +22,8 @@
     display: grid;
     gap: var(--list-gap);
     margin: 0;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(8px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-3);
     list-style: none;
 
     > li:first-child .node::before {
@@ -38,10 +38,10 @@
   .row {
     display: grid;
     grid-template-columns: functions.to-rem(24px) minmax(0, 1fr) auto;
-    gap: functions.to-rem(3px) functions.to-rem(10px);
+    gap: functions.to-rem(3px) var(--space-3-5);
     inline-size: 100%;
     padding-block: var(--row-pad-block);
-    padding-inline: functions.to-rem(10px);
+    padding-inline: var(--space-3-5);
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;
@@ -145,7 +145,7 @@
   .meta {
     display: flex;
     grid-column: 2;
-    column-gap: functions.to-rem(8px);
+    column-gap: var(--space-3);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
     font-variant-numeric: tabular-nums;

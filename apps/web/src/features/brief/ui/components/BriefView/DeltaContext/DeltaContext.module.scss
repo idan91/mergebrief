@@ -3,11 +3,11 @@
 @layer components {
   .context {
     display: grid;
-    gap: functions.to-rem(14px);
+    gap: var(--space-4-5);
     margin-block: functions.to-rem(18px);
 
     section {
-      padding-block: functions.to-rem(16px);
+      padding-block: var(--space-5);
       padding-inline: functions.to-rem(18px);
       border: 1px solid var(--color-outline-1);
       border-radius: var(--radius-md);
@@ -22,7 +22,7 @@
   }
 
   .eyebrow {
-    margin-block-end: functions.to-rem(8px);
+    margin-block-end: var(--space-3);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
     font-weight: 500;

@@ -3,30 +3,30 @@
 
 @layer components {
   .fold {
-    margin-block-start: functions.to-rem(16px);
-    padding-block-start: functions.to-rem(12px);
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
     border-block-start: 1px solid var(--color-outline-1);
   }
 
   .resolvedList {
     display: grid;
-    margin: functions.to-rem(10px) 0 0;
+    margin: var(--space-3-5) 0 0;
     padding: 0;
     list-style: none;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
   }
 
   .resolvedFile {
     display: grid;
     min-inline-size: 0;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
   }
 
   .resolvedMeta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
   }
 
   .path {

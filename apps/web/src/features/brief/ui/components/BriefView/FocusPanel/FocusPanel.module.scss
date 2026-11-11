@@ -38,7 +38,7 @@
     inset-block-start: calc(var(--top-bar-h) + #{functions.to-rem(12px)});
     inset-inline-end: var(--focus-panel-end);
     z-index: 91;
-    column-gap: functions.to-rem(8px);
+    column-gap: var(--space-3);
     border-color: var(--color-outline-1);
     border-radius: var(--radius-pill);
     background: var(--color-surface-2);

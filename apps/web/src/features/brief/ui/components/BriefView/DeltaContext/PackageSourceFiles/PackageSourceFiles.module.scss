@@ -1,8 +1,6 @@
-@use "functions";
-
 @layer components {
   .eyebrow {
-    margin-block-end: functions.to-rem(8px);
+    margin-block-end: var(--space-3);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
     font-weight: 500;
@@ -10,8 +8,8 @@
 
   .files {
     display: grid;
-    gap: functions.to-rem(4px);
-    margin-block-start: functions.to-rem(10px);
+    gap: var(--space-2);
+    margin-block-start: var(--space-3-5);
     padding: 0;
     color: var(--color-text-1);
     font-family: var(--mono);

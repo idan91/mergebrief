@@ -1,4 +1,3 @@
-@use "functions";
 @use "mixins";
 
 @layer components {
@@ -11,10 +10,10 @@
 
   .list {
     display: grid;
-    gap: functions.to-rem(2px);
+    gap: var(--space-1);
     margin: 0;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(8px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-3);
     list-style: none;
   }
 }

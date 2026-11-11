@@ -78,7 +78,7 @@
   }
 
   .diffTimeoutBand {
-    margin-block: functions.to-rem(12px) functions.to-rem(20px);
+    margin-block: var(--space-4) functions.to-rem(20px);
     margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--page-gutter), env(safe-area-inset-left))
       max(var(--page-gutter), env(safe-area-inset-right));

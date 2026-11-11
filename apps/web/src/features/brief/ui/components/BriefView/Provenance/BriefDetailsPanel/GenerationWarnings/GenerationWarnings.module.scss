@@ -19,7 +19,7 @@
   .list {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -30,7 +30,7 @@
 
     li + li {
       border-block-start: 1px solid var(--color-outline-1);
-      padding-block-start: functions.to-rem(8px);
+      padding-block-start: var(--space-3);
     }
   }
 }

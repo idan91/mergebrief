@@ -11,10 +11,10 @@
 
     display: grid;
     grid-template-columns: functions.to-rem(28px) minmax(0, 1fr) 16px;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     align-items: center;
     padding-block: functions.to-rem(9px);
-    padding-inline: functions.to-rem(12px) functions.to-rem(14px);
+    padding-inline: var(--space-4) var(--space-4-5);
     color: var(--color-text-1);
     text-decoration: none;
     transition: background-color var(--motion-fast) var(--ease-out);

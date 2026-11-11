@@ -36,7 +36,7 @@
     gap: var(--space-4);
     margin-block: 0;
     margin-inline: calc(-1 * var(--ring-room)) 0;
-    padding-block: var(--ring-room) functions.to-rem(6px);
+    padding-block: var(--ring-room) var(--space-2-5);
     padding-inline: var(--ring-room) var(--end-room);
     overflow-x: auto;
     list-style: none;

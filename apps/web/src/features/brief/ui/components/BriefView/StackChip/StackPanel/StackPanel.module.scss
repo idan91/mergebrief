@@ -1,15 +1,13 @@
-@use "functions";
-
 @layer components {
   .changed {
-    padding-block: functions.to-rem(6px);
-    padding-inline: functions.to-rem(12px);
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
     font-size: var(--font-size-sm);
   }
 
   .leadIn {
-    padding-block: functions.to-rem(6px);
-    padding-inline: functions.to-rem(12px);
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
   }

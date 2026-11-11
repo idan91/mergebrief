@@ -1,9 +1,7 @@
-@use "functions";
-
 @layer components {
   .tag {
     padding-block: 0;
-    padding-inline: functions.to-rem(6px);
+    padding-inline: var(--space-2-5);
 
     // Same as the sign column: the badge text would fuse onto copied code.
     // stylelint-disable-next-line property-no-vendor-prefix
@@ -11,7 +9,7 @@
     user-select: none;
     border: 1px solid var(--color-changed-edge);
     border-radius: var(--radius-pill);
-    margin-inline-start: functions.to-rem(10px);
+    margin-inline-start: var(--space-3-5);
     color: var(--color-accent);
     font-family: var(--sans);
     font-size: var(--font-size-sm);

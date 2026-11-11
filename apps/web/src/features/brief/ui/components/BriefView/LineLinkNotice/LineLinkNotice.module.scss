@@ -7,7 +7,7 @@ $notice-max: functions.to-rem(880px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
+    gap: var(--space-5);
     max-inline-size: min(
       #{$notice-max},
       100% - var(--sidebar-covered-w) - 2 * var(--page-gutter)
@@ -18,7 +18,7 @@ $notice-max: functions.to-rem(880px);
         (100% - var(--sidebar-covered-w) - #{$notice-max}) / 2
       )
       var(--sidebar-covered-w);
-    padding-block: functions.to-rem(10px);
+    padding-block: var(--space-3-5);
     padding-inline: max(functions.to-rem(18px), env(safe-area-inset-left))
       max(functions.to-rem(18px), env(safe-area-inset-right));
     border: 1px solid var(--color-outline-2);

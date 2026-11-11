@@ -12,7 +12,7 @@
       min-height: var(--header-meta-control-h);
       block-size: var(--header-meta-control-h);
       padding-block: 0;
-      padding-inline: functions.to-rem(8px);
+      padding-inline: var(--space-3);
       border-color: var(--color-outline-2);
       font-size: var(--font-size-sm);
       transition:
@@ -31,7 +31,7 @@
     > button {
       block-size: auto;
       min-height: 0;
-      padding-inline: functions.to-rem(4px);
+      padding-inline: var(--space-2);
       border: 0;
       border-radius: 0;
       background: transparent;

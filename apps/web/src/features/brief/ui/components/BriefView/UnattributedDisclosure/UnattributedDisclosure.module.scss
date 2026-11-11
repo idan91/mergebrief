@@ -25,9 +25,9 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     max-inline-size: functions.to-rem(280px);
-    padding: functions.to-rem(4px);
+    padding: var(--space-2);
   }
 
   .title {

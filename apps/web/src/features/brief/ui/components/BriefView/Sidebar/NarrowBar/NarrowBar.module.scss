@@ -5,10 +5,10 @@
   .bar {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     block-size: var(--sidebar-bar-h);
     padding-block-end: env(safe-area-inset-bottom);
-    padding-inline: functions.to-rem(8px);
+    padding-inline: var(--space-3);
     border-block-start: 1px solid var(--color-outline-1);
     background: var(--color-chrome);
 
@@ -21,7 +21,7 @@
     display: flex;
     flex: 1;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     min-inline-size: 0;
   }
 

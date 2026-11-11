@@ -2,15 +2,15 @@
 
 @layer components {
   .metadataDiff {
-    padding-block: functions.to-rem(14px);
-    padding-inline: functions.to-rem(16px);
+    padding-block: var(--space-4-5);
+    padding-inline: var(--space-5);
     border-block-start: 1px solid var(--color-outline-1);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
 
     span {
       display: block;
-      margin-block-end: functions.to-rem(6px);
+      margin-block-end: var(--space-2-5);
       color: var(--color-text-1);
       font-size: var(--font-size-lg);
     }
@@ -30,8 +30,8 @@
 
   .composerDisabledNote {
     margin: 0;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(16px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5);
     border-block-start: 1px solid var(--color-outline-1);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);

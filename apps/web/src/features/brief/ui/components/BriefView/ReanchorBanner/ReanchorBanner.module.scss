@@ -5,8 +5,8 @@
     position: sticky;
     inset-block-start: calc(var(--top-bar-h) + var(--focus-indicator-h, 0px));
     z-index: 50;
-    margin-block-end: functions.to-rem(14px);
-    padding-block: functions.to-rem(8px) functions.to-rem(10px);
+    margin-block-end: var(--space-4-5);
+    padding-block: var(--space-3) var(--space-3-5);
     padding-inline: max(functions.to-rem(20px), env(safe-area-inset-left))
       max(functions.to-rem(20px), env(safe-area-inset-right));
     border-block-end: 1px solid var(--color-outline-1);
@@ -17,10 +17,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
+    gap: var(--space-5);
     max-inline-size: functions.to-rem(880px);
     margin-inline: auto;
-    padding-block: functions.to-rem(10px);
+    padding-block: var(--space-3-5);
     padding-inline: functions.to-rem(18px);
     border: 1px solid
       color-mix(in srgb, var(--color-accent) 40%, var(--color-outline-2));

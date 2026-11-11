@@ -94,7 +94,7 @@
   .panel {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(14px);
+    gap: var(--space-4-5);
     max-inline-size: functions.to-rem(360px);
     text-align: start;
   }
@@ -102,7 +102,7 @@
   .section {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
   }
 
   .heading {
@@ -115,7 +115,7 @@
   // Label/value fact rows: quiet grid, values in the text register.
   .facts {
     display: grid;
-    gap: functions.to-rem(3px) functions.to-rem(12px);
+    gap: functions.to-rem(3px) var(--space-4);
     grid-template-columns: max-content 1fr;
     margin: 0;
     font-size: var(--font-size-lg);
@@ -134,7 +134,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
   }
 
   .modelId {
@@ -157,7 +157,7 @@
   .configList {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     margin: 0;
     padding: 0;
     font-size: var(--font-size-lg);
@@ -166,7 +166,7 @@
     li {
       display: flex;
       flex-wrap: wrap;
-      gap: functions.to-rem(8px);
+      gap: var(--space-3);
       align-items: baseline;
     }
 

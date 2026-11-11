@@ -1,8 +1,6 @@
-@use "functions";
-
 @layer components {
   .label {
-    margin-block-end: functions.to-rem(8px);
+    margin-block-end: var(--space-3);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
     font-weight: 400;
@@ -11,7 +9,7 @@
   .risks {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
   }
 
   .noRisks {

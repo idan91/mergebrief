@@ -7,7 +7,7 @@
   // arrows sit at the same inset in a hunk row and in a row of their own.
   tr[data-line-kind] > td.cell {
     padding-block: 0;
-    padding-inline: functions.to-rem(6px) functions.to-rem(14px);
+    padding-inline: var(--space-2-5) var(--space-4-5);
   }
 
   .cell {
@@ -19,14 +19,14 @@
   .lane {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
     block-size: functions.to-rem(31px);
   }
 
   .arrows {
     display: inline-flex;
     flex: none;
-    gap: functions.to-rem(2px);
+    gap: var(--space-1);
   }
 
   .header {
@@ -40,7 +40,7 @@
   .threads {
     flex: none;
     padding-block: 0;
-    padding-inline: functions.to-rem(8px);
+    padding-inline: var(--space-3);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-pill);
     background: transparent;
@@ -60,8 +60,8 @@
   // A refusal is its own line under the lane, ruled off from the header
   // text it would otherwise blend into.
   .note {
-    margin-block: 0 functions.to-rem(6px);
-    padding-inline-start: functions.to-rem(8px);
+    margin-block: 0 var(--space-2-5);
+    padding-inline-start: var(--space-3);
     border-inline-start: 2px solid var(--color-text-2);
     color: var(--color-text-2);
     font-size: var(--font-size-sm);

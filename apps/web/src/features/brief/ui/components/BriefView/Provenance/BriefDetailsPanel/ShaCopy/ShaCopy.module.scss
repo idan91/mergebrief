@@ -1,8 +1,6 @@
-@use "functions";
-
 @layer components {
   .sha {
-    padding-inline: functions.to-rem(2px);
+    padding-inline: var(--space-1);
     color: var(--color-text-1);
     font-family: var(--mono);
     font-size: var(--font-size-sm);

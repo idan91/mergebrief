@@ -2,8 +2,8 @@
 
 @layer components {
   .head {
-    padding-block-start: functions.to-rem(16px);
-    padding-inline: functions.to-rem(22px) functions.to-rem(16px);
+    padding-block-start: var(--space-5);
+    padding-inline: functions.to-rem(22px) var(--space-5);
   }
 
   .body {
@@ -23,12 +23,12 @@
 
   .strip {
     margin-block-start: functions.to-rem(18px);
-    padding-block-start: functions.to-rem(12px);
+    padding-block-start: var(--space-4);
     border-block-start: 1px solid var(--color-outline-1);
   }
 
   .flags {
-    margin-block-start: functions.to-rem(12px);
+    margin-block-start: var(--space-4);
     color: var(--color-text-3);
     font-variant-numeric: tabular-nums;
     font-size: var(--font-size-lg);

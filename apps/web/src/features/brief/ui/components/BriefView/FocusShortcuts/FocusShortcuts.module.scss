@@ -8,7 +8,7 @@
     z-index: 90;
     display: flex;
     align-items: center;
-    padding: functions.to-rem(4px);
+    padding: var(--space-2);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -24,7 +24,7 @@
   .trigger {
     --icon-button-inset-start: #{functions.to-rem(8px)};
 
-    padding-inline-end: functions.to-rem(8px);
+    padding-inline-end: var(--space-3);
     color: var(--color-text-3);
     cursor: default;
   }
@@ -32,7 +32,7 @@
   .keys {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(12px);
+    gap: var(--space-4);
     max-inline-size: 0;
     margin: 0;
     padding: 0;
@@ -49,12 +49,12 @@
     li {
       display: inline-flex;
       align-items: center;
-      gap: functions.to-rem(4px);
+      gap: var(--space-2);
     }
 
     [data-state="open"] > & {
       max-inline-size: functions.to-rem(720px);
-      padding-inline: functions.to-rem(4px) functions.to-rem(8px);
+      padding-inline: var(--space-2) var(--space-3);
       opacity: 1;
       visibility: visible;
       transition-delay: 0s;

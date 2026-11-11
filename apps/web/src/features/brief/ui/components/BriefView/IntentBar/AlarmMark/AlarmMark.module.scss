@@ -1,8 +1,6 @@
-@use "functions";
-
 @layer components {
   .mark {
-    margin-inline-start: functions.to-rem(6px);
+    margin-inline-start: var(--space-2-5);
     color: var(--color-text-2);
     vertical-align: -2px;
   }

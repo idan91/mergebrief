@@ -24,7 +24,7 @@
   }
 
   .group {
-    padding-block: functions.to-rem(16px);
+    padding-block: var(--space-5);
     padding-inline: functions.to-rem(18px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-panel);
@@ -34,9 +34,9 @@
   .groupHead {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     align-items: baseline;
-    margin-block-end: functions.to-rem(12px);
+    margin-block-end: var(--space-4);
   }
 
   .groupTitle {
@@ -49,8 +49,8 @@
   }
 
   .groupCategory {
-    padding-block: functions.to-rem(2px);
-    padding-inline: functions.to-rem(8px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
     border-radius: var(--radius-pill);
     background: var(--color-surface-1);
     color: var(--color-text-2);
@@ -59,8 +59,8 @@
 
   .chunk {
     display: grid;
-    gap: functions.to-rem(8px);
-    padding-block: functions.to-rem(12px);
+    gap: var(--space-3);
+    padding-block: var(--space-4);
     border-block-start: 1px solid var(--color-outline-2);
 
     &:first-of-type {
@@ -72,7 +72,7 @@
   .chunkHead {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     align-items: center;
   }
 
@@ -98,7 +98,7 @@
     .chunkHead {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: functions.to-rem(2px) functions.to-rem(8px);
+      gap: var(--space-1) var(--space-3);
     }
 
     .chunkFile {

@@ -1,10 +1,9 @@
-@use "functions";
 @use "mixins";
 
 @layer components {
   .wrap {
     display: grid;
-    gap: functions.to-rem(14px);
+    gap: var(--space-4-5);
   }
 
   .toolbar {
@@ -15,8 +14,8 @@
   /* Raw-toggle deltas on ToolbarButton's box: filled, roomier, lg label —
      re-pinned at the box's state-selector specificity. */
   .toggle {
-    padding-block: functions.to-rem(6px);
-    padding-inline: functions.to-rem(12px);
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
     font-size: var(--font-size-lg);
@@ -38,7 +37,7 @@
 
   .files {
     display: grid;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
 
     &:focus-visible {
       outline: none;
@@ -53,8 +52,8 @@
   }
 
   .fileName {
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(14px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4-5);
     font-family: var(--mono, monospace);
     font-size: var(--font-size-lg);
     cursor: pointer;

@@ -1,10 +1,8 @@
-@use "functions";
-
 @layer components {
   .provenance {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
   }
 }

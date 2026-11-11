@@ -3,11 +3,10 @@
 @layer components {
   .note {
     display: flex;
-    gap: functions.to-rem(14px);
+    gap: var(--space-4-5);
     align-items: flex-start;
-    margin-block: 0 functions.to-rem(14px);
-    padding: functions.to-rem(12px) functions.to-rem(16px)
-      functions.to-rem(12px) functions.to-rem(12px);
+    margin-block: 0 var(--space-4-5);
+    padding: var(--space-4) var(--space-5) var(--space-4) var(--space-4);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--color-surface-2) 60%, transparent);

@@ -5,7 +5,7 @@
   .row {
     display: none;
     align-items: center;
-    gap: functions.to-rem(2px);
+    gap: var(--space-1);
     block-size: functions.to-rem(43px);
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }

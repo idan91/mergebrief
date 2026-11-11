@@ -15,7 +15,7 @@
     --span-rule: var(--color-outline-1);
 
     padding-block: 0;
-    padding-inline: functions.to-rem(14px);
+    padding-inline: var(--space-4-5);
     border-block-start: 1px solid var(--span-rule);
     border-inline-end: 1px solid var(--span-rule);
     background: var(--color-background);
@@ -31,7 +31,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(4px) functions.to-rem(10px);
+    gap: var(--space-2) var(--space-3-5);
     min-block-size: functions.to-rem(38px);
     max-inline-size: calc(100cqw - functions.to-rem(28px));
   }

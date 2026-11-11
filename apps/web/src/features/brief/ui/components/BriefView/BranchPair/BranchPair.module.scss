@@ -1,12 +1,10 @@
-@use "functions";
-
 @layer components {
   .pair {
     display: inline-flex;
     flex: 0 1 auto;
     min-inline-size: 0;
     align-items: center;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     block-size: var(--header-meta-control-h);
     color: var(--color-text-2);
     font-size: var(--font-size-sm);

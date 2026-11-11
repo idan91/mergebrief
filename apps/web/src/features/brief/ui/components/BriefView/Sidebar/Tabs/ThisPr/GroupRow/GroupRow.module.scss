@@ -7,10 +7,10 @@
     grid-template-columns:
       functions.to-rem(24px) minmax(0, 1fr)
       functions.to-rem(10px);
-    gap: functions.to-rem(3px) functions.to-rem(10px);
+    gap: functions.to-rem(3px) var(--space-3-5);
     inline-size: 100%;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3-5);
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;

@@ -4,7 +4,7 @@
   .current {
     display: flex;
     flex: 1 1 auto;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     align-items: center;
     min-inline-size: 0;
   }

@@ -7,10 +7,10 @@
 
     display: grid;
     grid-template-columns: var(--stack-position-col) minmax(0, 1fr) auto;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     align-items: center;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(12px) functions.to-rem(14px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4) var(--space-4-5);
     border-block-start: 1px solid var(--color-outline-2);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
@@ -26,7 +26,7 @@
     max-inline-size: 100%;
     overflow: hidden;
     padding-block: functions.to-rem(1px);
-    padding-inline: functions.to-rem(6px);
+    padding-inline: var(--space-2-5);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-chip);
     background: var(--color-surface-2);
