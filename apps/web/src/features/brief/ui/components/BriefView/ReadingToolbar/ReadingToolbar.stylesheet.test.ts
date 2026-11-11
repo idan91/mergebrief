@@ -36,7 +36,7 @@ function readRules(path: string): CompiledRule[] {
 describe("ReadingToolbar stylesheet", () => {
   it("rests as a rounded panel in the story column", () => {
     expect(resting.get("border-radius")).toBe("var(--radius-panel)");
-    expect(resting.get("border")).toBe("1px solid var(--color-outline-1)");
+    expect(resting.get("border")).toBe("1px solid var(--color-line)");
     expect(resting.has("margin-inline")).toBe(false);
   });
 
@@ -74,7 +74,7 @@ describe("ReadingToolbar stylesheet", () => {
   it("keeps only the bottom hairline while stuck", () => {
     expect(stuck.get("border-color")).toBe("transparent");
     expect(backdrop.get("border-block-end")).toBe(
-      "1px solid var(--color-outline-1)",
+      "1px solid var(--color-line)",
     );
   });
 

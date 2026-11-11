@@ -37,7 +37,7 @@
     padding-inline: var(--card-inset);
     overflow: hidden auto;
     overscroll-behavior: contain;
-    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-color: var(--color-line-strong) transparent;
     scrollbar-width: thin;
   }
 
@@ -46,9 +46,9 @@
     flex: 0 1 auto;
     padding-block: var(--space-2) var(--space-4);
     padding-inline: var(--card-inset);
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
     overflow: hidden auto;
-    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-color: var(--color-line-strong) transparent;
     scrollbar-width: thin;
   }
 
@@ -58,7 +58,7 @@
     margin-block-start: var(--space-4);
     padding-block: var(--space-4);
     padding-inline: var(--space-4);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
 
     b {
@@ -69,7 +69,7 @@
 
   .question {
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
   }
 
@@ -100,7 +100,7 @@
   .card > .body {
     --scroller-bg: var(--color-card);
 
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
     border-end-end-radius: var(--radius-lg);
     border-end-start-radius: var(--radius-lg);
 
@@ -111,7 +111,7 @@
 
     h3 {
       color: var(--color-text-2);
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
       font-weight: 500;
     }
   }

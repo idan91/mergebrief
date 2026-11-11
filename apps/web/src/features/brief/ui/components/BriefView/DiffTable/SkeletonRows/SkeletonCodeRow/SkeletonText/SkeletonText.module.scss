@@ -22,7 +22,7 @@ $sign-stroke: 1.5px;
     --skeleton-hatch: repeating-linear-gradient(
       -45deg,
       transparent 0 6px,
-      color-mix(in srgb, var(--color-outline-2) 55%, transparent) 6px 7px
+      color-mix(in srgb, var(--color-line-strong) 55%, transparent) 6px 7px
     );
 
     position: relative;

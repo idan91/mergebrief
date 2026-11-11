@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   width: functions.to-rem(320px);
-  border: 1px solid var(--color-outline-2);
+  border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-panel);
   background: var(--color-surface-3);
   box-shadow: var(--shadow-float);
@@ -59,7 +59,7 @@
 
 .callout[data-surface="ground"] {
   // Chrome snaps a 1.5px border to 1px; the half pixel rides a ring under the float.
-  --callout-ground-ring: #{functions.ring(var(--color-outline-2), 0.5px)};
+  --callout-ground-ring: #{functions.ring(var(--color-line-strong), 0.5px)};
 
   background: var(--color-focus-ground);
   box-shadow: var(--callout-ground-ring), var(--shadow-float);
@@ -72,7 +72,7 @@
 // The hairline is the stroke prop's currentColor: a presentation attribute
 // cannot read a custom property.
 .arrow {
-  color: var(--color-outline-2);
+  color: var(--color-line-strong);
   fill: var(--color-surface-3);
 }
 
@@ -80,13 +80,13 @@
   display: block;
   margin-bottom: var(--space-2);
   color: var(--color-text-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-1);
 }
 
 .title {
   display: block;
   margin-bottom: var(--space-2);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-2);
   font-weight: 600;
 
   &:last-child {
@@ -106,7 +106,7 @@
 .body {
   display: block;
   color: var(--color-text-2);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-2);
   line-height: var(--line-height-body);
 }
 
@@ -114,6 +114,6 @@
   display: block;
   margin-top: var(--space-2);
   color: var(--color-text-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-1);
   line-height: var(--line-height-compact);
 }

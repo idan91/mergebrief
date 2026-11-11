@@ -43,7 +43,8 @@ const HATCHED_CELL_STYLESHEETS = [
   readStylesheet("SkeletonCodeRow/SkeletonCodeRow.module.scss"),
   readStylesheet("SkeletonCodeRow/SkeletonText/SkeletonText.module.scss"),
 ];
-const HATCH_STRENGTH = /var\(--color-outline-2\) (\d+)%, transparent\) 6px 7px/;
+const HATCH_STRENGTH =
+  /var\(--color-line-strong\) (\d+)%, transparent\) 6px 7px/;
 const REDUCED_MOTION_HIDES_SHINE =
   /@media \(prefers-reduced-motion: reduce\) \{\s*\.shine \{\s*display: none;/;
 

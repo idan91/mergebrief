@@ -10,11 +10,11 @@
     margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--notice-gutter), env(safe-area-inset-left))
       max(var(--notice-gutter), env(safe-area-inset-right));
-    border-block-start: 1px solid var(--color-outline-2);
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line-strong);
+    border-block-end: 1px solid var(--color-line);
     background: var(--color-surface-1);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     transition: opacity var(--motion-base) ease;
 
     @starting-style {
@@ -33,7 +33,7 @@
       border-block-start-color: color-mix(
         in srgb,
         var(--color-warning) 60%,
-        var(--color-outline-1)
+        var(--color-line)
       );
 
       .lead,
@@ -89,7 +89,7 @@
     border-radius: var(--radius-xs);
     color: var(--color-text-read);
     text-decoration: underline;
-    text-decoration-color: var(--color-outline-2);
+    text-decoration-color: var(--color-line-strong);
     text-underline-offset: 3px;
     transition: color var(--motion-fast);
 

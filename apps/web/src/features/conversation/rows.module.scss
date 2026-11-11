@@ -48,7 +48,7 @@
 
   .slimLabel {
     flex-shrink: 0;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     letter-spacing: 0.02em;
   }
 
@@ -63,9 +63,9 @@
     flex-shrink: 0;
     padding-block: var(--space-1);
     padding-inline: var(--space-3);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-pill);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     letter-spacing: 0.02em;
 
     // An open thread needs the reviewer, so it wears the accent.
@@ -80,7 +80,7 @@
     }
 
     &[data-state="after-brief"] {
-      border-color: var(--color-outline-2);
+      border-color: var(--color-line-strong);
       color: var(--color-text-read);
     }
 
@@ -121,10 +121,10 @@
     flex-shrink: 0;
     margin-inline-start: var(--space-2);
     padding-inline: var(--space-2);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-sm);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .revision,
@@ -132,7 +132,7 @@
     flex-shrink: 0;
     margin-inline-start: auto;
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-variant-numeric: tabular-nums;
   }
 
@@ -153,7 +153,7 @@
     gap: var(--space-3);
     margin-inline-start: var(--space-5);
     padding-inline-start: var(--space-4);
-    border-inline-start: 2px solid var(--color-outline-1);
+    border-inline-start: 2px solid var(--color-line);
   }
 
   .author {
@@ -171,12 +171,12 @@
   .note {
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .error {
     margin: 0;
     color: var(--color-negative);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 }

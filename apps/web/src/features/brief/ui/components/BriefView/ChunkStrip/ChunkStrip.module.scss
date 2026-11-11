@@ -35,7 +35,7 @@ $mark-min: functions.to-rem(24px);
       content: "";
       block-size: functions.to-rem(4px);
       border-radius: var(--radius-xs);
-      background: var(--color-outline-2);
+      background: var(--color-line-strong);
       transition: background-color var(--motion-fast) ease;
     }
 
@@ -67,7 +67,7 @@ $mark-min: functions.to-rem(24px);
     gap: var(--space-4);
     min-block-size: functions.to-rem(22px);
     margin-block-start: var(--space-1);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .name {
@@ -87,7 +87,7 @@ $mark-min: functions.to-rem(24px);
     flex: none;
     margin-inline-start: auto;
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-variant-numeric: tabular-nums;
   }
 }

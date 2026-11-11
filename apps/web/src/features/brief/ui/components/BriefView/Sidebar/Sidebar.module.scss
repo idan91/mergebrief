@@ -53,7 +53,7 @@
     padding-block: var(--space-3) var(--space-5);
     /* stylelint-disable-next-line declaration-property-value-allowed-list -- balances the rail's 1px start border so its icons centre: a border width, so px */
     padding-inline-end: 1px;
-    border-inline-start: 1px solid var(--color-outline-1);
+    border-inline-start: 1px solid var(--color-line);
     background: var(--color-chrome);
   }
 
@@ -66,7 +66,7 @@
 
   .shortcutsTrigger {
     font-family: var(--mono);
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-3);
     font-weight: 600;
   }
 
@@ -85,7 +85,7 @@
     flex-direction: column;
     order: 1;
     inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
-    border-inline-start: 1px solid var(--color-outline-1);
+    border-inline-start: 1px solid var(--color-line);
     background: var(--color-chrome);
     transform: translateX(100%);
 

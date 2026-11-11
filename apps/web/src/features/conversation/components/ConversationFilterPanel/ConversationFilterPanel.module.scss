@@ -10,7 +10,7 @@
      dead gap after short labels and misaligned wrapped chip runs. */
   .rowLabel {
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .row {
@@ -50,7 +50,7 @@
     width: 1px;
     height: 16px;
     margin-inline: var(--space-1);
-    background: var(--color-outline-1);
+    background: var(--color-line);
   }
 
   .foot {

@@ -9,15 +9,15 @@
     display: flex;
     align-items: center;
     padding: var(--space-2);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     transition: border-color var(--motion-base) var(--ease-out);
 
     &[data-state="open"] {
-      border-color: var(--color-outline-2);
+      border-color: var(--color-line-strong);
     }
   }
 

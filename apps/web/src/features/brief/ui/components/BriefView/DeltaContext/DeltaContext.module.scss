@@ -7,14 +7,14 @@
     section {
       padding-block: var(--space-5);
       padding-inline: var(--space-5);
-      border: 1px solid var(--color-outline-1);
+      border: 1px solid var(--color-line);
       border-radius: var(--radius-md);
       background: var(--color-surface-1);
     }
 
     p {
       color: var(--color-text-2);
-      font-size: var(--font-size-xl);
+      font-size: var(--font-size-3);
       line-height: var(--line-height-reading);
     }
   }
@@ -22,7 +22,7 @@
   .eyebrow {
     margin-block-end: var(--space-3);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-weight: 500;
   }
 }

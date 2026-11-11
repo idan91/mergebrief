@@ -11,7 +11,7 @@
     display: block;
     margin-block-end: var(--space-2);
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
   }
 
@@ -62,7 +62,7 @@
       background: transparent;
       color: var(--color-text-3);
       cursor: pointer;
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
       font-weight: 500;
 
       @include mixins.hover {
@@ -107,7 +107,7 @@
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
     font-family: var(--sans);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
 
     // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
@@ -136,7 +136,7 @@
     padding-block: 0 var(--space-3);
     padding-inline: var(--space-4);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
 
     code {
       color: var(--color-text-2);
@@ -159,6 +159,6 @@
 
   .empty {
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 }

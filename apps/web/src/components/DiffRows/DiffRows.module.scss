@@ -12,7 +12,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 @layer components {
   .line {
     font-family: var(--mono);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
 
     // Row height: 22px at this font size, the number the chunk height model
     // and the paint-skip estimate are both built on.
@@ -89,14 +89,14 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
       padding-inline: var(--space-4-5);
       background: var(--color-surface-2);
       color: var(--color-text-3);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-1);
     }
 
     &[data-line-kind="note"] td {
       padding-block: var(--space-2-5);
       padding-inline: var(--space-4-5);
       color: var(--color-text-3);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-1);
       font-style: italic;
     }
 
@@ -218,7 +218,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
         inline-size: var(--diff-unified-number-w);
         min-inline-size: var(--diff-unified-number-w);
         padding-inline: 0 var(--space-3);
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-1);
 
         // The code's line box, so the smaller digits centre on its first line.
         line-height: var(--diff-line-box);

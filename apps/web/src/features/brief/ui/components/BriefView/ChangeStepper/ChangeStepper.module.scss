@@ -12,12 +12,12 @@
   .count {
     margin-inline-end: var(--space-2);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-variant-numeric: tabular-nums;
   }
 
   .stepBtn {
-    border-color: var(--color-outline-2);
+    border-color: var(--color-line-strong);
 
     @include mixins.hover {
       &:not([aria-disabled="true"]):hover {
@@ -28,7 +28,7 @@
 
   .stepper[data-layout="sheet"] {
     display: flex;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
 
     .count {
       flex: 1;

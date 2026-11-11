@@ -29,10 +29,10 @@
   .readOnlyChip {
     padding-block: var(--space-1);
     padding-inline: var(--space-3);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-pill);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     white-space: nowrap;
   }
 
@@ -41,7 +41,7 @@
     flex-basis: 100%;
     margin: 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     line-height: var(--line-height-compact);
   }
 }

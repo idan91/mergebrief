@@ -16,7 +16,7 @@
     justify-content: space-between;
     gap: var(--space-5);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-variant-numeric: tabular-nums;
   }
 
@@ -26,7 +26,7 @@
 
   .error {
     color: var(--color-negative);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .actions {
@@ -39,7 +39,7 @@
   // Qualified by .actions to outrank Button's own single-class and state
   // rules, whose module may load after this one.
   .actions .submit {
-    border-color: var(--color-outline-3);
+    border-color: var(--color-line-raised);
     background: var(--color-surface-2);
     color: var(--color-text-1);
     font-weight: 500;
@@ -47,7 +47,7 @@
 
   // Button's focused dim repaints its own edge, not this raised skin.
   .actions .submit[aria-disabled="true"]:focus-visible {
-    border-color: functions.dim(var(--color-outline-3));
+    border-color: functions.dim(var(--color-line-raised));
     background: functions.dim(var(--color-surface-2));
   }
 
@@ -55,7 +55,7 @@
     .actions .submit:not([aria-disabled="true"]):hover {
       border-color: color-mix(
         in srgb,
-        var(--color-outline-3) 60%,
+        var(--color-line-raised) 60%,
         var(--color-text-1)
       );
       background: var(--color-surface-3);

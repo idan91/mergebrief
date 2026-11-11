@@ -8,7 +8,7 @@
     align-items: center;
     margin-block: var(--space-1) 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .icon {
@@ -20,7 +20,7 @@
     align-items: center;
     min-block-size: functions.to-rem(24px);
     border-radius: var(--radius-xs);
-    text-decoration-color: var(--color-outline-2);
+    text-decoration-color: var(--color-line-strong);
 
     @include mixins.hover {
       &:hover {

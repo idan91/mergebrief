@@ -14,12 +14,12 @@
 
   .resolvedState {
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .reopen {
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     text-decoration: none;
 
     @include mixins.hover {

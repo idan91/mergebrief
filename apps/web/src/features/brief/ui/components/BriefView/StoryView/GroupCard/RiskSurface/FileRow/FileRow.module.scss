@@ -102,7 +102,7 @@
     color: var(--color-text-3);
     direction: rtl;
     font-family: var(--mono);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     text-align: start;
     text-decoration: none;
     text-overflow: ellipsis;
@@ -147,19 +147,19 @@
     padding: 0;
     list-style: none;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
   }
 
   .noteAttr {
     display: block;
     color: var(--color-warning);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .reopen {
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     text-decoration: none;
 
     @include mixins.hover {

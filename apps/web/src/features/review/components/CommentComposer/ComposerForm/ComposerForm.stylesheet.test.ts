@@ -18,7 +18,7 @@ describe("ComposerForm stylesheet", () => {
     const submit = readDeclarations(rules, ".actions .submit");
 
     expect(submit.get("background")).toBe("var(--color-surface-2)");
-    expect(submit.get("border-color")).toBe("var(--color-outline-3)");
+    expect(submit.get("border-color")).toBe("var(--color-line-raised)");
     expect(submit.get("color")).toBe("var(--color-text-1)");
   });
 
@@ -30,7 +30,7 @@ describe("ComposerForm stylesheet", () => {
 
     expect(focused.get("background")).toContain("var(--color-surface-2)");
     expect(focused.get("background")).toContain("var(--opacity-disabled)");
-    expect(focused.get("border-color")).toContain("var(--color-outline-3)");
+    expect(focused.get("border-color")).toContain("var(--color-line-raised)");
   });
 
   it("leaves the disabled look to Button's shared dim", () => {

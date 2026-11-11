@@ -6,14 +6,14 @@
 
   .heading {
     color: var(--color-text-1);
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-3);
     font-weight: 600;
     line-height: var(--line-height-heading);
   }
 
   .list {
     padding: 0;
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
     list-style: none;

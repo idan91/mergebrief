@@ -11,7 +11,7 @@
     overscroll-behavior: contain;
     padding-block: 0 var(--space-5);
     padding-inline: var(--space-6);
-    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-color: var(--color-line-strong) transparent;
     scrollbar-width: thin;
 
     &:focus-visible {
@@ -22,13 +22,13 @@
   .strip {
     margin-block-start: var(--space-5);
     padding-block-start: var(--space-4);
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
   }
 
   .flags {
     margin-block-start: var(--space-4);
     color: var(--color-text-3);
     font-variant-numeric: tabular-nums;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 }

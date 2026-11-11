@@ -4,19 +4,19 @@
   .fileFacts {
     margin-block-start: var(--space-5);
     padding-block-start: var(--space-4-5);
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
   }
 
   .label {
     margin-block-end: var(--space-3);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-weight: 400;
   }
 
   .path {
     font-family: var(--mono);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
     overflow-wrap: anywhere;
   }
@@ -40,14 +40,14 @@
 
     dt {
       color: var(--color-text-3);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-1);
     }
 
     dd {
       margin-block-start: var(--space-1);
       color: var(--color-text-read);
       font-variant-numeric: tabular-nums;
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
     }
   }
 }

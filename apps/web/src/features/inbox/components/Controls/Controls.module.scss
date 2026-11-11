@@ -28,7 +28,7 @@
   }
 
   .clear {
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {

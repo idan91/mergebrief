@@ -47,13 +47,13 @@ afterEach(() => {
 
 describe("buildMermaidConfig", () => {
   it("draws the classic look, which has no drop shadow", () => {
-    const config = buildMermaidConfig(stubRoot("--font-size-lg: 13px"));
+    const config = buildMermaidConfig(stubRoot("--font-size-2: 13px"));
 
     expect(config.look).toBe("classic");
   });
 
   it("lays out with dagre, so elkjs loads only for a diagram asking it", () => {
-    const config = buildMermaidConfig(stubRoot("--font-size-lg: 13px"));
+    const config = buildMermaidConfig(stubRoot("--font-size-2: 13px"));
 
     expect(config.layout).toBe("dagre");
   });
@@ -83,7 +83,7 @@ describe("buildMermaidConfig", () => {
   });
 
   it("draws sequence text at the size every other diagram uses", () => {
-    const config = buildMermaidConfig(stubRoot("--font-size-lg: 13px"));
+    const config = buildMermaidConfig(stubRoot("--font-size-2: 13px"));
 
     expect(config.themeVariables).toMatchObject({ fontSize: "13px" });
     expect(config.fontSize).toBe(13);
@@ -92,13 +92,13 @@ describe("buildMermaidConfig", () => {
 
 describe("readReadableScale", () => {
   it("is the smallest text size over the diagram's text size", () => {
-    const root = stubRoot("--font-size-lg: 13px; --font-size-sm: 11px");
+    const root = stubRoot("--font-size-2: 13px; --font-size-1: 11px");
 
     expect(readReadableScale(root)).toBeCloseTo(11 / 13);
   });
 
   it("is absent when the smallest text size cannot be read", () => {
-    const root = stubRoot("--font-size-lg: 13px");
+    const root = stubRoot("--font-size-2: 13px");
 
     expect(readReadableScale(root)).toBeUndefined();
   });

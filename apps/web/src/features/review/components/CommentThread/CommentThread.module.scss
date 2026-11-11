@@ -5,7 +5,7 @@
     container-type: inline-size;
     overflow: hidden;
     margin-block: var(--space-3) var(--space-2);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
     box-shadow: var(--shadow-elevation-md);
@@ -20,7 +20,7 @@
   /* The collapsed one-liner on LinkButton's grammar. */
   .collapsedToggle {
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .head {
@@ -33,9 +33,9 @@
     gap: var(--space-5);
     padding-block: var(--space-3-5);
     padding-inline: var(--space-4);
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .location[data-anchor="line"] {
@@ -49,13 +49,13 @@
     padding-block: 0 var(--space-3-5);
     padding-inline: var(--space-4);
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .body {
     min-block-size: functions.to-rem(118px);
     padding: var(--space-4);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
     margin: var(--space-3-5);
     background: var(--color-background);
@@ -108,7 +108,7 @@
   .threadActions {
     padding-block-start: 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   /* The recoverable why-not for a blocked Post. */
@@ -116,7 +116,7 @@
     margin-block: 0 var(--space-2);
     margin-inline: var(--space-4);
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   // Half a split diff at 1440 leaves a card near 345px; the head stacks so the

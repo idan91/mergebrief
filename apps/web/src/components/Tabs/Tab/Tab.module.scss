@@ -10,7 +10,7 @@
     background: transparent;
     color: var(--color-text-2);
     font-family: var(--sans);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
     cursor: pointer;
     transition:
@@ -64,7 +64,7 @@
         padding-inline: 0;
         border-block-end: 2px solid transparent;
         border-radius: 0;
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-3);
 
         @include mixins.hover {
           &:hover:not([aria-selected="true"]) {

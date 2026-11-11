@@ -32,21 +32,21 @@
     gap: var(--space-4);
     block-size: functions.to-rem(32px);
     padding-inline: var(--space-4-5) var(--space-2);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-pill);
     background: var(--color-surface-1);
     box-shadow: var(--shadow-float);
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     transition: border-color var(--motion-base) ease;
 
     &:focus-within {
-      border-color: var(--color-outline-2);
+      border-color: var(--color-line-strong);
     }
 
     @include mixins.hover {
       &:hover {
-        border-color: var(--color-outline-2);
+        border-color: var(--color-line-strong);
       }
     }
   }
@@ -70,7 +70,7 @@
   .separator {
     inline-size: 1px;
     block-size: functions.to-rem(14px);
-    background: var(--color-outline-2);
+    background: var(--color-line-strong);
   }
 
   @media (width < 480px) {

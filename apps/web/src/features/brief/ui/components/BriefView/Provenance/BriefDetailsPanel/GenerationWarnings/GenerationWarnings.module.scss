@@ -7,7 +7,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
     overflow-wrap: anywhere;
 
@@ -29,7 +29,7 @@
     }
 
     li + li {
-      border-block-start: 1px solid var(--color-outline-1);
+      border-block-start: 1px solid var(--color-line);
       padding-block-start: var(--space-3);
     }
   }

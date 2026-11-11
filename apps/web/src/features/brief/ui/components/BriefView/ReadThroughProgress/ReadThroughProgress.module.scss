@@ -32,7 +32,7 @@
       inset-block-start: calc(50% - var(--track-h) / 2);
       block-size: var(--track-h);
       border-radius: var(--radius-pill);
-      background: var(--color-outline-2);
+      background: var(--color-line-strong);
       transition:
         background var(--motion-fast) ease,
         outline-color var(--motion-fast) ease;

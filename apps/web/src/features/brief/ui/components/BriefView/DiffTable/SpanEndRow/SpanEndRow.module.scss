@@ -1,8 +1,8 @@
 @layer components {
   .row td {
     padding: var(--space-2) 0 0;
-    border-block-end: 1px solid var(--color-outline-1);
-    border-inline-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
+    border-inline-end: 1px solid var(--color-line);
     font-size: 0;
     line-height: 0;
     box-shadow: var(--diff-span-edge-bar);

@@ -40,7 +40,7 @@
     // ── Surfaces ─────────────────────────────────────────────────────────
     // Four tiers: ≤4/255 per channel is not a perceivable distinction, so
     // sunken wells sit at page level rather than earning a fifth tier.
-    // surface-3 sits below outline-1 on purpose: a menu's fill is darker
+    // surface-3 sits below line on purpose: a menu's fill is darker
     // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
     --color-focus-ground: #000; // focus mode, below the page
@@ -80,10 +80,10 @@
     // line numbers count as text (WCAG 1.4.3) and use text-3.
     --color-text-4: var(--gray-650);
 
-    // ── Outline / border ─────────────────────────────────────────────────
-    --color-outline-1: var(--gray-800); // hairline dividers, default borders
-    --color-outline-2: var(--gray-700); // strong borders, frames, halos
-    --color-outline-3: var(--gray-600); // the composer submit's raised edge
+    // ── Lines ────────────────────────────────────────────────────────────
+    --color-line: var(--gray-800); // hairline dividers, default borders
+    --color-line-strong: var(--gray-700); // strong borders, frames, halos
+    --color-line-raised: var(--gray-600); // the composer submit's raised edge
     --color-control-edge: oklch(52% var(--gray-c) var(--theme-hue));
 
     // ── Status and accent ────────────────────────────────────────────────
@@ -174,7 +174,7 @@
     --diff-rail-inset: 5px;
     --diff-number-w: #{functions.to-rem(42px)};
     --diff-unified-number-w: calc(2 * var(--diff-number-w));
-    --diff-line-box: calc(var(--font-size-lg) * var(--line-height-reading));
+    --diff-line-box: calc(var(--font-size-2) * var(--line-height-reading));
 
     // A selected diff row: 14% is the strongest wash every syntax colour
     // keeps at 4.5:1 over; the number cells paint 24% opaque over the well
@@ -212,18 +212,18 @@
     --ring-room: #{functions.to-rem(5px)};
 
     // ── Type scale ───────────────────────────────────────────────────────
-    // Seven steps, 11/13/15/17/20/24/30. `lg` is what a person reads as a
+    // Seven steps, 11/13/15/17/20/24/30. Step 2 is what a person reads as a
     // sentence; roles never earn a token at an equal value. Expressed as rem via
     // to-rem() so the scale follows the reader's browser font-size preference
     // (WCAG 1.4.4); the px arguments are the design values, exact at the 16px
-    // root default. `md` was the retired 12px step and stays unassigned.
-    --font-size-sm: #{functions.to-rem(11px)}; // Caption: badges, chunk meta rows, key caps
-    --font-size-lg: #{functions.to-rem(13px)}; // Small: sentences, control labels, code
-    --font-size-xl: #{functions.to-rem(15px)}; // subheads, section titles
-    --font-size-2xl: #{functions.to-rem(17px)}; // Panel title
-    --font-size-3xl: #{functions.to-rem(20px)}; // page titles, Group title
-    --font-size-4xl: #{functions.to-rem(24px)}; // the brief header's PR title
-    --font-size-display: #{functions.to-rem(30px)}; // the one line that owns a screen: Home's personal line and what replaces it
+    // root default.
+    --font-size-1: #{functions.to-rem(11px)}; // badges, chunk meta rows, key caps
+    --font-size-2: #{functions.to-rem(13px)}; // sentences, control labels, code
+    --font-size-3: #{functions.to-rem(15px)}; // subheads, section titles
+    --font-size-4: #{functions.to-rem(17px)}; // Panel title
+    --font-size-5: #{functions.to-rem(20px)}; // page titles, Group title
+    --font-size-6: #{functions.to-rem(24px)}; // the brief header's PR title
+    --font-size-7: #{functions.to-rem(30px)}; // the one line that owns a screen: Home's personal line and what replaces it
 
     // The document base size (body in base.scss) — the measuring stick the
     // steps above are chosen against, not a step itself. The only fluid
@@ -403,7 +403,7 @@
 
     // The identity row's action controls share one box in both header states.
     --header-control-h: #{functions.to-rem(32px)};
-    --header-title-font: var(--font-size-4xl);
+    --header-title-font: var(--font-size-6);
 
     // Mirrors .title's line-height.
     --header-title-line: calc(
@@ -463,7 +463,7 @@
       // Matches what renders here. Does NOT make the fallback correct at
       // these widths — the derivation models two lines and the header wraps
       // into more (108.59px derived against 219.27px actual at 375).
-      --header-title-font: var(--font-size-lg);
+      --header-title-font: var(--font-size-2);
 
       // The phone header is one 44px row; the derivation above models the
       // desktop tiers.

@@ -16,7 +16,7 @@ $header-bar: 6px;
     position: relative;
     block-size: calc(var(--diff-line-box) + 9px);
     background: var(--skeleton-lane-fill);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
 
     &[data-variant="hunk"] {
       --skeleton-lane-fill: var(--color-surface-2);

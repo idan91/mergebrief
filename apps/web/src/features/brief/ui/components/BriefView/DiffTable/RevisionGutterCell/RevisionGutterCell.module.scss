@@ -19,7 +19,7 @@
     }
 
     &[data-placement="seam"] {
-      border-inline-start: 1px solid var(--color-outline-1);
+      border-inline-start: 1px solid var(--color-line);
     }
 
     // Hover, not focus: the `focus-ring` mixin's prefers-contrast bump

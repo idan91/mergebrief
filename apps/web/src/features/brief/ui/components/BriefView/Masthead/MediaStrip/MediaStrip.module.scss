@@ -17,14 +17,14 @@
   .title {
     margin: 0;
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 600;
     line-height: var(--line-height-compact);
   }
 
   .counts {
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .row {
@@ -41,7 +41,7 @@
     list-style: none;
     scroll-padding-inline: var(--ring-room) var(--end-room);
     mask-image: linear-gradient(to left, transparent, currentcolor var(--fade));
-    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-color: var(--color-line-strong) transparent;
     scrollbar-width: thin;
   }
 }

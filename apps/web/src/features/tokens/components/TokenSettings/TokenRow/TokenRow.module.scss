@@ -16,7 +16,7 @@
     }
 
     & + & {
-      border-block-start: 1px solid var(--color-outline-1);
+      border-block-start: 1px solid var(--color-line);
     }
 
     &[data-state="revoked"] {
@@ -33,7 +33,7 @@
   }
 
   .name {
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-3);
     font-weight: 500;
     line-height: functions.to-rem(20px);
     overflow-wrap: anywhere;
@@ -41,7 +41,7 @@
 
   .meta {
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-variant-numeric: tabular-nums;
     line-height: functions.to-rem(18px);
   }
@@ -53,7 +53,7 @@
     align-items: center;
     justify-content: flex-end;
     color: var(--color-text-read);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {

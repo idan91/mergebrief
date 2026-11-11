@@ -9,7 +9,7 @@
 
     :is(h1, h2, h3) {
       color: var(--color-text-1);
-      font-size: var(--font-size-3xl);
+      font-size: var(--font-size-5);
       font-weight: 600;
       letter-spacing: -0.02em;
       line-height: var(--line-height-heading);
@@ -17,7 +17,7 @@
     }
 
     h1 {
-      font-size: var(--font-size-display);
+      font-size: var(--font-size-7);
       line-height: var(--line-height-display);
     }
   }
@@ -25,13 +25,13 @@
   .detail {
     margin-block-end: var(--space-2);
     color: var(--color-text-2);
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-4);
     line-height: var(--line-height-body);
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {
     .block h1 {
-      font-size: var(--font-size-4xl);
+      font-size: var(--font-size-6);
     }
   }
 }

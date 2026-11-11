@@ -11,7 +11,7 @@
   .heading {
     margin: 0;
     color: var(--color-text-1);
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-4);
     font-weight: 600;
     line-height: var(--line-height-compact);
   }
@@ -20,7 +20,7 @@
     max-inline-size: 62ch;
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .createForm {
@@ -33,7 +33,7 @@
     gap: var(--space-4);
     align-items: end;
     padding: var(--space-5);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
   }
@@ -43,7 +43,7 @@
     gap: var(--space-3);
     min-inline-size: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
 
     input,
     select {
@@ -54,7 +54,7 @@
       border-radius: var(--radius-md);
       background: var(--color-background);
       color: var(--color-text-1);
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
 
       @include mixins.touch-field-text;
       @include mixins.focus-visible;
@@ -97,7 +97,7 @@
   .error {
     grid-column: 1 / -1;
     margin: 0;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .hint {
@@ -112,7 +112,7 @@
     margin: 0;
     padding: 0;
     overflow: clip;
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
     list-style: none;
@@ -125,11 +125,11 @@
     margin: 0;
     padding-block: var(--space-3);
     padding-inline: var(--space-5);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   @container (width < #{functions.to-rem(720px)}) {

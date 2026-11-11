@@ -16,7 +16,7 @@
   .inferenceCaution {
     margin-block: var(--space-5) 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .split {
@@ -33,7 +33,7 @@
   .splitEmpty {
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .bucket {
@@ -47,7 +47,7 @@
     gap: var(--space-2);
     margin-block: 0 var(--space-3);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
   }
 
@@ -55,7 +55,7 @@
     max-inline-size: 68ch;
     margin-block: 0 var(--space-3);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .bucketList {
@@ -63,7 +63,7 @@
     flex-direction: column;
     margin: 0;
     padding: 0;
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
     list-style: none;
   }
 
@@ -73,7 +73,7 @@
     align-items: center;
     column-gap: var(--space-4);
     padding-block: var(--space-4);
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
   }
 
   .itemBody {
@@ -88,20 +88,20 @@
 
   .intent {
     color: var(--color-text-1);
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-3);
     font-weight: 500;
     line-height: var(--line-height-compact);
   }
 
   .itemMeta {
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-body);
   }
 
   .source {
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     white-space: nowrap;
   }
 
@@ -112,7 +112,7 @@
   .sourceLink {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: var(--color-outline-2);
+    text-decoration-color: var(--color-line-strong);
     text-underline-offset: functions.to-rem(3px);
 
     @include mixins.hover {
@@ -132,12 +132,12 @@
     margin-block-start: var(--space-4);
     min-block-size: functions.to-rem(24px);
     padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-chip);
     background: none;
     color: var(--color-text-2);
     font: inherit;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     letter-spacing: normal;
 
     // :is(button) matches Chip's hover specificity so the quiet tint wins.
@@ -145,7 +145,7 @@
       &:is(button):hover {
         border-color: color-mix(
           in srgb,
-          var(--color-outline-2) 60%,
+          var(--color-line-strong) 60%,
           var(--color-text-1)
         );
         background: none;
@@ -170,10 +170,10 @@
   }
 
   .goto {
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 
   .gotoId {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 }

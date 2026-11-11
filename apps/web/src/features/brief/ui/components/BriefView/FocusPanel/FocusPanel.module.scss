@@ -39,11 +39,11 @@
     inset-inline-end: var(--focus-panel-end);
     z-index: functions.get-z-index("focus-panel");
     column-gap: var(--space-3);
-    border-color: var(--color-outline-1);
+    border-color: var(--color-line);
     border-radius: var(--radius-pill);
     background: var(--color-surface-2);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     transition:
       /* stylelint-disable-next-line declaration-property-value-allowed-list -- the tab mounts as the panel closes and holds its fade 80ms, until the panel's exit is under way */
       opacity var(--motion-base) var(--ease-out) 80ms,
@@ -57,7 +57,7 @@
 
     @include mixins.hover {
       &:not([aria-disabled="true"]):hover {
-        border-color: var(--color-outline-2);
+        border-color: var(--color-line-strong);
         background: var(--color-surface-3);
         color: var(--color-text-1);
       }

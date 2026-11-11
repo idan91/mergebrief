@@ -5,7 +5,7 @@
   .fold {
     margin-block-start: var(--space-5);
     padding-block-start: var(--space-4);
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
   }
 
   .resolvedList {
@@ -37,7 +37,7 @@
     color: var(--color-text-3);
     direction: rtl;
     font-family: var(--mono);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     text-align: start;
     text-decoration: none;
     text-overflow: ellipsis;

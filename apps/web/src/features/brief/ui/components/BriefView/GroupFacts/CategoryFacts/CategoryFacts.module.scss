@@ -5,7 +5,7 @@
     max-inline-size: functions.to-rem(552px);
     margin-block-start: var(--space-3);
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-style: italic;
     line-height: var(--line-height-body);
   }
@@ -24,10 +24,10 @@
     gap: var(--space-2);
     min-block-size: functions.to-rem(22px);
     padding-inline: var(--space-3);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-chip);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     overflow-wrap: anywhere;
 
     &[data-kind="dominant"] {
@@ -47,6 +47,6 @@
 
   .note {
     color: var(--color-text-3);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
   }
 }

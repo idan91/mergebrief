@@ -333,7 +333,7 @@ describe("ReadingToolbar stylesheet skins", () => {
     const divider = readDeclarations(rules, ".divider");
 
     expect(divider.get("inline-size")).toBe("1px");
-    expect(divider.get("background")).toBe("var(--color-outline-1)");
+    expect(divider.get("background")).toBe("var(--color-line)");
   });
 
   it("lifts the read-through label to Text 1 at 500", () => {

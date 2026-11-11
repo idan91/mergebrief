@@ -38,7 +38,7 @@ describe("SuggestionCard stylesheet", () => {
     );
 
     expect(row.get("--diff-line-box")).toBe(
-      `calc(var(--font-size-lg) * ${String(row.get("line-height"))})`,
+      `calc(var(--font-size-2) * ${String(row.get("line-height"))})`,
     );
     expect(phoneNumber.get("line-height")).toBe("var(--diff-line-box)");
   });

@@ -19,7 +19,7 @@
     flex: none;
     align-items: stretch;
     block-size: var(--header-meta-control-h);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-chip);
     background: color-mix(in srgb, var(--color-text-1) 7%, transparent);
     transition: block-size var(--header-collapse-ease);

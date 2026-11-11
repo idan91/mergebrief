@@ -16,12 +16,12 @@
     min-height: functions.to-rem(44px);
     padding-block: var(--space-3);
     padding-inline: var(--space-3-5);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
     color: var(--color-text-1);
     cursor: pointer;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     text-align: start;
 
     &[aria-expanded="true"] {
@@ -32,7 +32,7 @@
       cursor: default;
 
       @include mixins.dimmed {
-        border-color: functions.dim(var(--color-outline-1));
+        border-color: functions.dim(var(--color-line));
         background: functions.dim(var(--color-surface-2));
       }
     }
@@ -49,11 +49,11 @@
     padding-block: 0;
     padding-inline: var(--space-3);
     border: 0;
-    border-inline-start: 2px solid var(--color-outline-2);
+    border-inline-start: 2px solid var(--color-line-strong);
     border-radius: 0;
     background: none;
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
 
     /* Target growth on a 22px row with NO layout change: a transparent
        ::before claiming the list gap below. 4px is a CEILING — the smallest
@@ -82,7 +82,7 @@
     }
 
     &[aria-disabled="true"]:focus-visible {
-      border-inline-start-color: functions.dim(var(--color-outline-2));
+      border-inline-start-color: functions.dim(var(--color-line-strong));
       background: none;
     }
   }

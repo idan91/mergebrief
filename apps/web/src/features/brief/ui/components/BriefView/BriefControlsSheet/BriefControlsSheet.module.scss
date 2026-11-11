@@ -21,7 +21,7 @@
 
   .accountLabel {
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
   }
 
@@ -43,9 +43,9 @@
     justify-content: space-between;
     min-block-size: functions.to-rem(36px);
     padding-block: var(--space-2);
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
 
     dt {
       white-space: nowrap;
@@ -71,7 +71,7 @@
     gap: var(--space-3);
     align-items: center;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
 
     > span:first-child {
       flex: 1;

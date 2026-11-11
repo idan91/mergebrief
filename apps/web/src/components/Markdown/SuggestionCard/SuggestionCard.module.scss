@@ -4,7 +4,7 @@
   .suggestionCard {
     overflow: hidden;
     margin-block-start: var(--space-4);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
@@ -12,9 +12,9 @@
   .suggestionTitle {
     padding-block: var(--space-3);
     padding-inline: var(--space-3-5);
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
     color: var(--color-text-1);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-weight: 600;
   }
 
@@ -33,7 +33,7 @@
     // A suggestion sits inside a comment card, so its rows run tighter than
     // the reviewable diff's. Specificity has to clear DiffRows.
     tbody tr {
-      --diff-line-box: calc(var(--font-size-lg) * var(--line-height-body));
+      --diff-line-box: calc(var(--font-size-2) * var(--line-height-body));
 
       line-height: var(--line-height-body);
     }

@@ -3,7 +3,7 @@
     padding-block-start: var(--space-2);
 
     &:not(:first-child) {
-      border-block-start: 1px solid var(--color-outline-1);
+      border-block-start: 1px solid var(--color-line);
       margin-block-start: var(--space-2);
     }
   }
@@ -13,6 +13,6 @@
     padding-block: var(--space-2);
     padding-inline: var(--space-3);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 }

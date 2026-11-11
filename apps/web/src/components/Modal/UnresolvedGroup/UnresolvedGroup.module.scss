@@ -6,7 +6,7 @@
     margin-block-end: var(--space-2);
     padding-inline: var(--space-3);
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
     line-height: var(--line-height-body);
   }
@@ -27,7 +27,7 @@
     }
 
     > li + li {
-      border-block-start: 1px solid var(--color-outline-1);
+      border-block-start: 1px solid var(--color-line);
     }
   }
 }

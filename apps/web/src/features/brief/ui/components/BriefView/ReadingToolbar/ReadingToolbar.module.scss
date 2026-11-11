@@ -16,7 +16,7 @@
     gap: var(--space-2);
     margin-block-end: var(--space-4);
     padding: var(--space-2);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
 
@@ -32,7 +32,7 @@
       z-index: -1;
       inset-block: -2px -1px;
       inset-inline: calc(-1px - var(--main-gutter));
-      border-block-end: 1px solid var(--color-outline-1);
+      border-block-end: 1px solid var(--color-line);
       background: var(--color-surface-1);
       clip-path: inset(
         2px calc(1px + var(--main-gutter)) 1px round
@@ -99,7 +99,7 @@
     flex: none;
     inline-size: 1px;
     block-size: 18px;
-    background: var(--color-outline-1);
+    background: var(--color-line);
   }
 
   .navCluster .readThrough {

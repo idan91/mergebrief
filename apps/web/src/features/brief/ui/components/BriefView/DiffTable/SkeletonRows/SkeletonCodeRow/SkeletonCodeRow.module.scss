@@ -18,7 +18,7 @@ $bar-h: 8px;
       var(--color-text-1) 5%,
       transparent
     );
-    --skeleton-divider: var(--color-outline-1);
+    --skeleton-divider: var(--color-line);
     --skeleton-tint: 4%;
     --skeleton-hatch-fill: color-mix(
       in srgb,
@@ -28,7 +28,7 @@ $bar-h: 8px;
     --skeleton-hatch: repeating-linear-gradient(
       -45deg,
       transparent 0 6px,
-      color-mix(in srgb, var(--color-outline-2) 55%, transparent) 6px 7px
+      color-mix(in srgb, var(--color-line-strong) 55%, transparent) 6px 7px
     );
 
     position: relative;

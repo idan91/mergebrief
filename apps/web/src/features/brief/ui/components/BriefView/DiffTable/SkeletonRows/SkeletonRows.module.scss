@@ -58,10 +58,10 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
     overflow: hidden;
     content-visibility: auto;
     contain-intrinsic-block-size: auto var(--skeleton-block-size, auto);
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
     background: var(--color-well);
     font-family: var(--mono);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-reading);
   }
 
@@ -69,7 +69,7 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
     --skeleton-number-width: calc(
       var(--skeleton-digits) * 1ch + #{$cell-pad * 2}
     );
-    --skeleton-divider: var(--color-outline-1);
+    --skeleton-divider: var(--color-line);
     --skeleton-ink: color-mix(in srgb, var(--color-text-1) 6%, transparent);
     --skeleton-ink-number: color-mix(
       in srgb,

@@ -13,7 +13,7 @@
   .cell {
     background: var(--color-well);
     color: var(--color-text-3);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .lane {
@@ -41,7 +41,7 @@
     flex: none;
     padding-block: 0;
     padding-inline: var(--space-3);
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-pill);
     background: transparent;
     color: var(--color-text-2);
@@ -64,7 +64,7 @@
     padding-inline-start: var(--space-3);
     border-inline-start: 2px solid var(--color-text-2);
     color: var(--color-text-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     line-height: functions.to-rem(20px);
     white-space: normal;
   }

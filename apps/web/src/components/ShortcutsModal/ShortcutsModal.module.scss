@@ -14,7 +14,7 @@
   .sectionHeading {
     margin-block-end: var(--space-3);
     color: var(--color-text-1);
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-3);
     font-weight: 600;
     line-height: var(--line-height-body);
   }
@@ -41,7 +41,7 @@
       flex: 1;
       min-inline-size: 0;
       color: var(--color-text-1);
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
       line-height: var(--line-height-compact);
     }
   }
@@ -59,7 +59,7 @@
     align-items: center;
     padding-block: var(--space-2);
     color: var(--color-text-1);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     line-height: var(--line-height-compact);
 
     svg {

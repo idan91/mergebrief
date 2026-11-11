@@ -21,12 +21,12 @@
     overscroll-behavior: contain;
     scroll-padding-block: var(--stack-row-h);
     list-style: none;
-    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-color: var(--color-line-strong) transparent;
     scrollbar-width: thin;
   }
 
   .item {
-    border-block-end: 1px solid var(--color-outline-1);
+    border-block-end: 1px solid var(--color-line);
 
     &:last-child {
       border-block-end: 0;

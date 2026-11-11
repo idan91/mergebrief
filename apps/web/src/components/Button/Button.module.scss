@@ -8,12 +8,12 @@
     justify-content: center;
     padding-block: var(--space-3);
     padding-inline: var(--space-5);
-    border: 1px solid var(--color-outline-2);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-text-1);
     cursor: pointer;
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 600;
     text-decoration: none;
     transition:
@@ -33,7 +33,7 @@
       &:not([aria-disabled="true"]):hover {
         border-color: color-mix(
           in srgb,
-          var(--color-outline-2) 60%,
+          var(--color-line-strong) 60%,
           var(--color-text-1)
         );
         background: color-mix(
@@ -75,7 +75,7 @@
       border-color: color-mix(
         in srgb,
         var(--color-negative) 55%,
-        var(--color-outline-2)
+        var(--color-line-strong)
       );
       color: var(--color-negative);
 
@@ -93,8 +93,8 @@
       min-height: functions.to-rem(24px);
       padding-block: var(--space-2);
       padding-inline: var(--space-3-5);
-      border-color: var(--color-outline-1);
-      font-size: var(--font-size-lg);
+      border-color: var(--color-line);
+      font-size: var(--font-size-2);
       font-weight: 400;
       text-decoration: none;
 
@@ -103,7 +103,7 @@
 
       @include mixins.hover {
         &:not([aria-disabled="true"]):hover {
-          border-color: var(--color-outline-1);
+          border-color: var(--color-line);
           background: none;
         }
       }
@@ -115,7 +115,7 @@
       padding-block: var(--space-2);
       padding-inline: var(--space-3-5);
       border-radius: var(--radius-sm);
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-2);
       font-weight: 500;
     }
 
@@ -150,7 +150,7 @@
       cursor: default;
 
       @include mixins.dimmed {
-        border-color: functions.dim(var(--color-outline-2));
+        border-color: functions.dim(var(--color-line-strong));
       }
 
       &[data-variant="primary"]:focus-visible {
@@ -160,12 +160,16 @@
 
       &[data-variant="danger"]:focus-visible {
         border-color: functions.dim(
-          color-mix(in srgb, var(--color-negative) 55%, var(--color-outline-2))
+          color-mix(
+            in srgb,
+            var(--color-negative) 55%,
+            var(--color-line-strong)
+          )
         );
       }
 
       &[data-variant="quiet"]:focus-visible {
-        border-color: functions.dim(var(--color-outline-1));
+        border-color: functions.dim(var(--color-line));
       }
 
       &[data-variant="ghost"]:focus-visible {

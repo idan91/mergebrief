@@ -3,14 +3,14 @@
 @layer components {
   .header {
     font-family: var(--sans);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   .cell {
     padding-block: 0;
     padding-inline: var(--space-4-5);
-    border-block-start: 1px solid var(--color-outline-1);
-    border-inline-end: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-line);
+    border-inline-end: 1px solid var(--color-line);
     background: var(--color-background);
     color: var(--color-text-2);
     box-shadow: var(--diff-span-edge-bar);
@@ -53,6 +53,6 @@
     flex: none;
     margin-inline-start: auto;
     padding-block: var(--space-1);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 }

@@ -28,7 +28,7 @@ $detach-action-below: 480px;
     border: 1px solid var(--color-changed-edge);
     border-radius: var(--radius-md);
     font-family: var(--sans);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
     font-weight: 500;
 
     > :first-child {
@@ -94,7 +94,7 @@ $detach-action-below: 480px;
     border-start-end-radius: var(--radius-md);
     border-end-end-radius: var(--radius-md);
     background: var(--color-surface-2);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
 
     @include mixins.hover {
       &:hover {
@@ -114,7 +114,7 @@ $detach-action-below: 480px;
   .failure {
     margin-inline-start: var(--space-2);
     color: var(--color-negative);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-1);
   }
 
   @media (width < $detach-action-below) {

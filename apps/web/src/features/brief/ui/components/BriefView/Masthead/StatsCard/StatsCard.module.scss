@@ -2,7 +2,7 @@
   .card {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--color-outline-1);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-lg);
     background: var(--color-card);
   }
@@ -14,14 +14,14 @@
     padding: var(--space-6);
 
     & + & {
-      border-block-start: 1px solid var(--color-outline-1);
+      border-block-start: 1px solid var(--color-line);
     }
   }
 
   .label {
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-2);
     font-weight: 500;
     line-height: var(--line-height-compact);
   }
