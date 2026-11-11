@@ -56,6 +56,14 @@ $z-layers: (
   );
 }
 
+@function inner-radius($radius, $inset) {
+  @return calc(#{$radius} - #{$inset});
+}
+
+@function ink-lift($surface) {
+  @return color-mix(in srgb, #{$surface} 97%, var(--color-text-1));
+}
+
 @function get-breakpoint($name) {
   @if not map.has-key($breakpoints, $name) {
     @error "Unknown breakpoint #{$name}.";

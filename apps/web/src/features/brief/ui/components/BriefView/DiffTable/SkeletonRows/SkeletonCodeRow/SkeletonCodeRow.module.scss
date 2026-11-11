@@ -10,7 +10,6 @@ $bar-h: 8px;
 
 @layer components {
   .code {
-    --skeleton-row: calc(var(--font-size-lg) * 1.7);
     --skeleton-number-width: calc(
       var(--skeleton-digits) * 1ch + #{$cell-pad * 2}
     );
@@ -34,7 +33,7 @@ $bar-h: 8px;
 
     position: relative;
     display: grid;
-    block-size: calc(var(--skeleton-row) * var(--skeleton-span));
+    block-size: calc(var(--diff-line-box) * var(--skeleton-span));
 
     &[data-view="unified"] {
       grid-template-columns:
@@ -136,7 +135,7 @@ $bar-h: 8px;
 
     &:not([data-variant="empty"])::after {
       position: absolute;
-      inset-block-start: calc((var(--skeleton-row) - #{$bar-h}) / 2);
+      inset-block-start: calc((var(--diff-line-box) - #{$bar-h}) / 2);
       inset-inline-start: $cell-pad;
       inline-size: calc(var(--skeleton-digits) * 1ch);
       block-size: $bar-h;

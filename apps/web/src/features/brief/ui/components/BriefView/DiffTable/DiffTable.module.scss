@@ -21,7 +21,7 @@
   // shadow, because the code cell's own edge bar is one.
   .diff tr:has(> [data-span]) > td:last-child,
   .diff tr[data-span] > td:last-child {
-    border-inline-end: 1px solid var(--span-rule);
+    border-inline-end: 1px solid var(--color-outline-1);
   }
 
   .diff tr[data-span] > td:first-child {
@@ -78,10 +78,8 @@
 
   .diff {
     // Earned: the sibling span frame's edge, the same inset the spanned
-    // gutter cells paint, and its rule, a step below; the spanned comment
-    // rows read both from here.
+    // gutter cells paint; the spanned comment rows read it from here.
     --span-edge-bar: inset 1px 0 0 var(--color-text-3);
-    --span-rule: var(--color-outline-1);
 
     inline-size: 100%;
     border-collapse: collapse;

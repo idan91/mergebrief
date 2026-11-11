@@ -23,12 +23,10 @@
     }
 
     code {
-      --code-fill: var(--color-surface-2);
-
       padding-block: var(--space-1);
       padding-inline: var(--space-2-5);
       border-radius: var(--radius-sm);
-      background: var(--code-fill);
+      background: var(--color-surface-2);
       color: var(--color-text-1);
       font-family: var(--mono);
     }

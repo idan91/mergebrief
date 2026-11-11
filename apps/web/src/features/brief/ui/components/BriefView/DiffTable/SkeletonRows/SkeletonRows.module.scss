@@ -18,7 +18,7 @@ $bar-h: 8px;
 $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
 
 @function fill-layers($number-starts, $text-start) {
-  $row: var(--skeleton-row);
+  $row: var(--diff-line-box);
   $cycle: list.length($fill-widths);
   $text-room: "(100% - #{$text-start} - #{$cell-pad})";
   $layers: ();
@@ -67,7 +67,6 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
   }
 
   .fill {
-    --skeleton-row: calc(var(--font-size-lg) * 1.7);
     --skeleton-number-width: calc(
       var(--skeleton-digits) * 1ch + #{$cell-pad * 2}
     );

@@ -4,7 +4,6 @@
 @layer components {
   .modal {
     --modal-enter: 160ms;
-    --modal-exit: var(--motion-fast);
     --modal-box-from: scale(0.98);
 
     position: fixed;
@@ -16,8 +15,8 @@
     background: var(--color-scrim);
     opacity: 0;
     transition:
-      opacity var(--modal-exit) var(--ease-out),
-      display var(--modal-exit) allow-discrete;
+      opacity var(--motion-fast) var(--ease-out),
+      display var(--motion-fast) allow-discrete;
 
     &[data-state="open"] {
       display: flex;
@@ -61,8 +60,8 @@
     opacity: 0;
     transform: var(--modal-box-from);
     transition:
-      opacity var(--modal-exit) var(--ease-out),
-      transform var(--modal-exit) var(--ease-out);
+      opacity var(--motion-fast) var(--ease-out),
+      transform var(--motion-fast) var(--ease-out);
 
     .modal[data-state="open"] > & {
       opacity: 1;
@@ -157,8 +156,6 @@
 
     // The padding and matching negative margins keep a row's focus ring
     // inside the list's scrollport, which would otherwise clip it.
-    --ring-room: #{functions.to-rem(5px)};
-
     padding: var(--ring-room);
     padding-block-end: var(--space-3);
     margin-block-start: calc(-1 * var(--ring-room));

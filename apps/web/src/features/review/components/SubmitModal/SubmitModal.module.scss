@@ -84,15 +84,8 @@
     }
 
     &[data-state="active"] {
-      // Off-scale: the active pick sits one step off --color-outline-1, and moves with it.
-      --active-fill: color-mix(
-        in srgb,
-        var(--color-outline-1) 97%,
-        var(--color-text-1)
-      );
-
       border-color: var(--color-text-3);
-      background: var(--active-fill);
+      background: functions.ink-lift(var(--color-outline-1));
       color: var(--color-text-1);
     }
   }

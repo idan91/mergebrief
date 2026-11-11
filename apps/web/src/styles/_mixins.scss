@@ -43,6 +43,12 @@
   }
 }
 
+@mixin user-select($value) {
+  /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select, and the build has no autoprefixer */
+  -webkit-user-select: $value;
+  user-select: $value;
+}
+
 // Grows a small control's hit area to the 24px floor and leaves its box alone.
 // An ancestor's overflow clips the area with it.
 @mixin hit-area {
@@ -342,4 +348,19 @@
   border-start-end-radius: var(--radius-lg);
   background: var(--color-surface-1);
   box-shadow: var(--shadow-elevation-lg);
+}
+
+@mixin safe-area-bleed($edge, $bleed, $needs-inline-size: false) {
+  #{$edge}: max(
+    var(--space-2),
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
+  #{$bleed}: max(0px, calc(var(--main-gutter) - var(#{$edge})));
+
+  @if $needs-inline-size {
+    inline-size: calc(100% + 2 * var(#{$bleed}));
+  }
+
+  margin-inline: calc(-1 * var(#{$bleed}));
 }

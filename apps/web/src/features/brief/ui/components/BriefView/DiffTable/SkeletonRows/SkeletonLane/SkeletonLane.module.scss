@@ -14,7 +14,7 @@ $header-bar: 6px;
     --skeleton-lane-fill: var(--color-well);
 
     position: relative;
-    block-size: calc(var(--font-size-lg) * 1.7 + 9px);
+    block-size: calc(var(--diff-line-box) + 9px);
     background: var(--skeleton-lane-fill);
     font-size: var(--font-size-sm);
 

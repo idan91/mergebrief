@@ -25,10 +25,6 @@
     z-index: functions.get-z-index("intent-legend");
     inline-size: min(functions.to-rem(420px), 86vw);
     padding: var(--space-4-5) var(--space-5);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-3);
-    box-shadow: var(--shadow-float);
   }
 
   .title {

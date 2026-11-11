@@ -132,6 +132,7 @@
     --diff-rail-inset: 5px;
     --diff-number-w: #{functions.to-rem(42px)};
     --diff-unified-number-w: calc(2 * var(--diff-number-w));
+    --diff-line-box: calc(var(--font-size-lg) * var(--line-height-reading));
 
     // A selected diff row: 14% is the strongest wash every syntax colour
     // keeps at 4.5:1 over; the number cells paint 24% opaque over the well
@@ -165,6 +166,7 @@
     --emphasis-comment: #a8b1ba;
     --emphasis-keyword: #ffa1ab;
     --focus-ring: var(--color-accent);
+    --ring-room: #{functions.to-rem(5px)};
 
     // ── Type scale ───────────────────────────────────────────────────────
     // Seven steps, 11/13/15/17/20/24/30. `lg` is what a person reads as a

@@ -20,7 +20,7 @@ $detach-action-below: 480px;
   }
 
   .split {
-    --segment-radius: calc(var(--radius-md) - 1px);
+    --segment-radius: #{functions.inner-radius(var(--radius-md), 1px)};
 
     display: inline-flex;
     align-items: stretch;

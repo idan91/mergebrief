@@ -96,16 +96,13 @@
     // child's `user-select: text` under an unselectable ancestor, so the
     // .file override alone never works in Safari. The twist opts back out
     // below.
-    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
-    -webkit-user-select: text;
-    user-select: text;
+    @include mixins.user-select(text);
   }
 
   .twist {
+    @include mixins.user-select(none);
+
     flex: none;
-    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
-    -webkit-user-select: none;
-    user-select: none;
     color: var(--color-text-3);
   }
 
@@ -118,11 +115,8 @@
     white-space: nowrap;
 
     // File paths are copyable despite the button parent: UA stylesheets
-    // make button text unselectable. Safari only honors the prefixed form
-    // (WebKit bug 208677) and the build has no autoprefixer.
-    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
-    -webkit-user-select: text;
-    user-select: text;
+    // make button text unselectable.
+    @include mixins.user-select(text);
 
     // Truncate from the start: the tail of a path (filename) is the part
     // that identifies the chunk. RTL flips the ellipsis side; the path sits
@@ -235,15 +229,11 @@
   @include mixins.for-breakpoint("small-mobile", "<") {
     :global(.main) .chunk {
       // chunk-height-model.ts copies this bleed and useWrapColumns.ts its query; chunk-height-model.stylesheets.test.ts compares.
-      --chunk-edge: max(
-        var(--space-2),
-        env(safe-area-inset-left),
-        env(safe-area-inset-right)
+      @include mixins.safe-area-bleed(
+        "--chunk-edge",
+        "--chunk-bleed",
+        $needs-inline-size: true
       );
-      --chunk-bleed: max(0px, calc(var(--main-gutter) - var(--chunk-edge)));
-
-      inline-size: calc(100% + 2 * var(--chunk-bleed));
-      margin-inline: calc(-1 * var(--chunk-bleed));
     }
   }
 

@@ -3,7 +3,11 @@
 
 @layer components {
   .content {
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-panel);
     outline: none;
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
   }
 
   // A sheet inside an animated BottomSheet positions against that sheet, so

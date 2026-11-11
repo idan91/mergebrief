@@ -24,8 +24,7 @@
   }
 
   .group {
-    // Concentric: inner radius = outer − inset (2px padding + 1px border).
-    --segmented-inner-radius: calc(var(--radius-md) - 3px);
+    --segmented-inner-radius: #{functions.inner-radius(var(--radius-md), 3px)};
 
     display: flex;
     gap: var(--space-1);

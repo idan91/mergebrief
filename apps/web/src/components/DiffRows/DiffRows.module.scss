@@ -18,10 +18,6 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     // and the paint-skip estimate are both built on.
     line-height: var(--line-height-reading);
 
-    // The code's first line box, which a caller that resets the row's type
-    // resets with it.
-    --diff-line-box: calc(var(--font-size-lg) * var(--line-height-reading));
-
     > td {
       padding-block: 0;
       padding-inline: var(--space-4-5);
@@ -184,11 +180,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     color: var(--color-text-3);
     text-align: end;
 
-    // Safari only honors the prefixed form (WebKit bug 208677); without it a
-    // multi-line code selection copies the gutter numbers too.
-    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
-    -webkit-user-select: none;
-    user-select: none;
+    @include mixins.user-select(none);
   }
 
   // The digits are the slot content's containing block, so a glyph centres
@@ -215,9 +207,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     // Copied code must be the code: the sign is a literal text node with
     // no separating space, so a selection would paste `+code` fused.
-    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
-    -webkit-user-select: none;
-    user-select: none;
+    @include mixins.user-select(none);
   }
 }
 

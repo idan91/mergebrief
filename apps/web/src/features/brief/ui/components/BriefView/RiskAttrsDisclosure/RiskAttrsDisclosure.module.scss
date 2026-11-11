@@ -35,10 +35,6 @@
     z-index: functions.get-z-index("bar-panel");
     max-inline-size: min(functions.to-rem(460px), 80vw);
     padding: var(--space-4);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-3);
-    box-shadow: var(--shadow-float);
   }
 
   .panel:not([data-sheet]) {

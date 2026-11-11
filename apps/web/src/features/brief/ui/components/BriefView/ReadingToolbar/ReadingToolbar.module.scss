@@ -36,7 +36,7 @@
       background: var(--color-surface-1);
       clip-path: inset(
         2px calc(1px + var(--main-gutter)) 1px round
-          calc(var(--radius-panel) - 1px)
+          functions.inner-radius(var(--radius-panel), 1px)
       );
     }
 

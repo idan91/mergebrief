@@ -29,7 +29,6 @@
 
   .row {
     --fade: #{functions.to-rem(40px)};
-    --ring-room: #{functions.to-rem(5px)};
     --end-room: calc(var(--fade) + var(--ring-room));
 
     display: flex;

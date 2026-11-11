@@ -10,9 +10,7 @@
     --bar-title-inset: calc(
       var(--bar-inset) + var(--bar-caret) + var(--bar-gap)
     );
-
-    // Tracks BarGroup's corner, inside its 1px border.
-    --bar-group-radius: calc(var(--radius-lg) - 1px);
+    --bar-group-radius: #{functions.inner-radius(var(--radius-lg), 1px)};
   }
 
   .head {

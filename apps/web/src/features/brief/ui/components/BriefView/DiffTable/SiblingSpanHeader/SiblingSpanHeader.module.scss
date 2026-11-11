@@ -10,14 +10,10 @@
     // Earned: the frame's edge, the same inset the spanned gutter cells paint.
     --span-edge-bar: inset 1px 0 0 var(--color-text-3);
 
-    // Earned: the frame's rule, a step below its edge; DiffTable.module.scss
-    // declares the same value for the table.
-    --span-rule: var(--color-outline-1);
-
     padding-block: 0;
     padding-inline: var(--space-4-5);
-    border-block-start: 1px solid var(--span-rule);
-    border-inline-end: 1px solid var(--span-rule);
+    border-block-start: 1px solid var(--color-outline-1);
+    border-inline-end: 1px solid var(--color-outline-1);
     background: var(--color-background);
     color: var(--color-text-2);
     box-shadow: var(--span-edge-bar);

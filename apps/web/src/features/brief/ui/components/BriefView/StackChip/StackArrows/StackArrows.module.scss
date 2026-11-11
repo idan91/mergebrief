@@ -6,8 +6,7 @@
   // an unbroken body are what set it apart from the keycap badges beside it.
   // The frame never changes with the ends' state; a disabled end dims inside.
   .stackArrows {
-    // Inner corner of a 1px frame: the outer radius less the border.
-    --stepper-inner-radius: calc(var(--radius-chip) - 1px);
+    --stepper-inner-radius: #{functions.inner-radius(var(--radius-chip), 1px)};
 
     // One step up from the body's tint, as the chip's own hover is.
     --stepper-cell-hover: color-mix(

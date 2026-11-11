@@ -128,19 +128,11 @@
     }
   }
 
-  // Shares the chunk cards' edge (ChunkCard.module.scss) so the card and the
-  // chunks beneath it sit on one gutter.
   @include mixins.for-breakpoint("small-mobile", "<") {
     :global(.main) .card {
       --card-inset: var(--space-5);
-      --card-edge: max(
-        var(--space-2),
-        env(safe-area-inset-left),
-        env(safe-area-inset-right)
-      );
-      --card-bleed: max(0px, calc(var(--main-gutter) - var(--card-edge)));
 
-      margin-inline: calc(-1 * var(--card-bleed));
+      @include mixins.safe-area-bleed("--card-edge", "--card-bleed");
     }
   }
 }

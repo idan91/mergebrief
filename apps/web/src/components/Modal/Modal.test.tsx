@@ -272,6 +272,9 @@ describe("Modal exit", () => {
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const MODAL_STYLESHEET = join(TEST_DIRECTORY, "Modal.module.scss");
 const MODAL_RULES = parseCompiledRules(compileStylesheet(MODAL_STYLESHEET));
+const TOKEN_RULES = parseCompiledRules(
+  compileStylesheet(join(TEST_DIRECTORY, "../../styles/tokens.scss")),
+);
 const LIST_BOX = ".box:has(> .unresolvedList)";
 const LIST = ".unresolvedList";
 const LONG_LIST = ".unresolvedList:has(li:nth-child(2), > :nth-child(2))";
@@ -294,7 +297,9 @@ describe("Modal list dialogs", () => {
     const list = readDeclarations(MODAL_RULES, LIST);
     const ringRoom = "var(--ring-room)";
 
-    expect(list.get("--ring-room")).toBe("0.3125rem");
+    expect(readDeclarations(TOKEN_RULES, ":root").get("--ring-room")).toBe(
+      "0.3125rem",
+    );
     expect(list.get("padding")).toBe(ringRoom);
     expect(list.get("margin-block-start")).toBe(`calc(-1 * ${ringRoom})`);
     expect(list.get("margin-inline")).toBe(`calc(-1 * ${ringRoom})`);

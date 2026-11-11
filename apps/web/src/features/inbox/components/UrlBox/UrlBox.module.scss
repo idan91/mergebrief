@@ -8,11 +8,11 @@
   }
 
   .form {
-    --url-box-edge: color-mix(in srgb, var(--color-text-1) 9%, transparent);
     --url-box-shadow-rest:
-      inset 0 0 0 1px var(--url-box-edge), 0 14px 32px -16px rgb(0 0 0 / 60%);
+      inset 0 0 0 1px var(--color-field-edge),
+      0 14px 32px -16px rgb(0 0 0 / 60%);
     --url-box-shadow-focus:
-      inset 0 0 0 1px var(--url-box-edge),
+      inset 0 0 0 1px var(--color-field-edge),
       0 0 0 2px color-mix(in srgb, var(--color-accent) 50%, transparent),
       0 18px 40px -16px color-mix(in srgb, var(--color-accent) 16%, transparent);
 

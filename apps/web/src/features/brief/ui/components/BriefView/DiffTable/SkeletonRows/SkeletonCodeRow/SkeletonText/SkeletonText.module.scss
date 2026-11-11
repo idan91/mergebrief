@@ -9,7 +9,6 @@ $sign-stroke: 1.5px;
 
 @layer components {
   .text {
-    --skeleton-row: calc(var(--font-size-lg) * 1.7);
     --skeleton-ink: color-mix(in srgb, var(--color-text-1) 7%, transparent);
     --skeleton-ink-strong: var(--skeleton-ink);
     --skeleton-hue-ink: 13%;
@@ -31,7 +30,7 @@ $sign-stroke: 1.5px;
 
     &::after {
       position: absolute;
-      inset-block-start: calc((var(--skeleton-row) - #{$bar-h}) / 2);
+      inset-block-start: calc((var(--diff-line-box) - #{$bar-h}) / 2);
       inset-inline-start: calc(
         #{$cell-pad + $sign} + var(--skeleton-indent) * 1ch
       );
@@ -58,7 +57,7 @@ $sign-stroke: 1.5px;
   .wrap {
     position: absolute;
     inset-block-start: calc(
-      var(--skeleton-row) * (var(--skeleton-line) + 0.5) - #{$bar-h * 0.5}
+      var(--diff-line-box) * (var(--skeleton-line) + 0.5) - #{$bar-h * 0.5}
     );
     inset-inline-start: $cell-pad;
     inline-size: min(
@@ -133,9 +132,9 @@ $sign-stroke: 1.5px;
     background-repeat: no-repeat;
     background-position:
       calc(#{$cell-pad} + 1px)
-        calc(var(--skeleton-row) / 2 - #{$sign-stroke * 0.5}),
+        calc(var(--diff-line-box) / 2 - #{$sign-stroke * 0.5}),
       calc(#{$cell-pad} + 4px)
-        calc(var(--skeleton-row) / 2 - #{$sign-arm * 0.5});
+        calc(var(--diff-line-box) / 2 - #{$sign-arm * 0.5});
     background-size:
       $sign-arm $sign-stroke,
       $sign-stroke $sign-arm;

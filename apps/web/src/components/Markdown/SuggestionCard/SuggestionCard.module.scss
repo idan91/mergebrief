@@ -25,11 +25,9 @@
   }
 
   .suggestionDiff {
-    --diff-fill: var(--color-background);
-
     inline-size: 100%;
     border-collapse: collapse;
-    background: var(--diff-fill);
+    background: var(--color-background);
     table-layout: fixed;
 
     // A suggestion sits inside a comment card, so its rows run tighter than
