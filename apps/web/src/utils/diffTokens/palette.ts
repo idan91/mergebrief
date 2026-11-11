@@ -13,7 +13,7 @@ export const TEXT_CLASS_ID = 0;
 
 // github-dark pairs `markup.ignored` and `carriage-return` with a coloured
 // background we do not render, so their foregrounds are dark-on-dark here
-// (1.5:1 and 1.3:1). They are absent, which resolves them to the row's own
+// (1.6:1 and 1.3:1). They are absent, which resolves them to the row's own
 // text colour rather than to a colour the theme never specified.
 export const SYNTAX_PALETTE = [
   { hex: "#e1e4e8", token: "text" },

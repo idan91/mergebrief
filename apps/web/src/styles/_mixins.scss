@@ -1,3 +1,4 @@
+@use "sass:list";
 @use "functions" as functions;
 
 // ONE focus ring, app-wide. No geometry parameters on purpose — a parameter
@@ -73,8 +74,16 @@
 }
 
 @mixin for-breakpoint($name, $limit-type: min) {
-  @include for-size(functions.get-breakpoint($name), $limit-type) {
-    @content;
+  $size: functions.get-breakpoint($name);
+
+  @if list.index(("<", "<=", ">", ">="), $limit-type) {
+    @media (width #{$limit-type} #{$size}) {
+      @content;
+    }
+  } @else {
+    @include for-size($size, $limit-type) {
+      @content;
+    }
   }
 }
 

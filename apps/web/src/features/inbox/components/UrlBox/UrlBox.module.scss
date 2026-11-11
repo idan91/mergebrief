@@ -163,7 +163,7 @@
     }
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .hint {
       display: none;
     }

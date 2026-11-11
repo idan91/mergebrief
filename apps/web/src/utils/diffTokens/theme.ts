@@ -4,17 +4,17 @@ import type { ThemeRegistrationRaw } from "shiki/core";
 export const MERGEBRIEF_THEME_NAME = "mergebrief-dark";
 
 const CONSTANT_BLUE = "#79b8ff";
-const ENTITY_GREEN = "#85e89d";
+const TAG_GREEN = "#85e89d";
 const DEFAULT_TEXT = "#e1e4e8";
 
-// github-dark's comment grey reads 3.91:1 on the diff row ground
-// (--color-surface-1, #111114). Its successor grey clears AA at 6.13:1
+// github-dark's comment grey reads 4.03:1 on the diff row ground
+// (--color-well, #0d0d11). Its successor grey clears AA at 6.31:1
 // and is the only colour here that github-dark does not already ship.
 const RECOLOURED: Record<string, string> = {
   "#6a737d": "#8b949e",
   // github-dark pairs these two with a coloured background (blue for an
   // ignored line, red for a carriage return) that a diff row does not paint,
-  // so on our ground they measure 1.5:1 and 1.3:1. They take the row's own
+  // so on our ground they measure 1.6:1 and 1.3:1. They take the row's own
   // text colour rather than a lifted one the theme never specified.
   "#2f363d": DEFAULT_TEXT,
   "#24292e": DEFAULT_TEXT,
@@ -45,7 +45,7 @@ const OVERRIDE_RULES: ThemeRule[] = [
   },
   {
     scope: ["entity.other.attribute-name"],
-    settings: { foreground: ENTITY_GREEN },
+    settings: { foreground: TAG_GREEN },
   },
 ];
 

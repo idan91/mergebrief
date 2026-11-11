@@ -28,7 +28,6 @@
     transition: translate var(--motion-slide) var(--ease-out);
   }
 
-  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
   :global(.main[data-focus-panel="open"]) .footer {
     --chunk-head-reserve: max(
       0px,
@@ -37,5 +36,4 @@
 
     translate: calc(-1 * var(--focus-shift)) 0;
   }
-  /* stylelint-enable length-zero-no-unit */
 }

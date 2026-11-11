@@ -8,6 +8,7 @@ import {
   LANDSCAPE_PHONE_QUERY,
   MOBILE_BREAKPOINT_PX,
   MOBILE_QUERY,
+  SMALL_MOBILE_BREAKPOINT_PX,
 } from "../hooks/useMobileViewport";
 import { TABLET_BREAKPOINT_PX } from "../hooks/useViewportBoundary";
 import { compileScss, normalizeMediaQuery } from "../test/compiled-css";
@@ -33,6 +34,16 @@ describe("breakpoints", () => {
     const mobile = /"mobile":\s*(\d+)px/.exec(functions)?.[1];
 
     expect(Number(mobile)).toBe(MOBILE_BREAKPOINT_PX);
+  });
+
+  it("keeps the small-mobile breakpoint equal in SCSS and TS", async () => {
+    const functions = await readFile(
+      fileURLToPath(new URL("./_functions.scss", import.meta.url)),
+      "utf8",
+    );
+    const smallMobile = /"small-mobile":\s*(\d+)px/.exec(functions)?.[1];
+
+    expect(Number(smallMobile)).toBe(SMALL_MOBILE_BREAKPOINT_PX);
   });
 
   it("keeps the landscape height breakpoint equal in SCSS and TS", async () => {

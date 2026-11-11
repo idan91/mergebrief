@@ -1,3 +1,5 @@
+@use "mixins";
+
 $on-demand-label-min-width: 640px;
 
 @mixin visually-hidden {
@@ -44,7 +46,7 @@ $on-demand-label-min-width: 640px;
     color: var(--color-text-1);
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .end {
       gap: var(--space-3);
     }

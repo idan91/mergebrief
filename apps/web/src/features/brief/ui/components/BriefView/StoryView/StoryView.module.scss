@@ -67,7 +67,7 @@
     }
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     :global(.main) .group > * {
       align-self: stretch;
     }
@@ -116,9 +116,7 @@
     translate: calc(-1 * var(--focus-shift)) 0;
   }
 
-  /* stylelint-disable length-zero-no-unit -- max() rejects a unitless 0 */
   :global(.main[data-focus-panel="open"]) .chunks article[data-current] {
     --chunk-head-reserve: max(0px, var(--focus-overlap));
   }
-  /* stylelint-enable length-zero-no-unit */
 }

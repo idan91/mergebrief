@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .header {
@@ -60,7 +61,7 @@
     justify-content: flex-end;
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .header {
       column-gap: var(--space-3);
       padding-inline: var(--space-4) var(--space-2);

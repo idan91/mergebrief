@@ -1,6 +1,7 @@
 {
   "extends": ["stylelint-config-standard-scss"],
   "plugins": ["./stylelint-hover-in-mixin.mjs"],
+  "reportNeedlessDisables": true,
   "overrides": [
     {
       "files": ["**/*.module.scss", "src/styles/_layout.scss"],

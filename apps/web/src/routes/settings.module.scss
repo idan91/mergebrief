@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .page {
@@ -20,7 +21,7 @@
     }
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .main {
       gap: var(--space-6);
       padding-block-start: var(--space-6);

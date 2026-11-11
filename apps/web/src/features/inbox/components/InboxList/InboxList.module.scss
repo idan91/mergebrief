@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .inbox {
@@ -56,7 +57,7 @@
     }
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .fold {
       padding-inline: var(--space-4);
     }

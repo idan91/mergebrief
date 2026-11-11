@@ -61,7 +61,7 @@
     }
   }
 
-  @media (hover: none), (width <= 1120px) {
+  @media (hover: none), (width <= #{functions.get-breakpoint("tablet")}) {
     .corner {
       display: none;
     }

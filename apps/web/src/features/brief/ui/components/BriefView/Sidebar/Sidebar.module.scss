@@ -23,7 +23,7 @@
       transition: none;
     }
 
-    @media (width <= 1120px) {
+    @include mixins.for-breakpoint("tablet", "<=") {
       display: none;
     }
   }
@@ -37,7 +37,6 @@
     z-index: 97;
 
     @include mixins.for-landscape-phone {
-      /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
       --bottom-sheet-offset: 0px;
     }
   }

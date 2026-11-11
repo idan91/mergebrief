@@ -25,6 +25,11 @@ const HEX_LITERAL = /^#([0-9a-f]{6}|[0-9a-f]{3})$/i;
 
 export async function readTokenDeclarations(): Promise<Declarations> {
   const source = await readFile(TOKENS_PATH, "utf8");
+  return parseDeclarations(source);
+}
+
+/** Every custom property declared in a stylesheet's source; the last wins. */
+export function parseDeclarations(source: string): Declarations {
   const declarations = new Map<string, string>();
   for (const match of source.matchAll(DECLARATION)) {
     const [, name, value] = match;
@@ -45,14 +50,14 @@ export function readShare(declarations: Declarations, name: string): number {
   return Number(raw.slice(0, -1)) / 100;
 }
 
-function resolveTokenValue(
+export function resolveTokenValue(
   declarations: Declarations,
   name: string,
   depth = 0,
 ): string {
   const raw = declarations.get(name);
   if (raw === undefined) {
-    throw new Error(`token ${name} is not declared in tokens.scss`);
+    throw new Error(`token ${name} is not declared`);
   }
   if (depth > MAX_ALIAS_DEPTH) {
     throw new Error(`token ${name} references itself`);

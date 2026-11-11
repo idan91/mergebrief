@@ -154,7 +154,7 @@
 
   // Scoped to the widths that collapse: below the breakpoint the header ships
   // already-compact and holds ONE height.
-  @media (width > 880px) {
+  @include mixins.for-breakpoint("mobile", ">") {
     .header[data-collapsed] {
       --header-line-gap: #{functions.to-rem(6px)};
       --header-pad-block: #{functions.to-rem(8px)};

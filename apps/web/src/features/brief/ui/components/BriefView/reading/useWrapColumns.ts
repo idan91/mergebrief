@@ -1,6 +1,10 @@
 import { useMemo, useSyncExternalStore } from "react";
 
-import { MOBILE_QUERY, readLandscapePhone } from "@web/hooks/useMobileViewport";
+import {
+  MOBILE_QUERY,
+  readLandscapePhone,
+  SMALL_MOBILE_BREAKPOINT_PX,
+} from "@web/hooks/useMobileViewport";
 import {
   DESKTOP_WRAP_COLUMNS,
   derivePhoneWrapColumns,
@@ -10,7 +14,7 @@ import {
 } from "./chunk-height-model";
 
 // The bleed query in ChunkCard.module.scss and base.scss; chunk-height-model.stylesheets.test.ts compares.
-export const CARD_BLEED_QUERY = "(width < 760px)";
+export const CARD_BLEED_QUERY = `(width < ${SMALL_MOBILE_BREAKPOINT_PX}px)`;
 
 function subscribe(onChange: () => void): () => void {
   window.addEventListener("resize", onChange);

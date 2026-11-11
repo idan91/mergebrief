@@ -164,10 +164,6 @@
     // the keyword lands at 5.9:1 on the add fill over the list panel.
     --emphasis-comment: #a8b1ba;
     --emphasis-keyword: #ffa1ab;
-
-    // Near-white fill for solid indicators such as the progress bar.
-    // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
-    --color-fill-bright: #d8d8de;
     --focus-ring: var(--color-accent);
 
     // ── Type scale ───────────────────────────────────────────────────────
@@ -376,17 +372,13 @@
 
     // What a chunk head keeps clear at its end; StoryView and ChunkFooter set it
     // while the focus panel covers that end.
-    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --chunk-head-reserve: 0px;
 
     // The width the Sidebar currently reserves, and the wider width it covers
     // while an expanded panel overlays the story; BriefView sets both from
     // the reading column's state.
-    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-w: 0px;
-    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-covered-w: 0px;
-    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-reserve-bottom: 0px;
 
     // @property-registered in _layers.scss so JS reads the inset in px.
@@ -394,7 +386,6 @@
     --safe-area-inset-right: env(safe-area-inset-right);
 
     // Height of the bar a bottom sheet rests on; zero where it rests on the edge.
-    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --bottom-sheet-offset: 0px;
 
     color-scheme: dark light;
@@ -419,7 +410,7 @@
     }
   }
 
-  @media (width <= 1120px) {
+  @include mixins.for-breakpoint("tablet", "<=") {
     :root {
       // Only the padding and the tier minimum change at this width; the
       // derivation above picks the rest up unchanged.
@@ -434,7 +425,7 @@
     }
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     :root {
       --page-gutter: var(--space-5);
       --focus-gutter: var(--space-5);

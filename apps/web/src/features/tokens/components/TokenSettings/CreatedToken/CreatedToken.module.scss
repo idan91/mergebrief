@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .created {
@@ -45,7 +46,7 @@
     justify-self: end;
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .secret {
       flex-direction: column;
       align-items: stretch;

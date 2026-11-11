@@ -232,7 +232,7 @@
   // The card reaches past .main's --main-gutter to sit closer to the screen
   // edge. The bleed lives here because the chunk list's virtualizer writes
   // an inline inline-size on every wrapper above the card.
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     :global(.main) .chunk {
       // chunk-height-model.ts copies this bleed and useWrapColumns.ts its query; chunk-height-model.stylesheets.test.ts compares.
       --chunk-edge: max(
@@ -240,7 +240,6 @@
         env(safe-area-inset-left),
         env(safe-area-inset-right)
       );
-      /* stylelint-disable-next-line length-zero-no-unit -- max() rejects a unitless 0 */
       --chunk-bleed: max(0px, calc(var(--main-gutter) - var(--chunk-edge)));
 
       inline-size: calc(100% + 2 * var(--chunk-bleed));

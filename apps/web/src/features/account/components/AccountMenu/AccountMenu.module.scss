@@ -25,9 +25,7 @@
 
     &[data-presence]::after {
       position: absolute;
-      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the ring overhangs the avatar by its own width */
       inset-block-start: -1px;
-      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the ring overhangs the avatar by its own width */
       inset-inline-end: -1px;
       inline-size: 8px;
       block-size: 8px;

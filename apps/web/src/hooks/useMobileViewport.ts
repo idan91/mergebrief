@@ -2,6 +2,9 @@ import { useSyncExternalStore } from "react";
 
 import { TABLET_BREAKPOINT_PX } from "./useViewportBoundary";
 
+// Kept equal to $breakpoints.small-mobile in styles/_functions.scss by styles/breakpoints.test.ts.
+export const SMALL_MOBILE_BREAKPOINT_PX = 760;
+
 // Kept equal to $breakpoints.mobile in styles/_functions.scss by styles/breakpoints.test.ts.
 export const MOBILE_BREAKPOINT_PX = 880;
 

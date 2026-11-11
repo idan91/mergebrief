@@ -56,7 +56,7 @@
     font-size: var(--font-size-lg);
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .row {
       grid-template-columns: minmax(0, 1fr);
     }

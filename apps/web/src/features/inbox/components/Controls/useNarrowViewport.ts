@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-// Kept equal to the (width < 760px) queries in the Inbox stylesheets.
-const NARROW_QUERY = "(width < 760px)";
+import { SMALL_MOBILE_BREAKPOINT_PX } from "@web/hooks/useMobileViewport";
+
+const NARROW_QUERY = `(width < ${SMALL_MOBILE_BREAKPOINT_PX}px)`;
 
 function subscribe(onChange: () => void): () => void {
   const list = window.matchMedia(NARROW_QUERY);

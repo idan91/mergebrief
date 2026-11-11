@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .controls {
     display: flex;
@@ -29,7 +31,7 @@
     font-size: var(--font-size-lg);
   }
 
-  @media (width < 760px) {
+  @include mixins.for-breakpoint("small-mobile", "<") {
     .controls {
       flex-basis: 100%;
       justify-content: flex-start;
