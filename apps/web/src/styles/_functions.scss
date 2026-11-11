@@ -1,3 +1,4 @@
+@use "sass:list";
 @use "sass:map";
 @use "sass:math";
 
@@ -7,6 +8,34 @@ $breakpoints: (
   "mobile": 880px,
   "tablet": 1120px,
   "landscape-height": 500px,
+);
+$z-layer-step: 10;
+$z-layers: (
+  "raised",
+  "chunk-head-corners",
+  "chunk-head",
+  "self-review-tooltip",
+  "warming-chip",
+  "reading-toolbar",
+  "intent-legend",
+  "sidebar",
+  "reanchor-banner",
+  "header",
+  "bar-panel",
+  "focus-chrome",
+  "focus-panel",
+  "focus-scrim",
+  "focus-sheet",
+  "narrow-sidebar",
+  "phone-bar",
+  "bottom-sheet",
+  "modal",
+  "navigation-progress",
+  "segmented-tip",
+  "skip-link",
+  "popover-scrim",
+  "popover",
+  "toast"
 );
 
 @function to-rem($px-size, $default-size: $default-font-size) {
@@ -33,4 +62,14 @@ $breakpoints: (
   }
 
   @return map.get($breakpoints, $name);
+}
+
+@function get-z-index($name) {
+  $position: list.index($z-layers, $name);
+
+  @if not $position {
+    @error "Unknown z-index layer #{$name}.";
+  }
+
+  @return $position * $z-layer-step;
 }

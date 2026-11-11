@@ -1,9 +1,11 @@
+@use "functions";
+
 @layer components {
   .bar {
     position: fixed;
     inset-block-start: 0;
     inset-inline: 0;
-    z-index: 130;
+    z-index: functions.get-z-index("navigation-progress");
     block-size: 2px;
     background: var(--color-accent);
     opacity: 0;

@@ -5,7 +5,7 @@
   .scrim {
     position: fixed;
     inset: 0;
-    z-index: 99;
+    z-index: functions.get-z-index("bottom-sheet");
     padding: 0;
     border: 0;
     background: var(--color-scrim);
@@ -20,7 +20,7 @@
     position: fixed;
     inset-block-end: var(--sheet-offset);
     inset-inline: 0;
-    z-index: 99;
+    z-index: functions.get-z-index("bottom-sheet");
     display: flex;
     flex-direction: column;
     block-size: calc(50dvh - var(--sheet-offset));

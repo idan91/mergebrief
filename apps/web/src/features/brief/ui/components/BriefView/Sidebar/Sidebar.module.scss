@@ -1,3 +1,4 @@
+@use "functions";
 @use "layout";
 @use "mixins";
 
@@ -6,7 +7,7 @@
     position: fixed;
     inset-block: var(--top-bar-h) 0;
     inset-inline-end: 0;
-    z-index: 45;
+    z-index: functions.get-z-index("sidebar");
     display: flex;
     justify-content: flex-end;
     inline-size: var(--sidebar-w-collapsed);
@@ -33,7 +34,7 @@
     position: fixed;
     inset-block-end: 0;
     inset-inline: 0;
-    z-index: 97;
+    z-index: functions.get-z-index("narrow-sidebar");
 
     @include mixins.for-landscape-phone {
       --bottom-sheet-offset: 0px;

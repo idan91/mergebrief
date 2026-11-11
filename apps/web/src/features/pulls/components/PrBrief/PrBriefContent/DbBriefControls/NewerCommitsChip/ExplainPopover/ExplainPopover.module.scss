@@ -9,9 +9,9 @@
     }
   }
 
-  // Above the header's fixed progress bar (51), which shares its stacking context.
+  // Rendered in-tree: it stacks inside the header's stacking context, over its progress bar.
   .panel {
-    z-index: 52;
+    z-index: functions.get-z-index("bar-panel");
     inline-size: min(functions.to-rem(320px), calc(100vw - 16px));
     padding: var(--space-4) var(--space-4-5);
     border: 1px solid var(--color-outline-2);

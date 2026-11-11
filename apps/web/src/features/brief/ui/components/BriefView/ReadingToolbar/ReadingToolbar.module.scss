@@ -9,10 +9,7 @@
   .toolbar {
     position: sticky;
     inset-block-start: calc(var(--top-bar-h) + var(--reanchor-banner-h, 0px));
-
-    // Clears the sticky chunk headers (z-index 10) so the bar and its
-    // anchored panels ride above them while pinned.
-    z-index: 40;
+    z-index: functions.get-z-index("reading-toolbar");
     display: flex;
     flex-wrap: nowrap;
     align-items: center;

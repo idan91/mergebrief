@@ -10,7 +10,7 @@
       #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom)
     );
     inset-inline-start: calc((100% - var(--sidebar-covered-w)) / 2);
-    z-index: 120;
+    z-index: functions.get-z-index("toast");
     display: flex;
     gap: var(--space-4);
     align-items: center;

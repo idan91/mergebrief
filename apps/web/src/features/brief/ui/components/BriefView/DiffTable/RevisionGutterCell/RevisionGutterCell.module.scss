@@ -65,7 +65,7 @@
     // number cells that follow it and are positioned, a phone's deleted-line
     // number included, so the overhang is hit-testable. At the edge the
     // viewport clips the start side, so the box hangs off the end side only.
-    z-index: 2;
+    z-index: functions.get-z-index("raised");
     inset-block: 0;
     inset-inline-start: 0;
     inline-size: functions.to-rem(24px);

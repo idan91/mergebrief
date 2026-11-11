@@ -5,7 +5,7 @@
     position: fixed;
     inset-block-end: functions.to-rem(14px);
     inset-inline-start: functions.to-rem(16px);
-    z-index: 90;
+    z-index: functions.get-z-index("focus-chrome");
     display: flex;
     align-items: center;
     padding: var(--space-2);

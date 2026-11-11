@@ -29,11 +29,10 @@
     font-weight: 600;
   }
 
-  // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
-  // chunk headers (z 10) from inside the bar's own stacking context.
+  // Rendered in-tree, so it stacks inside the toolbar's stacking context.
   // radius-md matches the trigger family.
   .panel {
-    z-index: 60;
+    z-index: functions.get-z-index("bar-panel");
     max-inline-size: min(functions.to-rem(460px), 80vw);
     padding: var(--space-4);
     border: 1px solid var(--color-outline-2);

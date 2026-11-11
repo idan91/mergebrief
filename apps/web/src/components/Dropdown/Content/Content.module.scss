@@ -2,7 +2,7 @@
 
 @layer components {
   .panel {
-    z-index: 1000;
+    z-index: functions.get-z-index("popover");
     min-inline-size: functions.to-rem(220px);
     max-block-size: functions.to-rem(360px);
     padding: var(--space-2);

@@ -300,6 +300,8 @@ Under 760px the filters collapse behind one button and the controls take their o
 
 Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the edges. Shadows appear only on things that float or that invite input. Everything that sits over content is solid, sticky bars and focus mode's floating pieces included, so code never shows through a control. No backdrop blur ships.
 
+**Stacking.** What overlaps follows one order, lowest first: a diff's rail button and a floating mention list, a pinned chunk head's corners and the head, the self-review tooltip, the warming chip, the reading toolbar, the intent legend, the sidebar, the reanchor banner, the Header with its progress bar, focus mode's strip and shortcuts, its panel, scrim and sheet, the narrow sidebar, the phone bar, the bottom sheet, dialogs, the navigation bar, the segmented control's tip, the skip link, a popover's scrim and every popover, menu and callout, then the toast. A panel opened inside a bar (the reading toolbar's filter and risk panels, the header's newer-commits explanation) orders only within its bar: it paints over the bar's own contents, the header's progress bar included, and never over anything that paints over the bar.
+
 **The Mechanism Gradient Rule.** A gradient never colours a surface. It survives only as a mechanism: the URL box's submit sweep, the scroll-edge shadows on the Sidebar's lists and a group card's file list, skeleton shimmer, a changed line's wash in a compared diff, the hatch on an empty split cell and a media placeholder, the fade at the foot of a clamped comment, the mask at the media strip's edge, and the review progress bar's ramp toward its leading edge.
 
 ### Shadow Vocabulary

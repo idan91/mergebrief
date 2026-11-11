@@ -6,7 +6,7 @@
     position: fixed;
     inset-block-end: 0;
     inset-inline: 0;
-    z-index: 98;
+    z-index: functions.get-z-index("phone-bar");
     display: none;
     gap: var(--space-2);
     align-items: center;

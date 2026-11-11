@@ -7,7 +7,7 @@
     inset-block: calc(var(--top-bar-h) + #{functions.to-rem(12px)})
       var(--focus-panel-inset);
     inset-inline-end: var(--focus-panel-end);
-    z-index: 91;
+    z-index: functions.get-z-index("focus-panel");
     display: flex;
     flex-direction: column;
     inline-size: var(--focus-panel-w);
@@ -37,7 +37,7 @@
     position: fixed;
     inset-block-start: calc(var(--top-bar-h) + #{functions.to-rem(12px)});
     inset-inline-end: var(--focus-panel-end);
-    z-index: 91;
+    z-index: functions.get-z-index("focus-panel");
     column-gap: var(--space-3);
     border-color: var(--color-outline-1);
     border-radius: var(--radius-pill);
@@ -66,7 +66,7 @@
   .scrim {
     position: fixed;
     inset: 0;
-    z-index: 95;
+    z-index: functions.get-z-index("focus-scrim");
     padding: 0;
     border: 0;
     background: var(--color-scrim);
@@ -77,7 +77,7 @@
   .panel[data-variant="sheet"] {
     inset-block: auto 0;
     inset-inline: 0;
-    z-index: 96;
+    z-index: functions.get-z-index("focus-sheet");
     inline-size: auto;
     max-block-size: 70dvh;
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);

@@ -8,7 +8,7 @@
 
     position: sticky;
     inset-block-start: 0;
-    z-index: 50;
+    z-index: functions.get-z-index("header");
     display: flex;
     flex-direction: column;
     border-block-end: 1px solid transparent;
@@ -296,7 +296,7 @@
     position: absolute;
     inset-block-start: calc(100% + 1px);
     inset-inline-start: 0;
-    z-index: 51;
+    z-index: functions.get-z-index("header");
     inline-size: 100%;
     block-size: 3px;
     background: linear-gradient(

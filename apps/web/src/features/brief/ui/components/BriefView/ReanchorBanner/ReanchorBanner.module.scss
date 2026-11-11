@@ -4,7 +4,7 @@
   .reanchorBannerWrap {
     position: sticky;
     inset-block-start: calc(var(--top-bar-h) + var(--focus-indicator-h, 0px));
-    z-index: 50;
+    z-index: functions.get-z-index("reanchor-banner");
     margin-block-end: var(--space-4-5);
     padding-block: var(--space-3) var(--space-3-5);
     /* stylelint-disable-next-line declaration-property-value-allowed-list -- the banner band's side inset, 4px from 16 and 24 */

@@ -26,11 +26,10 @@
     font-weight: 600;
   }
 
-  // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
-  // chunk headers (z 10) from inside the bar's own stacking context.
+  // Rendered in-tree, so it stacks inside the toolbar's stacking context.
   // Wider than the risk panel: two labelled chip rows plus the footer.
   .panel {
-    z-index: 60;
+    z-index: functions.get-z-index("bar-panel");
     min-inline-size: functions.to-rem(320px);
     max-inline-size: min(functions.to-rem(540px), 85vw);
     padding: var(--space-4);

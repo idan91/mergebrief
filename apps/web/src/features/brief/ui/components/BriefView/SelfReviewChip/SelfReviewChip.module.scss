@@ -63,7 +63,7 @@
        exactly the 8px offset. */
     inset-block-start: calc(100% + functions.to-rem(8px));
     inset-inline-end: 0;
-    z-index: 20;
+    z-index: functions.get-z-index("self-review-tooltip");
     inline-size: min(
       functions.to-rem(300px),
       calc(100vw - functions.to-rem(48px))

@@ -48,7 +48,7 @@
     // Pins to the bottom edge of everything above it instead of sliding
     // behind it. --sticky-stack-h is that whole stack as one value.
     inset-block-start: var(--sticky-stack-h);
-    z-index: 10;
+    z-index: functions.get-z-index("chunk-head");
     display: flex;
     inline-size: 100%;
     align-items: center;

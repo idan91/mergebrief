@@ -1,7 +1,7 @@
 @use "functions";
 
 .callout {
-  z-index: 1000;
+  z-index: functions.get-z-index("popover");
   display: flex;
   flex-direction: column;
   width: functions.to-rem(320px);

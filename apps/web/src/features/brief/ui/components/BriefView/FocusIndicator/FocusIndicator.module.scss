@@ -5,7 +5,7 @@
   .stickyWrapper {
     position: sticky;
     inset-block-start: var(--top-bar-h);
-    z-index: 90;
+    z-index: functions.get-z-index("focus-chrome");
     display: flex;
     align-items: flex-start;
     justify-content: center;

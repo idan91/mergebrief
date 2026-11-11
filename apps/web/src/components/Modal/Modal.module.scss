@@ -9,7 +9,7 @@
 
     position: fixed;
     inset: 0;
-    z-index: 100;
+    z-index: functions.get-z-index("modal");
     display: none;
     align-items: center;
     justify-content: center;

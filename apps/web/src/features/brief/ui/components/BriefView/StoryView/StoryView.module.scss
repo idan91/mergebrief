@@ -85,13 +85,12 @@
     display: none;
   }
 
-  // Paints the page into the sticky chunk head's rounded top corners; the
-  // z-index sits one under the head's 10 in ChunkCard.
+  // Paints the page into the sticky chunk head's rounded top corners.
   [data-zen="on"] .chunks article[data-current]::before {
     content: "";
     position: sticky;
     inset-block-start: var(--sticky-stack-h);
-    z-index: 9;
+    z-index: functions.get-z-index("chunk-head-corners");
     display: block;
     block-size: var(--radius-panel);
     margin-block-end: calc(-1 * var(--radius-panel));
