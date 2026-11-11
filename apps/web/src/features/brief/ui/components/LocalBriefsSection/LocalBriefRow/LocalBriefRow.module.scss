@@ -7,7 +7,7 @@
     display: grid;
     align-items: center;
     min-block-size: functions.to-rem(56px);
-    padding-block: functions.to-rem(9px);
+    padding-block: var(--space-3);
     padding-inline: var(--space-5);
 
     & + & {

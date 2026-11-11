@@ -366,7 +366,7 @@ describe.each(SIDEWAYS_WIDTHS)("a phone held sideways at %ipx", (width) => {
   it("pads the bands above the reading column clear of the notch", () => {
     const bands = [
       { rules: reanchorRules, selector: ".reanchorBannerWrap", flatPx: 20 },
-      { rules: lineLinkRules, selector: ".notice", flatPx: 18 },
+      { rules: lineLinkRules, selector: ".notice", flatPx: 16 },
       { rules: columnRules, selector: ".diffTimeoutBand", flatPx: pageGutter },
     ];
     for (const band of bands) {

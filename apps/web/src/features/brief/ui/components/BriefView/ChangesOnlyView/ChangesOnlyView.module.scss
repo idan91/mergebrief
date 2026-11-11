@@ -4,7 +4,7 @@
 @layer components {
   .changesOnly {
     display: grid;
-    gap: functions.to-rem(18px);
+    gap: var(--space-5);
 
     &:focus-visible {
       outline: none;
@@ -25,7 +25,7 @@
 
   .group {
     padding-block: var(--space-5);
-    padding-inline: functions.to-rem(18px);
+    padding-inline: var(--space-5);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
@@ -136,8 +136,9 @@
   }
 
   .empty {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the empty state's block inset, 4px from 16 and 24 */
     padding-block: functions.to-rem(20px);
-    padding-inline: functions.to-rem(18px);
+    padding-inline: var(--space-5);
     border: 1px dashed var(--color-outline-2);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);

@@ -59,7 +59,7 @@
   .lane .jump[data-size] {
     flex: none;
     margin-inline-start: auto;
-    padding-block: functions.to-rem(1px);
+    padding-block: var(--space-1);
     font-size: var(--font-size-sm);
   }
 }

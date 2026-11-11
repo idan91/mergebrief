@@ -126,8 +126,8 @@
     z-index: 200;
     inset-block-start: functions.to-rem(8px);
     inset-inline-start: functions.to-rem(8px);
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(14px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4-5);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -157,6 +157,7 @@
     // changes (revision steps, live diff arriving). Fill, cap, center.
     inline-size: 100%;
     max-inline-size: none;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the story's 36px top room and 140px foot room, both 4px or more from a step */
     padding-block: functions.to-rem(36px)
       calc(functions.to-rem(140px) + var(--sidebar-reserve-bottom));
     padding-inline: var(--main-gutter)

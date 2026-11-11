@@ -45,6 +45,7 @@
 
   .replyNote {
     padding-block: 0 var(--space-4);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the reply note's indent, matching AddressedComments' note */
     padding-inline: functions.to-rem(28px) var(--space-4);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);

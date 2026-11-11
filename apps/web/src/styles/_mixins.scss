@@ -207,7 +207,7 @@
   h4,
   h5,
   h6 {
-    margin-block: functions.to-rem(18px) functions.to-rem(8px);
+    margin-block: var(--space-5) var(--space-3);
     color: var(--color-text-1);
     font-weight: 600;
     line-height: 1.65;
@@ -271,6 +271,7 @@
 
   li {
     position: relative;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the hanging indent the list marker sits in */
     padding-inline-start: functions.to-rem(28px);
 
     &::before {

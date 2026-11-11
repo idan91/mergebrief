@@ -76,6 +76,7 @@
   @container (min-width: 520px) {
     .list {
       grid-template-columns: 1fr 1fr;
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the gutter between the two shortcut columns, 4px from 24 and 32 */
       column-gap: functions.to-rem(28px);
     }
   }

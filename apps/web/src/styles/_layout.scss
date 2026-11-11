@@ -62,6 +62,7 @@ $sidebar-overlay-max: 1644px;
 @mixin wrapping-columns($row-gap) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  /* stylelint-disable-next-line declaration-property-value-allowed-list -- the column gutter, 4px from the 32px step; callers pass a --space-* step as $row-gap */
   gap: $row-gap functions.to-rem(36px);
   align-items: start;
 }

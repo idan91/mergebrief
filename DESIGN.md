@@ -132,7 +132,7 @@ components:
     rounded: "{rounded.panel}"
   list-row:
     height: "56px"
-    padding: "9px 16px"
+    padding: "8px 16px"
   list-row-hover:
     backgroundColor: "{colors.surface-2}"
   list-row-cursor:
@@ -141,7 +141,7 @@ components:
     textColor: "{colors.text-read}"
     rounded: "{rounded.chip}"
     height: "20px"
-    padding: "0 7px"
+    padding: "0 6px"
   filter:
     rounded: "{rounded.md}"
     height: "28px"

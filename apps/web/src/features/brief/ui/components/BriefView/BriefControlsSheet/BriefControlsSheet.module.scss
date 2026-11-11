@@ -7,6 +7,7 @@
 
     gap: var(--space-5);
     overflow-y: auto;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the sheet body's foot room, 4px from 16 and 24 */
     padding-block: var(--space-2) functions.to-rem(20px);
     padding-inline: var(--space-5);
   }

@@ -1,4 +1,3 @@
-@use "functions";
 @use "mixins";
 
 @layer components {
@@ -28,7 +27,8 @@
   .lines {
     display: flex;
     flex: none;
-    gap: functions.to-rem(3px);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the stripe's gap equals its 3px bar width: decorative geometry, so px */
+    gap: 3px;
   }
 
   .line {

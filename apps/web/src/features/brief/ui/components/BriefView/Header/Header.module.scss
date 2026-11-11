@@ -34,7 +34,8 @@
     gap: clamp(var(--space-3-5), 1.5vw, var(--space-5));
     min-block-size: var(--header-identity-min);
     padding-block: var(--header-pad-block);
-    padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the header's widest side inset, 4px from 24 and 32 */
+    padding-inline: clamp(var(--space-5), 3vw, functions.to-rem(28px));
   }
 
   .comparisonRow {
@@ -42,10 +43,11 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, var(--space-5));
     min-block-size: var(--header-comparison-min);
-    padding-block: functions.to-rem(5px);
-    padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
+    padding-block: var(--space-2);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the identity row's side inset, which this row shares */
+    padding-inline: clamp(var(--space-5), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--color-outline-1);
     background: var(--color-chrome);
   }
@@ -190,7 +192,7 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
+    gap: clamp(var(--space-3-5), 1.5vw, var(--space-5));
     margin-inline-start: auto;
   }
 
@@ -250,7 +252,7 @@
     min-inline-size: 0;
     align-items: center;
     flex-wrap: wrap;
-    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, var(--space-5));
   }
 
   .header[data-focus] {

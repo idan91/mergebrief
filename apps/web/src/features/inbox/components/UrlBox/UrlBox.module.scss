@@ -122,7 +122,7 @@
 
   .hint {
     flex: none;
-    padding-block: functions.to-rem(3px);
+    padding-block: var(--space-1);
     padding-inline: var(--space-2-5);
     border-radius: var(--radius-chip);
     background: var(--color-surface-3);

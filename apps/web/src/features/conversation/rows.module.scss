@@ -16,7 +16,7 @@
   }
 
   .nested {
-    margin-inline-start: functions.to-rem(18px);
+    margin-inline-start: var(--space-5);
   }
 
   .row {
@@ -61,8 +61,8 @@
      success green. */
   .chip {
     flex-shrink: 0;
-    padding-block: functions.to-rem(1px);
-    padding-inline: functions.to-rem(7px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-sm);
@@ -120,7 +120,7 @@
   .botTag {
     flex-shrink: 0;
     margin-inline-start: var(--space-2);
-    padding-inline: functions.to-rem(5px);
+    padding-inline: var(--space-2);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-sm);
     color: var(--color-text-2);

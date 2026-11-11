@@ -1,4 +1,3 @@
-@use "functions";
 @use "mixins";
 
 @layer components {
@@ -16,17 +15,17 @@
 
     li ul,
     li ol {
-      margin-block: functions.to-rem(3px) 0;
+      margin-block: var(--space-2) 0;
     }
 
     li + li {
-      margin-block-start: functions.to-rem(3px);
+      margin-block-start: var(--space-2);
     }
 
     code {
       --code-fill: var(--color-surface-2);
 
-      padding-block: functions.to-rem(1px);
+      padding-block: var(--space-1);
       padding-inline: var(--space-2-5);
       border-radius: var(--radius-sm);
       background: var(--code-fill);

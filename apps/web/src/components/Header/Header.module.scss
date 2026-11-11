@@ -19,6 +19,7 @@
   .lockup {
     display: inline-flex;
     flex: none;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the lockup gap scales with the wordmark, 0.4em as DESIGN.md states */
     gap: 0.4em;
     align-items: center;
     min-block-size: functions.to-rem(24px);

@@ -40,6 +40,7 @@ $bar-h: 8px;
       grid-template-columns:
         var(--skeleton-number-width) var(--skeleton-number-width)
         minmax(0, 1fr);
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- $rail tracks the 14px rail DiffRows and SplitRows draw */
       padding-inline-start: $rail;
 
       @include mixins.for-phone {

@@ -78,6 +78,7 @@
   }
 
   .diffTimeoutBand {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the room under the diff-timeout band, 4px from 16 and 24 */
     margin-block: var(--space-4) functions.to-rem(20px);
     margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--page-gutter), env(safe-area-inset-left))

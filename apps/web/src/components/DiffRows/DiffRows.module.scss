@@ -98,7 +98,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     }
 
     &[data-line-kind="note"] td {
-      padding-block: functions.to-rem(7px);
+      padding-block: var(--space-2-5);
       padding-inline: var(--space-4-5);
       color: var(--color-text-3);
       font-size: var(--font-size-sm);
@@ -187,7 +187,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     // Safari only honors the prefixed form (WebKit bug 208677); without it a
     // multi-line code selection copies the gutter numbers too.
-    // stylelint-disable-next-line property-no-vendor-prefix
+    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
     -webkit-user-select: none;
     user-select: none;
   }
@@ -216,7 +216,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     // Copied code must be the code: the sign is a literal text node with
     // no separating space, so a selection would paste `+code` fused.
-    // stylelint-disable-next-line property-no-vendor-prefix
+    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
     -webkit-user-select: none;
     user-select: none;
   }
@@ -271,12 +271,15 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
       > .code {
         // chunk-height-model.ts copies this padding; chunk-height-model.stylesheets.test.ts compares.
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column, $sign-w + $sign-inset, off the scale */
         padding-inline: $sign-w + $sign-inset var(--space-3);
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column plus the wrap hang */
         padding-inline-start: calc($sign-w + $sign-inset + $unified-hang);
         text-indent: calc(-1 * ($sign-w + $unified-hang));
       }
 
       > .code[data-side] {
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column plus the wrap hang */
         padding-inline-start: calc($sign-w + $sign-inset + $split-hang);
         text-indent: calc(-1 * ($sign-w + $split-hang));
       }

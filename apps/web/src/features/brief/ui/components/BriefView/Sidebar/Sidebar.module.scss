@@ -1,4 +1,3 @@
-@use "functions";
 @use "layout";
 @use "mixins";
 
@@ -51,7 +50,8 @@
     order: 2;
     inline-size: var(--sidebar-w-collapsed);
     padding-block: var(--space-3) var(--space-5);
-    padding-inline-end: functions.to-rem(1px);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- balances the rail's 1px start border so its icons centre: a border width, so px */
+    padding-inline-end: 1px;
     border-inline-start: 1px solid var(--color-outline-1);
     background: var(--color-chrome);
   }

@@ -1,5 +1,3 @@
-@use "functions";
-
 @layer components {
   .cta {
     display: inline-flex;
@@ -14,8 +12,8 @@
     align-items: center;
     justify-content: center;
     min-inline-size: 2ch;
-    padding-block: functions.to-rem(3px);
-    padding-inline: functions.to-rem(5px);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-2);
     border-radius: var(--radius-sm);
     background: var(--color-count-on-fill);
     color: var(--color-on-brand);

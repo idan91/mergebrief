@@ -34,7 +34,7 @@
   .rows {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: functions.to-rem(5px) functions.to-rem(18px);
+    gap: var(--space-2) var(--space-5);
     margin: 0;
     font-size: var(--font-size-lg);
 

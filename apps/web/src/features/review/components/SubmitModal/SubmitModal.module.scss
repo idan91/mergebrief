@@ -38,8 +38,8 @@
 
     // The scrollport would clip a tab's or the panel's focus ring at its
     // edges: the padding makes room for it and the margin cancels the shift.
-    padding: functions.to-rem(5px);
-    margin: functions.to-rem(-5px);
+    padding: var(--space-2-5);
+    margin: calc(-1 * var(--space-2-5));
     overflow-y: auto;
     overscroll-behavior: contain;
 
@@ -70,8 +70,8 @@
   .outcome {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(7px);
-    padding-block: functions.to-rem(7px);
+    gap: var(--space-3);
+    padding-block: var(--space-3);
     padding-inline: var(--space-4);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);

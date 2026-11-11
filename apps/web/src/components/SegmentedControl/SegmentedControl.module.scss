@@ -50,7 +50,7 @@
   .label {
     inline-size: 100%;
     min-block-size: functions.to-rem(24px);
-    padding-block: functions.to-rem(3px);
+    padding-block: var(--space-1);
     padding-inline: var(--space-3);
     border-radius: var(--segmented-inner-radius);
     color: var(--color-text-2);

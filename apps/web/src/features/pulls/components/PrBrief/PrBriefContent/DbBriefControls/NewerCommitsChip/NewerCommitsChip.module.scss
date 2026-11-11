@@ -77,7 +77,7 @@ $detach-action-below: 480px;
   .status {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(5px);
+    gap: var(--space-2);
     padding-inline: var(--space-3);
     border-inline-start: 1px solid var(--color-changed-edge);
     color: var(--color-text-read);
@@ -88,7 +88,7 @@ $detach-action-below: 480px;
   .action[data-size][data-variant] {
     block-size: functions.to-rem(24px);
     padding-block: 0;
-    padding-inline: functions.to-rem(9px);
+    padding-inline: var(--space-3);
     border-start-start-radius: 0;
     border-end-start-radius: 0;
     border-start-end-radius: var(--radius-md);

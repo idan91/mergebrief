@@ -2,7 +2,7 @@
 
 @layer components {
   .fileFacts {
-    margin-block-start: functions.to-rem(18px);
+    margin-block-start: var(--space-5);
     padding-block-start: var(--space-4-5);
     border-block-start: 1px solid var(--color-outline-1);
   }
@@ -34,6 +34,7 @@
     display: grid;
     grid-template-columns: repeat(2, auto);
     justify-content: start;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the gap between the two fact columns, 4px from 16 and 24 */
     column-gap: functions.to-rem(20px);
     margin-block: var(--space-4) var(--space-4-5);
 

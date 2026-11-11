@@ -12,7 +12,7 @@
     font-family: var(--sans);
 
     &[data-state="collapsed"] {
-      padding-block: functions.to-rem(9px);
+      padding-block: var(--space-3);
       padding-inline: var(--space-4);
     }
   }

@@ -1,5 +1,3 @@
-@use "functions";
-
 @layer components {
   .trigger {
     /* Tracks IconButton md (32px, 1px border) and the 26px .avatar and
@@ -56,7 +54,8 @@
     box-sizing: border-box;
     inline-size: 26px;
     block-size: 26px;
-    padding: functions.to-rem(5px);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- insets the 16px person glyph in the 26px avatar: icon geometry, so px */
+    padding: 5px;
     color: var(--color-text-2);
   }
 

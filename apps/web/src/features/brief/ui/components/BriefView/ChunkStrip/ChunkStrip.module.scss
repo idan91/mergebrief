@@ -2,7 +2,6 @@
 @use "mixins";
 
 $columns-max: 18;
-$mark-gap: functions.to-rem(4px);
 $mark-min: functions.to-rem(24px);
 
 @layer components {
@@ -13,12 +12,12 @@ $mark-min: functions.to-rem(24px);
       minmax(
         max(
           #{$mark-min},
-          calc((100% - #{$columns-max - 1} * #{$mark-gap}) / #{$columns-max})
+          calc((100% - #{$columns-max - 1} * var(--space-2)) / #{$columns-max})
         ),
         1fr
       )
     );
-    column-gap: $mark-gap;
+    column-gap: var(--space-2);
   }
 
   .mark {

@@ -2,6 +2,7 @@
 
 @layer components {
   .errorState {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- BriefError's 28px inset, copied so the two emit one module */
     padding: functions.to-rem(28px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-lg);

@@ -9,6 +9,7 @@
   .home {
     display: grid;
     gap: var(--space-8);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- Home's foot room, 76px past the largest step */
     padding-block: var(--space-8) functions.to-rem(140px);
     padding-inline: var(--page-gutter);
   }

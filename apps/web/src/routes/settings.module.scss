@@ -10,6 +10,7 @@
     display: grid;
     gap: var(--space-7);
     align-content: start;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- Settings' foot room, 32px past the largest step */
     padding-block: var(--space-8) functions.to-rem(96px);
     padding-inline: var(--page-gutter);
 

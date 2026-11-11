@@ -8,7 +8,7 @@
     align-items: center;
 
     button {
-      gap: functions.to-rem(5px);
+      gap: var(--space-2);
       min-height: var(--header-meta-control-h);
       block-size: var(--header-meta-control-h);
       padding-block: 0;

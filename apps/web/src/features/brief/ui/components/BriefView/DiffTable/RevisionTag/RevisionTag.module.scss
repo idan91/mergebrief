@@ -4,7 +4,7 @@
     padding-inline: var(--space-2-5);
 
     // Same as the sign column: the badge text would fuse onto copied code.
-    // stylelint-disable-next-line property-no-vendor-prefix
+    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select */
     -webkit-user-select: none;
     user-select: none;
     border: 1px solid var(--color-changed-edge);

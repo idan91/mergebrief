@@ -8,7 +8,7 @@
     inset-block-end: functions.to-rem(-24px);
     z-index: 1;
     flex: none;
-    margin-block: functions.to-rem(18px) calc(-1 * var(--space-6));
+    margin-block: var(--space-5) calc(-1 * var(--space-6));
     padding-block: var(--space-4) var(--space-6);
     background: var(--color-surface-3);
   }

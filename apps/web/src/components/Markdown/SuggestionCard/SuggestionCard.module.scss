@@ -12,7 +12,7 @@ $row-line-height: 1.45;
   }
 
   .suggestionTitle {
-    padding-block: functions.to-rem(9px);
+    padding-block: var(--space-3);
     padding-inline: var(--space-3-5);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-1);
