@@ -82,11 +82,7 @@
       @include mixins.hover {
         &:not([aria-disabled="true"]):hover {
           border-color: var(--color-negative);
-          background: color-mix(
-            in srgb,
-            var(--color-negative) 12%,
-            transparent
-          );
+          background: var(--color-negative-tint-medium);
         }
       }
     }
@@ -144,11 +140,7 @@
 
       @include mixins.hover {
         &:not([aria-disabled="true"]):hover {
-          background: color-mix(
-            in srgb,
-            var(--color-negative) 12%,
-            transparent
-          );
+          background: var(--color-negative-tint-medium);
           color: var(--color-negative);
         }
       }

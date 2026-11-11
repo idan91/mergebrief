@@ -36,18 +36,18 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     --row-hue: var(--color-text-1);
 
     // Earned: a 2px edge in the row's own hue, so a changed block reads as one.
-    --change-edge-bar: inset 2px 0 0 var(--row-hue);
+    --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
 
     // Earned: the word-diff mark on a selected row, an underline in the row's
     // hue where a fill would stack on the selection wash.
-    --emphasis-mark-bar: inset 0 -2px 0 var(--row-hue);
+    --emphasis-mark-bar: #{functions.edge-bar(var(--row-hue), 2px, "bottom")};
     --row-hover-tint: 6%;
 
     &[data-line-kind="add"] {
       --row-hue: var(--color-positive);
-      --row-hover-tint: 13%;
+      --row-hover-tint: var(--tint-medium);
 
-      background: color-mix(in srgb, var(--color-positive) 5%, transparent);
+      background: var(--color-positive-tint-faint);
 
       .code {
         color: var(--color-diff-add-text);
@@ -63,9 +63,9 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     &[data-line-kind="del"] {
       --row-hue: var(--color-negative);
-      --row-hover-tint: 13%;
+      --row-hover-tint: var(--tint-medium);
 
-      background: color-mix(in srgb, var(--color-negative) 5%, transparent);
+      background: var(--color-negative-tint-faint);
 
       .code {
         color: var(--color-diff-del-text);
@@ -304,7 +304,11 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
   // comment colour caps the fill at 12%.
   .emphasis {
     border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--row-hue) 18%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--row-hue) var(--tint-strong),
+      transparent
+    );
     color: inherit;
     text-decoration: none;
   }

@@ -3,10 +3,11 @@
 
 @layer components {
   .row {
-    --stack-current-edge: inset 2px 0 0 var(--color-accent);
+    --stack-current-edge: #{functions.edge-bar(var(--color-accent))};
 
-    // Edge shadows for the stuck row; --shadow-float is sized for a whole panel.
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- the stuck row's own edge shadow; --shadow-float is sized for a panel */
     --stack-stuck-shadow-down: 0 8px 14px -8px rgb(0 0 0 / 80%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- the stuck row's own edge shadow, cast upward */
     --stack-stuck-shadow-up: 0 -8px 14px -8px rgb(0 0 0 / 80%);
 
     display: grid;

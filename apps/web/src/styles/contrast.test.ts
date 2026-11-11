@@ -45,7 +45,7 @@ const BUTTON_LABEL_MIN = 4.5;
 // A badge's words sit on a tint of their own colour, held at the AA line at
 // rest and under the pointer on a link badge.
 const BADGE_WORDS_MIN = 4.5;
-const BADGE_TINT = /var\(--badge-color\)\s+(\d+)%/;
+const BADGE_TINT = /var\(--badge-color\)\s+var\((--tint-[\w-]+)\)/;
 const BADGE_COLOR_TOKEN = /^var\((--[\w-]+)\)$/;
 const PERCENT = 100;
 
@@ -192,6 +192,7 @@ function readSelectedRowFill(): string {
 
 function readBadgeTint(
   rules: readonly CompiledRule[],
+  declarations: Declarations,
   selector: string,
 ): number {
   const rule = rules.find(
@@ -203,7 +204,7 @@ function readBadgeTint(
   if (tint?.[1] === undefined) {
     throw new Error(`no badge tint on ${selector}`);
   }
-  return Number(tint[1]) / PERCENT;
+  return readShare(declarations, tint[1]);
 }
 
 function readBadgeColors(rules: readonly CompiledRule[]): string[] {
@@ -374,12 +375,13 @@ describe("palette contrast", () => {
     const rules = parseCompiledRules(
       compileStylesheet(fileURLToPath(BADGE_URL)),
     );
-    const restTint = readBadgeTint(rules, ".badge");
+    const declarations = await readTokenDeclarations();
+    const restTint = readBadgeTint(rules, declarations, ".badge");
     const hoverRule = rules.find((rule) =>
       rule.selectors.includes("a.badge:hover"),
     );
     const hoverTint = hoverRule?.declarations.has("background")
-      ? readBadgeTint(rules, "a.badge:hover")
+      ? readBadgeTint(rules, declarations, "a.badge:hover")
       : restTint;
     const colors = readBadgeColors(rules);
     const tints = [restTint, hoverTint];

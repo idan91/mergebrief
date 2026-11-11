@@ -15,7 +15,7 @@
 
   .mention[data-variant="viewer"] {
     // Earned: a grey hairline, since the accent edge token reads as the focus ring.
-    --mention-viewer-edge: inset 0 0 0 1px var(--color-outline-2);
+    --mention-viewer-edge: #{functions.inset-ring(var(--color-outline-2))};
 
     margin-inline: calc(-1 * var(--space-1));
     padding-inline: var(--space-1);

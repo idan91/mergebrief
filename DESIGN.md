@@ -228,6 +228,10 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 - **Open** (#5fc88f), **Merged** (#a98fd1), **Closed and failed** (#df6b7d, a crimson; deleted lines, errors and the Danger edge take it too, and deleted-line text is #ebd0d2), **Warning** (#d9a45c). Draft is Text 2 with its own icon shape.
 
+### State tints
+
+A state fill is its colour over transparent at one of four strengths, each about half again the one below: **Faint** 5% (`--tint-faint`), **Subtle** 8%, **Medium** 12% and **Strong** 18%. Warning, crimson, green and the accent read them through `--color-<state>-tint-<strength>` tokens (`--color-warning-tint-medium`), and a fill whose colour varies by row or badge mixes its colour at a strength token. Faint washes an added or deleted line and the sign-in failure box. Subtle is the changed tint and the generation warnings chip. Medium is a chip, a badge, the danger hover, the pager's current page, the ticket notice and an added or removed diff row under the pointer. Strong is a warning chip under the pointer and a word-diff mark. An edge in a state colour, an unchanged diff row's 6% of Text 1 under the pointer, the selected diff row's 14% and 24%, the revision wash, the scroll flash and a surface lifted toward the accent are each their component's own.
+
 ### Concern (marks only)
 
 - **Implementation** (#3a93ff), **Test** (#c35000, an orange), **Doc** (#00b472), **Spec** (#a88100, an olive), **Config** (#8f7dfa), **Generated** (#b94399, a magenta), and **Unattributed** (#7c7c87), the one neutral. The hues sit at OKLCH chroma 0.13 to 0.18 and lightness 57% to 68%. In this order neighbours alternate light and dark, at least four points apart, except Generated beside Unattributed, where the neutral's missing chroma does the separating. Hue alone parts Implementation from Config and Test from Generated, so the legend names every segment and colour never carries the split alone. A concern colour draws a dot or a split segment, never a word or a fill.
@@ -308,8 +312,8 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 ### Shadow Vocabulary
 
-- **URL box at rest** (`inset 0 0 0 1px` of Control Edge, plus `0 14px 32px -16px rgb(0 0 0 / 60%)`): a control's edge and a soft lift.
-- **URL box focused** (the same edge, plus `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
+- **URL box at rest** (`inset 0 0 0 1px` of Control Edge, plus `--shadow-lift`, `0 14px 32px -16px rgb(0 0 0 / 60%)`): a control's edge and a soft lift.
+- **URL box focused** (the same edge, plus `--shadow-lift-focus`: `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
 - **What floats** (`0 18px 44px -10px rgb(0 0 0 / 70%)`): menus, popovers, callouts, dialogs over their scrim, and focus mode's pill and panel.
 - **Raised in place** (`0 12px 40px rgb(0 0 0 / 22%)`, `--shadow-elevation-md`): a comment thread and an addressed comment in the diff, the mention list and the self-review chip's popover.
 - **Tooltips** (`0 4px 12px rgb(0 0 0 / 40%)`): a compact callout, a one-line label rather than a surface.

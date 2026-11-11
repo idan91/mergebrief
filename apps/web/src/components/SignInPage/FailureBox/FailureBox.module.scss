@@ -7,7 +7,7 @@
     border: 1px solid
       color-mix(in oklch, var(--color-negative) 40%, var(--color-outline-1));
     border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--color-negative) 6%, transparent);
+    background: var(--color-negative-tint-faint);
     font-size: var(--font-size-lg);
     line-height: var(--line-height-body);
     text-align: start;

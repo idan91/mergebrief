@@ -59,7 +59,7 @@
 
 .callout[data-surface="ground"] {
   // Chrome snaps a 1.5px border to 1px; the half pixel rides a ring under the float.
-  --callout-ground-ring: 0 0 0 0.5px var(--color-outline-2);
+  --callout-ground-ring: #{functions.ring(var(--color-outline-2), 0.5px)};
 
   background: var(--color-focus-ground);
   box-shadow: var(--callout-ground-ring), var(--shadow-float);

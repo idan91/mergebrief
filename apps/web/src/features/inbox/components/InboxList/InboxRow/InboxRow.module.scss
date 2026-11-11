@@ -15,11 +15,8 @@
 @layer components {
   .row {
     --row-bg: var(--color-surface-1);
-
-    /* DESIGN.md's keyboard cursor: a 1px inset accent ring at 55%, no animation. */
-    --row-cursor-ring: inset 0 0 0 1px
-      color-mix(in srgb, var(--color-accent) 55%, transparent);
-    --row-opening-edge: inset 2px 0 0 var(--color-text-2);
+    --row-cursor-ring: #{functions.inset-ring(var(--color-cursor-ring))};
+    --row-opening-edge: #{functions.edge-bar(var(--color-text-2))};
 
     position: relative;
     display: grid;

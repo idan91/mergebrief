@@ -38,9 +38,8 @@ $header-bar: 6px;
       block-size: $arrow;
     }
 
-    // Earned: the down arrow, a copy of the up arrow one slot along, so the
-    // lane stays one element.
     &[data-arrows="2"] {
+      /* stylelint-disable-next-line house/custom-property-no-raw-value -- the down arrow is the up arrow copied one 26px slot along, so the lane stays one element */
       --skeleton-down-arrow: 26px 0 0 var(--skeleton-lane-ink);
     }
 

@@ -13,18 +13,18 @@
     // it resolves against the cell's hue, not the row's text colour.
     > td[data-line-kind="add"] {
       --row-hue: var(--color-positive);
-      --row-hover-tint: 13%;
-      --change-edge-bar: inset 2px 0 0 var(--row-hue);
+      --row-hover-tint: var(--tint-medium);
+      --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
 
-      background: color-mix(in srgb, var(--color-positive) 5%, transparent);
+      background: var(--color-positive-tint-faint);
     }
 
     > td[data-line-kind="del"] {
       --row-hue: var(--color-negative);
-      --row-hover-tint: 13%;
-      --change-edge-bar: inset 2px 0 0 var(--row-hue);
+      --row-hover-tint: var(--tint-medium);
+      --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
 
-      background: color-mix(in srgb, var(--color-negative) 5%, transparent);
+      background: var(--color-negative-tint-faint);
     }
 
     > td[data-line-kind="add"][class*="code"] {

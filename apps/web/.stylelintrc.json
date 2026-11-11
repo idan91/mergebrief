@@ -1,6 +1,9 @@
 {
   "extends": ["stylelint-config-standard-scss"],
-  "plugins": ["./stylelint-hover-in-mixin.mjs"],
+  "plugins": [
+    "./stylelint-hover-in-mixin.mjs",
+    "./stylelint-custom-property-no-raw-value.mjs"
+  ],
   "reportNeedlessDisables": true,
   "reportDescriptionlessDisables": true,
   "overrides": [
@@ -16,6 +19,7 @@
     {
       "files": ["**/*.module.scss"],
       "rules": {
+        "house/custom-property-no-raw-value": true,
         "declaration-property-value-disallowed-list": [
           {
             "/^(--|\\$)/": [

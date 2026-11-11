@@ -60,6 +60,26 @@ $z-layers: (
   @return calc(#{$radius} - #{$inset});
 }
 
+@function edge-bar($color, $width: 2px, $side: "left") {
+  @if $side == "bottom" {
+    @return inset 0 (-$width) 0 #{$color};
+  }
+
+  @if $side != "left" {
+    @error "Unknown edge-bar side #{$side}.";
+  }
+
+  @return inset $width 0 0 #{$color};
+}
+
+@function ring($color, $width) {
+  @return 0 0 0 $width #{$color};
+}
+
+@function inset-ring($color, $width: 1px) {
+  @return inset ring($color, $width);
+}
+
 @function ink-lift($surface) {
   @return color-mix(in srgb, #{$surface} 97%, var(--color-text-1));
 }

@@ -15,10 +15,7 @@
     }
 
     &[data-span] {
-      // Earned: the sibling span's edge, continuous with its header row.
-      --span-edge-bar: inset 1px 0 0 var(--color-text-3);
-
-      box-shadow: var(--span-edge-bar);
+      box-shadow: var(--diff-span-edge-bar);
     }
 
     &[data-placement="seam"] {

@@ -9,12 +9,10 @@
 
   .form {
     --url-box-shadow-rest:
-      inset 0 0 0 1px var(--color-control-edge),
-      0 14px 32px -16px rgb(0 0 0 / 60%);
+      #{functions.inset-ring(var(--color-control-edge))}, var(--shadow-lift);
     --url-box-shadow-focus:
-      inset 0 0 0 1px var(--color-control-edge),
-      0 0 0 2px color-mix(in srgb, var(--color-accent) 50%, transparent),
-      0 18px 40px -16px color-mix(in srgb, var(--color-accent) 16%, transparent);
+      #{functions.inset-ring(var(--color-control-edge))},
+      var(--shadow-lift-focus);
 
     position: relative;
     display: flex;

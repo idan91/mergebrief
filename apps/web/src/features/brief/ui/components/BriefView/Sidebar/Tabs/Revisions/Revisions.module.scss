@@ -11,10 +11,11 @@
 
   .list {
     /* The picked timeline's node: a 1.5px ring, and a halo over a gap in the scroller fill when current. */
-    --node-ring-rest: inset 0 0 0 1.5px var(--color-text-3);
-    --node-ring-hover: inset 0 0 0 1.5px var(--color-text-2);
+    --node-ring-rest: #{functions.inset-ring(var(--color-text-3), 1.5px)};
+    --node-ring-hover: #{functions.inset-ring(var(--color-text-2), 1.5px)};
     --node-halo:
-      0 0 0 1.5px var(--scroller-bg), 0 0 0 2.5px var(--color-accent);
+      #{functions.ring(var(--scroller-bg), 1.5px)},
+      #{functions.ring(var(--color-accent), 2.5px)};
     --row-pad-block: var(--space-3);
     --list-gap: var(--space-1);
     --node-center: #{functions.to-rem(9px)};

@@ -2,10 +2,12 @@
 
 @layer components {
   .kbd {
-    // Earned: a key face is two inset lips plus a hairline drop; the
-    // elevation tokens are all soft, offset shadows for floating surfaces.
+    --kbd-shade-w: 2px;
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own bevel: the lit top lip */
     --kbd-lip: inset 0 1px 0 rgb(255 255 255 / 14%);
-    --kbd-shade: inset 0 -2px 0 rgb(0 0 0 / 55%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own bevel: the shaded bottom lip */
+    --kbd-shade: inset 0 calc(-1 * var(--kbd-shade-w)) 0 rgb(0 0 0 / 55%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own hairline drop; every elevation token is a soft float */
     --kbd-drop: 0 1px 0 rgb(0 0 0 / 45%);
 
     display: inline-flex;
@@ -29,7 +31,7 @@
   }
 
   .kbd[data-size="sm"] {
-    --kbd-shade: inset 0 -1px 0 rgb(0 0 0 / 55%);
+    --kbd-shade-w: 1px;
 
     min-inline-size: functions.to-rem(18px);
     min-block-size: functions.to-rem(18px);

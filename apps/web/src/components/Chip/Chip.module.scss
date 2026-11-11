@@ -40,12 +40,12 @@
     }
 
     &[data-tone="warning"] {
-      background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+      background: var(--color-warning-tint-medium);
       color: var(--color-warning);
 
       @include mixins.hover {
         &:is(button):where(:not([aria-disabled="true"])):hover {
-          background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+          background: var(--color-warning-tint-strong);
         }
       }
     }
@@ -66,9 +66,7 @@
       }
 
       &[data-tone="warning"]:focus-visible {
-        background: functions.dim(
-          color-mix(in srgb, var(--color-warning) 12%, transparent)
-        );
+        background: functions.dim(var(--color-warning-tint-medium));
       }
 
       &:is([data-tone="changed"], [aria-pressed="true"]):focus-visible {

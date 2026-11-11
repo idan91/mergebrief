@@ -25,7 +25,7 @@
   }
 
   .diff tr[data-span] > td:first-child {
-    box-shadow: var(--span-edge-bar);
+    box-shadow: var(--diff-span-edge-bar);
   }
 
   .composerDisabledNote {
@@ -77,10 +77,6 @@
   }
 
   .diff {
-    // Earned: the sibling span frame's edge, the same inset the spanned
-    // gutter cells paint; the spanned comment rows read it from here.
-    --span-edge-bar: inset 1px 0 0 var(--color-text-3);
-
     inline-size: 100%;
     border-collapse: collapse;
     background: var(--color-well);

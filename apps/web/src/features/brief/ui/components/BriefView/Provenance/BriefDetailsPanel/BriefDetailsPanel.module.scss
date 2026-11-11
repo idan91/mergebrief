@@ -54,11 +54,6 @@
       var(--color-warning) 40%,
       transparent
     );
-    --warnings-chip-fill: color-mix(
-      in srgb,
-      var(--color-warning) 8%,
-      transparent
-    );
 
     flex: none;
     gap: var(--space-2);
@@ -80,13 +75,13 @@
        is this chip's look, hover included (it never had one). */
     &[data-tone="warning"] {
       border-color: var(--warnings-chip-edge);
-      background: var(--warnings-chip-fill);
+      background: var(--color-warning-tint-subtle);
     }
 
     @include mixins.hover {
       &[data-tone="warning"]:is(button):hover {
         border-color: var(--warnings-chip-edge);
-        background: var(--warnings-chip-fill);
+        background: var(--color-warning-tint-subtle);
       }
     }
   }

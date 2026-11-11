@@ -73,6 +73,6 @@ describe("Button stylesheet ghost variants", () => {
 
     expect(rest.get("color")).toBe("var(--color-negative)");
     expect(hover.get("color")).toBe("var(--color-negative)");
-    expect(hover.get("background")).toContain("var(--color-negative) 12%");
+    expect(hover.get("background")).toBe("var(--color-negative-tint-medium)");
   });
 });

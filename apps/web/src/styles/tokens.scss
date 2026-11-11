@@ -101,6 +101,47 @@
     // this product's vocabulary, not a decoration.
     --color-merged: var(--violet-400);
 
+    // State tints: a state colour over transparent at one of four strengths.
+    --tint-faint: 5%;
+    --tint-subtle: 8%;
+    --tint-medium: 12%;
+    --tint-strong: 18%;
+    --color-positive-tint-faint: color-mix(
+      in srgb,
+      var(--color-positive) var(--tint-faint),
+      transparent
+    );
+    --color-negative-tint-faint: color-mix(
+      in srgb,
+      var(--color-negative) var(--tint-faint),
+      transparent
+    );
+    --color-negative-tint-medium: color-mix(
+      in srgb,
+      var(--color-negative) var(--tint-medium),
+      transparent
+    );
+    --color-warning-tint-subtle: color-mix(
+      in srgb,
+      var(--color-warning) var(--tint-subtle),
+      transparent
+    );
+    --color-warning-tint-medium: color-mix(
+      in srgb,
+      var(--color-warning) var(--tint-medium),
+      transparent
+    );
+    --color-warning-tint-strong: color-mix(
+      in srgb,
+      var(--color-warning) var(--tint-strong),
+      transparent
+    );
+    --color-accent-tint-medium: color-mix(
+      in srgb,
+      var(--color-accent) var(--tint-medium),
+      transparent
+    );
+
     // Concern marks (DESIGN.md, Concern): one hue per concern, neighbours in
     // vocabulary order alternating light and dark, unattributed the one
     // neutral. Marks only, never words; the contrast test holds them at 3:1
@@ -145,7 +186,8 @@
       transparent
     );
     --diff-selected-gutter-tint: 24%;
-    --diff-selected-edge-bar: inset 3px 0 0 var(--color-accent);
+    --diff-selected-edge-bar: #{functions.edge-bar(var(--color-accent), 3px)};
+    --diff-span-edge-bar: #{functions.edge-bar(var(--color-text-3), 1px)};
 
     // Syntax palette: one token per colour the diff tokenizer can emit, in
     // the palette's own order. The syntaxTokens test holds both sides in
@@ -305,18 +347,25 @@
     --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // sheets, the toast, the lightbox
     --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, popovers, dialogs
     --shadow-tooltip: 0 4px 12px rgb(0 0 0 / 40%);
+    --shadow-lift: 0 14px 32px -16px rgb(0 0 0 / 60%); // the URL box at rest
+    --shadow-lift-focus:
+      #{functions.ring(
+          color-mix(in srgb, var(--color-accent) 50%, transparent),
+          2px
+        )},
+      0 18px 40px -16px color-mix(in srgb, var(--color-accent) 16%, transparent);
     --opacity-disabled: 0.45;
 
     // --shadow-ring-clear is the transparent end-state of the jump-to flash
     // keyframes: it must keep --shadow-ring-accent's geometry or the
     // animation jumps.
-    --shadow-ring-accent: 0 0 0 2px var(--color-accent);
-    --shadow-ring-clear: 0 0 0 2px transparent;
+    --shadow-ring-accent: #{functions.ring(var(--color-accent), 2px)};
+    --shadow-ring-clear: #{functions.ring(transparent, 2px)};
 
     // The changed tint: a pressed filter, an active segment, a revision mark.
     --color-changed-fill: color-mix(
       in srgb,
-      var(--color-accent) 8%,
+      var(--color-accent) var(--tint-subtle),
       transparent
     );
     --color-changed-edge: color-mix(
@@ -324,9 +373,11 @@
       var(--color-accent) 45%,
       transparent
     );
-    --shadow-inset-changed: inset 0 0 0 1px var(--color-changed-edge);
-    --shadow-field-focus: inset 0 0 0 3px
-      color-mix(in srgb, var(--color-accent) 16%, transparent);
+    --shadow-inset-changed: #{functions.inset-ring(var(--color-changed-edge))};
+    --shadow-field-focus: #{functions.inset-ring(
+        color-mix(in srgb, var(--color-accent) 16%, transparent),
+        3px
+      )};
     --color-well: color-mix(
       in srgb,
       var(--color-background) 25%,
