@@ -8,8 +8,8 @@
     align-items: center;
     inline-size: 100%;
     min-inline-size: 0;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3-5);
     border: 0;
     border-radius: var(--radius-md);
     background: none;

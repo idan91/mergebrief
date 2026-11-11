@@ -25,7 +25,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     > td {
       padding-block: 0;
-      padding-inline: functions.to-rem(14px);
+      padding-inline: var(--space-4-5);
       vertical-align: top;
       white-space: pre;
     }
@@ -90,8 +90,8 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
     }
 
     &[data-line-kind="hunk"] td {
-      padding-block: functions.to-rem(6px);
-      padding-inline: functions.to-rem(14px);
+      padding-block: var(--space-2-5);
+      padding-inline: var(--space-4-5);
       background: var(--color-surface-2);
       color: var(--color-text-3);
       font-size: var(--font-size-sm);
@@ -99,7 +99,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
     &[data-line-kind="note"] td {
       padding-block: functions.to-rem(7px);
-      padding-inline: functions.to-rem(14px);
+      padding-inline: var(--space-4-5);
       color: var(--color-text-3);
       font-size: var(--font-size-sm);
       font-style: italic;

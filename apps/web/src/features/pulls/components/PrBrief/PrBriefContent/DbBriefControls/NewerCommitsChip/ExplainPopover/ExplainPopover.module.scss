@@ -13,7 +13,7 @@
   .panel {
     z-index: 52;
     inline-size: min(functions.to-rem(320px), calc(100vw - 16px));
-    padding: functions.to-rem(12px) functions.to-rem(14px);
+    padding: var(--space-4) var(--space-4-5);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-panel);
     background: var(--color-surface-3);
@@ -40,7 +40,7 @@
   }
 
   .title {
-    margin: functions.to-rem(8px) 0 0;
+    margin: var(--space-3) 0 0;
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
     font-weight: 600;
@@ -49,8 +49,8 @@
   .body {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(6px);
-    margin-block-start: functions.to-rem(6px);
+    gap: var(--space-2-5);
+    margin-block-start: var(--space-2-5);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
     line-height: 1.45;
@@ -68,8 +68,8 @@
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(8px);
-    margin-block-start: functions.to-rem(12px);
+    gap: var(--space-3);
+    margin-block-start: var(--space-4);
 
     &:empty {
       display: none;

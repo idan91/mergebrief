@@ -9,15 +9,14 @@
     min-inline-size: 0;
     align-items: center;
     flex-wrap: wrap;
-    gap: functions.to-rem(8px)
-      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, functions.to-rem(18px));
   }
 
   .comparisonRegion {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
     min-inline-size: 0;
   }
 
@@ -25,12 +24,12 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     min-inline-size: 0;
   }
 
   .readOnlyChip {
-    padding-block: functions.to-rem(2px);
+    padding-block: var(--space-1);
     padding-inline: functions.to-rem(7px);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-pill);

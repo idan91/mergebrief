@@ -4,8 +4,8 @@
   .body {
     position: relative;
     min-inline-size: 0;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
     font-size: var(--font-size-lg);
     line-height: 1.6;
     overflow-wrap: anywhere;
@@ -29,7 +29,7 @@
 
   .toggle {
     justify-self: start;
-    margin-block-end: functions.to-rem(8px);
-    margin-inline: functions.to-rem(8px);
+    margin-block-end: var(--space-3);
+    margin-inline: var(--space-3);
   }
 }

@@ -98,8 +98,11 @@ rounded:
 spacing:
   "1": "2px"
   "2": "4px"
+  "2-5": "6px"
   "3": "8px"
+  "3-5": "10px"
   "4": "12px"
+  "4-5": "14px"
   "5": "16px"
   "6": "24px"
   "7": "32px"
@@ -277,7 +280,7 @@ The root stays at the browser's size, 16px by default. Only `body` is fluid: a c
 
 One centred column, 1080px wide at most, with a 24px gutter that becomes 16px under 760px; the header shares the gutter, so its lockup and account trigger line up with the column. The Header is one 52px tier, transparent, with a Line hairline under it. Its left end is the lockup, one link named MergeBrief: the mark in Brand at 1.3em beside the wordmark at 20px, 0.4em apart, the wordmark in Text 1. Its right end is the account trigger: a pill holding the avatar, concentric in the pill's cap, and a caret; its menu offers Settings, a Language group where language selection is enabled, Keyboard shortcuts (not on touch) and Sign out.
 
-Spacing uses one scale: 2, 4, 8, 12, 16, 24, 32, 48, 64. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
+Spacing uses one scale: 2, 4, 6, 8, 10, 12, 14, 16, 24, 32, 48, 64. The 6, 10 and 14px steps sit between whole steps and are named `--space-2-5`, `--space-3-5` and `--space-4-5`. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
 
 The list splits at a fold. Rows that need the reviewer (open, not a draft, and new, updated since your review or in progress) come first; a quiet line reading "Not waiting on you" follows; reviewed rows, drafts, merged or closed rows and the viewer's own come last. The personal line above counts the rows the fold lifts ("5 pull requests need your attention") and lists their states, what changed since your review first; with nothing waiting it reads "You are all caught up". Each group keeps the chosen sort. A View control beside Sort offers the other layout, "Mixed": one list in the sort's order with no fold. The choice rides the URL and is not a filter, so Clear leaves it.
 

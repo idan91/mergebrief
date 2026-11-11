@@ -5,7 +5,7 @@
   .badge {
     display: inline-flex;
     align-items: center;
-    padding-inline: functions.to-rem(6px);
+    padding-inline: var(--space-2-5);
     padding-block: functions.to-rem(1px);
     border: 1px solid transparent;
     border-radius: var(--radius-chip);

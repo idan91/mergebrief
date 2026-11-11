@@ -1,9 +1,7 @@
-@use "functions";
-
 @layer components {
   .metricNote {
     display: block;
-    margin-block-start: functions.to-rem(4px);
+    margin-block-start: var(--space-2);
     color: var(--color-text-3);
     font-family: var(--sans);
     font-size: var(--font-size-sm);

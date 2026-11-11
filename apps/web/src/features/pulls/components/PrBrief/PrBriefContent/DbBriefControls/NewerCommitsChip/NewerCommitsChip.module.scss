@@ -9,14 +9,14 @@ $detach-action-below: 480px;
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    row-gap: functions.to-rem(4px);
+    row-gap: var(--space-2);
     min-inline-size: 0;
   }
 
   .tail {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
   }
 
   .split {
@@ -42,7 +42,7 @@ $detach-action-below: 480px;
     }
 
     &:not([data-variant="attached"]) {
-      margin-inline-end: functions.to-rem(4px);
+      margin-inline-end: var(--space-2);
     }
 
     &[data-variant="attached"] {
@@ -59,8 +59,8 @@ $detach-action-below: 480px;
   .label {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(6px);
-    padding-inline: functions.to-rem(8px);
+    gap: var(--space-2-5);
+    padding-inline: var(--space-3);
     background: var(--color-changed-fill);
     color: var(--color-accent);
     white-space: nowrap;
@@ -78,7 +78,7 @@ $detach-action-below: 480px;
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(5px);
-    padding-inline: functions.to-rem(8px);
+    padding-inline: var(--space-3);
     border-inline-start: 1px solid var(--color-changed-edge);
     color: var(--color-text-read);
     white-space: nowrap;
@@ -112,14 +112,14 @@ $detach-action-below: 480px;
   }
 
   .failure {
-    margin-inline-start: functions.to-rem(4px);
+    margin-inline-start: var(--space-2);
     color: var(--color-negative);
     font-size: var(--font-size-sm);
   }
 
   @media (width < $detach-action-below) {
     .root[data-variant="beside-newer-brief"] {
-      column-gap: functions.to-rem(6px);
+      column-gap: var(--space-2-5);
 
       .split[data-variant="attached"] {
         border-start-end-radius: var(--radius-md);

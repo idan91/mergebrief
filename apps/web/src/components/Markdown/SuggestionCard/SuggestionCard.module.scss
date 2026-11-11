@@ -5,7 +5,7 @@ $row-line-height: 1.45;
 @layer components {
   .suggestionCard {
     overflow: hidden;
-    margin-block-start: functions.to-rem(12px);
+    margin-block-start: var(--space-4);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -13,7 +13,7 @@ $row-line-height: 1.45;
 
   .suggestionTitle {
     padding-block: functions.to-rem(9px);
-    padding-inline: functions.to-rem(10px);
+    padding-inline: var(--space-3-5);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-1);
     font-size: var(--font-size-sm);
@@ -43,7 +43,7 @@ $row-line-height: 1.45;
     }
 
     tbody td {
-      padding-inline: functions.to-rem(8px);
+      padding-inline: var(--space-3);
     }
   }
 

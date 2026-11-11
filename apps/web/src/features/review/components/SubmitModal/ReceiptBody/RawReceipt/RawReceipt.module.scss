@@ -1,10 +1,8 @@
-@use "functions";
-
 @layer components {
   .rawBody {
     overflow-x: auto;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(14px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4-5);
     border-radius: var(--radius-md);
     background: var(--color-background);
     color: var(--color-text-3);

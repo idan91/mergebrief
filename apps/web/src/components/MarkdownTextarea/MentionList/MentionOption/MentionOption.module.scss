@@ -4,9 +4,9 @@
   .mentionOption {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     padding-block: functions.to-rem(5px);
-    padding-inline: functions.to-rem(8px);
+    padding-inline: var(--space-3);
     border-radius: var(--radius-sm);
     color: var(--color-text-2);
     cursor: pointer;

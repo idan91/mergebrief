@@ -3,7 +3,7 @@
 @layer components {
   .comment {
     overflow: hidden;
-    margin-block: functions.to-rem(8px) functions.to-rem(4px);
+    margin-block: var(--space-3) var(--space-2);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -19,9 +19,9 @@
   .head {
     display: flex;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    gap: var(--space-5);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-2);
     font-size: var(--font-size-sm);
@@ -33,10 +33,10 @@
 
   .preview {
     min-block-size: 0;
-    padding: functions.to-rem(12px);
+    padding: var(--space-4);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    margin: functions.to-rem(10px);
+    margin: var(--space-3-5);
     background: var(--color-background);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
@@ -44,8 +44,8 @@
   }
 
   .replyNote {
-    padding-block: 0 functions.to-rem(12px);
-    padding-inline: functions.to-rem(28px) functions.to-rem(12px);
+    padding-block: 0 var(--space-4);
+    padding-inline: functions.to-rem(28px) var(--space-4);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
   }

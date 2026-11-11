@@ -3,8 +3,8 @@
 
 @layer components {
   .tab {
-    padding-block: functions.to-rem(12px) functions.to-rem(10px);
-    padding-inline: functions.to-rem(6px);
+    padding-block: var(--space-4) var(--space-3-5);
+    padding-inline: var(--space-2-5);
     border: 0;
     border-block-end: 2px solid transparent;
     background: transparent;
@@ -39,10 +39,10 @@
     &[data-variant="rail"] {
       display: flex;
       align-items: center;
-      gap: functions.to-rem(10px);
+      gap: var(--space-3-5);
       block-size: functions.to-rem(34px);
       padding-block: 0;
-      padding-inline: functions.to-rem(10px);
+      padding-inline: var(--space-3-5);
       border: 0;
       border-radius: var(--radius-md);
       text-align: start;
@@ -60,7 +60,7 @@
 
       @include mixins.for-phone {
         block-size: auto;
-        padding-block: functions.to-rem(8px) functions.to-rem(10px);
+        padding-block: var(--space-3) var(--space-3-5);
         padding-inline: 0;
         border-block-end: 2px solid transparent;
         border-radius: 0;

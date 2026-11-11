@@ -11,11 +11,11 @@
     position: relative;
     display: flex;
     align-items: baseline;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     min-inline-size: 0;
     min-height: functions.to-rem(44px);
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3-5);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
@@ -40,10 +40,10 @@
 
   .rowButton[data-variant="row"][data-density="slim"] {
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
     min-height: functions.to-rem(22px);
     padding-block: 0;
-    padding-inline: functions.to-rem(8px);
+    padding-inline: var(--space-3);
     border: 0;
     border-inline-start: 2px solid var(--color-outline-2);
     border-radius: 0;

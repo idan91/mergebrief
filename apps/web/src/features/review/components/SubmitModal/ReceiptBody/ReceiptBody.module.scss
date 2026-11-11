@@ -5,7 +5,7 @@
   .stack {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: functions.to-rem(14px);
+    gap: var(--space-4-5);
   }
 
   .tabList {
@@ -31,7 +31,7 @@
   .stack .panel {
     flex: none;
     block-size: functions.to-rem(136px);
-    padding-block: functions.to-rem(10px) functions.to-rem(4px);
+    padding-block: var(--space-3-5) var(--space-2);
     overflow-y: auto;
     outline: none;
 
@@ -43,7 +43,7 @@
   }
 
   .signature {
-    padding-inline-start: functions.to-rem(10px);
+    padding-inline-start: var(--space-3-5);
     border-inline-start: 2px solid var(--color-outline-2);
     color: var(--color-text-read);
     font-size: var(--font-size-lg);
@@ -51,7 +51,7 @@
   }
 
   .groupHeading {
-    margin-block: functions.to-rem(4px) functions.to-rem(2px);
+    margin-block: var(--space-2) var(--space-1);
     color: var(--color-text-2);
     font-size: var(--font-size-sm);
     font-weight: 600;
@@ -70,7 +70,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    column-gap: functions.to-rem(12px);
+    column-gap: var(--space-4);
     font-size: var(--font-size-lg);
 
     b {
@@ -86,7 +86,7 @@
   .itemAnchor {
     display: flex;
     align-items: baseline;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     min-inline-size: 0;
     max-inline-size: 100%;
     margin-inline-start: auto;
@@ -105,7 +105,7 @@
   }
 
   .itemDetail {
-    margin-block-start: functions.to-rem(2px);
+    margin-block-start: var(--space-1);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
     line-height: 1.45;
@@ -118,7 +118,7 @@
 
   .notChecked {
     display: grid;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     padding: 0;
     margin: 0;
     color: var(--color-text-read);
@@ -128,8 +128,8 @@
 
   .metrics {
     display: grid;
-    gap: functions.to-rem(6px);
-    margin-block: functions.to-rem(12px) 0;
+    gap: var(--space-2-5);
+    margin-block: var(--space-4) 0;
 
     dt {
       color: var(--color-text-3);

@@ -7,12 +7,12 @@
     @include mixins.markdown-lists;
 
     p {
-      margin-block: 0 functions.to-rem(10px);
+      margin-block: 0 var(--space-3-5);
     }
 
     ul,
     ol {
-      margin-block: functions.to-rem(8px) functions.to-rem(10px);
+      margin-block: var(--space-3) var(--space-3-5);
     }
 
     code {
@@ -28,15 +28,15 @@
 
     pre {
       overflow-x: auto;
-      padding: functions.to-rem(10px);
+      padding: var(--space-3-5);
       border-radius: var(--radius-md);
       background: var(--color-surface-2);
     }
 
     blockquote {
-      margin-block: 0 functions.to-rem(10px);
+      margin-block: 0 var(--space-3-5);
       margin-inline: 0;
-      padding-inline-start: functions.to-rem(12px);
+      padding-inline-start: var(--space-4);
       border-inline-start: 3px solid var(--color-outline-2);
       color: var(--color-text-3);
     }

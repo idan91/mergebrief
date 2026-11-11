@@ -49,8 +49,8 @@
     &[data-width="auto"] {
       inline-size: auto;
       min-inline-size: functions.to-rem(24px);
-      padding-inline: var(--icon-button-inset-start) functions.to-rem(6px);
-      column-gap: functions.to-rem(4px);
+      padding-inline: var(--icon-button-inset-start) var(--space-2-5);
+      column-gap: var(--space-2);
       grid-auto-flow: column;
     }
 

@@ -1,15 +1,13 @@
-@use "functions";
-
 @layer components {
   .summary {
     display: grid;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
   }
 
   .outcome {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
   }
@@ -18,7 +16,7 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: auto auto;
-    gap: 0 functions.to-rem(8px);
+    gap: 0 var(--space-3);
     margin: 0;
   }
 
@@ -26,8 +24,8 @@
     display: grid;
     grid-row: span 2;
     grid-template-rows: subgrid;
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
     border-radius: var(--radius-md);
     border: 1px solid var(--color-outline-1);
 
@@ -37,7 +35,7 @@
     }
 
     dd {
-      margin: functions.to-rem(2px) 0 0;
+      margin: var(--space-1) 0 0;
       color: var(--color-text-1);
       font-size: var(--font-size-xl);
       font-variant-numeric: tabular-nums;

@@ -9,7 +9,7 @@
   .nested {
     @include mixins.single-column-grid;
 
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -22,7 +22,7 @@
   .row {
     @include mixins.single-column-grid;
 
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
   }
 
   /* Shared atoms restated for RowButton's slim faint run (the component owns
@@ -119,7 +119,7 @@
   .ownTag,
   .botTag {
     flex-shrink: 0;
-    margin-inline-start: functions.to-rem(4px);
+    margin-inline-start: var(--space-2);
     padding-inline: functions.to-rem(5px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-sm);
@@ -143,16 +143,16 @@
   .detail {
     @include mixins.single-column-grid;
 
-    gap: functions.to-rem(10px);
-    padding-block: functions.to-rem(6px) functions.to-rem(10px);
+    gap: var(--space-3-5);
+    padding-block: var(--space-2-5) var(--space-3-5);
   }
 
   .replies {
     @include mixins.single-column-grid;
 
-    gap: functions.to-rem(8px);
-    margin-inline-start: functions.to-rem(16px);
-    padding-inline-start: functions.to-rem(12px);
+    gap: var(--space-3);
+    margin-inline-start: var(--space-5);
+    padding-inline-start: var(--space-4);
     border-inline-start: 2px solid var(--color-outline-1);
   }
 
@@ -165,7 +165,7 @@
   .detailActions {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(8px);
+    gap: var(--space-3);
   }
 
   .note {

@@ -8,8 +8,8 @@
     inset-block-end: functions.to-rem(-24px);
     z-index: 1;
     flex: none;
-    margin-block: functions.to-rem(18px) functions.to-rem(-24px);
-    padding-block: functions.to-rem(12px) functions.to-rem(24px);
+    margin-block: functions.to-rem(18px) calc(-1 * var(--space-6));
+    padding-block: var(--space-4) var(--space-6);
     background: var(--color-surface-3);
   }
 
@@ -17,6 +17,6 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
   }
 }

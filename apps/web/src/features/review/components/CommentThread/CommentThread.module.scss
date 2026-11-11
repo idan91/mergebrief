@@ -4,7 +4,7 @@
   .thread {
     container-type: inline-size;
     overflow: hidden;
-    margin-block: functions.to-rem(8px) functions.to-rem(4px);
+    margin-block: var(--space-3) var(--space-2);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-panel);
     background: var(--color-surface-1);
@@ -13,7 +13,7 @@
 
     &[data-state="collapsed"] {
       padding-block: functions.to-rem(9px);
-      padding-inline: functions.to-rem(12px);
+      padding-inline: var(--space-4);
     }
   }
 
@@ -30,9 +30,9 @@
     // where the head has room to wrap but not to become a column.
     flex-wrap: wrap;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    gap: var(--space-5);
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
@@ -45,32 +45,32 @@
   .deleteConfirm {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(8px);
-    padding-block: 0 functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    gap: var(--space-3);
+    padding-block: 0 var(--space-3-5);
+    padding-inline: var(--space-4);
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
   }
 
   .body {
     min-block-size: functions.to-rem(118px);
-    padding: functions.to-rem(12px);
+    padding: var(--space-4);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    margin: functions.to-rem(10px);
+    margin: var(--space-3-5);
     background: var(--color-background);
   }
 
   .editor {
-    padding-block-start: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
+    padding-block-start: var(--space-3-5);
+    padding-inline: var(--space-4);
 
     .actions {
       padding-inline: 0;
     }
 
     .postBlocked {
-      margin-block-start: functions.to-rem(8px);
+      margin-block-start: var(--space-3);
       margin-inline: 0;
     }
   }
@@ -79,9 +79,9 @@
   .threadActions {
     display: flex;
     align-items: center;
-    gap: functions.to-rem(8px);
-    padding-block: functions.to-rem(10px) functions.to-rem(12px);
-    padding-inline: functions.to-rem(12px);
+    gap: var(--space-3);
+    padding-block: var(--space-3-5) var(--space-4);
+    padding-inline: var(--space-4);
   }
 
   .actions {
@@ -94,13 +94,13 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: functions.to-rem(12px);
+    gap: var(--space-4);
   }
 
   .postCta {
     flex-shrink: 0;
-    padding-block: 0 functions.to-rem(12px);
-    padding-inline-end: functions.to-rem(12px);
+    padding-block: 0 var(--space-4);
+    padding-inline-end: var(--space-4);
   }
 
   /* Secondary text actions on LinkButton's grammar: the run stays faint at
@@ -113,8 +113,8 @@
 
   /* The recoverable why-not for a blocked Post. */
   .postBlocked {
-    margin-block: 0 functions.to-rem(4px);
-    margin-inline: functions.to-rem(12px);
+    margin-block: 0 var(--space-2);
+    margin-inline: var(--space-4);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
   }

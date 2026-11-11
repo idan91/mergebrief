@@ -5,8 +5,8 @@
   .list {
     display: flex;
     flex: none;
-    gap: functions.to-rem(4px);
-    padding-inline: functions.to-rem(10px);
+    gap: var(--space-2);
+    padding-inline: var(--space-3-5);
     border-block-end: 1px solid var(--color-outline-1);
 
     &[data-variant="rail"] {
@@ -14,14 +14,14 @@
       inset-block-start: functions.to-rem(24px);
       flex-direction: column;
       align-self: start;
-      gap: functions.to-rem(2px);
+      gap: var(--space-1);
       padding-inline: 0;
       border: 0;
 
       @include mixins.for-phone {
         position: static;
         flex-direction: row;
-        gap: functions.to-rem(24px);
+        gap: var(--space-6);
         border-block-end: 1px solid var(--color-outline-1);
       }
     }

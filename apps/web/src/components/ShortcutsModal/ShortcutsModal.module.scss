@@ -8,11 +8,11 @@
 
   .sections {
     display: grid;
-    gap: functions.to-rem(24px);
+    gap: var(--space-6);
   }
 
   .sectionHeading {
-    margin-block-end: functions.to-rem(8px);
+    margin-block-end: var(--space-3);
     color: var(--color-text-1);
     font-size: var(--font-size-xl);
     font-weight: 600;
@@ -28,8 +28,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: functions.to-rem(16px);
-    padding-block: functions.to-rem(4px);
+    gap: var(--space-5);
+    padding-block: var(--space-2);
 
     dt {
       order: 2;
@@ -48,16 +48,16 @@
 
   .marks {
     display: grid;
-    gap: functions.to-rem(4px);
+    gap: var(--space-2);
     padding: 0;
     list-style: none;
   }
 
   .mark {
     display: flex;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
     align-items: center;
-    padding-block: functions.to-rem(4px);
+    padding-block: var(--space-2);
     color: var(--color-text-1);
     font-size: var(--font-size-lg);
     line-height: 1.4;

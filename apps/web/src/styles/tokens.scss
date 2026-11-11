@@ -213,8 +213,11 @@
     // reader's font size. Blocks are grouped, not evenly spaced.
     --space-1: #{functions.to-rem(2px)};
     --space-2: #{functions.to-rem(4px)};
+    --space-2-5: #{functions.to-rem(6px)};
     --space-3: #{functions.to-rem(8px)};
+    --space-3-5: #{functions.to-rem(10px)};
     --space-4: #{functions.to-rem(12px)};
+    --space-4-5: #{functions.to-rem(14px)};
     --space-5: #{functions.to-rem(16px)};
     --space-6: #{functions.to-rem(24px)};
     --space-7: #{functions.to-rem(32px)};

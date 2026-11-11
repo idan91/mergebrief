@@ -1,11 +1,9 @@
-@use "functions";
-
 @layer components {
   /* Panel CONTENT only — the anchored surface (border, fill, shadow,
      positioning) belongs to the disclosure wrapper in the toolbar. */
   .body {
     display: grid;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
   }
 
   /* Label ABOVE its chip run, both flush left: an inline fixed gutter left a
@@ -19,14 +17,14 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
   }
 
   .chips {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -51,7 +49,7 @@
   .divider {
     width: 1px;
     height: 16px;
-    margin-inline: functions.to-rem(2px);
+    margin-inline: var(--space-1);
     background: var(--color-outline-1);
   }
 
@@ -59,13 +57,13 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: functions.to-rem(10px);
+    gap: var(--space-3-5);
   }
 
   .links {
     display: inline-flex;
     align-items: center;
-    gap: functions.to-rem(6px);
+    gap: var(--space-2-5);
     margin-inline-start: auto;
   }
 }
