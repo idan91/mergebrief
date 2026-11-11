@@ -34,7 +34,7 @@ function readStylesheet(path: string): string {
 
 const STYLESHEET = readStylesheet("SkeletonRows.module.scss");
 const SWEEPS_BEFORE_SCRIPT =
-  /animation: shine-band \$shine-cycle linear var\(--shine-delay, 0ms\) infinite;/;
+  /animation: shine-band var\(--shine-cycle\) linear var\(--shine-delay, 0ms\)\s+infinite;/;
 
 const SPLIT_ROWS_STYLESHEET = readStylesheet(
   "../../../../../../../components/DiffRows/SplitRows/SplitRows.module.scss",

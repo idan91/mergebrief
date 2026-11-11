@@ -65,6 +65,7 @@
 
   .lists[data-first-load="true"] .list > li {
     animation: row-in var(--motion-slow) var(--ease-out) backwards;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the first-load stagger steps 30ms a row, below any motion token */
     animation-delay: calc(min(var(--index), 12) * 30ms);
   }
 

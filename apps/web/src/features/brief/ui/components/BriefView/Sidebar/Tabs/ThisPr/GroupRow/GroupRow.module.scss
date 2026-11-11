@@ -19,8 +19,8 @@
     text-align: start;
     cursor: pointer;
     transition:
-      background-color 0.15s,
-      color 0.15s;
+      background-color var(--motion-fast),
+      color var(--motion-fast);
 
     @include mixins.hover {
       &:hover {

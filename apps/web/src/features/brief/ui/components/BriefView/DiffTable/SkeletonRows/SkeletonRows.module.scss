@@ -6,7 +6,6 @@
 
 $shine-band: 0.3;
 $shine-sweep-end: 80%;
-$shine-cycle: 1600ms;
 
 // Track the code row and text cell modules: the rail, cell padding, sign
 // slot and split number cell the fill repeats past the drawn rows.
@@ -138,6 +137,9 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
   }
 
   .shine {
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list -- one shine cycle, tracking SHINE_CYCLE_MS in utils.ts */
+    --shine-cycle: 1600ms;
+
     position: absolute;
     inset-block: 0;
     inset-inline-start: 0;
@@ -150,7 +152,8 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
       currentcolor 65%,
       transparent
     );
-    animation: shine-band $shine-cycle linear var(--shine-delay, 0ms) infinite;
+    animation: shine-band var(--shine-cycle) linear var(--shine-delay, 0ms)
+      infinite;
   }
 
   // The track cancels the band's travel exactly, so its rows sit on the rows
@@ -159,7 +162,8 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
   // sweeps from the first paint, before any script runs.
   .shineTrack {
     inline-size: math.div(100%, $shine-band);
-    animation: shine-track $shine-cycle linear var(--shine-delay, 0ms) infinite;
+    animation: shine-track var(--shine-cycle) linear var(--shine-delay, 0ms)
+      infinite;
   }
 
   @keyframes shine-band {

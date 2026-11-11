@@ -22,16 +22,26 @@
 }
 
 // Element opacity dims the element's own outline, so a dimmed control that
-// stays focusable undims while it shows the ring and the caller's content
-// dims its paint with `functions.dim` instead. No transition: opacity and
-// paint must swap in the same frame or the control flashes enabled.
-@mixin dimmed($opacity) {
-  opacity: $opacity;
+// stays focusable undims while it shows the ring: its own text dims through
+// the text fill, each child through its own opacity, and the caller's
+// content dims the edge and fill with `functions.dim`, never `color`, which
+// children inherit. No transition: opacity and paint must swap in the same
+// frame or the control flashes enabled.
+@mixin dimmed($focused: "&:focus-visible") {
+  opacity: var(--opacity-disabled);
   transition: none;
 
-  &:focus-visible {
-    opacity: 1;
-    @content;
+  @if $focused {
+    #{$focused} {
+      opacity: 1;
+      -webkit-text-fill-color: functions.dim(currentcolor);
+      @content;
+    }
+
+    :where(#{$focused}) > * {
+      opacity: var(--opacity-disabled);
+      -webkit-text-fill-color: currentcolor;
+    }
   }
 }
 

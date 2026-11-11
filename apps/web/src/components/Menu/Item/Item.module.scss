@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .item {
     &[data-variant="danger"] {
@@ -6,10 +8,22 @@
 
     &[aria-disabled="true"][data-state="unavailable"] {
       opacity: 1;
+      color: functions.dim(var(--color-text-1));
 
-      .glyph,
-      .label {
-        opacity: var(--opacity-disabled);
+      &[data-variant="danger"] {
+        color: functions.dim(var(--color-negative));
+      }
+
+      &:focus-visible {
+        -webkit-text-fill-color: currentcolor;
+
+        > * {
+          opacity: 1;
+        }
+      }
+
+      .glyph {
+        color: inherit;
       }
     }
   }

@@ -59,9 +59,7 @@
     &[aria-disabled="true"] {
       cursor: not-allowed;
 
-      @include mixins.dimmed(var(--opacity-disabled)) {
-        color: functions.dim(var(--color-text-2));
-      }
+      @include mixins.dimmed;
     }
   }
 }

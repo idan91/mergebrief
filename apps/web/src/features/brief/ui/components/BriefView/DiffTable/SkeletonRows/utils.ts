@@ -1,7 +1,7 @@
 import { SLICE_CONTEXT_ROWS, type ChunkRanges } from "brief-core/chunk-layout";
 import { MIN_LINE_DIGITS } from "./consts";
 
-/** One shine cycle, the sweep plus the pause: tracks `$shine-cycle` in the stylesheet. */
+/** One shine cycle, the sweep plus the pause: tracks `--shine-cycle` in the stylesheet. */
 export const SHINE_CYCLE_MS = 1600;
 
 /**

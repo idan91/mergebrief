@@ -3,7 +3,6 @@
 
 @layer components {
   .modal {
-    --modal-enter: 160ms;
     --modal-box-from: scale(0.98);
 
     position: fixed;
@@ -22,8 +21,8 @@
       display: flex;
       opacity: 1;
       transition:
-        opacity var(--modal-enter) var(--ease-out),
-        display var(--modal-enter) allow-discrete;
+        opacity var(--motion-base) var(--ease-out),
+        display var(--motion-base) allow-discrete;
 
       @starting-style {
         opacity: 0;

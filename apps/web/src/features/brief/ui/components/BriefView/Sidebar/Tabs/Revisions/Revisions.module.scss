@@ -15,8 +15,8 @@
     --node-ring-hover: inset 0 0 0 1.5px var(--color-text-2);
     --node-halo:
       0 0 0 1.5px var(--scroller-bg), 0 0 0 2.5px var(--color-accent);
-    --row-pad-block: #{functions.to-rem(8px)};
-    --list-gap: #{functions.to-rem(2px)};
+    --row-pad-block: var(--space-3);
+    --list-gap: var(--space-1);
     --node-center: #{functions.to-rem(9px)};
 
     display: grid;
@@ -50,8 +50,8 @@
     text-align: start;
     cursor: pointer;
     transition:
-      background-color 0.15s,
-      color 0.15s;
+      background-color var(--motion-fast),
+      color var(--motion-fast);
 
     @include mixins.hover {
       &:hover {

@@ -14,8 +14,8 @@
     font-weight: 500;
     cursor: pointer;
     transition:
-      color 0.15s,
-      border-color 0.15s;
+      color var(--motion-fast),
+      border-color var(--motion-fast);
 
     @include mixins.hover {
       &:hover {

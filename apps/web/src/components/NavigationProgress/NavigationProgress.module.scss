@@ -12,6 +12,7 @@
     pointer-events: none;
     transform-origin: left;
     animation:
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- appear is a 1ms step to full opacity after the wait, and advance is the 8s creep to 90% */
       appear 1ms linear var(--notice-delay) forwards,
       advance 8s var(--ease-out) var(--notice-delay) both;
   }

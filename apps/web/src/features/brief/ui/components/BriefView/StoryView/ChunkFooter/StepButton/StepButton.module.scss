@@ -10,9 +10,4 @@
       display: none;
     }
   }
-
-  // The cap paints its own fill and edge, so Button's focused repaint misses it.
-  .button[aria-disabled="true"]:focus-visible .key {
-    opacity: var(--opacity-disabled);
-  }
 }

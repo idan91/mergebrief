@@ -15,7 +15,7 @@ import {
  * read: a Web Animation cannot read a custom property.
  */
 export const COLLAPSE_TIMING = {
-  duration: 160,
+  duration: 180,
   easing: "cubic-bezier(0.23, 1, 0.32, 1)",
 };
 

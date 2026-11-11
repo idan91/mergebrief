@@ -358,7 +358,7 @@
 /* A transient highlight on the chunk the digest jumped to. Motion collapses
    to a static ring when the user prefers reduced motion. */
 .chunk[data-scroll-flash] {
-  animation: conversation-flash 1.4s ease-out 1;
+  animation: conversation-flash var(--motion-flash) ease-out 1;
 }
 
 @keyframes conversation-flash {

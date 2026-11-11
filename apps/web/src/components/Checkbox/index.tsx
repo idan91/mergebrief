@@ -60,11 +60,7 @@ export function Checkbox({
   const variant = labelled ? undefined : "bare";
 
   return (
-    <label
-      className={styles["root"]}
-      data-disabled={disabled || undefined}
-      data-variant={variant}
-    >
+    <label className={styles["root"]} data-variant={variant}>
       <input
         aria-checked={indeterminate ? "mixed" : undefined}
         aria-label={ariaLabel}

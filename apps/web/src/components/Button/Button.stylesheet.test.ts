@@ -17,18 +17,16 @@ const BUTTON_STYLESHEET = fileURLToPath(
   new URL("./Button.module.scss", import.meta.url),
 );
 const rules = parseCompiledRules(compileStylesheet(BUTTON_STYLESHEET));
-const DIMMED_TEXT_2 =
-  "color-mix(in srgb, var(--color-text-2) calc(var(--opacity-disabled) * 100%), transparent)";
 
 describe("Button stylesheet ghost variants", () => {
-  it("keeps a focused disabled ghost edgeless with its ink dimmed", () => {
+  it("keeps a focused disabled ghost edgeless and its ink undimmed", () => {
     const focused = readDeclarations(
       rules,
       ".button[aria-disabled=true][data-variant=ghost]:focus-visible",
     );
 
     expect(focused.get("border-color")).toBe("transparent");
-    expect(focused.get("color")).toBe(DIMMED_TEXT_2);
+    expect(focused.has("color")).toBe(false);
   });
 
   it("rests with no edge or fill, in Text 2", () => {

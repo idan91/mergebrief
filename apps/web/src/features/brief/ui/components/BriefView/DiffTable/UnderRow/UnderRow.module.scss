@@ -45,7 +45,7 @@
   /* Inset ring, not an outer box-shadow: one on a table row clips against
      adjacent rows. */
   .row[data-scroll-flash] > td > * {
-    animation: conversation-row-flash 1.4s ease-out 1;
+    animation: conversation-row-flash var(--motion-flash) ease-out 1;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -247,6 +247,7 @@
     --motion-spin: 700ms;
     --motion-read: 1.4s;
     --motion-read-stagger: 140ms;
+    --motion-flash: 1.4s;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -256,7 +257,7 @@
     --header-h: 52px;
 
     // An auto-width IconButton's start inset; a trigger overrides it on itself.
-    --icon-button-inset-start: #{functions.to-rem(6px)};
+    --icon-button-inset-start: var(--space-2-5);
 
     // Full-bleed readers only: 100% resolves against each reading element.
     --page-gutter: max(
@@ -345,7 +346,7 @@
     --header-meta-h: var(--header-meta-control-h);
 
     // Tracks COLLAPSE_TIMING in BriefView/Header/useCollapseMotion.ts.
-    --header-collapse-ease: 160ms var(--ease-out);
+    --header-collapse-ease: var(--motion-base) var(--ease-out);
     --header-identity-min: #{functions.to-rem(52px)};
     --header-comparison-min: #{functions.to-rem(44px)};
 

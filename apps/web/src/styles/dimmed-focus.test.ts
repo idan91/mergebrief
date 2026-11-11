@@ -17,6 +17,7 @@ const SOURCE_DIRECTORY = join(dirname(TEST_FILE), "..");
 const MODULE_SUFFIX = ".module.scss";
 const COMBINATOR = /\s*[\s>+~]\s*/;
 const DISABLED_STATE = /disabled|unavailable/;
+const NATIVE_DISABLED = /:disabled\b/;
 const FOCUS_VISIBLE = /:focus-visible/g;
 const FULL_OPACITY = "1";
 const DIMMED_PAINT = "var(--opacity-disabled)";
@@ -41,7 +42,10 @@ function isDimmedDisabled(rule: CompiledRule, selector: string): boolean {
 
 function isFocusRepaint(rule: CompiledRule): boolean {
   const undimmed = rule.declarations.get("opacity") === FULL_OPACITY;
-  const ink = rule.declarations.get("color") ?? "";
+  const ink =
+    rule.declarations.get("color") ??
+    rule.declarations.get("-webkit-text-fill-color") ??
+    "";
   const dimmedInk = ink.includes(DIMMED_PAINT);
   return undimmed && dimmedInk;
 }
@@ -63,6 +67,55 @@ function hasFocusRepaint(
   );
 }
 
+function isChildDim(rule: CompiledRule, focused: string): boolean {
+  const opacity = rule.declarations.get("opacity");
+  const dimsChildren = rule.selectors.includes(`:where(${focused}) > *`);
+  return dimsChildren && opacity === DIMMED_PAINT;
+}
+
+function hasChildDim(rules: readonly CompiledRule[], dimmed: string): boolean {
+  const focusedForms = rules
+    .flatMap((rule) => rule.selectors)
+    .filter((selector) => isFocusedForm(selector, dimmed));
+  return focusedForms.some((focused) =>
+    rules.some((rule) => isChildDim(rule, focused)),
+  );
+}
+
+function findDimmedSelectors(rules: readonly CompiledRule[]): string[] {
+  return rules
+    .flatMap((rule) =>
+      rule.selectors.filter((selector) => isDimmedDisabled(rule, selector)),
+    )
+    .filter((selector) => !NATIVE_DISABLED.test(selector));
+}
+
+function findUndimmedChildrenInFile(path: string): string[] {
+  const rules = parseCompiledRules(compileStylesheet(path));
+  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+
+  return findDimmedSelectors(rules)
+    .filter((selector) => !hasChildDim(rules, selector))
+    .map((selector) => `${relative} ${selector}`);
+}
+
+function isFocusedDisabled(selector: string): boolean {
+  const focused = selector.includes(":focus-visible");
+  return focused && DISABLED_STATE.test(selector);
+}
+
+function findInheritedDimsInFile(path: string): string[] {
+  const rules = parseCompiledRules(compileStylesheet(path));
+  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+  const inherited = rules.filter((rule) => {
+    const color = rule.declarations.get("color") ?? "";
+    const focused = rule.selectors.some(isFocusedDisabled);
+    return focused && color.includes(DIMMED_PAINT);
+  });
+
+  return inherited.map((rule) => `${relative} ${rule.selectors.join()}`);
+}
+
 function findDimmedRingsInFile(path: string): string[] {
   const rules = parseCompiledRules(compileStylesheet(path));
   const relative = path.slice(SOURCE_DIRECTORY.length + 1);
@@ -71,6 +124,7 @@ function findDimmedRingsInFile(path: string): string[] {
   );
 
   return dimmedSelectors
+    .filter((selector) => !NATIVE_DISABLED.test(selector))
     .filter((selector) => !hasFocusRepaint(rules, selector))
     .map((selector) => `${relative} ${selector}`);
 }
@@ -96,6 +150,20 @@ describe("dimmed disabled controls", () => {
     const dimmedRings = listModuleStylesheets().flatMap(findDimmedRingsInFile);
 
     expect(dimmedRings).toEqual([]);
+  });
+
+  it("dim every child while focused, whatever ink the child sets", () => {
+    const undimmed = listModuleStylesheets().flatMap(
+      findUndimmedChildrenInFile,
+    );
+
+    expect(undimmed).toEqual([]);
+  });
+
+  it("never dim the ink children inherit while focused", () => {
+    const inherited = listModuleStylesheets().flatMap(findInheritedDimsInFile);
+
+    expect(inherited).toEqual([]);
   });
 
   it("swap opacity and paint in one frame, with no transition", () => {

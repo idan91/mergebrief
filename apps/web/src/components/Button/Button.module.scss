@@ -157,22 +157,19 @@
     &[aria-disabled="true"] {
       cursor: default;
 
-      @include mixins.dimmed(var(--opacity-disabled)) {
+      @include mixins.dimmed {
         border-color: functions.dim(var(--color-outline-2));
-        color: functions.dim(var(--color-text-1));
       }
 
       &[data-variant="primary"]:focus-visible {
         border-color: functions.dim(var(--color-brand));
         background: functions.dim(var(--color-brand));
-        color: functions.dim(var(--color-on-brand));
       }
 
       &[data-variant="danger"]:focus-visible {
         border-color: functions.dim(
           color-mix(in srgb, var(--color-negative) 55%, var(--color-outline-2))
         );
-        color: functions.dim(var(--color-negative));
       }
 
       &[data-variant="quiet"]:focus-visible {
@@ -181,12 +178,10 @@
 
       &[data-variant="ghost"]:focus-visible {
         border-color: transparent;
-        color: functions.dim(var(--color-text-2));
       }
 
       &[data-variant="ghost-danger"]:focus-visible {
         border-color: transparent;
-        color: functions.dim(var(--color-negative));
       }
     }
   }

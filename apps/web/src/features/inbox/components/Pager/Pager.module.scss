@@ -51,9 +51,8 @@
     &[aria-disabled="true"] {
       cursor: default;
 
-      @include mixins.dimmed(var(--opacity-disabled)) {
+      @include mixins.dimmed {
         border-color: functions.dim(var(--color-outline-2));
-        color: functions.dim(var(--color-text-2));
       }
     }
 

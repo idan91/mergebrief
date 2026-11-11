@@ -16,7 +16,7 @@
     background: var(--color-surface-1);
     box-shadow: var(--shadow-float);
     transition:
-      opacity 220ms var(--ease-out),
+      opacity var(--motion-base) var(--ease-out),
       transform var(--motion-slide) var(--ease-drawer),
       visibility 0s linear 0s;
 
@@ -25,14 +25,14 @@
       opacity: 0;
       transform: translateX(16px);
       transition:
-        opacity 140ms ease,
-        transform 160ms ease,
-        visibility 0s linear 160ms;
+        opacity var(--motion-fast) ease,
+        transform var(--motion-fast) ease,
+        visibility 0s linear var(--motion-fast);
     }
   }
 
   .tab[data-width] {
-    --icon-button-inset-start: #{functions.to-rem(12px)};
+    --icon-button-inset-start: var(--space-4);
 
     position: fixed;
     inset-block-start: calc(var(--top-bar-h) + #{functions.to-rem(12px)});
@@ -45,7 +45,8 @@
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
     transition:
-      opacity 180ms var(--ease-out) 80ms,
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the tab mounts as the panel closes and holds its fade 80ms, until the panel's exit is under way */
+      opacity var(--motion-base) var(--ease-out) 80ms,
       color var(--motion-fast) ease,
       border-color var(--motion-fast) ease,
       transform var(--motion-fast) var(--ease-out);

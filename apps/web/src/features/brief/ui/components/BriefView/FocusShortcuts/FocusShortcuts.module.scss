@@ -22,7 +22,7 @@
   }
 
   .trigger {
-    --icon-button-inset-start: #{functions.to-rem(8px)};
+    --icon-button-inset-start: var(--space-3);
 
     padding-inline-end: var(--space-3);
     color: var(--color-text-3);
@@ -42,9 +42,9 @@
     visibility: hidden;
     white-space: nowrap;
     transition:
-      max-inline-size 220ms var(--ease-out),
+      max-inline-size var(--motion-base) var(--ease-out),
       opacity var(--motion-base) ease,
-      visibility 0s linear 220ms;
+      visibility 0s linear var(--motion-base);
 
     li {
       display: inline-flex;

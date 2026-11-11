@@ -69,7 +69,6 @@ describe("Checkbox", () => {
     // asserting on the handler here would test the test harness.)
     const box = screen.getByRole("checkbox");
     expect(box.hasAttribute("disabled")).toBe(true);
-    expect(box.closest("label")?.getAttribute("data-disabled")).toBe("true");
   });
 
   it("hands the native input to a caller's ref", () => {

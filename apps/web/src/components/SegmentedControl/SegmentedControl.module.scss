@@ -77,14 +77,9 @@
     }
 
     &[data-unavailable] {
-      opacity: var(--opacity-disabled);
       cursor: not-allowed;
-      transition: none;
 
-      input:focus-visible + & {
-        opacity: 1;
-        color: functions.dim(var(--color-text-2));
-      }
+      @include mixins.dimmed("input:focus-visible + &");
     }
   }
 

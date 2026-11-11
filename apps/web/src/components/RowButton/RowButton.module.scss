@@ -29,8 +29,12 @@
     }
 
     &[aria-disabled="true"] {
-      color: var(--color-text-2);
       cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-outline-1));
+        background: functions.dim(var(--color-surface-2));
+      }
     }
   }
 
@@ -67,14 +71,19 @@
     /* A borderless row carries no standing click affordance; hover supplies
        it. */
     @include mixins.hover {
-      &:hover {
+      &:where(:not([aria-disabled="true"])):hover {
         background: var(--color-surface-2);
         color: var(--color-text-2);
       }
     }
 
-    &:active {
+    &:where(:not([aria-disabled="true"])):active {
       background: var(--color-surface-3);
+    }
+
+    &[aria-disabled="true"]:focus-visible {
+      border-inline-start-color: functions.dim(var(--color-outline-2));
+      background: none;
     }
   }
 
@@ -90,7 +99,7 @@
     transition: background-color var(--motion-fast) var(--ease-out);
 
     @include mixins.hover {
-      &:not([aria-disabled="true"]):hover {
+      &:where(:not([aria-disabled="true"])):hover {
         border-radius: var(--radius-md);
         background: var(--color-surface-2);
       }
@@ -98,6 +107,10 @@
 
     &:focus-visible {
       border-radius: var(--radius-md);
+    }
+
+    &[aria-disabled="true"]:focus-visible {
+      background: none;
     }
   }
 

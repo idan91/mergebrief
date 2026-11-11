@@ -27,12 +27,12 @@
     }
 
     @include mixins.hover {
-      &:hover {
+      &:where(:not([aria-disabled="true"])):hover {
         background: var(--color-surface-2);
       }
     }
 
-    &:active {
+    &:where(:not([aria-disabled="true"])):active {
       background: var(--color-surface-3);
     }
 
@@ -64,7 +64,7 @@
 
     &[data-variant="ghost"] {
       @include mixins.hover {
-        &:hover {
+        &:where(:not([aria-disabled="true"])):hover {
           color: var(--color-text-1);
         }
       }
@@ -76,6 +76,18 @@
         [data-state="active"]
       ) {
         color: var(--color-text-1);
+      }
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-outline-2));
+      }
+
+      &[data-variant="ghost"]:focus-visible {
+        border-color: transparent;
       }
     }
   }

@@ -297,11 +297,11 @@ describe("COLLAPSE_TIMING", () => {
   it("matches the --header-collapse-ease token the stack controls read", () => {
     const tokens = readFileSync(TOKEN_STYLESHEET, "utf8");
     const collapseEase = readTokenValue(tokens, "--header-collapse-ease");
+    const motionBase = readTokenValue(tokens, "--motion-base");
     const easeOut = readTokenValue(tokens, "--ease-out");
 
-    expect(collapseEase).toBe(
-      `${String(COLLAPSE_TIMING.duration)}ms var(--ease-out)`,
-    );
+    expect(collapseEase).toBe("var(--motion-base) var(--ease-out)");
+    expect(motionBase).toBe(`${String(COLLAPSE_TIMING.duration)}ms`);
     expect(easeOut).toBe(COLLAPSE_TIMING.easing);
   });
 });
