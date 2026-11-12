@@ -143,6 +143,37 @@ A brief generated before the check existed has no `intentCheck`.
   ticket, the ticket could not be read or states no goal to quote, the
   intent is `broad` or `none`, or the goal quote did not verify.
 
+## The Product diff
+
+`groups --json` carries `productDiff`: how the product behaves before the PR
+and after it, written by a model call of its own after the brief. A brief
+generated before the section existed has no `productDiff`, and neither does
+one whose Product diff call failed or wrote no change that could be kept.
+
+- `availability` is `available` or `unavailable`. `unavailable` means the
+  brief was written in several calls, as a diff too large to read in one
+  is, so no call read the whole diff and nothing was written: `changes` is
+  empty, and empty there means not read, never no product change. Under
+  `available`, an empty `changes` means the call found none.
+- `changes` holds at most 8 entries, most significant first, each
+  `{when, before, after, affects, beforeSource, groupIds}`. `when` is the
+  action or condition; `before` and `after` are the outcome on each side of
+  the PR. `groupIds` name `changeGroups` entries, at least one.
+- `hasMore: true` means the PR has more product changes than the ones
+  listed.
+- `beforeSource` says where `before` came from:
+  - `diff`: the diff's removed or unchanged lines show it.
+  - `did-not-exist`: the behaviour is new. `before` may be absent, since
+    the source already says what it was.
+  - `pr-text`: the PR title or description states it. The generator is told
+    the diff must not contradict it, and nothing checks that.
+  - `not-shown`: nothing shows it. `before` is absent, never guessed.
+- `affects` is one of `user-flow`, `api-contract`, `business-rule`, `data`,
+  `integration`, `operations`, `background-process`.
+- The generator is told to state `after` only from the diff's added lines.
+  No check verifies a `before` or an `after` against the code, and no
+  command writes the section.
+
 ## The delta union
 
 `mergebrief delta <n> --json` resolves your last-review checkpoint and emits

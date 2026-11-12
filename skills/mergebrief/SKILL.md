@@ -18,8 +18,8 @@ Rules that make unattended loops safe:
   teaches the workflow; the CLI owns the reference.
 - [contract.md](contract.md) holds the wire contract, including the exit
   table with next moves, the span rule, the delta union, the risk-anchor
-  rule, and the intent check's shape. Read it once before your first write
-  of a session.
+  rule, and the shapes of the intent check and the Product diff. Read it
+  once before your first write of a session.
 
 ## Authority
 
@@ -110,7 +110,7 @@ submit-review`. Every operation the
    re-look. Clearing one is human-only, so carry every open item into the
    handoff.
 5. `mergebrief groups <n> --json`. The brief: change groups, chunks, risk
-   attributes, and the intent check. This is your reading order. `mergebrief context <n>` adds the
+   attributes, the intent check and the Product diff. This is your reading order. `mergebrief context <n>` adds the
    repo-config snapshot when per-file weighting matters.
 6. Per group, run `mergebrief diff <n> --group <id>` and read the code.
    Record progress with `mergebrief chunk-read <n> <chunkId>` as you finish
@@ -143,6 +143,19 @@ submit-review`. Every operation the
     no `intentCheck` the brief predates the check, and a `specificity` of
     `broad` or `none` means the PR states no usable intent: say which once
     and judge on the code alone.
+11. The brief's `productDiff` lists what the change does to the product:
+    the same action or condition, a different outcome. Each entry is a
+    claim, weighed like an open flag. Read the groups in its
+    `groupIds` and check that the code does what `after` says; a `before`
+    whose `beforeSource` is `pr-text` rests on the author's word, so compare
+    it with the group's removed lines, and an absent one is new behaviour
+    under `did-not-exist` or was not in the diff under `not-shown`. Name an
+    entry the code contradicts in the review body, and a behaviour change
+    you found that the list misses. Under `hasMore: true` the list was
+    cut short, so a change it lacks is unlisted, never missed. An
+    `availability` of `unavailable` means no call read the diff
+    whole, never that nothing changed, and with no `productDiff`
+    the brief has no such read: say which once and judge on the code alone.
 
 ## Judgment
 
