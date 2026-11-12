@@ -115,6 +115,16 @@
   }
 
   @include mixins.for-phone {
+    // The summary wraps under the title here, and centring would set the
+    // actions against the whole wrapped block.
+    .head {
+      align-items: baseline;
+    }
+
+    .toggle {
+      padding-block: var(--space-4-5);
+    }
+
     .note,
     .panel:not([hidden]) {
       padding-inline: var(--bar-inset);
