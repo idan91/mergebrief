@@ -1,20 +1,30 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
-import { GRAMMAR_GZIP_BYTES } from "./consts";
-import { GrammarNames, type GrammarName } from "./types";
+import { GRAMMAR_MODULE_GZIP_BYTES, GRAMMAR_SIBLING_MODULES } from "./consts";
+import {
+  GrammarNames,
+  GrammarSupportModules,
+  type GrammarModuleName,
+  type GrammarName,
+} from "./types";
 
-// A bundler emits one chunk per grammar module and gzips each on its own, so
-// the closure cost is the sum of per-file gzip, never one gzip of the
-// concatenation. Tolerance is wide enough for a patch bump and narrow enough
-// that a grammar rewrite trips the gate.
+// A module's cost is its own gzip, never a share of one gzip over a closure.
+// A support module the build inlines into its importer costs no more than
+// that. Tolerance is wide enough for a patch bump and narrow enough that a grammar
+// rewrite trips the gate.
 const GZIP_LEVEL = 9;
 const TOLERANCE = 0.05;
+const MODULE_EXTENSION = ".mjs";
 const SIBLING_IMPORT =
   /^import\s+(?:[\w$]+\s+from\s+)?["'](\.\/[\w.-]+\.mjs)["']/gm;
+const GRAMMAR_MODULES: GrammarModuleName[] = [
+  ...Object.values(GrammarNames),
+  ...Object.values(GrammarSupportModules),
+];
 
 function resolveGrammarModule(grammar: GrammarName): string {
   const shim = createRequire(import.meta.url).resolve(
@@ -41,25 +51,58 @@ function collectClosure(entry: string, seen = new Set<string>()): Set<string> {
   return seen;
 }
 
-function measureGrammarBytes(grammar: GrammarName): number {
-  const files = collectClosure(resolveGrammarModule(grammar));
-  let total = 0;
-
-  for (const file of files) {
-    total += gzipSync(readFileSync(file), { level: GZIP_LEVEL }).length;
-  }
-
-  return total;
+function readModuleName(file: string): string {
+  return basename(file, MODULE_EXTENSION);
 }
 
-describe("GRAMMAR_GZIP_BYTES", () => {
-  it.each(Object.values(GrammarNames))(
-    "matches the installed %s closure",
-    (grammar) => {
-      const measured = measureGrammarBytes(grammar);
-      const recorded = GRAMMAR_GZIP_BYTES[grammar];
+function listInstalledSiblings(grammar: GrammarName): string[] {
+  const closure = collectClosure(resolveGrammarModule(grammar));
+  const names = [...closure].map(readModuleName);
 
-      expect(Math.abs(measured - recorded) / recorded).toBeLessThan(TOLERANCE);
+  return names.filter((name) => name !== grammar).toSorted();
+}
+
+function collectInstalledModules(): Map<string, string> {
+  const fileByModule = new Map<string, string>();
+
+  for (const grammar of Object.values(GrammarNames)) {
+    for (const file of collectClosure(resolveGrammarModule(grammar))) {
+      fileByModule.set(readModuleName(file), file);
+    }
+  }
+
+  return fileByModule;
+}
+
+function measureModuleBytes(file: string): number {
+  return gzipSync(readFileSync(file), { level: GZIP_LEVEL }).length;
+}
+
+const INSTALLED_MODULES = collectInstalledModules();
+
+describe("GRAMMAR_MODULE_GZIP_BYTES", () => {
+  it("records every module the shipped grammars load", () => {
+    const installed = [...INSTALLED_MODULES.keys()].toSorted();
+
+    expect(GRAMMAR_MODULES.toSorted()).toEqual(installed);
+  });
+
+  it.each(GRAMMAR_MODULES)("matches the installed %s module", (loaded) => {
+    const file = INSTALLED_MODULES.get(loaded) ?? "";
+    const measured = measureModuleBytes(file);
+    const recorded = GRAMMAR_MODULE_GZIP_BYTES[loaded];
+
+    expect(Math.abs(measured - recorded) / recorded).toBeLessThan(TOLERANCE);
+  });
+});
+
+describe("GRAMMAR_SIBLING_MODULES", () => {
+  it.each(Object.values(GrammarNames))(
+    "lists the modules the installed %s grammar imports",
+    (grammar) => {
+      const recorded = GRAMMAR_SIBLING_MODULES[grammar] ?? [];
+
+      expect(recorded.toSorted()).toEqual(listInstalledSiblings(grammar));
     },
   );
 });

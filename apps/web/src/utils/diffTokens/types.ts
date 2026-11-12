@@ -89,6 +89,23 @@ export const GrammarNames = {
 } as const;
 export type GrammarName = ValueOf<typeof GrammarNames>;
 
+/** Modules a shipped grammar imports that no file path resolves to. */
+export const GrammarSupportModules = {
+  CPP_MACRO: "cpp-macro",
+  GLSL: "glsl",
+  HTML_DERIVATIVE: "html-derivative",
+  MARKDOWN_VUE: "markdown-vue",
+  POSTCSS: "postcss",
+  REGEXP: "regexp",
+  VUE_DIRECTIVES: "vue-directives",
+  VUE_INTERPOLATIONS: "vue-interpolations",
+  VUE_SFC_STYLE_VARIABLE_INJECTION: "vue-sfc-style-variable-injection",
+} as const;
+export type GrammarSupportModule = ValueOf<typeof GrammarSupportModules>;
+
+/** One file of the grammar package; the budget charges each once. */
+export type GrammarModuleName = GrammarName | GrammarSupportModule;
+
 export type ResolvedGrammar = GrammarName | undefined;
 
 /** `classId` indexes the palette class list the worker layer owns. */
