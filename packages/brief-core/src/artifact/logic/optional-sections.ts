@@ -30,6 +30,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   outlineForm: BriefSchema.shape.outlineForm,
   summaryMedia: BriefSchema.shape.summaryMedia,
   inputFingerprint: BriefSchema.shape.inputFingerprint,
+  productDiff: BriefSchema.shape.productDiff,
 };
 
 const NARRATIVE_SECTIONS: NarrativeSectionSchemas = {

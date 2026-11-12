@@ -335,6 +335,14 @@ _Avoid_: requirements check, spec compliance, intent verdict, absent (the specif
 The **Intent check**'s read of how the diff relates to the **Primary ticket**'s goal: `aligned` (delivers the goal), `partial` (serves it, one slice, an ordinary outcome), or `misaligned` (does not serve it, or reaches it by a way the ticket rules out). Carries the ticket's goal quoted verbatim and one factual sentence about the diff. Absent when there is no primary ticket, the ticket could not be read, or the sources are broad or none. Never a gate.
 _Avoid_: alignment score, ticket verdict, compliance
 
+**Product diff**:
+A secondary section of the **Brief** stating how the product behaves before the PR and after it, as at most eight **Product changes**, most significant first, with a note when the PR has more. It reads the whole PR (base to head), never per reviewer and never per push. It reports "none found" for a PR that changes no outcome, and "not available" when the Brief was written in parts, so no call read the whole diff. Like the **Intent check**, it is the AI's fallible read, never a verdict.
+_Avoid_: behaviour delta, product changes (as the section name), before/after summary, changelog
+
+**Product change**:
+One entry of the **Product diff**: a condition ("when"), what the product did before, what it does after, the one area it affects, and the **Change-groups** that carry it. Centred on behaviour: the same action or condition with a different outcome, even when no screen, field or setting looks new. Refactors, tests, CI and internal tooling are not product changes unless they change an outcome. Its before states only what the diff's removed or unchanged lines show, that the behaviour did not exist, or what the PR text states; otherwise it is left empty, never guessed. A behaviour that did not exist may leave it empty too, since its source already says so.
+_Avoid_: behaviour change, impact, effect
+
 **Ticket reference**:
 A mention of a ticket found in the PR description, PR title, or branch name: a **Ticket key**, a GitHub issue number, or a tracker URL. References are collected; only the **Primary ticket** is fetched.
 _Avoid_: linked ticket (ambiguous with the generic linked context), issue link

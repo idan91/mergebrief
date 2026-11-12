@@ -7,12 +7,18 @@ import {
   IntentCheckGenerationSchema,
   briefGenerationSchemaWith,
   DeltaBriefSchema,
+  GroupingGenerationSchema,
   IntentCheckSchema,
+  ProductDiffAvailabilities,
+  ProductDiffSchema,
   RevisionNarrativeSchema,
 } from "../src/types";
 import {
   makeValidBrief,
+  makeProductDiffOfLength,
+  makeProductDiffWithChange,
   makeValidDeltaBrief,
+  makeValidProductDiff,
   makeValidRevisionNarrative,
 } from "./helpers";
 
@@ -480,6 +486,131 @@ describe("intentCheck on the brief schemas: the back-compat split", () => {
     for (const bucket of Object.values(IntentBuckets)) {
       expect(wire).not.toContain(`"${bucket}":{"type":"array"`);
     }
+  });
+});
+
+const MAX_LISTED_PRODUCT_CHANGES = 8;
+
+describe("productDiff on the brief schemas", () => {
+  it("BriefSchema keeps a valid productDiff", () => {
+    const productDiff = makeValidProductDiff();
+
+    const parsed = BriefSchema.parse({ ...makeValidBrief(), productDiff });
+
+    expect(parsed.productDiff).toEqual(productDiff);
+  });
+
+  it("BriefSchema reads a brief without productDiff", () => {
+    expect(BriefSchema.parse(makeValidBrief())).not.toHaveProperty(
+      "productDiff",
+    );
+  });
+
+  it("accepts an unavailable section with no changes", () => {
+    const productDiff = {
+      availability: ProductDiffAvailabilities.UNAVAILABLE,
+      changes: [],
+      hasMore: false,
+    };
+
+    expect(ProductDiffSchema.safeParse(productDiff).success).toBe(true);
+  });
+
+  it("accepts a change whose before is not shown", () => {
+    const productDiff = makeValidProductDiff();
+    const { before: _shown, ...change } = productDiff.changes[0]!;
+    const changes = [{ ...change, beforeSource: "not-shown" }];
+
+    expect(
+      ProductDiffSchema.safeParse({ ...productDiff, changes }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a new behaviour whose before is left to its source", () => {
+    const productDiff = makeValidProductDiff();
+    const { before: _shown, ...change } = productDiff.changes[0]!;
+    const changes = [{ ...change, beforeSource: "did-not-exist" }];
+
+    expect(
+      ProductDiffSchema.safeParse({ ...productDiff, changes }).success,
+    ).toBe(true);
+  });
+
+  it.each(["did-not-exist", "pr-text"])(
+    "accepts a stated before under %s",
+    (beforeSource) => {
+      const productDiff = makeProductDiffWithChange({ beforeSource });
+
+      expect(ProductDiffSchema.safeParse(productDiff).success).toBe(true);
+    },
+  );
+
+  it("accepts eight changes", () => {
+    const productDiff = makeProductDiffOfLength(MAX_LISTED_PRODUCT_CHANGES);
+
+    expect(ProductDiffSchema.safeParse(productDiff).success).toBe(true);
+  });
+
+  it.each([
+    ["an unknown area", makeProductDiffWithChange({ affects: "ui" })],
+    [
+      "an unknown before source",
+      makeProductDiffWithChange({ beforeSource: "guess" }),
+    ],
+    ["an empty when", makeProductDiffWithChange({ when: "" })],
+    ["an empty after", makeProductDiffWithChange({ after: "" })],
+    ["an empty before", makeProductDiffWithChange({ before: "" })],
+    ["a null before", makeProductDiffWithChange({ before: null })],
+    ["no group ids", makeProductDiffWithChange({ groupIds: [] })],
+    ["a blank when", makeProductDiffWithChange({ when: "  " })],
+    ["a blank after", makeProductDiffWithChange({ after: " \n" })],
+    ["a blank before", makeProductDiffWithChange({ before: "\t" })],
+    [
+      "a before under not-shown",
+      makeProductDiffWithChange({ beforeSource: "not-shown" }),
+    ],
+    [
+      "a diff source with no before",
+      makeProductDiffWithChange({ before: undefined }),
+    ],
+    [
+      "a PR-text source with no before",
+      makeProductDiffWithChange({ before: undefined, beforeSource: "pr-text" }),
+    ],
+    [
+      "an unavailable section with rows",
+      { ...makeValidProductDiff(), availability: "unavailable" },
+    ],
+    [
+      "an unavailable section claiming more",
+      { availability: "unavailable", changes: [], hasMore: true },
+    ],
+    [
+      "an unknown availability",
+      { ...makeValidProductDiff(), availability: "partial" },
+    ],
+    [
+      "no hasMore",
+      { availability: "available", changes: makeValidProductDiff().changes },
+    ],
+  ])("rejects %s", (_case, productDiff) => {
+    expect(ProductDiffSchema.safeParse(productDiff).success).toBe(false);
+  });
+
+  it("rejects nine changes", () => {
+    const length = MAX_LISTED_PRODUCT_CHANGES + 1;
+    const productDiff = makeProductDiffOfLength(length);
+
+    expect(ProductDiffSchema.safeParse(productDiff).success).toBe(false);
+  });
+
+  it.each([
+    ["brief", BriefGenerationSchema],
+    ["grouping", GroupingGenerationSchema],
+  ])("the %s wire schema carries no productDiff", (_name, schema) => {
+    const wire = JSON.stringify(enumPreservingJsonSchema(schema));
+
+    expect(wire).not.toContain("productDiff");
   });
 });
 

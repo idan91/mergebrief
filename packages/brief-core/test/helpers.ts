@@ -6,7 +6,10 @@ import type {
   Generator,
 } from "generators";
 import {
+  BeforeSources,
   DeltaSkipReasons,
+  ProductChangeAreas,
+  ProductDiffAvailabilities,
   RevisionNarrativeSkipReasons,
   type Brief,
   type ChangeGroup,
@@ -14,6 +17,8 @@ import {
   type DeltaBrief,
   type DeltaSkipped,
   type DeltaUnchanged,
+  type ProductChange,
+  type ProductDiff,
   type RevisionNarrative,
   type RevisionNarrativeSkipped,
   type RevisionNarrativeUnchanged,
@@ -86,6 +91,51 @@ export function makeValidBrief(): Brief {
     chunks: [chunk],
     concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
   });
+}
+
+/** One valid Product change, with the fields a test cares about overridden. */
+export function makeProductChange(
+  overrides: Partial<ProductChange> = {},
+): ProductChange {
+  return {
+    when: "a user creates an item whose name matches an archived one",
+    before: "a second item was created beside the archived one",
+    after: "the archived item is restored",
+    affects: ProductChangeAreas.BUSINESS_RULE,
+    beforeSource: BeforeSources.DIFF,
+    groupIds: ["g1"],
+    ...overrides,
+  };
+}
+
+/** An available Product diff listing `changes`, claiming no more. */
+export function makeProductDiffListing(changes: ProductChange[]): ProductDiff {
+  return {
+    availability: ProductDiffAvailabilities.AVAILABLE,
+    changes,
+    hasMore: false,
+  };
+}
+
+export function makeValidProductDiff(): ProductDiff {
+  return makeProductDiffListing([makeProductChange()]);
+}
+
+/** The valid Product diff with its one change overridden: junk values included. */
+export function makeProductDiffWithChange(
+  overrides: Record<string, unknown>,
+): Record<string, unknown> {
+  const productDiff = makeValidProductDiff();
+  return {
+    ...productDiff,
+    changes: [{ ...productDiff.changes[0], ...overrides }],
+  };
+}
+
+/** The valid Product diff with its one change listed `length` times. */
+export function makeProductDiffOfLength(length: number): ProductDiff {
+  const change = makeProductChange();
+  return makeProductDiffListing(Array.from({ length }, () => change));
 }
 
 const secondChunk = { ...chunk, id: "c2", changeGroupId: "g2", file: "b.ts" };

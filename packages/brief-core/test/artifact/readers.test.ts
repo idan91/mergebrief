@@ -15,6 +15,9 @@ import {
   makeTwoGroupBrief,
   makeValidBrief,
   makeValidDeltaBrief,
+  makeProductDiffOfLength,
+  makeProductDiffWithChange,
+  makeValidProductDiff,
   makeValidRevisionNarrative,
 } from "../helpers";
 
@@ -215,6 +218,7 @@ describe("readStoredBrief", () => {
     ["readingOrder", makeBodyWith({ readingOrder: [NOT_A_SECTION] })],
     ["intentCheck", makeBodyWith({ intentCheck: "none" })],
     ["outlineForm", makeBodyWith({ outlineForm: "lines-99" })],
+    ["productDiff", makeBodyWith({ productDiff: NOT_A_SECTION })],
     ["pr.state", makeBodyWithPr({ state: "merged" })],
     ["pr.draft", makeBodyWithPr({ draft: "yes" })],
     ["pr.merged", makeBodyWithPr({ merged: 1 })],
@@ -781,6 +785,53 @@ describe("Summary Media in a stored Brief", () => {
       summaryMedia: {
         shown: [{ key: "javascript:alert(1)", position: "after-lede" }],
       },
+    });
+
+    expect(checkBriefForWrite(body, []).ok).toBe(false);
+  });
+});
+
+const OVER_MAX_PRODUCT_CHANGES = 9;
+
+describe("Product diff in a stored Brief", () => {
+  it("round-trips through the write check and the reader", () => {
+    const body = makeBodyWith({ productDiff: makeValidProductDiff() });
+
+    expect(checkBriefForWrite(body, []).ok).toBe(true);
+    expect(readBodyOrThrow(body)).toEqual({ brief: body, issues: [] });
+  });
+
+  it("reads an unavailable section with no changes", () => {
+    const productDiff = {
+      availability: "unavailable",
+      changes: [],
+      hasMore: false,
+    };
+    const body = makeBodyWith({ productDiff });
+
+    expect(readBodyOrThrow(body)).toEqual({ brief: body, issues: [] });
+  });
+
+  it.each([
+    ["nine changes", makeProductDiffOfLength(OVER_MAX_PRODUCT_CHANGES)],
+    ["an unknown area", makeProductDiffWithChange({ affects: "ui" })],
+    ["no group ids", makeProductDiffWithChange({ groupIds: [] })],
+    ["an empty before", makeProductDiffWithChange({ before: "" })],
+  ])("drops only the section for %s", (_case, productDiff) => {
+    const read = readBodyOrThrow(makeBodyWith({ productDiff }));
+
+    expect(read.brief).toEqual(makeValidBrief());
+    expect(read.issues).toEqual([
+      expect.objectContaining({
+        code: ArtifactIssueCodes.DROPPED_SECTION,
+        path: "productDiff",
+      }),
+    ]);
+  });
+
+  it("refuses an invalid section at the write check", () => {
+    const body = makeBodyWith({
+      productDiff: makeProductDiffWithChange({ affects: "ui" }),
     });
 
     expect(checkBriefForWrite(body, []).ok).toBe(false);

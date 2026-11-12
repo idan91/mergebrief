@@ -781,6 +781,102 @@ export const IntentCheckGenerationSchema = z.object({
 
 export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;
 
+/** The one area of the product a Product change affects. */
+export const ProductChangeAreas = {
+  USER_FLOW: "user-flow",
+  API_CONTRACT: "api-contract",
+  BUSINESS_RULE: "business-rule",
+  DATA: "data",
+  INTEGRATION: "integration",
+  OPERATIONS: "operations",
+  BACKGROUND_PROCESS: "background-process",
+} as const;
+/** @public */
+export type ProductChangeArea = ValueOf<typeof ProductChangeAreas>;
+
+/** Where a Product change's before came from. `not-shown` leaves it absent, and `did-not-exist` may. */
+export const BeforeSources = {
+  DIFF: "diff",
+  DID_NOT_EXIST: "did-not-exist",
+  PR_TEXT: "pr-text",
+  NOT_SHOWN: "not-shown",
+} as const;
+/** @public */
+export type BeforeSource = ValueOf<typeof BeforeSources>;
+
+/** Whether the Product diff was read: `unavailable` when the brief was written in parts, so no call read the whole diff. */
+export const ProductDiffAvailabilities = {
+  AVAILABLE: "available",
+  UNAVAILABLE: "unavailable",
+} as const;
+/** @public */
+export type ProductDiffAvailability = ValueOf<typeof ProductDiffAvailabilities>;
+
+const MAX_PRODUCT_CHANGES = 8;
+
+/** A sentence of a Product change: never blank, so a row cannot render empty. */
+const ProductSentenceSchema = z.string().regex(/\S/);
+
+/** `not-shown` never carries a before, `diff` and `pr-text` always do, and `did-not-exist` may. */
+function agreesWithBeforeSource(change: {
+  before?: string | undefined;
+  beforeSource: BeforeSource;
+}): boolean {
+  const hasBefore = change.before !== undefined;
+  if (change.beforeSource === BeforeSources.NOT_SHOWN) {
+    return !hasBefore;
+  }
+  if (change.beforeSource === BeforeSources.DID_NOT_EXIST) {
+    return true;
+  }
+  return hasBefore;
+}
+
+export const ProductChangeSchema = z
+  .object({
+    when: ProductSentenceSchema,
+    before: ProductSentenceSchema.optional().describe(
+      "absent when nothing shows it (not-shown), or when the behaviour is new and its source alone says so (did-not-exist)",
+    ),
+    after: ProductSentenceSchema,
+    affects: z.enum(ProductChangeAreas),
+    beforeSource: z.enum(BeforeSources),
+    groupIds: z
+      .array(z.string())
+      .min(1)
+      .describe("the change-groups that carry this change"),
+  })
+  .refine(agreesWithBeforeSource, "before disagrees with beforeSource");
+
+/** An unread section states nothing: no change and no claim of more. */
+function listsNothingWhenUnavailable(productDiff: {
+  availability: ProductDiffAvailability;
+  changes: readonly unknown[];
+  hasMore: boolean;
+}): boolean {
+  if (productDiff.availability === ProductDiffAvailabilities.AVAILABLE) {
+    return true;
+  }
+  const listsNothing = productDiff.changes.length === 0 && !productDiff.hasMore;
+  return listsNothing;
+}
+
+export const ProductDiffSchema = z
+  .object({
+    availability: z.enum(ProductDiffAvailabilities),
+    changes: z
+      .array(ProductChangeSchema)
+      .max(MAX_PRODUCT_CHANGES)
+      .describe("most significant first"),
+    hasMore: z
+      .boolean()
+      .describe("the PR has more Product changes than are listed"),
+  })
+  .refine(
+    listsNothingWhenUnavailable,
+    "an unavailable Product diff lists nothing",
+  );
+
 /**
  * Which groups an anchored generation carried verbatim vs regenerated ,
  * internal pipeline origin tracking, never rendered.
@@ -1066,6 +1162,9 @@ export const BriefSchema = z.object({
     .describe(
       "sha-256 hex of the inputs beside the diff the generation read: title, branch facts, description, linked context, primary ticket and repo context. Pipeline-assigned, never model-produced; a carry with no model call needs it to match the next run's. Absent on a brief written before it, which never carries.",
     ),
+  productDiff: ProductDiffSchema.optional().describe(
+    "the Product diff: how the product behaves before the PR and after it. Absent when no call wrote one that could be kept, and on a brief written before the section existed.",
+  ),
 });
 
 /**
@@ -1093,6 +1192,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   outlineForm: true,
   summaryMedia: true,
   inputFingerprint: true,
+  productDiff: true,
 }).extend({
   chunks: z.array(ChunkGenerationSchema),
   intentCheck: IntentCheckGenerationSchema,
@@ -1421,6 +1521,9 @@ export interface DeltaUnchanged {
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type IntentItem = z.infer<typeof IntentItemSchema>;
 export type IntentCheck = z.infer<typeof IntentCheckSchema>;
+/** @public */
+export type ProductChange = z.infer<typeof ProductChangeSchema>;
+export type ProductDiff = z.infer<typeof ProductDiffSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type UnattributedFile = z.infer<typeof UnattributedFileSchema>;

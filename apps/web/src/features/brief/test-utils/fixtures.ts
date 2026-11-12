@@ -1,6 +1,14 @@
 import type { LocalBriefSummary } from "contract";
 import { ChangeGroupCategories } from "types";
-import { Concerns, Roles } from "brief-core/types";
+import {
+  BeforeSources,
+  Concerns,
+  ProductChangeAreas,
+  ProductDiffAvailabilities,
+  Roles,
+  type ProductChange,
+  type ProductDiff,
+} from "brief-core/types";
 import { type RowRef, RowRefKinds } from "../model/expansion/types";
 import { type Brief, type BriefChunk } from "../model/types";
 import type { RepoConfigContext } from "../model/utils/repo-config";
@@ -204,5 +212,32 @@ export function makeComparisonState(
     skipReason: null,
     available: compare !== CompareParams.OFF,
     runCount,
+  };
+}
+
+/** One Product change with a before the diff shows, overridden where a test cares. */
+export function makeProductChange(
+  overrides: Partial<ProductChange> = {},
+): ProductChange {
+  return {
+    when: "a user creates an item whose name matches an archived one",
+    before: "A second, new item was created.",
+    after: "The archived item is restored.",
+    affects: ProductChangeAreas.BUSINESS_RULE,
+    beforeSource: BeforeSources.DIFF,
+    groupIds: ["g1"],
+    ...overrides,
+  };
+}
+
+/** An available Product diff of one change, claiming no more. */
+export function makeProductDiff(
+  overrides: Partial<ProductDiff> = {},
+): ProductDiff {
+  return {
+    availability: ProductDiffAvailabilities.AVAILABLE,
+    changes: [makeProductChange()],
+    hasMore: false,
+    ...overrides,
   };
 }

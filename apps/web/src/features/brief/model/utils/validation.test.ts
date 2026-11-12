@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { BeforeSources } from "brief-core/types";
+import { makeProductChange, makeProductDiff } from "../../test-utils/fixtures";
 import {
   parseBrief,
   parseDeltaBrief,
@@ -150,6 +152,28 @@ describe("parseBrief intent check view", () => {
     expect(check?.statedButMissing[0]?.acknowledged).toBe(false);
     expect(check?.doneButUnstated[0]?.acknowledged).toBe(false);
     expect(check?.maskedFixes[0]?.acknowledged).toBe(false);
+  });
+});
+
+describe("parseBrief product diff", () => {
+  it("passes a stored product diff through untouched", () => {
+    const { before: _absent, ...withoutBefore } = makeProductChange({
+      when: "a user exports an empty table",
+      after: "The export holds a header row.",
+      beforeSource: BeforeSources.NOT_SHOWN,
+    });
+    const productDiff = makeProductDiff({
+      changes: [makeProductChange(), withoutBefore],
+      hasMore: true,
+    });
+
+    const brief = readBrief({ ...briefBody, productDiff });
+
+    expect(brief.productDiff).toEqual(productDiff);
+  });
+
+  it("reads a brief stored before the section existed", () => {
+    expect(readBrief(briefBody)).not.toHaveProperty("productDiff");
   });
 });
 

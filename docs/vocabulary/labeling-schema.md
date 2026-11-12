@@ -17,6 +17,7 @@ Division of labor:
 | **Risk Surface** attributes | **Chunk** | factual flags |
 | **LoC** | **Chunk** (rolls up to group + concern) | size/attention |
 | **Intent-check bucket** | **Brief** (intent check section) | stated intent vs diff |
+| **Product-change area** + **Before source** | **Product change** (Product diff section) | behaviour before vs after |
 
 A **Chunk** = a contiguous run of changed lines sharing one Concern and one Change-group (sub-file; a git hunk may split into multiple chunks).
 
@@ -146,7 +147,40 @@ Quick rules:
 
 ---
 
-## 8. Special tokens & expansion protocol
+## 8. Product diff: Brief-level
+
+Two closed sets, each attaching to one **Product change** of the Brief's
+**Product diff**, not to chunks or change-groups. The AI's fallible read,
+never a verdict.
+
+**Area**: the one area of the product a change affects. Exactly one per change.
+
+| Token | Description |
+|---|---|
+| `user-flow` | what a person sees or can do |
+| `api-contract` | what a caller gets for the same call: API, CLI, webhook payload |
+| `business-rule` | a decision the product makes: allowed, accepted, ignored, counted, charged |
+| `data` | what is stored, kept, deleted or migrated |
+| `integration` | what the product sends to or expects from another system |
+| `operations` | what whoever runs it must do or will observe: config, env, migrations, startup, health, timeouts |
+| `background-process` | internal logic nobody clicks for: jobs, retries, scheduling, locking |
+
+A change that fits two areas takes the more specific one. Security is not an
+area: who is allowed is a `business-rule`, and Risk Surface flags the rest.
+Speed alone is not a Product change, so there is no performance area.
+
+**Before source**: where the change's *before* came from.
+
+| Token | Description |
+|---|---|
+| `diff` | the diff's removed or unchanged lines show it |
+| `did-not-exist` | the behaviour did not exist before the PR; the before may be left empty |
+| `pr-text` | the PR title or description states it |
+| `not-shown` | nothing shows it; the before is left empty, never guessed |
+
+---
+
+## 9. Special tokens & expansion protocol
 
 - **`uncertain`**: valid output when confidence is below threshold on Category or a flag. Don't force a token; mark uncertain and move on.
 - **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its detail (`risk-surface.md`); playbook drafting is parked with the playbook layer. Never invent a token inline in a brief.
@@ -158,5 +192,6 @@ Quick rules:
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
 - Intent-check buckets: five registered (three neutral, two alarm).
+- Product diff: seven areas and four before sources registered.
 - Category: eight registered; the playbook layer is parked to v2.
 - Contribution rules for tokens and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
