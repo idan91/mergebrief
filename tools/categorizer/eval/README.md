@@ -63,7 +63,8 @@ id (a repeated `--case` silently keeps only the last), and each
 invocation overwrites `out/eval-report.{json,md}`, so capture the
 report between runs. Justify the selection in the PR body, e.g. an
 intent-check-only change is honestly gated by the eight `intent-*` cases
-(eight runs). Run the full suite for prompt-wide changes (shared prompt
+(eight runs), and a Product-diff-only change by the five `product-diff-*`
+cases. Run the full suite for prompt-wide changes (shared prompt
 sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
 full-suite prices: not gating at all.
@@ -118,7 +119,13 @@ both); the loader reads either.
   intent-check items may be keyword-matched: their `quote`
   fields are validator-tethered verbatim ticket substrings and the
   regexes match planted markers in fixture-authored ticket text, not
-  free model text. A throwing predicate counts as a fail with a note.
+  free model text. A second: a Product diff row is found by a loose
+  pattern over its `when` and `after`, because the row is
+  prose and the behaviour it names is the fact under test; every such
+  property also requires the section read, so an absent section fails it.
+  The exception is a property that asks for no such row: it passes with no
+  rows, and its case anchors it with one that needs a row.
+  A throwing predicate counts as a fail with a note.
   Empty lists are rejected.
 
 A fixture carries the diff, never a lockfile's full text at base and head,
@@ -220,6 +227,19 @@ predicates were unchanged but the input moved, and stable predicates
 preserve nothing when the input does. Re-recorded later (all seven
 properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
+
+The **Product diff cases** score the section the call after a one-call
+brief writes, on real own-repo PRs: `product-diff-removed-lines` (a before
+read off removed lines, sourced `diff`), `product-diff-rename-only` (a
+rename: read and empty), `product-diff-new-route` (a new route, sourced
+`did-not-exist`), `product-diff-pr-text-contradicts` (the removed-lines
+diff byte-identically under an authored description that claims no product
+changes and a before the removed lines contradict) and
+`product-diff-over-cap` (more than eight changes: `hasMore`). Their
+predicates live in `cases/product-diff-props.ts` and are proved to pass and
+fail in `test/eval-product-diff-cases.test.ts`, which also holds every
+fixture to a one-call plan: past it the section is `unavailable` and every
+row property fails for a reason the case is not about.
 
 The **large cases** are real third-party MIT PRs past the single-call
 limits, gzipped, each with its `LICENSE`: `kit-11161` (sveltejs/kit

@@ -25522,6 +25522,5134 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
 }"
 `;
 
+exports[`brief goldens > product-diff-new-route produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/AGENTS.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler",
+      "title": "Changes under apps/api",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/src/routes/repos/pr/index.ts.",
+      "title": "Changes under apps/api/src/routes/repos/pr",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/src/routes/repos/pr/regenerate/index.ts, apps/api/src/routes/repos/pr/regenerate/regenerate-brief.ts, apps/api/src/routes/repos/pr/regenerate/types.ts.",
+      "title": "Changes under apps/api/src/routes/repos/pr/regenerate",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/src/routes/repos/pr/regenerate/logic/wire-failures.ts.",
+      "title": "Changes under apps/api/src/routes/repos/pr/regenerate/logic",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/src/shared-errors/api-error.test.ts.",
+      "title": "Changes under apps/api/src/shared-errors",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/test/product-operation-catalog.test.ts, apps/api/test/regenerate.test.ts.",
+      "title": "Changes under apps/api/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/product-operations.map.json.",
+      "title": "Changes under apps/cli",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches docs/api-changelog.md.",
+      "title": "Changes under docs",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches packages/contract/src/errors.ts.",
+      "title": "Changes under packages/contract/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches packages/contract/src/operations/index.ts, packages/contract/src/operations/types.ts.",
+      "title": "Changes under packages/contract/src/operations",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches packages/i18n/src/locales/en.json.",
+      "title": "Changes under packages/i18n/src/locales",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 39,
+          "start": 38
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/api/AGENTS.md",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 39,
+          "start": 38
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 21
+        },
+        {
+          "end": 46,
+          "start": 46
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/api/src/routes/repos/pr/index.ts",
+      "id": "c2",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 49,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/api/src/routes/repos/pr/regenerate/index.ts",
+      "id": "c3",
+      "loc": {
+        "added": 49,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 37,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/api/src/routes/repos/pr/regenerate/regenerate-brief.ts",
+      "id": "c4",
+      "loc": {
+        "added": 37,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 18,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/api/src/routes/repos/pr/regenerate/types.ts",
+      "id": "c5",
+      "loc": {
+        "added": 18,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 28,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/api/src/routes/repos/pr/regenerate/logic/wire-failures.ts",
+      "id": "c6",
+      "loc": {
+        "added": 28,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 45,
+          "start": 44
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/api/src/shared-errors/api-error.test.ts",
+      "id": "c7",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 114,
+          "start": 110
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/api/test/product-operation-catalog.test.ts",
+      "id": "c8",
+      "loc": {
+        "added": 5,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 393,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/api/test/regenerate.test.ts",
+      "id": "c9",
+      "loc": {
+        "added": 393,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 178,
+          "start": 173
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/cli/product-operations.map.json",
+      "id": "c10",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 30,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "docs/api-changelog.md",
+      "id": "c11",
+      "loc": {
+        "added": 15,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 43,
+          "start": 42
+        },
+        {
+          "end": 120,
+          "start": 119
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "packages/contract/src/errors.ts",
+      "id": "c12",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 186,
+          "start": 181
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "packages/contract/src/operations/index.ts",
+      "id": "c13",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 46,
+          "start": 46
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "packages/contract/src/operations/types.ts",
+      "id": "c14",
+      "loc": {
+        "added": 1,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 76,
+          "start": 75
+        },
+        {
+          "end": 189,
+          "start": 188
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "packages/i18n/src/locales/en.json",
+      "id": "c15",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "a68ed036d0e72164b583ef6be90addf7a0a8146f",
+    "commitCount": 11,
+    "head": "3ea0ff0910e6f5e4015b6d979067b53d6b8a4908"
+  },
+  "concernView": [
+    {
+      "added": 572,
+      "concern": "implementation",
+      "deleted": 2
+    }
+  ],
+  "diffTotals": {
+    "added": 576,
+    "deleted": 2
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n4 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "1bb654beaa6cf2319b4566fbc5554c90fb639a7f94751e2fbb4531055b72ecfa",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\n\\nAdds \`POST /api/repos/:repoId/pulls/:prNumber/regenerate\` (\`regenerate-brief\`, external-write), the HTTP half of the Regenerate button. The route re-reads the repository on the viewer's token before it calls #1034's \`regenerateFailedHead\`, as the api's mutation rule asks of every mutating route. The gate's push bit can be a minute old, and this write queues a paid run. No push access answers 404 and queues nothing. A GitHub that can't answer gives 502. It is declared \`requiresPushAccess\`, \`requiresInstallation\` and \`requiresStoredPullRequest\`, so an outside author or a url-box row gets the gate's 404.\\n\\nTwo new 409 wire codes, added by the recipe with their \`errors.*\` and \`pulls.briefError.*\` lines: \`generation-held\` (a live claim holds the head) and \`generation-not-regenerable\` (the head is not failed, or failed with a cannot-help code). It was \`generation-not-retryable\` until review. CONTEXT.md keeps \\"retry\\" for graphile's own attempts, so the wire code now uses the button's word. Success is 202 with no body. The CLI map marks the operation \`webOnly\`.\\n\\nThe \`pulls.briefError.generation-*\` copy is new and needs Idan's read.\\n\\n### Verification\\n\\nVerification at 3ea0ff091: \`pnpm lint\` 0 against the parent tip, and typecheck and test 0 for contract, i18n, api and cli, each real-Postgres suite on a fresh database. \`/verify\` against a live API is still owed, because the repos gate needs an App user sign-in.\\n\\n\\n",
+    "number": 1035,
+    "repo": "Idan91/code-review",
+    "sha": "3ea0ff0910e6f5e4015b6d979067b53d6b8a4908",
+    "title": "[BRIEF-240] feat: Regenerate Route",
+    "url": "https://github.com/Idan91/code-review/pull/1035"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 15 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 184,
+          "start": 181
+        }
+      ],
+      "file": "packages/contract/src/errors.ts",
+      "removedRanges": []
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > product-diff-over-cap produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/AGENTS.md, apps/cli/README.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned ",
+      "title": "Changes under apps/cli",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/commands/auth/run.ts.",
+      "title": "Changes under apps/cli/src/commands/auth",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/commands/options.ts, apps/cli/src/commands/target.ts.",
+      "title": "Changes under apps/cli/src/commands",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/commands/read/index.ts, apps/cli/src/commands/read/run.ts.",
+      "title": "Changes under apps/cli/src/commands/read",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/commands/session-read/index.ts, apps/cli/src/commands/session-read/run.ts.",
+      "title": "Changes under apps/cli/src/commands/session-read",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/commands/span/index.ts, apps/cli/src/commands/span/pr-meta.ts, apps/cli/src/commands/span/types.ts.",
+      "title": "Changes under apps/cli/src/commands/span",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/src/profile/read-revisions.ts.",
+      "title": "Changes under apps/cli/src/profile",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/test/bin.test.ts, apps/cli/test/read-commands.test.ts, apps/cli/test/read-revisions.test.ts, apps/cli/test/session-read-commands.test.ts, apps/cli/test/units.test.ts.",
+      "title": "Changes under apps/cli/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/cli/test/harness/offline.ts.",
+      "title": "Changes under apps/cli/test/harness",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches docs/api-changelog.md.",
+      "title": "Changes under docs",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches docs/self-host/configuration.md.",
+      "title": "Changes under docs/self-host",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches skills/mergebrief/contract.md.",
+      "title": "Changes under skills/mergebrief",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 19,
+          "start": 19
+        },
+        {
+          "end": 34,
+          "start": 34
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/cli/AGENTS.md",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 87,
+          "start": 87
+        },
+        {
+          "end": 156,
+          "start": 155
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/cli/README.md",
+      "id": "c2",
+      "loc": {
+        "added": 3,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 87,
+          "start": 87
+        },
+        {
+          "end": 156,
+          "start": 155
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 288,
+          "start": 288
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/auth/run.ts",
+      "id": "c3",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 39,
+          "start": 25
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/options.ts",
+      "id": "c4",
+      "loc": {
+        "added": 15,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 32,
+          "start": 32
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/target.ts",
+      "id": "c5",
+      "loc": {
+        "added": 2,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 149,
+          "start": 149
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 6,
+          "start": 4
+        },
+        {
+          "end": 68,
+          "start": 68
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/read/index.ts",
+      "id": "c6",
+      "loc": {
+        "added": 4,
+        "deleted": 7
+      },
+      "removedRanges": [
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 72,
+          "start": 67
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 18,
+          "start": 17
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/read/run.ts",
+      "id": "c7",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 15,
+          "start": 15
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 3
+        },
+        {
+          "end": 24,
+          "start": 22
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/session-read/index.ts",
+      "id": "c8",
+      "loc": {
+        "added": 6,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        },
+        {
+          "end": 20,
+          "start": 20
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 3
+        },
+        {
+          "end": 76,
+          "start": 53
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/session-read/run.ts",
+      "id": "c9",
+      "loc": {
+        "added": 29,
+        "deleted": 10
+      },
+      "removedRanges": [
+        {
+          "end": 7,
+          "start": 3
+        },
+        {
+          "end": 57,
+          "start": 53
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 207,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/span/index.ts",
+      "id": "c10",
+      "loc": {
+        "added": 207,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/span/pr-meta.ts",
+      "id": "c11",
+      "loc": {
+        "added": 81,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 35,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/cli/src/commands/span/types.ts",
+      "id": "c12",
+      "loc": {
+        "added": 35,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 72,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/cli/src/profile/read-revisions.ts",
+      "id": "c13",
+      "loc": {
+        "added": 72,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 41,
+          "start": 40
+        },
+        {
+          "end": 63,
+          "start": 63
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/cli/test/bin.test.ts",
+      "id": "c14",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 150,
+          "start": 150
+        },
+        {
+          "end": 172,
+          "start": 172
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 29,
+          "start": 29
+        },
+        {
+          "end": 373,
+          "start": 370
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/cli/test/read-commands.test.ts",
+      "id": "c15",
+      "loc": {
+        "added": 5,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 29,
+          "start": 29
+        },
+        {
+          "end": 370,
+          "start": 370
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 571,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/cli/test/read-revisions.test.ts",
+      "id": "c16",
+      "loc": {
+        "added": 571,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 274,
+          "start": 270
+        },
+        {
+          "end": 285,
+          "start": 285
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/cli/test/session-read-commands.test.ts",
+      "id": "c17",
+      "loc": {
+        "added": 6,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 280,
+          "start": 280
+        },
+        {
+          "end": 301,
+          "start": 297
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/cli/test/units.test.ts",
+      "id": "c18",
+      "loc": {
+        "added": 0,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 376,
+          "start": 376
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 61,
+          "start": 60
+        },
+        {
+          "end": 152,
+          "start": 151
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/cli/test/harness/offline.ts",
+      "id": "c19",
+      "loc": {
+        "added": 4,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 149,
+          "start": 149
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 27,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "docs/api-changelog.md",
+      "id": "c20",
+      "loc": {
+        "added": 12,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 377,
+          "start": 377
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "docs/self-host/configuration.md",
+      "id": "c21",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 377,
+          "start": 377
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 59,
+          "start": 53
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "skills/mergebrief/contract.md",
+      "id": "c22",
+      "loc": {
+        "added": 8,
+        "deleted": 5
+      },
+      "removedRanges": [
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 56,
+          "start": 53
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "543626a1525c6c7d6052b4f056ce6e5f78c1f0f6",
+    "commitCount": 2,
+    "head": "570eb6563947756726ead1b4b5c915114070ed2b"
+  },
+  "concernView": [
+    {
+      "added": 1071,
+      "concern": "implementation",
+      "deleted": 44
+    }
+  ],
+  "diffTotals": {
+    "added": 1278,
+    "deleted": 245
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n207 added / 201 removed changed line(s) unattributed to any chunk across 8 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "4b05d6ba080725dbf6a140d514c2e4aeb18a14439f38b33f4206bbbd81497979",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\n\\n\`session\`, \`context\`, \`groups\` and \`diff\` no longer need SHAs. With no span flags they serve the newest finished brief for the PR's current head, or the newest finished one when that head has none, and \`--revision <n>\` names an earlier one, using the number the web's \`?rev=\` uses. \`--base\`/\`--head\` behave as before, with no extra read and no new output.\\n\\nThis changes the CLI's contract, recorded in \`contract.md\` and \`docs/api-changelog.md\`: \`session\` and \`context\` go from exit 2 to success, and \`groups\` and \`diff\` from exit 4 to success when only an older brief exists. Each read names what it served on stderr, on success only.\\n\\nA read leaves no trace on the server, so the CLI keeps the highest revision read per PR in its cache folder. That is what lets a read say \\"revision 4 is now latest (you were on revision 3)\\", and what the write guard in the next PR uses. Writes are unchanged here.\\n\\nJudgment calls: new \`commands/span/\` folder over growing \`options.ts\`, since choosing a brief now reads the network and writes a record. A failed cache write is ignored, because the read already succeeded. Security review also caught server fields reaching stderr raw, so those lines and the short SHAs in \`pr <n>\`, which were already raw, are now escaped.\\n\\nVerification: \`pnpm lint\` 0; \`pnpm -C apps/cli typecheck\` 0, \`test\` 0, \`build\` 0, \`docs:check\` 0, \`map:check\` 0. Ran the built CLI against a real server: no-flag and \`--revision\` reads, exit 4 on an unknown revision, record written.\\n",
+    "number": 1249,
+    "repo": "Idan91/code-review",
+    "sha": "570eb6563947756726ead1b4b5c915114070ed2b",
+    "title": "[BRIEF-428] feat: Read The Latest Revision By Default",
+    "url": "https://github.com/Idan91/code-review/pull/1249"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 22 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 169,
+          "start": 168
+        },
+        {
+          "end": 191,
+          "start": 191
+        },
+        {
+          "end": 212,
+          "start": 193
+        },
+        {
+          "end": 224,
+          "start": 224
+        },
+        {
+          "end": 227,
+          "start": 226
+        },
+        {
+          "end": 449,
+          "start": 449
+        },
+        {
+          "end": 454,
+          "start": 454
+        },
+        {
+          "end": 457,
+          "start": 457
+        },
+        {
+          "end": 583,
+          "start": 583
+        },
+        {
+          "end": 586,
+          "start": 586
+        },
+        {
+          "end": 591,
+          "start": 589
+        },
+        {
+          "end": 620,
+          "start": 620
+        },
+        {
+          "end": 628,
+          "start": 623
+        },
+        {
+          "end": 656,
+          "start": 656
+        },
+        {
+          "end": 659,
+          "start": 659
+        },
+        {
+          "end": 666,
+          "start": 662
+        },
+        {
+          "end": 712,
+          "start": 712
+        },
+        {
+          "end": 715,
+          "start": 715
+        },
+        {
+          "end": 722,
+          "start": 718
+        }
+      ],
+      "file": "apps/cli/README.md",
+      "removedRanges": [
+        {
+          "end": 169,
+          "start": 168
+        },
+        {
+          "end": 191,
+          "start": 191
+        },
+        {
+          "end": 195,
+          "start": 193
+        },
+        {
+          "end": 207,
+          "start": 207
+        },
+        {
+          "end": 210,
+          "start": 209
+        },
+        {
+          "end": 432,
+          "start": 432
+        },
+        {
+          "end": 437,
+          "start": 437
+        },
+        {
+          "end": 440,
+          "start": 440
+        },
+        {
+          "end": 566,
+          "start": 566
+        },
+        {
+          "end": 569,
+          "start": 569
+        },
+        {
+          "end": 572,
+          "start": 572
+        },
+        {
+          "end": 601,
+          "start": 601
+        },
+        {
+          "end": 607,
+          "start": 604
+        },
+        {
+          "end": 635,
+          "start": 635
+        },
+        {
+          "end": 638,
+          "start": 638
+        },
+        {
+          "end": 643,
+          "start": 641
+        },
+        {
+          "end": 689,
+          "start": 689
+        },
+        {
+          "end": 692,
+          "start": 692
+        },
+        {
+          "end": 697,
+          "start": 695
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 80,
+          "start": 70
+        },
+        {
+          "end": 82,
+          "start": 82
+        },
+        {
+          "end": 104,
+          "start": 104
+        },
+        {
+          "end": 122,
+          "start": 111
+        },
+        {
+          "end": 127,
+          "start": 124
+        },
+        {
+          "end": 131,
+          "start": 129
+        },
+        {
+          "end": 137,
+          "start": 136
+        },
+        {
+          "end": 143,
+          "start": 140
+        }
+      ],
+      "file": "apps/cli/src/commands/read/index.ts",
+      "removedRanges": [
+        {
+          "end": 95,
+          "start": 95
+        },
+        {
+          "end": 100,
+          "start": 99
+        },
+        {
+          "end": 117,
+          "start": 104
+        },
+        {
+          "end": 122,
+          "start": 119
+        },
+        {
+          "end": 124,
+          "start": 124
+        },
+        {
+          "end": 129,
+          "start": 129
+        },
+        {
+          "end": 133,
+          "start": 132
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 22,
+          "start": 22
+        },
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 68,
+          "start": 68
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 121,
+          "start": 118
+        },
+        {
+          "end": 154,
+          "start": 154
+        }
+      ],
+      "file": "apps/cli/src/commands/read/run.ts",
+      "removedRanges": [
+        {
+          "end": 99,
+          "start": 21
+        },
+        {
+          "end": 141,
+          "start": 141
+        },
+        {
+          "end": 145,
+          "start": 145
+        },
+        {
+          "end": 153,
+          "start": 152
+        },
+        {
+          "end": 190,
+          "start": 189
+        },
+        {
+          "end": 201,
+          "start": 198
+        },
+        {
+          "end": 214,
+          "start": 207
+        },
+        {
+          "end": 247,
+          "start": 245
+        },
+        {
+          "end": 251,
+          "start": 250
+        },
+        {
+          "end": 261,
+          "start": 257
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 27,
+          "start": 26
+        },
+        {
+          "end": 29,
+          "start": 29
+        },
+        {
+          "end": 35,
+          "start": 31
+        },
+        {
+          "end": 92,
+          "start": 90
+        },
+        {
+          "end": 95,
+          "start": 94
+        },
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 104,
+          "start": 99
+        }
+      ],
+      "file": "apps/cli/src/commands/session-read/index.ts",
+      "removedRanges": [
+        {
+          "end": 23,
+          "start": 22
+        },
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 28,
+          "start": 27
+        },
+        {
+          "end": 83,
+          "start": 83
+        },
+        {
+          "end": 86,
+          "start": 85
+        },
+        {
+          "end": 88,
+          "start": 88
+        },
+        {
+          "end": 91,
+          "start": 90
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 95,
+          "start": 78
+        },
+        {
+          "end": 101,
+          "start": 98
+        },
+        {
+          "end": 109,
+          "start": 108
+        },
+        {
+          "end": 118,
+          "start": 118
+        }
+      ],
+      "file": "apps/cli/src/commands/session-read/run.ts",
+      "removedRanges": [
+        {
+          "end": 59,
+          "start": 59
+        },
+        {
+          "end": 62,
+          "start": 62
+        },
+        {
+          "end": 70,
+          "start": 69
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 156,
+          "start": 151
+        }
+      ],
+      "file": "apps/cli/src/commands/target.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 153,
+          "start": 153
+        },
+        {
+          "end": 175,
+          "start": 175
+        }
+      ],
+      "file": "apps/cli/test/bin.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 495,
+          "start": 472
+        },
+        {
+          "end": 544,
+          "start": 544
+        },
+        {
+          "end": 576,
+          "start": 576
+        },
+        {
+          "end": 756,
+          "start": 734
+        },
+        {
+          "end": 760,
+          "start": 759
+        },
+        {
+          "end": 801,
+          "start": 801
+        }
+      ],
+      "file": "apps/cli/test/read-commands.test.ts",
+      "removedRanges": [
+        {
+          "end": 722,
+          "start": 705
+        },
+        {
+          "end": 724,
+          "start": 724
+        },
+        {
+          "end": 730,
+          "start": 726
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > product-diff-pr-text-contradicts produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/e2e/specs/homeStates.e2e.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fi",
+      "title": "Changes under apps/web/e2e/specs",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/FailedInbox/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/FailedInbox",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.module.scss, apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.test.tsx, apps/web/src/features/inbox/components/FailedReadLine/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/FailedReadLine",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/InboxList/InboxList.test.tsx, apps/web/src/features/inbox/components/InboxList/index.tsx, apps/web/src/features/inbox/components/InboxList/types.ts, apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx, apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components/InboxList",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/InboxList/InboxRow/useRowGeneration.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components/InboxList/InboxRow",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/utils.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/index.tsx, apps/web/src/features/inbox/queries.test.ts, apps/web/src/features/inbox/queries.ts, apps/web/src/features/inbox/utils.test.ts, apps/web/src/features/inbox/utils.ts.",
+      "title": "Changes under apps/web/src/features/inbox",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/hooks/usePrBriefPage/index.ts.",
+      "title": "Changes under apps/web/src/features/pulls/hooks/usePrBriefPage",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/queries.ts.",
+      "title": "Changes under apps/web/src/features/pulls",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/utils/poll-backoff.test.ts, apps/web/src/features/pulls/utils/poll-backoff.ts.",
+      "title": "Changes under apps/web/src/features/pulls/utils",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/routes/index.tsx.",
+      "title": "Changes under apps/web/src/routes",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches packages/i18n/src/locales/en.json.",
+      "title": "Changes under packages/i18n/src/locales",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 20
+        },
+        {
+          "end": 218,
+          "start": 186
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/web/e2e/specs/homeStates.e2e.ts",
+      "id": "c1",
+      "loc": {
+        "added": 35,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 9,
+          "start": 9
+        },
+        {
+          "end": 44,
+          "start": 44
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedInbox/index.tsx",
+      "id": "c2",
+      "loc": {
+        "added": 2,
+        "deleted": 5
+      },
+      "removedRanges": [
+        {
+          "end": 10,
+          "start": 9
+        },
+        {
+          "end": 47,
+          "start": 45
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.module.scss",
+      "id": "c3",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 116,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.test.tsx",
+      "id": "c4",
+      "loc": {
+        "added": 116,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/index.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 81,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        },
+        {
+          "end": 624,
+          "start": 588
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/InboxList.test.tsx",
+      "id": "c6",
+      "loc": {
+        "added": 38,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 149,
+          "start": 149
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/index.tsx",
+      "id": "c7",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 154,
+          "start": 154
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 22,
+          "start": 17
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/types.ts",
+      "id": "c8",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 9,
+          "start": 7
+        },
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx",
+      "id": "c9",
+      "loc": {
+        "added": 4,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        },
+        {
+          "end": 14,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 59,
+          "start": 31
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts",
+      "id": "c10",
+      "loc": {
+        "added": 30,
+        "deleted": 7
+      },
+      "removedRanges": [
+        {
+          "end": 37,
+          "start": 32
+        },
+        {
+          "end": 40,
+          "start": 40
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 49,
+          "start": 46
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/InboxRow/useRowGeneration.ts",
+      "id": "c11",
+      "loc": {
+        "added": 4,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 49,
+          "start": 46
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/utils.ts",
+      "id": "c12",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 12
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/index.tsx",
+      "id": "c13",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 195,
+          "start": 127
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/queries.test.ts",
+      "id": "c14",
+      "loc": {
+        "added": 69,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 5
+        },
+        {
+          "end": 14,
+          "start": 9
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/queries.ts",
+      "id": "c15",
+      "loc": {
+        "added": 9,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        },
+        {
+          "end": 7,
+          "start": 7
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        },
+        {
+          "end": 18,
+          "start": 18
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/utils.test.ts",
+      "id": "c16",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 11
+        },
+        {
+          "end": 177,
+          "start": 167
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/utils.ts",
+      "id": "c17",
+      "loc": {
+        "added": 16,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 61,
+          "start": 61
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/hooks/usePrBriefPage/index.ts",
+      "id": "c18",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 61,
+          "start": 61
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 115,
+          "start": 115
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/queries.ts",
+      "id": "c19",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 115,
+          "start": 115
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.test.ts",
+      "id": "c20",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.ts",
+      "id": "c21",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 57,
+          "start": 53
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/web/src/routes/index.tsx",
+      "id": "c22",
+      "loc": {
+        "added": 6,
+        "deleted": 8
+      },
+      "removedRanges": [
+        {
+          "end": 52,
+          "start": 52
+        },
+        {
+          "end": 176,
+          "start": 170
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1920,
+          "start": 1917
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "packages/i18n/src/locales/en.json",
+      "id": "c23",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "af43b4481d97ee858d32d224c161bfe48e5b8a12",
+    "commitCount": 6,
+    "head": "3c5549e2c55be4bb962ea34db15c1eb19f391640"
+  },
+  "concernView": [
+    {
+      "added": 450,
+      "concern": "implementation",
+      "deleted": 41
+    }
+  ],
+  "diffTotals": {
+    "added": 645,
+    "deleted": 86
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n195 added / 45 removed changed line(s) unattributed to any chunk across 7 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g4 summary is 337 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "d5011cb27a79a3503b272258595922b483bfaebd98df19504cd89186043c9973",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 337,
+      "cap": 250,
+      "field": "group g4 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\nNo product changes. The inbox list already re-read itself every 10 seconds before this PR; this only moves that poll next to the inbox query and renames \`resolveOutagePollMs\` to \`resolvePollMs\`, so this PR's Product diff is empty.\\n\\n### Changelog\\n- \`queries.ts\`: the existing 10-second poll moves into \`resolveInboxPollMs\`.\\n- \`poll-backoff.ts\`: \`resolveOutagePollMs\` is renamed \`resolvePollMs\`.\\n- \`useInboxCursor.ts\` and \`InboxList\`: the cursor hook is reorganised.\\n\\n### Verification\\n- \`pnpm -C apps/web test\`: green.\\n",
+    "number": 9003,
+    "repo": "Idan91/code-review",
+    "sha": "3c5549e2c55be4bb962ea34db15c1eb19f391640",
+    "title": "refactor: Tidy The Inbox Poll Wiring",
+    "url": "https://github.com/Idan91/code-review/pull/9003"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 23 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 155,
+          "start": 155
+        },
+        {
+          "end": 409,
+          "start": 409
+        },
+        {
+          "end": 414,
+          "start": 414
+        },
+        {
+          "end": 443,
+          "start": 443
+        },
+        {
+          "end": 451,
+          "start": 449
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/index.tsx",
+      "removedRanges": [
+        {
+          "end": 408,
+          "start": 408
+        },
+        {
+          "end": 413,
+          "start": 413
+        },
+        {
+          "end": 442,
+          "start": 442
+        },
+        {
+          "end": 448,
+          "start": 448
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 15
+        },
+        {
+          "end": 26,
+          "start": 19
+        },
+        {
+          "end": 46,
+          "start": 33
+        },
+        {
+          "end": 49,
+          "start": 49
+        },
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 84,
+          "start": 84
+        },
+        {
+          "end": 101,
+          "start": 97
+        },
+        {
+          "end": 116,
+          "start": 116
+        },
+        {
+          "end": 130,
+          "start": 128
+        },
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 194,
+          "start": 140
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx",
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 16
+        },
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 42,
+          "start": 42
+        },
+        {
+          "end": 61,
+          "start": 61
+        },
+        {
+          "end": 74,
+          "start": 74
+        },
+        {
+          "end": 89,
+          "start": 89
+        },
+        {
+          "end": 101,
+          "start": 101
+        },
+        {
+          "end": 107,
+          "start": 107
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 67,
+          "start": 62
+        },
+        {
+          "end": 70,
+          "start": 70
+        },
+        {
+          "end": 83,
+          "start": 73
+        },
+        {
+          "end": 86,
+          "start": 86
+        },
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 101,
+          "start": 100
+        },
+        {
+          "end": 110,
+          "start": 106
+        },
+        {
+          "end": 134,
+          "start": 134
+        },
+        {
+          "end": 136,
+          "start": 136
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts",
+      "removedRanges": [
+        {
+          "end": 45,
+          "start": 43
+        },
+        {
+          "end": 54,
+          "start": 48
+        },
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 68,
+          "start": 68
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 99,
+          "start": 99
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 27,
+          "start": 27
+        },
+        {
+          "end": 55,
+          "start": 45
+        },
+        {
+          "end": 67,
+          "start": 63
+        },
+        {
+          "end": 80,
+          "start": 77
+        }
+      ],
+      "file": "apps/web/src/features/inbox/queries.ts",
+      "removedRanges": [
+        {
+          "end": 44,
+          "start": 44
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 286,
+          "start": 269
+        }
+      ],
+      "file": "apps/web/src/features/inbox/utils.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 28,
+          "start": 28
+        },
+        {
+          "end": 32,
+          "start": 32
+        },
+        {
+          "end": 36,
+          "start": 36
+        },
+        {
+          "end": 40,
+          "start": 40
+        },
+        {
+          "end": 50,
+          "start": 50
+        },
+        {
+          "end": 54,
+          "start": 54
+        }
+      ],
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.test.ts",
+      "removedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 30,
+          "start": 28
+        },
+        {
+          "end": 36,
+          "start": 34
+        },
+        {
+          "end": 42,
+          "start": 40
+        },
+        {
+          "end": 48,
+          "start": 46
+        },
+        {
+          "end": 58,
+          "start": 58
+        },
+        {
+          "end": 62,
+          "start": 62
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 165,
+          "start": 161
+        },
+        {
+          "end": 180,
+          "start": 180
+        },
+        {
+          "end": 192,
+          "start": 192
+        },
+        {
+          "end": 195,
+          "start": 195
+        },
+        {
+          "end": 261,
+          "start": 258
+        },
+        {
+          "end": 270,
+          "start": 264
+        },
+        {
+          "end": 332,
+          "start": 332
+        }
+      ],
+      "file": "apps/web/src/routes/index.tsx",
+      "removedRanges": [
+        {
+          "end": 254,
+          "start": 254
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > product-diff-removed-lines produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/e2e/specs/homeStates.e2e.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fi",
+      "title": "Changes under apps/web/e2e/specs",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/FailedInbox/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/FailedInbox",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.module.scss, apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.test.tsx, apps/web/src/features/inbox/components/FailedReadLine/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/FailedReadLine",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/InboxList/InboxList.test.tsx, apps/web/src/features/inbox/components/InboxList/index.tsx, apps/web/src/features/inbox/components/InboxList/types.ts, apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx, apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components/InboxList",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/InboxList/InboxRow/useRowGeneration.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components/InboxList/InboxRow",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/utils.ts.",
+      "title": "Changes under apps/web/src/features/inbox/components",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/index.tsx, apps/web/src/features/inbox/queries.test.ts, apps/web/src/features/inbox/queries.ts, apps/web/src/features/inbox/utils.test.ts, apps/web/src/features/inbox/utils.ts.",
+      "title": "Changes under apps/web/src/features/inbox",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/hooks/usePrBriefPage/index.ts.",
+      "title": "Changes under apps/web/src/features/pulls/hooks/usePrBriefPage",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/queries.ts.",
+      "title": "Changes under apps/web/src/features/pulls",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/utils/poll-backoff.test.ts, apps/web/src/features/pulls/utils/poll-backoff.ts.",
+      "title": "Changes under apps/web/src/features/pulls/utils",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/routes/index.tsx.",
+      "title": "Changes under apps/web/src/routes",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches packages/i18n/src/locales/en.json.",
+      "title": "Changes under packages/i18n/src/locales",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 20
+        },
+        {
+          "end": 218,
+          "start": 186
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/web/e2e/specs/homeStates.e2e.ts",
+      "id": "c1",
+      "loc": {
+        "added": 35,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 9,
+          "start": 9
+        },
+        {
+          "end": 44,
+          "start": 44
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedInbox/index.tsx",
+      "id": "c2",
+      "loc": {
+        "added": 2,
+        "deleted": 5
+      },
+      "removedRanges": [
+        {
+          "end": 10,
+          "start": 9
+        },
+        {
+          "end": 47,
+          "start": 45
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.module.scss",
+      "id": "c3",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 116,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/FailedReadLine.test.tsx",
+      "id": "c4",
+      "loc": {
+        "added": 116,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/FailedReadLine/index.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 81,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        },
+        {
+          "end": 624,
+          "start": 588
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/InboxList.test.tsx",
+      "id": "c6",
+      "loc": {
+        "added": 38,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 149,
+          "start": 149
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/index.tsx",
+      "id": "c7",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 154,
+          "start": 154
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 22,
+          "start": 17
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/types.ts",
+      "id": "c8",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 9,
+          "start": 7
+        },
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx",
+      "id": "c9",
+      "loc": {
+        "added": 4,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        },
+        {
+          "end": 14,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 59,
+          "start": 31
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts",
+      "id": "c10",
+      "loc": {
+        "added": 30,
+        "deleted": 7
+      },
+      "removedRanges": [
+        {
+          "end": 37,
+          "start": 32
+        },
+        {
+          "end": 40,
+          "start": 40
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 49,
+          "start": 46
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InboxList/InboxRow/useRowGeneration.ts",
+      "id": "c11",
+      "loc": {
+        "added": 4,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 49,
+          "start": 46
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/utils.ts",
+      "id": "c12",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 12
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/index.tsx",
+      "id": "c13",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 195,
+          "start": 127
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/queries.test.ts",
+      "id": "c14",
+      "loc": {
+        "added": 69,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 5
+        },
+        {
+          "end": 14,
+          "start": 9
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/queries.ts",
+      "id": "c15",
+      "loc": {
+        "added": 9,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        },
+        {
+          "end": 7,
+          "start": 7
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        },
+        {
+          "end": 18,
+          "start": 18
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/utils.test.ts",
+      "id": "c16",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 11
+        },
+        {
+          "end": 177,
+          "start": 167
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/utils.ts",
+      "id": "c17",
+      "loc": {
+        "added": 16,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 61,
+          "start": 61
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/hooks/usePrBriefPage/index.ts",
+      "id": "c18",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 61,
+          "start": 61
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 115,
+          "start": 115
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/queries.ts",
+      "id": "c19",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 115,
+          "start": 115
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.test.ts",
+      "id": "c20",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.ts",
+      "id": "c21",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 57,
+          "start": 53
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/web/src/routes/index.tsx",
+      "id": "c22",
+      "loc": {
+        "added": 6,
+        "deleted": 8
+      },
+      "removedRanges": [
+        {
+          "end": 52,
+          "start": 52
+        },
+        {
+          "end": 176,
+          "start": 170
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1920,
+          "start": 1917
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "packages/i18n/src/locales/en.json",
+      "id": "c23",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "af43b4481d97ee858d32d224c161bfe48e5b8a12",
+    "commitCount": 6,
+    "head": "3c5549e2c55be4bb962ea34db15c1eb19f391640"
+  },
+  "concernView": [
+    {
+      "added": 450,
+      "concern": "implementation",
+      "deleted": 41
+    }
+  ],
+  "diffTotals": {
+    "added": 645,
+    "deleted": 86
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n195 added / 45 removed changed line(s) unattributed to any chunk across 7 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g4 summary is 337 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "34251348d6ca8cd96e4834f7c102def41ad8d8fca3d89c910201db5d475ed1bc",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 337,
+      "cap": 250,
+      "field": "group g4 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "The inbox list now re-reads every 30 seconds while the tab is visible, so a brief a webhook starts shows up without a refocus or reload. Only a ready list polls. Signed-out, failed and errored reads stop the poll and wait for a window focus to re-read them, the same rule the per-row generation poll follows. The 4-second poll for in-flight rows is unchanged.\\n\\nWhen a re-read fails while a list is on screen, the rows stay and a quiet line under the URL box says the list could not be updated, names whether GitHub or the server didn't answer, and offers Try again. Before, a failed re-read swapped the whole list for the failure card and took the reader's selection, open modal and cursor with it. A failed first read still shows the card.\\n\\nThe keyboard cursor stays on its row when a re-read adds or removes rows above it; when its own row leaves, the row in its place takes it. The page scrolls to the cursor only when a key moves it, so a poll never scrolls.\\n\\nThe first commit renames \`resolveOutagePollMs\` to \`resolvePollMs\`. Every poll runs through it on each tick and the outage backoff is one branch of it, so the old name read wrong. The inbox doesn't call it, because its queryFn turns error answers into data.\\n\\nPlacement calls. \`resolveInboxPollMs\` stays module-private in \`queries.ts\`, next to the options that use it. \`InboxCursor\` sits in \`InboxList/types.ts\` with the folder's other shapes, and the hook's private placement extends it with the row key. The cursor re-pins its row during render rather than in an effect, which apps/web's effect rule asks for since the placement is derived state; the \\"never a render-phase reset\\" rule covers state that resets on a Brief switch, which this isn't. \`focusMainContent\` moved to \`inbox/components/utils.ts\` because \`FailedInbox\` and the new \`FailedReadLine\` both hand focus to main after a retry. The line is named for the failed read, not \\"stale\\" or \\"refresh\\", which CONTEXT.md reserves for newer commits and token refresh.\\n\\nVerification: \`pnpm -C apps/web typecheck\`, \`pnpm -C apps/web test\` (6151 tests) and \`pnpm lint\` exit 0 with no suppressions retired; \`homeStates\` e2e 6/6, including a failed re-read over a ready list; the line rendered and measured at 1440px and 390px.\\n",
+    "number": 1311,
+    "repo": "Idan91/code-review",
+    "sha": "3c5549e2c55be4bb962ea34db15c1eb19f391640",
+    "title": "[BRIEF-446] feat: Inbox List Polls While Visible And The Cursor Follows Its Row",
+    "url": "https://github.com/Idan91/code-review/pull/1311"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 23 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 155,
+          "start": 155
+        },
+        {
+          "end": 409,
+          "start": 409
+        },
+        {
+          "end": 414,
+          "start": 414
+        },
+        {
+          "end": 443,
+          "start": 443
+        },
+        {
+          "end": 451,
+          "start": 449
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/index.tsx",
+      "removedRanges": [
+        {
+          "end": 408,
+          "start": 408
+        },
+        {
+          "end": 413,
+          "start": 413
+        },
+        {
+          "end": 442,
+          "start": 442
+        },
+        {
+          "end": 448,
+          "start": 448
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 15
+        },
+        {
+          "end": 26,
+          "start": 19
+        },
+        {
+          "end": 46,
+          "start": 33
+        },
+        {
+          "end": 49,
+          "start": 49
+        },
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 84,
+          "start": 84
+        },
+        {
+          "end": 101,
+          "start": 97
+        },
+        {
+          "end": 116,
+          "start": 116
+        },
+        {
+          "end": 130,
+          "start": 128
+        },
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 194,
+          "start": 140
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.test.tsx",
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 16
+        },
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 42,
+          "start": 42
+        },
+        {
+          "end": 61,
+          "start": 61
+        },
+        {
+          "end": 74,
+          "start": 74
+        },
+        {
+          "end": 89,
+          "start": 89
+        },
+        {
+          "end": 101,
+          "start": 101
+        },
+        {
+          "end": 107,
+          "start": 107
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 67,
+          "start": 62
+        },
+        {
+          "end": 70,
+          "start": 70
+        },
+        {
+          "end": 83,
+          "start": 73
+        },
+        {
+          "end": 86,
+          "start": 86
+        },
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 101,
+          "start": 100
+        },
+        {
+          "end": 110,
+          "start": 106
+        },
+        {
+          "end": 134,
+          "start": 134
+        },
+        {
+          "end": 136,
+          "start": 136
+        }
+      ],
+      "file": "apps/web/src/features/inbox/components/InboxList/useInboxCursor.ts",
+      "removedRanges": [
+        {
+          "end": 45,
+          "start": 43
+        },
+        {
+          "end": 54,
+          "start": 48
+        },
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 68,
+          "start": 68
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 97,
+          "start": 97
+        },
+        {
+          "end": 99,
+          "start": 99
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 27,
+          "start": 27
+        },
+        {
+          "end": 55,
+          "start": 45
+        },
+        {
+          "end": 67,
+          "start": 63
+        },
+        {
+          "end": 80,
+          "start": 77
+        }
+      ],
+      "file": "apps/web/src/features/inbox/queries.ts",
+      "removedRanges": [
+        {
+          "end": 44,
+          "start": 44
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 286,
+          "start": 269
+        }
+      ],
+      "file": "apps/web/src/features/inbox/utils.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 28,
+          "start": 28
+        },
+        {
+          "end": 32,
+          "start": 32
+        },
+        {
+          "end": 36,
+          "start": 36
+        },
+        {
+          "end": 40,
+          "start": 40
+        },
+        {
+          "end": 50,
+          "start": 50
+        },
+        {
+          "end": 54,
+          "start": 54
+        }
+      ],
+      "file": "apps/web/src/features/pulls/utils/poll-backoff.test.ts",
+      "removedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 30,
+          "start": 28
+        },
+        {
+          "end": 36,
+          "start": 34
+        },
+        {
+          "end": 42,
+          "start": 40
+        },
+        {
+          "end": 48,
+          "start": 46
+        },
+        {
+          "end": 58,
+          "start": 58
+        },
+        {
+          "end": 62,
+          "start": 62
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 165,
+          "start": 161
+        },
+        {
+          "end": 180,
+          "start": 180
+        },
+        {
+          "end": 192,
+          "start": 192
+        },
+        {
+          "end": 195,
+          "start": 195
+        },
+        {
+          "end": 261,
+          "start": 258
+        },
+        {
+          "end": 270,
+          "start": 264
+        },
+        {
+          "end": 332,
+          "start": 332
+        }
+      ],
+      "file": "apps/web/src/routes/index.tsx",
+      "removedRanges": [
+        {
+          "end": 254,
+          "start": 254
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > product-diff-rename-only produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/components/Button/Button.module.scss, apps/web/src/components/Button/Button.test.tsx, apps/web/src/components/Button/index.tsx. canned filler canned filler canned filler canned filler canned filler canned filler canned filler cann",
+      "title": "Changes under apps/web/src/components/Button",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/components/SignInPage/index.tsx.",
+      "title": "Changes under apps/web/src/components/SignInPage",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/account/components/AccountMenu/SignOutModal/index.tsx.",
+      "title": "Changes under apps/web/src/features/account/components/AccountMenu/SignOutModal",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/__snapshots__/DiffTable.markup.test.tsx.snap.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable/__snapshots__",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/Header/Header.test.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/Header",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/MarkReadyCta/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/MarkReadyCta",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/MarkReadyModal/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/MarkReadyModal",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/StoryView/ChunkFooter/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/StoryView/ChunkFooter",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/SubmitReviewCta/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/SubmitReviewCta",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/InstallFirst/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/InstallFirst",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/inbox/components/UrlBox/index.tsx.",
+      "title": "Changes under apps/web/src/features/inbox/components/UrlBox",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/components/PrBrief/PrBriefError/index.tsx.",
+      "title": "Changes under apps/web/src/features/pulls/components/PrBrief/PrBriefError",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g13",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/components/PrBrief/TriggerAction/index.tsx.",
+      "title": "Changes under apps/web/src/features/pulls/components/PrBrief/TriggerAction",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g14",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/CommentComposer/ComposerForm/index.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/CommentComposer/ComposerForm",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g15",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/CommentThread/index.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/CommentThread",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g16",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/DismissModal/index.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/DismissModal",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g17",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/EvidenceModal/index.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/EvidenceModal",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g18",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/SubmitModal/AdvisoryView.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/SubmitModal",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g19",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/review/components/SubmitModal/SubmitButton/index.tsx.",
+      "title": "Changes under apps/web/src/features/review/components/SubmitModal/SubmitButton",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g20",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/tokens/components/TokenSettings/CreatedToken/index.tsx.",
+      "title": "Changes under apps/web/src/features/tokens/components/TokenSettings/CreatedToken",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g21",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/tokens/components/TokenSettings/TokenSettings.test.tsx, apps/web/src/features/tokens/components/TokenSettings/index.tsx.",
+      "title": "Changes under apps/web/src/features/tokens/components/TokenSettings",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 47,
+          "start": 47
+        },
+        {
+          "end": 187,
+          "start": 187
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/web/src/components/Button/Button.module.scss",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 47,
+          "start": 47
+        },
+        {
+          "end": 187,
+          "start": 187
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 24,
+          "start": 24
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/web/src/components/Button/Button.test.tsx",
+      "id": "c2",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 24,
+          "start": 24
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/web/src/components/Button/index.tsx",
+      "id": "c3",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 16
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 99,
+          "start": 99
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/web/src/components/SignInPage/index.tsx",
+      "id": "c4",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 99,
+          "start": 99
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 81
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/features/account/components/AccountMenu/SignOutModal/index.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 81,
+          "start": 81
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/__snapshots__/DiffTable.markup.test.tsx.snap",
+      "id": "c6",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 586,
+          "start": 586
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/Header/Header.test.tsx",
+      "id": "c7",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 586,
+          "start": 586
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 42,
+          "start": 42
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/MarkReadyCta/index.tsx",
+      "id": "c8",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 42,
+          "start": 42
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 200,
+          "start": 200
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/MarkReadyModal/index.tsx",
+      "id": "c9",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 200,
+          "start": 200
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 90,
+          "start": 90
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/StoryView/ChunkFooter/index.tsx",
+      "id": "c10",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 90,
+          "start": 90
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 38,
+          "start": 38
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/SubmitReviewCta/index.tsx",
+      "id": "c11",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 38,
+          "start": 38
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 34,
+          "start": 34
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/InstallFirst/index.tsx",
+      "id": "c12",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 34,
+          "start": 34
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 15
+        },
+        {
+          "end": 26,
+          "start": 26
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/web/src/features/inbox/components/UrlBox/index.tsx",
+      "id": "c13",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 15,
+          "start": 15
+        },
+        {
+          "end": 26,
+          "start": 26
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/components/PrBrief/PrBriefError/index.tsx",
+      "id": "c14",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 35,
+          "start": 35
+        }
+      ],
+      "changeGroupId": "g13",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/components/PrBrief/TriggerAction/index.tsx",
+      "id": "c15",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 35,
+          "start": 35
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 135,
+          "start": 135
+        }
+      ],
+      "changeGroupId": "g14",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/CommentComposer/ComposerForm/index.tsx",
+      "id": "c16",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 135,
+          "start": 135
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 205,
+          "start": 205
+        },
+        {
+          "end": 288,
+          "start": 288
+        }
+      ],
+      "changeGroupId": "g15",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/CommentThread/index.tsx",
+      "id": "c17",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 205,
+          "start": 205
+        },
+        {
+          "end": 288,
+          "start": 288
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 58,
+          "start": 58
+        }
+      ],
+      "changeGroupId": "g16",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/DismissModal/index.tsx",
+      "id": "c18",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 58,
+          "start": 58
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 150,
+          "start": 150
+        }
+      ],
+      "changeGroupId": "g17",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/EvidenceModal/index.tsx",
+      "id": "c19",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 150,
+          "start": 150
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 70,
+          "start": 70
+        }
+      ],
+      "changeGroupId": "g18",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/SubmitModal/AdvisoryView.tsx",
+      "id": "c20",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 70,
+          "start": 70
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        }
+      ],
+      "changeGroupId": "g19",
+      "concern": "implementation",
+      "file": "apps/web/src/features/review/components/SubmitModal/SubmitButton/index.tsx",
+      "id": "c21",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 45,
+          "start": 45
+        }
+      ],
+      "changeGroupId": "g20",
+      "concern": "implementation",
+      "file": "apps/web/src/features/tokens/components/TokenSettings/CreatedToken/index.tsx",
+      "id": "c22",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 45,
+          "start": 45
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 284,
+          "start": 284
+        },
+        {
+          "end": 288,
+          "start": 288
+        }
+      ],
+      "changeGroupId": "g21",
+      "concern": "implementation",
+      "file": "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.test.tsx",
+      "id": "c23",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 284,
+          "start": 284
+        },
+        {
+          "end": 288,
+          "start": 288
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 66,
+          "start": 66
+        }
+      ],
+      "changeGroupId": "g21",
+      "concern": "implementation",
+      "file": "apps/web/src/features/tokens/components/TokenSettings/index.tsx",
+      "id": "c24",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 66,
+          "start": 66
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "219be7c0c03f05c2b65c66a33445f5430f0a86b2",
+    "commitCount": 2,
+    "head": "08ece50b02a354def60cea2f164f84efd036d1de"
+  },
+  "concernView": [
+    {
+      "added": 32,
+      "concern": "implementation",
+      "deleted": 32
+    }
+  ],
+  "diffTotals": {
+    "added": 36,
+    "deleted": 36
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n4 added / 4 removed changed line(s) unattributed to any chunk across 2 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "c4e444bd34aa95224f9eb8ab9a0b36160491acde1a2d5fc92fcb8f04588974c4",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\n\\nRenames \`ButtonVariants.ACCENT\` to \`PRIMARY\` and its value from \`\\"accent\\"\` to \`\\"primary\\"\`, covering the call sites, the tests, the snapshot and the \`[data-variant]\` selectors. PR 4 fills the primary with the brand colour, so a variant named \`accent\` would misname it once the light accent stops being the primary fill. Nothing changes on screen. It's a separate PR so PR 4's diff shows only the colour change.\\n\\nVerification: \`pnpm -C apps/web typecheck\` 0, \`test\` 0, \`lint\` 0; \`pnpm lint\` 0.\\n",
+    "number": 1287,
+    "repo": "Idan91/code-review",
+    "sha": "08ece50b02a354def60cea2f164f84efd036d1de",
+    "title": "[BRIEF-421] refactor: Rename The Accent Button Variant To Primary",
+    "url": "https://github.com/Idan91/code-review/pull/1287"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g13",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g14",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g15",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g16",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g17",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g18",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g19",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g20",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g21",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 24 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 109,
+          "start": 109
+        }
+      ],
+      "file": "apps/web/src/components/Button/Button.test.tsx",
+      "removedRanges": [
+        {
+          "end": 109,
+          "start": 109
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 303,
+          "start": 302
+        },
+        {
+          "end": 310,
+          "start": 310
+        }
+      ],
+      "file": "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.test.tsx",
+      "removedRanges": [
+        {
+          "end": 303,
+          "start": 302
+        },
+        {
+          "end": 310,
+          "start": 310
+        }
+      ]
+    }
+  ]
+}"
+`;
+
 exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] = `
 "{
   "changeGroups": [
@@ -30069,6 +35197,181 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
     "user": {
       "bytes": 1289,
       "sha256": "81090c637c858a3e76baa7a9170dbe1c6198d17f5a3c8e2cee868c985845a13b"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > product-diff-new-route sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 34243,
+      "sha256": "5f7321035b8ee5d45d93b98623ddac5054852bd5914a9276c1920b6d9eb0ebbe"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 34784,
+      "sha256": "b859520b21d6720d81e551a7e25cac56498ff4b64ef0621d79f837c55214dafa"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > product-diff-over-cap sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 83983,
+      "sha256": "4a3b29763cd835df71e932d7871fe97b8ac1e7b175d3284bca2a7696800340d9"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 84439,
+      "sha256": "333a8babc25bb8c030b6fbb22e3d251bd43db4e6ab41d636d58304cf48ff6029"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > product-diff-pr-text-contradicts sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 48765,
+      "sha256": "190c9b64700cef045040b305141885132988faa5cca815e975d3ce81ea51e008"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 49434,
+      "sha256": "fae0bae410812a6b09b11f40ae4098ffbafdc4c130a99f764093108ab077894e"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > product-diff-removed-lines sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 50518,
+      "sha256": "8f2e0d11c2ed2328683b14fb190078d65d387abcc7622ffdaad180f39a79fb0a"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 51187,
+      "sha256": "f33b930fc9c0b917b1291a1dfb5b8bcc254538ca93cb184f9b9ba2b37846a894"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > product-diff-rename-only sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 48863,
+      "sha256": "7abea0e55e5761bae0d453fe29981a14a141406b7dae556c06ae30a84065e0c9"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 50487,
+      "sha256": "89080b2d9c2e46041fea897178eb9af1f7a9fa8d0e1711d54c953131635d4a36"
     }
   }
 ]"
