@@ -68,7 +68,7 @@ describe("useWrapColumns", () => {
     setViewportWidth(768);
     const { result } = renderHook(() => useWrapColumns());
 
-    expect(result.current).toEqual({ unified: 76, split: 32 });
+    expect(result.current).toEqual({ unified: 75, split: 31 });
   });
 
   it("follows a rotation from upright to sideways", () => {

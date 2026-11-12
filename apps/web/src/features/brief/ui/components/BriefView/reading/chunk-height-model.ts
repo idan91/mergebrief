@@ -54,8 +54,8 @@ export const MAIN_GUTTER_PX = 48;
 export const NARROW_CARD_EDGE_PX = 4;
 export const CARD_BORDERS_PX = 2;
 
-/** A phone code cell's padding: the 16px sign hangs in an 18px start, then 8px at the end. */
-export const PHONE_CODE_PADDING_PX = 26;
+/** A phone code cell's padding: the 16px sign hangs in a 24px start, then 8px at the end. */
+export const PHONE_CODE_PADDING_PX = 32;
 
 /** A phone unified row's 14px rail and 34px number column. */
 export const PHONE_UNIFIED_NUMBERS_PX = 48;

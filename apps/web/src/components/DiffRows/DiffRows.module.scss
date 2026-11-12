@@ -2,7 +2,7 @@
 @use "mixins";
 
 $sign-w: functions.to-rem(16px);
-$sign-inset: functions.to-rem(2px);
+$sign-inset: functions.to-rem(8px);
 
 // A wrapped phone line hangs under its own indent, capped so a deep line
 // keeps room to wrap into: about 40% of the code columns either view fits.
@@ -260,17 +260,32 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
       > .code {
         // chunk-height-model.ts copies this padding; chunk-height-model.stylesheets.test.ts compares.
-        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column, $sign-w + $sign-inset, off the scale */
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column, $sign-w + $sign-inset, shared with the hang arithmetic below */
         padding-inline: $sign-w + $sign-inset var(--space-3);
-        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column plus the wrap hang */
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column plus the wrap hang */
         padding-inline-start: calc($sign-w + $sign-inset + $unified-hang);
         text-indent: calc(-1 * ($sign-w + $unified-hang));
       }
 
       > .code[data-side] {
-        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 18px sign column plus the wrap hang */
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column plus the wrap hang */
         padding-inline-start: calc($sign-w + $sign-inset + $split-hang);
         text-indent: calc(-1 * ($sign-w + $split-hang));
+      }
+
+      // The hit box takes the number cell's blank end padding, whose tap
+      // would select the line, and outranks the deleted-line number that
+      // overhangs it.
+      .sign {
+        position: relative;
+        z-index: functions.get-z-index("raised");
+
+        &::after {
+          position: absolute;
+          inset-block: 0;
+          inset-inline: calc(-1 * (var(--space-3) + $sign-inset)) 0;
+          content: "";
+        }
       }
 
       // A cell's nowrap text sets the table's minimum width, and one long hunk

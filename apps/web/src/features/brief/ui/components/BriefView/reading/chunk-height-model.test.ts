@@ -301,17 +301,17 @@ const PHONE_390: PhoneLayout = { widthPx: 390, cardBleeds: true };
 
 describe("derivePhoneWrapColumns", () => {
   it.each([
-    [320, true, 30, 22],
-    [390, true, 39, 22],
-    [524, true, 56, 22],
-    [600, true, 66, 27],
-    [759, true, 86, 37],
-    [760, false, 75, 31],
-    [768, false, 76, 32],
-    [800, false, 80, 34],
-    [880, false, 90, 39],
-    [844, false, 86, 37],
-    [932, false, 97, 42],
+    [320, true, 29, 21],
+    [390, true, 38, 21],
+    [524, true, 55, 21],
+    [600, true, 65, 26],
+    [759, true, 85, 36],
+    [760, false, 74, 31],
+    [768, false, 75, 31],
+    [800, false, 79, 33],
+    [880, false, 90, 38],
+    [844, false, 85, 36],
+    [932, false, 96, 42],
   ])(
     "fits a %ipx phone's code cells",
     (widthPx, cardBleeds, unified, split) => {
@@ -323,11 +323,11 @@ describe("derivePhoneWrapColumns", () => {
   );
 
   it.each([
-    [750, true, 47, 47, 74],
-    [750, true, 59, 0, 77],
-    [844, false, 47, 47, 86],
-    [844, false, 59, 59, 83],
-    [932, false, 59, 59, 94],
+    [750, true, 47, 47, 73],
+    [750, true, 59, 0, 76],
+    [844, false, 47, 47, 85],
+    [844, false, 59, 59, 82],
+    [932, false, 59, 59, 93],
   ])(
     "narrows a %ipx phone's code by its notch insets",
     (widthPx, cardBleeds, leftPx, rightPx, unified) => {
@@ -338,10 +338,10 @@ describe("derivePhoneWrapColumns", () => {
     },
   );
 
-  it("matches a 390px unified cell's 306px of code", () => {
+  it("matches a 390px unified cell's 300px of code", () => {
     const { unified } = derivePhoneWrapColumns(PHONE_390);
 
-    expect(unified).toBe(Math.floor(306 / CODE_GLYPH_PX));
+    expect(unified).toBe(Math.floor(300 / CODE_GLYPH_PX));
   });
 
   it("keeps the default root's columns when the root size is unknown", () => {
@@ -352,12 +352,12 @@ describe("derivePhoneWrapColumns", () => {
     );
   });
 
-  it("fits a 285.5px unified cell's code under a 20px root font", () => {
+  it("fits a 278px unified cell's code under a 20px root font", () => {
     const largeText = { ...PHONE_390, remPx: 20 };
 
     expect(derivePhoneWrapColumns(largeText)).toEqual({
-      unified: Math.floor(285.5 / (CODE_GLYPH_PX * 1.25)),
-      split: 16,
+      unified: Math.floor(278 / (CODE_GLYPH_PX * 1.25)),
+      split: 15,
     });
   });
 

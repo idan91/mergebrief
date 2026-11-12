@@ -68,9 +68,9 @@ const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const ROW_STYLESHEET = join(TEST_DIRECTORY, "DiffRows.module.scss");
 const STYLES_DIRECTORY = join(TEST_DIRECTORY, "../../styles");
 const UNIFIED_HANG =
-  /\.line > \.code \{[^}]*padding-inline-start: calc\(1\.125rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\)\)/;
+  /\.line > \.code \{[^}]*padding-inline-start: calc\(1\.5rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\)\)/;
 const SPLIT_HANG =
-  /\.line > \.code\[data-side\] \{[^}]*padding-inline-start: calc\(1\.125rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\)\)/;
+  /\.line > \.code\[data-side\] \{[^}]*padding-inline-start: calc\(1\.5rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\)\)/;
 const TOKEN_STYLESHEET = join(
   TEST_DIRECTORY,
   "DiffCodeText",
