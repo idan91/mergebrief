@@ -48,6 +48,11 @@ const BLOCK_COMMENT_GRAMMARS = new Set<GrammarName>([
   GrammarNames.PHP,
   GrammarNames.RUST,
   GrammarNames.SWIFT,
+  GrammarNames.DART,
+  GrammarNames.HCL,
+  GrammarNames.SCALA,
+  GrammarNames.SVELTE,
+  GrammarNames.TERRAFORM,
 ]);
 const RULE_GRAMMARS = new Set<GrammarName>([
   GrammarNames.CSS,

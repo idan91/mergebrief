@@ -37,6 +37,15 @@ const GRAMMAR_SAMPLES: [GrammarName, string][] = [
   [GrammarNames.PHP, 'function a($b) { return "hi" . $b; }'],
   [GrammarNames.RUST, "fn main() { let a: u32 = 42; }"],
   [GrammarNames.SWIFT, 'func a(b: Int) -> String { return "hi" }'],
+  [GrammarNames.DART, 'void main() { final a = "hi"; }'],
+  [GrammarNames.ELIXIR, 'def greet(name), do: "hi #{name}"'],
+  [GrammarNames.HCL, 'variable "region" { default = "eu" }'],
+  [GrammarNames.LUA, 'local function greet() return "hi" end'],
+  [GrammarNames.POWERSHELL, 'function Get-Name { return "hi" }'],
+  [GrammarNames.R, 'greet <- function(name) { paste("hi", name) }'],
+  [GrammarNames.SCALA, 'object Main { val a: String = "hi" }'],
+  [GrammarNames.SVELTE, '<script>let count = 0;</script><p class="a">hi</p>'],
+  [GrammarNames.TERRAFORM, 'resource "aws_s3_bucket" "a" { bucket = "b" }'],
 ];
 
 let sent: unknown[] = [];

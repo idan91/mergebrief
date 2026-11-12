@@ -10,6 +10,7 @@ import {
 const MARKUP_GRAMMARS = new Set<GrammarName>([
   GrammarNames.ASTRO,
   GrammarNames.HTML,
+  GrammarNames.SVELTE,
   GrammarNames.VUE,
 ]);
 // A closing tag counts only where a formatter puts it, at the start of its

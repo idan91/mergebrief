@@ -61,6 +61,20 @@ const CASES: [string, GrammarName][] = [
   ["src/Main.kt", GrammarNames.KOTLIN],
   ["build.gradle.kts", GrammarNames.KOTLIN],
   ["Sources/App.swift", GrammarNames.SWIFT],
+  ["src/App.svelte", GrammarNames.SVELTE],
+  ["lib/main.dart", GrammarNames.DART],
+  ["scripts/init.lua", GrammarNames.LUA],
+  ["src/Main.scala", GrammarNames.SCALA],
+  ["build.sbt", GrammarNames.SCALA],
+  ["scripts/Deploy.ps1", GrammarNames.POWERSHELL],
+  ["modules/Tools.psm1", GrammarNames.POWERSHELL],
+  ["modules/Tools.psd1", GrammarNames.POWERSHELL],
+  ["infra/main.tf", GrammarNames.TERRAFORM],
+  ["infra/prod.tfvars", GrammarNames.TERRAFORM],
+  ["infra/config.hcl", GrammarNames.HCL],
+  ["analysis/model.R", GrammarNames.R],
+  ["lib/app.ex", GrammarNames.ELIXIR],
+  ["test/app_test.exs", GrammarNames.ELIXIR],
 ];
 
 const BASENAME_CASES: [string, GrammarName][] = [

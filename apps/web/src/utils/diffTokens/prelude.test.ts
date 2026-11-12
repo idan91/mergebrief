@@ -78,6 +78,10 @@ const DOC_BLOCK_GRAMMARS: GrammarName[] = [
   GrammarNames.PHP,
   GrammarNames.RUST,
   GrammarNames.SWIFT,
+  GrammarNames.DART,
+  GrammarNames.HCL,
+  GrammarNames.SCALA,
+  GrammarNames.TERRAFORM,
 ];
 
 describe("derivePrelude on a side opening inside a doc block", () => {
