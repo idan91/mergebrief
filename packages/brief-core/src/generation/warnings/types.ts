@@ -21,6 +21,8 @@ export const GenerationWarningKinds = {
   RANGES_ALIGNED: "ranges-aligned",
   /** The Summary Media call failed; the brief shipped without Summary Media. */
   SUMMARY_MEDIA_FAILED: "summary-media-failed",
+  /** The Product diff call failed; the brief shipped without a Product diff. */
+  PRODUCT_DIFF_FAILED: "product-diff-failed",
 } as const;
 /** @public */
 export type GenerationWarningKind = ValueOf<typeof GenerationWarningKinds>;
@@ -89,6 +91,11 @@ export interface SummaryMediaFailedWarning {
   message: string;
 }
 
+export interface ProductDiffFailedWarning {
+  kind: typeof GenerationWarningKinds.PRODUCT_DIFF_FAILED;
+  message: string;
+}
+
 export type GenerationWarning =
   | GeneratorWarning
   | ValidationWarning
@@ -96,7 +103,8 @@ export type GenerationWarning =
   | HunkMapWarning
   | OutputCutWarning
   | RangesAlignedWarning
-  | SummaryMediaFailedWarning;
+  | SummaryMediaFailedWarning
+  | ProductDiffFailedWarning;
 
 export interface WarningCollector {
   /** Records a warning the generator already logged. */
@@ -107,7 +115,8 @@ export interface WarningCollector {
       | HunkMapWarning
       | OutputCutWarning
       | RangesAlignedWarning
-      | SummaryMediaFailedWarning,
+      | SummaryMediaFailedWarning
+      | ProductDiffFailedWarning,
   ) => void;
   /** Reports nothing for an empty issue list. */
   reportIssues: (check: string, issues: readonly string[]) => void;

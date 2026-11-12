@@ -219,6 +219,15 @@ call after the brief, to pick its Summary Media. The cap does not count that
 call, but the provider bills it. If it fails, the brief ships without Summary
 Media and carries a `summary-media-failed` warning.
 
+A brief written in one model call is followed by one more, which writes its
+Product diff: how the product behaves before the pull request and after it.
+That call reads the diff a second time, so expect it to add roughly the
+brief call's input tokens and a small answer. The cap does not count it, but
+the provider bills it. If it fails, or none of the changes it wrote can be
+kept, the brief ships without a Product diff and carries a
+`product-diff-failed` warning. A pull request briefed in parts makes no such
+call, and its brief says the Product diff is not available.
+
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,
 so N slots cannot start past the cap together. It is still a guardrail, not

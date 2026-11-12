@@ -17,6 +17,7 @@ import {
   DetailGenerationSchema,
   detailGenerationSchemaWith,
   GroupingGenerationSchema,
+  ProductDiffAnswerSchema,
   RevisionNarrativeGenerationSchema,
   SummaryMediaAnswerSchema,
 } from "brief-core/types";
@@ -40,6 +41,7 @@ const WIRE_VARIANTS: readonly (readonly [string, z.ZodType])[] = [
   ["delta", DeltaBriefGenerationSchema],
   ["revision narrative", RevisionNarrativeGenerationSchema],
   ["summary media", SummaryMediaAnswerSchema],
+  ["product diff", ProductDiffAnswerSchema],
 ];
 
 function loadEnv(): void {

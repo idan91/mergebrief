@@ -32,6 +32,7 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { createGitHubRead } from "../../src/context/trackers/github";
+import { PRODUCT_DIFF_LABEL } from "../../src/generation/product-diff/consts";
 import { FakeGenerator, makeFakeGenerator } from "../helpers";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 import { SecretKinds } from "../../src/generation/redaction/types";
@@ -1057,6 +1058,9 @@ class WarningGenerator extends FakeGenerator {
   override async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
+    if (req.label === PRODUCT_DIFF_LABEL) {
+      return super.generate(req);
+    }
     const log: Logger = req.log ?? (() => {});
     for (const line of this.lines) {
       log(line);

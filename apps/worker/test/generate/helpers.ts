@@ -202,6 +202,13 @@ function makeStubChangeGroup() {
 }
 
 const GROUPING_LABEL = "grouping";
+/**
+ * The call a one-call brief is followed by. A stub with no `product-diff`
+ * output answers it "no Product change" without recording it, so a test
+ * about the brief's own calls counts only those.
+ */
+const PRODUCT_DIFF_LABEL = "product-diff";
+const NO_PRODUCT_CHANGE_ANSWER = { changes: [], hasMore: false };
 const DETAIL_LABEL_PREFIX = "detail:";
 const PR_DIFF_OPEN = "<pr_diff>\n";
 const PR_DIFF_CLOSE = "\n</pr_diff>";
@@ -255,6 +262,12 @@ export function stubGenerator(): StubGenerator {
     async generate<S extends z.ZodType>(
       req: GenerateRequest<S>,
     ): Promise<z.infer<S>> {
+      const isUnscriptedProductDiff =
+        req.label === PRODUCT_DIFF_LABEL &&
+        outputs[PRODUCT_DIFF_LABEL] === undefined;
+      if (isUnscriptedProductDiff) {
+        return req.schema.parse(NO_PRODUCT_CHANGE_ANSWER);
+      }
       if (generator.failNextWith !== undefined) {
         const failure = generator.failNextWith;
         generator.failNextWith = undefined;

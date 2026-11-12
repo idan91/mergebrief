@@ -33,6 +33,9 @@ const DEPARTED_FALLBACK_FILE = "packages/departed/src/gone.ts";
 const DEPARTED_LINE = { start: 1, end: 1 };
 const FLAGGED_RISK_TOKEN = "comment-contradicts-code";
 const GROUPING_LABEL = "grouping";
+/** The call a one-call brief is followed by, answered "no Product change". */
+export const PRODUCT_DIFF_LABEL = "product-diff";
+export const NO_PRODUCT_CHANGE_ANSWER = { changes: [], hasMore: false };
 export const DETAIL_LABEL_PREFIX = "detail:";
 const PR_DIFF_OPEN = "<pr_diff>\n";
 const PR_DIFF_CLOSE = "\n</pr_diff>";
@@ -200,6 +203,9 @@ function answerRequest(
   req: Pick<GenerateRequest<z.ZodType>, "label" | "user">,
   answerBrief: SynthesizeBrief,
 ): unknown {
+  if (req.label === PRODUCT_DIFF_LABEL) {
+    return NO_PRODUCT_CHANGE_ANSWER;
+  }
   if (req.label === GROUPING_LABEL) {
     return synthesizeGrouping(req.user);
   }

@@ -13,6 +13,10 @@ import type {
 import type * as BriefCoreModule from "brief-core";
 import type * as PrSpanModule from "brief-core/pr-span";
 import type * as GithubModule from "../../src/github";
+import {
+  NO_PRODUCT_CHANGE_ANSWER,
+  PRODUCT_DIFF_LABEL,
+} from "../canned-generator";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
 // shell out to `gh`, same fixtures serve both the whole-PR and incremental
@@ -247,6 +251,9 @@ class FakeGenerator implements Generator {
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
+    if (req.label === PRODUCT_DIFF_LABEL) {
+      return req.schema.parse(NO_PRODUCT_CHANGE_ANSWER);
+    }
     this.labels.push(req.label);
     this.efforts.push(req.effort);
     this.onCall?.(req.label);

@@ -336,7 +336,7 @@ The **Intent check**'s read of how the diff relates to the **Primary ticket**'s 
 _Avoid_: alignment score, ticket verdict, compliance
 
 **Product diff**:
-A secondary section of the **Brief** stating how the product behaves before the PR and after it, as at most eight **Product changes**, most significant first, with a note when the PR has more. It reads the whole PR (base to head), never per reviewer and never per push. It reports "none found" for a PR that changes no outcome, and "not available" when the Brief was written in parts, so no call read the whole diff. Like the **Intent check**, it is the AI's fallible read, never a verdict.
+A secondary section of the **Brief** stating how the product behaves before the PR and after it, as at most eight **Product changes**, most significant first, with a note when the PR has more. It reads the whole PR (base to head), never per reviewer and never per push. A call of its own writes it after the **Brief**, from the PR text, the diff and the Brief's **Change-groups**, so the Brief's own request never carries it. It reports "none found" for a PR that changes no outcome, and "not available" when the Brief was written in parts, which is every **Multi-call run**, so no call read the whole diff. A Brief whose Product diff call failed, or wrote no change that could be kept, has no Product diff. Like the **Intent check**, it is the AI's fallible read, never a verdict.
 _Avoid_: behaviour delta, product changes (as the section name), before/after summary, changelog
 
 **Product change**:

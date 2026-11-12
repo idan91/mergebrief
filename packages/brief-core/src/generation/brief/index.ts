@@ -20,6 +20,8 @@ import {
 } from "../multi-call";
 import type { MultiCallAnchor } from "../multi-call/types";
 import { decideCallPlan } from "../size";
+import { writeProductDiff } from "../product-diff";
+import { buildUnavailableProductDiff } from "../product-diff/utils";
 import { pickSummaryMedia, readDescriptionMedia } from "../summary-media";
 import { CallPlanKinds, type CallPlan, type CallPlanKind } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
@@ -101,6 +103,45 @@ async function addSummaryMedia(brief: Brief, run: BriefRun): Promise<Brief> {
   return { ...brief, summaryMedia };
 }
 
+/**
+ * The finished brief with its Product diff: written in a call of its own
+ * after a brief that ran as one call, which read the whole diff, and marked
+ * unavailable after a multi-call run, where no call did. A failed call
+ * leaves the brief without the section.
+ */
+async function addProductDiff(
+  brief: Brief,
+  run: BriefRun,
+  ranAs: CallPlanKind,
+): Promise<Brief> {
+  if (ranAs === CallPlanKinds.MULTI) {
+    return { ...brief, productDiff: buildUnavailableProductDiff() };
+  }
+
+  const productDiff = await writeProductDiff({
+    generator: run.options.generator,
+    pr: run.options.pr,
+    changeGroups: brief.changeGroups,
+    effort: run.effort,
+    log: run.log,
+    warnings: run.warnings,
+  });
+  if (productDiff === undefined) {
+    return brief;
+  }
+  return { ...brief, productDiff };
+}
+
+/** The sections written after the brief, each in a call of its own. */
+async function addLateSections(
+  brief: Brief,
+  run: BriefRun,
+  ranAs: CallPlanKind,
+): Promise<Brief> {
+  const withMedia = await addSummaryMedia(brief, run);
+  return addProductDiff(withMedia, run, ranAs);
+}
+
 function buildBriefOutput(
   brief: Brief,
   warnings: WarningCollector,
@@ -155,7 +196,11 @@ async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
   });
   if (plan !== undefined) {
     const stitched = stitchAnchoredBrief(run, plan, draft);
-    const brief = await addSummaryMedia(stitched.brief, run);
+    const brief = await addLateSections(
+      stitched.brief,
+      run,
+      CallPlanKinds.MULTI,
+    );
     return buildBriefOutput(
       brief,
       warnings,
@@ -170,7 +215,7 @@ async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
     warnings,
     lockfileSummaries,
   });
-  const brief = await addSummaryMedia(validated, run);
+  const brief = await addLateSections(validated, run, CallPlanKinds.MULTI);
   return buildBriefOutput(brief, warnings, CallPlanKinds.MULTI);
 }
 
@@ -295,7 +340,7 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
       warnings,
       lockfileSummaries,
     });
-    const brief = await addSummaryMedia(validated, run);
+    const brief = await addLateSections(validated, run, CallPlanKinds.SINGLE);
     return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE);
   }
 
@@ -309,7 +354,11 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
     },
   });
   const stitched = stitchAnchoredBrief(run, plan, draft);
-  const brief = await addSummaryMedia(stitched.brief, run);
+  const brief = await addLateSections(
+    stitched.brief,
+    run,
+    CallPlanKinds.SINGLE,
+  );
   return buildBriefOutput(
     brief,
     warnings,

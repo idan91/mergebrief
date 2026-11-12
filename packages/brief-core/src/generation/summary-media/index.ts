@@ -1,8 +1,3 @@
-import {
-  GeneratorError,
-  GeneratorErrorKinds,
-  type GeneratorErrorKind,
-} from "generators";
 import type { Mutable } from "types/utils";
 import type { FetchedPr } from "../../github/types";
 import {
@@ -24,6 +19,7 @@ import {
 } from "../../types";
 import { renderPrDescription, renderPrTitle } from "../categorize";
 import { buildSummaryMediaSystemPrompt } from "../prompt";
+import { isRecoverableFailure } from "../recoverable-failures";
 import { sanitizeUntrustedText } from "../untrusted-text";
 import { GenerationWarningKinds } from "../warnings/types";
 import { SUMMARY_MEDIA_CHECK, SUMMARY_MEDIA_LABEL } from "./consts";
@@ -253,25 +249,6 @@ export function resolveSummaryMedia(
     summaryMedia.pointer = pointer;
   }
   return { summaryMedia, issues };
-}
-
-/**
- * Failures of the Summary Media call's own answer or provider. Aborts, run
- * signals and the worker's secret guard are not `GeneratorError`s, so they
- * still end the run.
- */
-const RECOVERABLE_FAILURES: ReadonlySet<GeneratorErrorKind> = new Set([
-  GeneratorErrorKinds.SCHEMA_FLOOR,
-  GeneratorErrorKinds.REFUSAL,
-  GeneratorErrorKinds.OUTPUT_CUT,
-  GeneratorErrorKinds.PROVIDER_TRANSIENT,
-  GeneratorErrorKinds.TIMEOUT,
-  GeneratorErrorKinds.OPAQUE,
-]);
-
-function isRecoverableFailure(error: unknown): error is GeneratorError {
-  const isGeneratorError = error instanceof GeneratorError;
-  return isGeneratorError && RECOVERABLE_FAILURES.has(error.kind);
 }
 
 function renderSummaryMediaUser(request: SummaryMediaRequest): string {

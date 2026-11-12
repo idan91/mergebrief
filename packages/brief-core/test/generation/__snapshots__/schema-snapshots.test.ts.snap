@@ -1534,6 +1534,84 @@ exports[`wire json schemas are byte-pinned > grouping 1`] = `
 }"
 `;
 
+exports[`wire json schemas are byte-pinned > product diff 1`] = `
+"{
+  "type": "object",
+  "properties": {
+    "changes": {
+      "type": "array",
+      "description": "every Product change, most significant first, at most 16; [] when the PR changes no outcome",
+      "items": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "type": "string",
+            "description": "the action or condition, one clause, never a sentence"
+          },
+          "before": {
+            "type": "string",
+            "description": "what the product did before, one sentence; \\"\\" when beforeSource is not-shown"
+          },
+          "after": {
+            "type": "string",
+            "description": "what the product does now, one sentence"
+          },
+          "affects": {
+            "type": "string",
+            "description": "the one area the outcome lands in",
+            "enum": [
+              "user-flow",
+              "api-contract",
+              "business-rule",
+              "data",
+              "integration",
+              "operations",
+              "background-process"
+            ]
+          },
+          "beforeSource": {
+            "type": "string",
+            "description": "where the before came from",
+            "enum": [
+              "diff",
+              "did-not-exist",
+              "pr-text",
+              "not-shown"
+            ]
+          },
+          "groupIds": {
+            "type": "array",
+            "description": "ids of the change-groups that carry this change, from the Change groups list; at least one",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "when",
+          "before",
+          "after",
+          "affects",
+          "beforeSource",
+          "groupIds"
+        ]
+      }
+    },
+    "hasMore": {
+      "type": "boolean",
+      "description": "true only when the PR has more Product changes than you listed"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "changes",
+    "hasMore"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
 exports[`wire json schemas are byte-pinned > revision narrative 1`] = `
 "{
   "$defs": {

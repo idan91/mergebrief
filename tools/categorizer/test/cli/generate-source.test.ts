@@ -17,6 +17,10 @@ import type { PrDiffRef } from "brief-core/pr-span";
 import type { ReviewComment } from "brief-core/types";
 import type * as GithubModule from "../../src/github";
 import type { PrSource } from "../../src/github";
+import {
+  NO_PRODUCT_CHANGE_ANSWER,
+  PRODUCT_DIFF_LABEL,
+} from "../canned-generator";
 
 const explode = vi.hoisted(
   () => (name: string) =>
@@ -141,6 +145,9 @@ class FakeGenerator implements Generator {
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
+    if (req.label === PRODUCT_DIFF_LABEL) {
+      return req.schema.parse(NO_PRODUCT_CHANGE_ANSWER);
+    }
     if (req.label !== "brief") {
       throw new Error(`unexpected label ${req.label}`);
     }

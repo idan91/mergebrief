@@ -812,7 +812,9 @@ export const ProductDiffAvailabilities = {
 /** @public */
 export type ProductDiffAvailability = ValueOf<typeof ProductDiffAvailabilities>;
 
-const MAX_PRODUCT_CHANGES = 8;
+export const MAX_PRODUCT_CHANGES = 8;
+/** How many the Product diff call may answer with: every change it found, so the cut to the listed ones is the pipeline's. */
+export const MAX_ANSWERED_PRODUCT_CHANGES = 16;
 
 /** A sentence of a Product change: never blank, so a row cannot render empty. */
 const ProductSentenceSchema = z.string().regex(/\S/);
@@ -876,6 +878,47 @@ export const ProductDiffSchema = z
     listsNothingWhenUnavailable,
     "an unavailable Product diff lists nothing",
   );
+
+/**
+ * What the Product diff call answers. Every field is required, so the wire
+ * schema needs no optional and no union: "" on `before` is the not-shown
+ * sentinel, which `fanOutProductDiff` turns into absence.
+ */
+export const ProductDiffAnswerSchema = z.object({
+  changes: z
+    .array(
+      z.object({
+        when: z
+          .string()
+          .describe("the action or condition, one clause, never a sentence"),
+        before: z
+          .string()
+          .describe(
+            'what the product did before, one sentence; "" when beforeSource is not-shown',
+          ),
+        after: z.string().describe("what the product does now, one sentence"),
+        affects: z
+          .enum(ProductChangeAreas)
+          .describe("the one area the outcome lands in"),
+        beforeSource: z
+          .enum(BeforeSources)
+          .describe("where the before came from"),
+        groupIds: z
+          .array(z.string())
+          .describe(
+            "ids of the change-groups that carry this change, from the Change groups list; at least one",
+          ),
+      }),
+    )
+    .describe(
+      `every Product change, most significant first, at most ${MAX_ANSWERED_PRODUCT_CHANGES}; [] when the PR changes no outcome`,
+    ),
+  hasMore: z
+    .boolean()
+    .describe("true only when the PR has more Product changes than you listed"),
+});
+
+export type ProductDiffGeneration = z.infer<typeof ProductDiffAnswerSchema>;
 
 /**
  * Which groups an anchored generation carried verbatim vs regenerated ,
@@ -1521,7 +1564,6 @@ export interface DeltaUnchanged {
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type IntentItem = z.infer<typeof IntentItemSchema>;
 export type IntentCheck = z.infer<typeof IntentCheckSchema>;
-/** @public */
 export type ProductChange = z.infer<typeof ProductChangeSchema>;
 export type ProductDiff = z.infer<typeof ProductDiffSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;

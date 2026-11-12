@@ -4,6 +4,7 @@ import {
   buildDetailSystemPrompt,
   buildGroupingSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
+  buildProductDiffSystemPrompt,
   buildSummaryMediaSystemPrompt,
   buildSystemPrompt,
 } from "../../src/generation/prompt";
@@ -79,6 +80,10 @@ describe("system prompts are byte-pinned", () => {
 
   it("summary media", () => {
     expect(buildSummaryMediaSystemPrompt()).toMatchSnapshot();
+  });
+
+  it("product diff", () => {
+    expect(buildProductDiffSystemPrompt()).toMatchSnapshot();
   });
 
   it("detail, without repo context", () => {

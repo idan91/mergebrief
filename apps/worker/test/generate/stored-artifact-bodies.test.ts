@@ -226,7 +226,7 @@ describe("generate task, stored artifact bodies", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const output = makeBriefOutputFiring("undeclared-risk", BODY_MARKER);
-    generator.generate = () => Promise.resolve(output as never);
+    stubUnparsedOutput(generator, "brief", output);
     const { logger, readLines } = captureLogger();
     const task = makeTask({ generator, log: logger });
 

@@ -11,6 +11,10 @@ import type {
   Generator,
 } from "generators";
 import { loadPairCases } from "../eval/pairs";
+import {
+  NO_PRODUCT_CHANGE_ANSWER,
+  PRODUCT_DIFF_LABEL,
+} from "./canned-generator";
 
 /** Serves canned generation outputs in call order (run1 base, run1 revised, …). */
 export class SequenceGenerator implements Generator {
@@ -23,6 +27,9 @@ export class SequenceGenerator implements Generator {
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
+    if (req.label === PRODUCT_DIFF_LABEL) {
+      return req.schema.parse(NO_PRODUCT_CHANGE_ANSWER);
+    }
     this.requests.push({
       system: req.system,
       user: req.user,

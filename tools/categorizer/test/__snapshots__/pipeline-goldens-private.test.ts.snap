@@ -150,6 +150,11 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
     "title": "BRIEF-143 planning docs: locked spec and implementation plan",
     "url": "https://github.com/Idan91/code-review/pull/9011"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -704,6 +709,11 @@ exports[`brief goldens > delta-read-api-contract produces the recorded brief 1`]
     "title": "[BRIEF-21] feat: Delta Read API + Per-Reviewer lastReview On PR-Meta",
     "url": "https://github.com/Idan91/code-review/pull/45"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -929,6 +939,11 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "title": "BRIEF-143 planning docs: locked spec and implementation plan",
       "url": "https://github.com/Idan91/code-review/pull/9011"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -1069,6 +1084,11 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "sha": "472b6d7ab2a568183a1c6b7c988cabb6a7438fdd",
       "title": "BRIEF-143 planning docs: locked spec and implementation plan",
       "url": "https://github.com/Idan91/code-review/pull/9011"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "summary": "Canned brief over 2 changed file(s).",
     "unattributed": []
@@ -2361,6 +2381,11 @@ exports[`brief goldens > summary-media-code-review-1141 produces the recorded br
     "title": "[BRIEF-362] feat: Draw The Loading Skeleton As The Diff Will Look",
     "url": "https://github.com/idan91/code-review/pull/1141"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -3407,6 +3432,11 @@ exports[`brief goldens > summary-media-grafana-107803 produces the recorded brie
     "title": "Secrets: Manage secure values inside any resource",
     "url": "https://github.com/grafana/grafana/pull/107803"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -4208,6 +4238,11 @@ exports[`brief goldens > summary-media-home-assistant-55394 produces the recorde
     "sha": "9f931efd674db2767ca849cdfaf0a68240e66a7b",
     "title": "Highlight the device in the ZHA network visualization",
     "url": "https://github.com/home-assistant/frontend/pull/55394"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "readingOrder": [
     {
@@ -5165,6 +5200,11 @@ exports[`brief goldens > summary-media-supabase-19466 produces the recorded brie
     "title": "feat/rr-functionality",
     "url": "https://github.com/supabase/supabase/pull/19466"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -6115,6 +6155,21 @@ exports[`request goldens > delta-read-api-contract sends the recorded request di
       "bytes": 88483,
       "sha256": "1a440ffb2273a410f7c14ac1a43ea243cfa9baf5412db2750991ceceed413a40"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 88854,
+      "sha256": "f953f6a43b4cbf469a413f3f613b4a1f00b3744ecad971d8d3a7298eda293243"
+    }
   }
 ]"
 `;
@@ -6137,6 +6192,21 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 10626,
+      "sha256": "b5ccb5903e5b29354a001c7453d73e0978d51604111c09847834d75a168a58f3"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -6149,6 +6219,21 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
     "user": {
       "bytes": 20983,
       "sha256": "de7509435ba39bad66212134a3469d88339657a245c1b7cfa7deda722e4d0f34"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 20436,
+      "sha256": "30f3dbb0b384d441f472d7bb5d6f4e1292eb1c3e19b40781028d9ab8b28efaa3"
     }
   }
 ]"
@@ -6185,6 +6270,21 @@ exports[`request goldens > summary-media-code-review-1141 sends the recorded req
       "bytes": 4528,
       "sha256": "268146d67531b0ebac1c92c8bee9c71e30d4bd18aa9b2e41d41c81a68408d942"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 229538,
+      "sha256": "f12ec8f82e5d641387d0c3344e640362751893922401834c3a4dfa62feab9e27"
+    }
   }
 ]"
 `;
@@ -6219,6 +6319,21 @@ exports[`request goldens > summary-media-grafana-107803 sends the recorded reque
     "user": {
       "bytes": 1863,
       "sha256": "6d3de9891668a68e023f766a66796f9a8913925055c78e62c9fb95992a7f8ac4"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 56837,
+      "sha256": "b3a9290b3a41fea2054fbaa5a54f6258b6d24eff1d99ff0f0307fcc9a0a04099"
     }
   }
 ]"
@@ -6255,6 +6370,21 @@ exports[`request goldens > summary-media-home-assistant-55394 sends the recorded
       "bytes": 2890,
       "sha256": "97341c0d91130f2426347686b4e2d956e64226fef6c9112d1c1ebbc4e61e0bd3"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 14115,
+      "sha256": "2e62fb7ee9409940479b92b6678953c4e978fda1911c62ce9976cc88fabbb7ab"
+    }
   }
 ]"
 `;
@@ -6289,6 +6419,21 @@ exports[`request goldens > summary-media-supabase-19466 sends the recorded reque
     "user": {
       "bytes": 495,
       "sha256": "77b3808318ebd8570cf2870cbf7f1c1425155e380031da1033d3a0125f72a658"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 99656,
+      "sha256": "13a0e7bc31566d90a85fd826b3225e0fa11a8db99862301fc28f791ada0b5d0e"
     }
   }
 ]"

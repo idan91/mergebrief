@@ -23,6 +23,7 @@ import {
   type RevisionNarrativeSkipped,
   type RevisionNarrativeUnchanged,
 } from "../src/types";
+import { PRODUCT_DIFF_LABEL } from "../src/generation/product-diff/consts";
 
 /** A file turned into a symlink: git writes a deletion and a creation under one path. */
 export const FILE_TO_SYMLINK_DIFF = [
@@ -253,6 +254,8 @@ export interface RecordedRequest {
 /** Picks the raw model answer for the request at `index` (0-based). */
 export type FakeAnswer = (request: RecordedRequest, index: number) => unknown;
 
+const NO_PRODUCT_CHANGE_ANSWER = { changes: [], hasMore: false };
+
 /**
  * Mocked Generator (no API key, no network): records each request and parses
  * the answer through the request's own schema, so a fixture that drifts from
@@ -260,8 +263,14 @@ export type FakeAnswer = (request: RecordedRequest, index: number) => unknown;
  */
 export class FakeGenerator implements Generator {
   readonly requests: RecordedRequest[] = [];
+  /** Kept apart from `requests`, so a test about the brief's own calls counts only those. */
+  readonly productDiffRequests: RecordedRequest[] = [];
 
-  constructor(private readonly answer: FakeAnswer) {}
+  /** Without `productDiffAnswer` every Product diff call answers "no Product change". */
+  constructor(
+    private readonly answer: FakeAnswer,
+    private readonly productDiffAnswer?: FakeAnswer,
+  ) {}
 
   origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
@@ -280,6 +289,11 @@ export class FakeGenerator implements Generator {
     };
     if (req.userPrefix !== undefined) {
       request.userPrefix = req.userPrefix;
+    }
+    if (req.label === PRODUCT_DIFF_LABEL) {
+      const callIndex = this.productDiffRequests.push(request) - 1;
+      const answered = this.productDiffAnswer?.(request, callIndex);
+      return req.schema.parse(answered ?? NO_PRODUCT_CHANGE_ANSWER);
     }
     const index = this.requests.push(request) - 1;
 

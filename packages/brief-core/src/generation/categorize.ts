@@ -411,7 +411,7 @@ export function renderPrDescription(meta: PrMetadata): string {
   return `<pr_description>\n${body}\n</pr_description>`;
 }
 
-function renderPrDiff(diff: string): string {
+export function renderPrDiff(diff: string): string {
   return `<pr_diff>\n${sanitizeUntrustedDiff(diff)}\n</pr_diff>`;
 }
 

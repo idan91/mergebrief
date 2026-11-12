@@ -8,6 +8,7 @@ import {
   DetailGenerationSchema,
   GroupingGenerationSchema,
   RevisionNarrativeGenerationSchema,
+  ProductDiffAnswerSchema,
   SummaryMediaAnswerSchema,
 } from "../../src/types";
 
@@ -50,6 +51,10 @@ describe("wire json schemas are byte-pinned", () => {
 
   it("summary media", () => {
     expect(serializeWireSchema(SummaryMediaAnswerSchema)).toMatchSnapshot();
+  });
+
+  it("product diff", () => {
+    expect(serializeWireSchema(ProductDiffAnswerSchema)).toMatchSnapshot();
   });
 
   it("revision narrative", () => {
@@ -116,6 +121,7 @@ const WIRE_VARIANTS = [
   ["grouping", GroupingGenerationSchema],
   ["revision narrative", RevisionNarrativeGenerationSchema],
   ["summary media", SummaryMediaAnswerSchema],
+  ["product diff", ProductDiffAnswerSchema],
 ] as const;
 
 describe("wire json schemas stay within the compile budget", () => {

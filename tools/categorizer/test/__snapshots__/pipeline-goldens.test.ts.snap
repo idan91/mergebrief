@@ -168,6 +168,11 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9001"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -315,6 +320,11 @@ exports[`adversarial stitch goldens > pair-additive-multi-call stitches the adve
     "sha": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776",
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9001"
+  },
+  "productDiff": {
+    "availability": "unavailable",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned grouping over 1 changed file(s).",
   "unattributed": []
@@ -515,6 +525,11 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "title": "Add health and version endpoints and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9008"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -688,6 +703,11 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     "sha": "2efcde355967bd83e1f1ad782635ad1365534ab4",
     "title": "Add health and status endpoints and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9007"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": [
@@ -884,6 +904,11 @@ exports[`adversarial stitch goldens > pair-boundary-restructure-multi-call stitc
     "sha": "2efcde355967bd83e1f1ad782635ad1365534ab4",
     "title": "Add health and status endpoints and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9007"
+  },
+  "productDiff": {
+    "availability": "unavailable",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned grouping over 2 changed file(s).",
   "unattributed": []
@@ -1162,6 +1187,11 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     "title": "Rate-limit requests per client",
     "url": "https://github.com/Idan91/code-review/pull/9013"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 6 chunk(s).",
   "unattributed": []
 }"
@@ -1378,6 +1408,11 @@ exports[`adversarial stitch goldens > pair-force-push-amend-multi-call stitches 
     "sha": "bb25460c9ee89f962fa4eab8b142c2f922e6b461",
     "title": "Rate-limit requests per client",
     "url": "https://github.com/Idan91/code-review/pull/9013"
+  },
+  "productDiff": {
+    "availability": "unavailable",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned grouping over 1 changed file(s).",
   "unattributed": []
@@ -1828,6 +1863,11 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9010"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -2001,6 +2041,11 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
     "sha": "d7d47ac51011dd628db8879a6ea92f5fb802b195",
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9002"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": [
@@ -2211,6 +2256,11 @@ exports[`adversarial stitch goldens > pair-media-description-edit stitches the a
     "sha": "231b2b5410a93bf32e67ca7a19b913b4a85806e5",
     "title": "Retry failed webhook deliveries with backoff",
     "url": "https://github.com/Idan91/code-review/pull/9019"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
@@ -2442,6 +2492,11 @@ exports[`adversarial stitch goldens > pair-media-fast-forward stitches the adver
     "title": "Retry failed webhook deliveries with backoff",
     "url": "https://github.com/Idan91/code-review/pull/9018"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 5 chunk(s).",
   "unattributed": []
 }"
@@ -2620,6 +2675,11 @@ exports[`adversarial stitch goldens > pair-media-fast-forward-multi-call stitche
     "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
     "title": "Retry failed webhook deliveries with backoff",
     "url": "https://github.com/Idan91/code-review/pull/9018"
+  },
+  "productDiff": {
+    "availability": "unavailable",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned grouping over 1 changed file(s).",
   "unattributed": []
@@ -3286,6 +3346,11 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     "sha": "7c2836985eb1a4858557dde70c3f1bcbbccd8cc6",
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9006"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 5 chunk(s).",
   "unattributed": []
@@ -11417,6 +11482,11 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
     "title": "Rate-limit requests per client",
     "url": "https://github.com/Idan91/code-review/pull/9016"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 6 chunk(s).",
   "unattributed": []
 }"
@@ -11589,6 +11659,11 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "sha": "18b049f7d29eb1b65175cf5960c619c630235cd6",
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9009"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
@@ -11863,6 +11938,11 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
     "title": "Rate-limit requests per client",
     "url": "https://github.com/Idan91/code-review/pull/9015"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 6 chunk(s).",
   "unattributed": [
     {
@@ -12073,6 +12153,11 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
     "title": "Add a token-guarded health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9003"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -12228,6 +12313,11 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     "title": "Add a token-guarded health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9003"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": []
 }"
@@ -12344,6 +12434,11 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
     "sha": "465ee5436ee6b905c397a2d500b2fb1a8abd3838",
     "title": "Simplify the health route and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9004"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": [
@@ -12475,6 +12570,11 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
     "sha": "52c06b0893b5c2ce8fda3ed373371c1ae138d6d1",
     "title": "Add a health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9005"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "summary": "Canned adversarial brief over 2 chunk(s).",
   "unattributed": []
@@ -14057,6 +14157,11 @@ exports[`brief goldens > button-under-split produces the recorded brief 1`] = `
     "title": "fix: Fix Button Data Attributes And Add Rounded Prop",
     "url": "https://github.com/Idan91/components/pull/10"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -14383,6 +14488,11 @@ exports[`brief goldens > copybutton-new-export produces the recorded brief 1`] =
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -14637,6 +14747,11 @@ exports[`brief goldens > intent-adversarial-ticket produces the recorded brief 1
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -14827,6 +14942,11 @@ exports[`brief goldens > intent-broad-epic produces the recorded brief 1`] = `
     "sha": "3110bbb36df31bef3b1dacdeadd6a0a9a6287383",
     "title": "chore: component updates",
     "url": "https://github.com/Idan91/components/pull/10"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "readingOrder": [
     {
@@ -15164,6 +15284,11 @@ exports[`brief goldens > intent-github-primary produces the recorded brief 1`] =
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -15322,6 +15447,11 @@ exports[`brief goldens > intent-legit-demotion produces the recorded brief 1`] =
     "title": "refactor: Demote The Webhook Dispatch Failure Log To Warn",
     "url": "https://github.com/Idan91/code-review/pull/9002"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -15479,6 +15609,11 @@ exports[`brief goldens > intent-masked-fix produces the recorded brief 1`] = `
     "sha": "7b41c0e9d25a83f6104e7cb92da5f38017e6a4d2",
     "title": "fix: Recurring Webhook Dispatch Failures",
     "url": "https://github.com/Idan91/code-review/pull/9001"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "readingOrder": [
     {
@@ -15660,6 +15795,11 @@ exports[`brief goldens > intent-none-no-ticket produces the recorded brief 1`] =
     "sha": "3110bbb36df31bef3b1dacdeadd6a0a9a6287383",
     "title": "updates",
     "url": "https://github.com/Idan91/components/pull/10"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "readingOrder": [
     {
@@ -15997,6 +16137,11 @@ exports[`brief goldens > intent-precise-ticket produces the recorded brief 1`] =
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -16251,6 +16396,11 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -16268,8 +16418,8 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
 
 exports[`brief goldens > kit-11161 produces the recorded brief 1`] = `
 "{
-  "bytes": 515165,
-  "sha256": "b18f628d5b2300f79ec3b0aa9433799a94ae2d234797a56557bcab9fd41fd8f2"
+  "bytes": 515264,
+  "sha256": "39aee5c790eb48c0487ee915e23617b409d5e8a78f416bbd812227b0adde6cf9"
 }"
 `;
 
@@ -16906,6 +17056,11 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
     "title": "chore: Shared Types Package — Deduplicate ValueOf/Result/Brand",
     "url": "https://github.com/Idan91/code-review/pull/28"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -17045,8 +17200,8 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
 
 exports[`brief goldens > next-60530 produces the recorded brief 1`] = `
 "{
-  "bytes": 3822649,
-  "sha256": "f1a85a8a82f4884131ecb56490b37578b382797bfebcd44fb17dd6e8a65d171c"
+  "bytes": 3822748,
+  "sha256": "54f6fa648cf5279ec165a20153daea8866fc14437bcd0530784f9b794ec78d3e"
 }"
 `;
 
@@ -17174,6 +17329,11 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "sha": "6c165563af5ba90182693db67080056d2b5d7b27",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9001"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -17322,6 +17482,11 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9001"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -17463,6 +17628,11 @@ exports[`brief goldens > pair-additive-multi-call produces the recorded brief 1`
       "sha": "6c165563af5ba90182693db67080056d2b5d7b27",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9001"
+    },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -17619,6 +17789,11 @@ exports[`brief goldens > pair-additive-multi-call produces the recorded brief 1`
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9001"
     },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned grouping over 1 changed file(s).",
     "unattributed": []
   }
@@ -17749,6 +17924,11 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "sha": "e574243efccc3f2e7ec7a61e76eed0279a51536e",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9008"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -17896,6 +18076,11 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "sha": "dbab38aefef2617d8b80173132f7ab56fe642b43",
       "title": "Add health and version endpoints and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9008"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -18061,6 +18246,11 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "sha": "0c11c8faf6e8e5d6a65459ba2c156066a7b20eb8",
       "title": "Add health and status endpoints and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9007"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -18237,6 +18427,11 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "title": "Add health and status endpoints and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9007"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -18402,6 +18597,11 @@ exports[`brief goldens > pair-boundary-restructure-multi-call produces the recor
       "sha": "0c11c8faf6e8e5d6a65459ba2c156066a7b20eb8",
       "title": "Add health and status endpoints and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9007"
+    },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -18585,6 +18785,11 @@ exports[`brief goldens > pair-boundary-restructure-multi-call produces the recor
       "sha": "2efcde355967bd83e1f1ad782635ad1365534ab4",
       "title": "Add health and status endpoints and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9007"
+    },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
     },
     "summary": "Canned grouping over 2 changed file(s).",
     "unattributed": []
@@ -19039,6 +19244,11 @@ exports[`brief goldens > pair-force-push-amend produces the recorded brief 1`] =
       "title": "Rate-limit requests per client",
       "url": "https://github.com/Idan91/code-review/pull/9013"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned brief over 4 changed file(s).",
     "unattributed": []
   }
@@ -19492,6 +19702,11 @@ exports[`brief goldens > pair-force-push-amend-multi-call produces the recorded 
       "sha": "bb25460c9ee89f962fa4eab8b142c2f922e6b461",
       "title": "Rate-limit requests per client",
       "url": "https://github.com/Idan91/code-review/pull/9013"
+    },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
     },
     "summary": "Canned grouping over 1 changed file(s).",
     "unattributed": []
@@ -20074,6 +20289,11 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9010"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -20217,6 +20437,11 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9010"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -20357,6 +20582,11 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "sha": "335e7fc5870648b8987164da9addf1758a00051b",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9002"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -20505,6 +20735,11 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "sha": "d7d47ac51011dd628db8879a6ea92f5fb802b195",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9002"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -20896,6 +21131,11 @@ exports[`brief goldens > pair-media-description-edit produces the recorded brief
       "title": "Retry failed webhook deliveries with backoff",
       "url": "https://github.com/Idan91/code-review/pull/9019"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned brief over 3 changed file(s).",
     "unattributed": []
   }
@@ -21274,6 +21514,11 @@ exports[`brief goldens > pair-media-fast-forward produces the recorded brief 1`]
       "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
       "title": "Retry failed webhook deliveries with backoff",
       "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "summary": "Canned brief over 3 changed file(s).",
     "unattributed": []
@@ -21654,6 +21899,11 @@ exports[`brief goldens > pair-media-fast-forward-multi-call produces the recorde
       "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
       "title": "Retry failed webhook deliveries with backoff",
       "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "productDiff": {
+      "availability": "unavailable",
+      "changes": [],
+      "hasMore": false
     },
     "summary": "Canned grouping over 1 changed file(s).",
     "unattributed": []
@@ -22687,6 +22937,11 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9006"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -22864,6 +23119,11 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9006"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned brief over 3 changed file(s).",
     "unattributed": []
   }
@@ -22872,8 +23132,8 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
 
 exports[`brief goldens > pair-real-sveltekit-2-0 produces the recorded brief 1`] = `
 "{
-  "bytes": 337853,
-  "sha256": "78ec2b6606eac6391dc033bebdab5186c2fcd26332b607d94e27831efb0f5973"
+  "bytes": 337962,
+  "sha256": "815fce65172173d7603bc02699a22a58c3b0e9da00cc7b6d7176c56486e26e20"
 }"
 `;
 
@@ -23335,6 +23595,11 @@ exports[`brief goldens > pair-rebase-conflict-resolution produces the recorded b
       "title": "Rate-limit requests per client",
       "url": "https://github.com/Idan91/code-review/pull/9016"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned brief over 4 changed file(s).",
     "unattributed": []
   }
@@ -23465,6 +23730,11 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "sha": "9e5517b0f1a536d5e7058ff55eb862a9b7092744",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9009"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -23612,6 +23882,11 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "sha": "18b049f7d29eb1b65175cf5960c619c630235cd6",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9009"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -24073,6 +24348,11 @@ exports[`brief goldens > pair-rebase-upstream-same-file produces the recorded br
       "title": "Rate-limit requests per client",
       "url": "https://github.com/Idan91/code-review/pull/9015"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "summary": "Canned brief over 4 changed file(s).",
     "unattributed": [
       {
@@ -24219,6 +24499,11 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "sha": "a1987c78e205aabd104b961c5f199f7f2bf54861",
       "title": "Add a token-guarded health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9003"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -24378,6 +24663,11 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "title": "Add a token-guarded health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9003"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -24509,6 +24799,11 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "sha": "a1987c78e205aabd104b961c5f199f7f2bf54861",
       "title": "Add a token-guarded health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9003"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -24647,6 +24942,11 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "sha": "35af45dc05160e49cd8dded221422c726b180252",
       "title": "Add a token-guarded health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9003"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -24793,6 +25093,11 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "title": "Simplify the health route and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9004"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -24936,6 +25241,11 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "title": "Simplify the health route and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9004"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -25077,6 +25387,11 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9005"
     },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
+    },
     "readingOrder": [
       {
         "groupId": "g1",
@@ -25184,6 +25499,11 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "sha": "52c06b0893b5c2ce8fda3ed373371c1ae138d6d1",
       "title": "Add a health endpoint and redact query tokens in logs",
       "url": "https://github.com/Idan91/code-review/pull/9005"
+    },
+    "productDiff": {
+      "availability": "available",
+      "changes": [],
+      "hasMore": false
     },
     "readingOrder": [
       {
@@ -26005,6 +26325,11 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
     "title": "refactor: Fold persistence Into Role Folders (db / stores / auth)",
     "url": "https://github.com/Idan91/code-review/pull/96"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -26218,8 +26543,8 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
 
 exports[`brief goldens > react-router-11768 produces the recorded brief 1`] = `
 "{
-  "bytes": 922804,
-  "sha256": "b7f06ff194e3dc8f251634ea475c44499d0b7091b65af1dac91cda2f1185cf45"
+  "bytes": 922903,
+  "sha256": "9e0ea1b49d1545c4f031c1d6186cc8e4ccf42406ce4b0968991c238cc0c62fae"
 }"
 `;
 
@@ -26451,6 +26776,11 @@ exports[`brief goldens > repo-policy-scoped-attribute produces the recorded brie
     "sha": "d1a7ef0bca50c6f293e923835629850f22e8ff50",
     "title": "feat: Copy Button",
     "url": "https://github.com/Idan91/components/pull/7"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
   },
   "readingOrder": [
     {
@@ -26699,6 +27029,11 @@ exports[`brief goldens > schema-change-provenance produces the recorded brief 1`
     "title": "feat(persistence): repo-config provenance column on brief (ADR 0032 #8)",
     "url": "https://github.com/Idan91/code-review/pull/112"
   },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -26753,6 +27088,21 @@ exports[`request goldens > button-under-split sends the recorded request digests
       "bytes": 4893,
       "sha256": "7511b9b8d79ddeab2afee139c0ef46c3ff340fb4777d1998717092a3f3c53fc9"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 5053,
+      "sha256": "1ef1f6d1a033a9143b8e172252cc349c65e6db7351f5fd8d2f918f3a6190a8e2"
+    }
   }
 ]"
 `;
@@ -26772,6 +27122,21 @@ exports[`request goldens > copybutton-new-export sends the recorded request dige
     "user": {
       "bytes": 13896,
       "sha256": "bf78498eb5fc419b2e641a3ba6ff01c66853c47e352b0b2d982558b1ebc0025d"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13783,
+      "sha256": "4511e651531a7e77518a744ac03b639c560548fa51c39ca274c0e8d338b32a04"
     }
   }
 ]"
@@ -26793,6 +27158,21 @@ exports[`request goldens > intent-adversarial-ticket sends the recorded request 
       "bytes": 13360,
       "sha256": "c0724a5f364c97a9d3be4c5c175edf44c8d1d927b1756b0f40658b6d94bd2d95"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 12271,
+      "sha256": "30c16cf95baf34226f7128e18de692dddbf088b22ddc76f8752ad65c283e2020"
+    }
   }
 ]"
 `;
@@ -26812,6 +27192,21 @@ exports[`request goldens > intent-broad-epic sends the recorded request digests 
     "user": {
       "bytes": 5032,
       "sha256": "52c9016c2b2971a616310b3495426c0b70946f67770ef6316ae2110128353f58"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4817,
+      "sha256": "00da4028c39aaf5fac82df1ee8a3991b898ed23f9c903e40679c84b22585f46d"
     }
   }
 ]"
@@ -26833,6 +27228,21 @@ exports[`request goldens > intent-github-primary sends the recorded request dige
       "bytes": 14433,
       "sha256": "4ccd947d70943a815ba742a6ab078640fda17a51af6800c5c9c0a03fe27b3c9a"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13795,
+      "sha256": "2b898aa675f8160c628e7e25d100d7061e2d8db76b4ad99daf05501e623f9679"
+    }
   }
 ]"
 `;
@@ -26852,6 +27262,21 @@ exports[`request goldens > intent-legit-demotion sends the recorded request dige
     "user": {
       "bytes": 3821,
       "sha256": "77f35b9f8f020651fd7296d11e08ec9518fd4e3f8c633a22860a5addbbded332"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 3339,
+      "sha256": "62b8629045b9102fdb7117715de06e4e717765243b3ba7bc2982b16ed3d95b45"
     }
   }
 ]"
@@ -26873,6 +27298,21 @@ exports[`request goldens > intent-masked-fix sends the recorded request digests 
       "bytes": 4074,
       "sha256": "92bf33d2df3ef4d02fd90e078ebcacad01c7ffc090b1cf8e839cc0f594666d86"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 3536,
+      "sha256": "40ec3ae55c5c7952efec0e8284666f0725b8f5ce3d33ea09ee8388b64fd16dd3"
+    }
   }
 ]"
 `;
@@ -26892,6 +27332,21 @@ exports[`request goldens > intent-none-no-ticket sends the recorded request dige
     "user": {
       "bytes": 4588,
       "sha256": "2fb87872a4c81f118bf21d8e1d16f44bea516b04a2885c618d567ffa04951828"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4748,
+      "sha256": "7a9b99b8b31ecb9fe33c9762557047b1bf18090cf301663b92330eaea000a032"
     }
   }
 ]"
@@ -26913,6 +27368,21 @@ exports[`request goldens > intent-precise-ticket sends the recorded request dige
       "bytes": 14416,
       "sha256": "b4bbab39302c7cb43eea8817c636d7546c75eeafd18a948daae5f141228958a4"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13820,
+      "sha256": "3925f5b1450aebc161d6e067693f5d7c544b9d7e580c8c313fac56d9f4057f19"
+    }
   }
 ]"
 `;
@@ -26932,6 +27402,21 @@ exports[`request goldens > intent-primary-plus-refs sends the recorded request d
     "user": {
       "bytes": 14488,
       "sha256": "d7082142ed2172b688a87ad8494d367029ff29f817a2ea1fbe1ec01c4d525673"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13892,
+      "sha256": "bb074fa8166b40b40768f21cd058b95686acdaabe9d6c8649c341a391042efbd"
     }
   }
 ]"
@@ -27162,6 +27647,21 @@ exports[`request goldens > multi-package-types sends the recorded request digest
     "user": {
       "bytes": 22817,
       "sha256": "0bb99f4c2e9849361c2f32a60ab23705dcd9971daa7c6dad5763129c04112483"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 23300,
+      "sha256": "ba0acbad7d631c0b25a6b1b16b3f02d3517a509656dada152b4f64420c253c30"
     }
   }
 ]"
@@ -28364,6 +28864,21 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28376,6 +28891,21 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
     "user": {
       "bytes": 2871,
       "sha256": "7ca5582b495cc0bc4a6719b438a41f13c2006e6d128970519a9942d8fc06efca"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2015,
+      "sha256": "7845bf9f364c80e6ef8fb99789e23ea96838e9424b93791f1661ac34d67c21f2"
     }
   }
 ]"
@@ -28472,6 +29002,21 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28484,6 +29029,21 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
     "user": {
       "bytes": 2949,
       "sha256": "7713fdd796e874e5f2d9304d13292c44cdf2d3bd3a54d0b5e7d7d2537b2854a4"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2093,
+      "sha256": "a0ac55a2dbfaab74e6bcb4fde9df2b004b6a62094113f2a53aaed9ed9e799dbd"
     }
   }
 ]"
@@ -28507,6 +29067,21 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2324,
+      "sha256": "7e7d916cb82c0611421b3c524e3d3c1a16579efb671a03acb3505fe4e0a72e2b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28519,6 +29094,21 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
     "user": {
       "bytes": 3515,
       "sha256": "a9e0b633cfed73484f42c870b36e2b249a91e3cf2d4a4bbc5ebe514805e49fdf"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2580,
+      "sha256": "b33380a141343f098654d13ff606a0c2cf36f829d5e73033e6e39581db7dc0a9"
     }
   }
 ]"
@@ -28613,6 +29203,21 @@ exports[`request goldens > pair-force-push-amend sends the recorded request dige
       "bytes": 5549,
       "sha256": "e557440104f52ba3eae4fb6a511cda88482b26b0ddc19f298dbc8d3589977ef6"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4185,
+      "sha256": "17f0626fc2142bccfe8195ec517cd9c578a8e5f53ac0476945909dedb394cb8f"
+    }
   }
 ]"
 `;
@@ -28676,6 +29281,21 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1289,
+      "sha256": "81090c637c858a3e76baa7a9170dbe1c6198d17f5a3c8e2cee868c985845a13b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28688,6 +29308,21 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
     "user": {
       "bytes": 2646,
       "sha256": "593b410cc84f7795286b5fe17042234d58daa95a1a515682eb0713671db1211d"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
     }
   }
 ]"
@@ -28711,6 +29346,21 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28723,6 +29373,21 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
     "user": {
       "bytes": 2859,
       "sha256": "a663790e8cd80ba0ef979b2b22b59b167bb8b20d1b2167ab0187260ff58b543f"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2003,
+      "sha256": "3b68057dba6fc4b897cfa05cd10b4e1549ef4deb31d946dcf7e05c080f0f62ca"
     }
   }
 ]"
@@ -28759,6 +29424,21 @@ exports[`request goldens > pair-media-description-edit sends the recorded reques
       "bytes": 1165,
       "sha256": "1624b5ecf85bea5d572dcf4e22aef561e0778292f4abd399fae5039fb394d1fe"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 3992,
+      "sha256": "ee83fff28f4ab9a6d28700c96f76d7f2e9c80590e0a0f92cc98062f06cfad5fa"
+    }
   }
 ]"
 `;
@@ -28793,6 +29473,21 @@ exports[`request goldens > pair-media-fast-forward sends the recorded request di
     "user": {
       "bytes": 1104,
       "sha256": "45ef609627fdcfd2cc3fa576ff1775938b62522daeaa357258fe2513d1d7fc08"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4282,
+      "sha256": "b473bd4b5f024672aaf02b28ffc526c0a7864e69657e433062bab2d8ee2d4f25"
     }
   }
 ]"
@@ -28874,6 +29569,21 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1987,
+      "sha256": "88ea9b9251ff77e199b4adc183d2cb6ba661eafcbdc18c92699461e7a94b1c85"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28886,6 +29596,21 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
     "user": {
       "bytes": 3339,
       "sha256": "ff58512fb470ed0c5fbe1b66040594ce041aa4acbbc4fc364d4e9b35f451a42c"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2555,
+      "sha256": "c5acc64dc3695696b69c9700b1b32fc911350b5e8ea80823f50550747f8e765d"
     }
   }
 ]"
@@ -28965,6 +29690,21 @@ exports[`request goldens > pair-rebase-conflict-resolution sends the recorded re
       "bytes": 5581,
       "sha256": "4d0939335bd35f39002a5ef2a5aaf5c0bfc770f1f1a4748818f84790f9e63a4e"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4171,
+      "sha256": "3a4467e9e24edc96064983d525b5989d4ced6c8f81837b0a6b1cf53e1298be84"
+    }
   }
 ]"
 `;
@@ -28987,6 +29727,21 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -28999,6 +29754,21 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
     "user": {
       "bytes": 2871,
       "sha256": "31d523076d30b30dfc2dd822b8c4b10c27b2d4e706796f23106bc266074b2366"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2015,
+      "sha256": "2edaaf70ad8a2787cc88d80a7925334900c12f0e23371e66108addc3b8a26693"
     }
   }
 ]"
@@ -29019,6 +29789,21 @@ exports[`request goldens > pair-rebase-upstream-same-file sends the recorded req
     "user": {
       "bytes": 5515,
       "sha256": "7414ba4b95eff06d14900a1085cde4412778ec89922e73d16bf29fd8e86a3166"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 4147,
+      "sha256": "1d93616d5a71d54d4af2719857ae326a7ea28ee592fdf97e4d6946322608eda6"
     }
   }
 ]"
@@ -29042,6 +29827,21 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2144,
+      "sha256": "d17c2090b624ff300bd104d61ce2675ad99cd50b28706cd558e37b4cee68c1e8"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -29054,6 +29854,21 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
     "user": {
       "bytes": 2806,
       "sha256": "e3a1e0ce4bce4331c6aff10b1cdd9604a3989e1a9a72ddbc9815c8bc822f048b"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1950,
+      "sha256": "6807cbbbf10c5fb5a0ff771d8ea90a63c30136d589bb5e09e399f30f90adc586"
     }
   }
 ]"
@@ -29077,6 +29892,21 @@ exports[`request goldens > pair-risk-add-new-file sends the recorded request dig
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2087,
+      "sha256": "1e3e72c9e1ca0fcb91aa2cb8ff60e84edc0477fef5790a48460830929c3575e0"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -29089,6 +29919,21 @@ exports[`request goldens > pair-risk-add-new-file sends the recorded request dig
     "user": {
       "bytes": 2787,
       "sha256": "b41b4dbde671c378880658775ca48ece1ba8c845764a5a36ede4e3fcb4dff4d5"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1931,
+      "sha256": "6e20d0f061fc9afe98c37fc18c584cb934ee10993fe11c72f8b3a7ae7951239d"
     }
   }
 ]"
@@ -29112,6 +29957,21 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 2084,
+      "sha256": "54e6a6feb6a89deaa1f45049db69a1d53d36635f3bab61e4347fa8e39af6ce81"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -29124,6 +29984,21 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
     "user": {
       "bytes": 2646,
       "sha256": "964305001adfa466331de3eb22619cc2e3dd2cfac8e418a6e98c747fa21a5c3f"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1791,
+      "sha256": "3edce2189504d9ce42d94707541fa17f08006db50a8875900525a02331c9acc5"
     }
   }
 ]"
@@ -29147,6 +30022,21 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
     }
   },
   {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1937,
+      "sha256": "1f9ae146c8070a0fff389e4f9033bd532d154f6330c7ac2a6399199457eaee7b"
+    }
+  },
+  {
     "label": "brief",
     "schema": {
       "bytes": 10590,
@@ -29159,6 +30049,21 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
     "user": {
       "bytes": 2189,
       "sha256": "777cf8fcfb61ce132347c814d242d96bde1da34a038cf8bc5f3cf548b28f2a92"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 1289,
+      "sha256": "81090c637c858a3e76baa7a9170dbe1c6198d17f5a3c8e2cee868c985845a13b"
     }
   }
 ]"
@@ -29179,6 +30084,21 @@ exports[`request goldens > pure-move-persistence sends the recorded request dige
     "user": {
       "bytes": 37360,
       "sha256": "e6bf0e6d83ab635c16f076768d0d399c785b884e86abac49507e6731f4f5d409"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 37616,
+      "sha256": "ef5bea5ad3bb39c48f79ef73d5550b22b0c3f3d556c555f02a1a9471a952eece"
     }
   }
 ]"
@@ -29790,6 +30710,21 @@ exports[`request goldens > repo-policy-scoped-attribute sends the recorded reque
       "bytes": 14770,
       "sha256": "b0ec22bddb9e1880116b87c1ffe600616ecd3b469561e563b1bcacc647aa0155"
     }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13783,
+      "sha256": "4511e651531a7e77518a744ac03b639c560548fa51c39ca274c0e8d338b32a04"
+    }
   }
 ]"
 `;
@@ -29809,6 +30744,21 @@ exports[`request goldens > schema-change-provenance sends the recorded request d
     "user": {
       "bytes": 45447,
       "sha256": "ecc6c355d3ac132210b13e2a2de52cb9dc97bcfe349c9685635009a57c92a399"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 45748,
+      "sha256": "7a3b80c13b7bd580a289591de693b6c82a336d75c6816bee42b607e91b29cf73"
     }
   }
 ]"
