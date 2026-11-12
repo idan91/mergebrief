@@ -21,6 +21,8 @@ export interface ProductDiffRequest {
   readonly pr: FetchedPr;
   /** The finished brief's change-groups, which each Product change names by id. */
   readonly changeGroups: readonly ListedChangeGroup[];
+  /** The previous revision's Product diff on an anchored run, whose wording a row that still holds keeps. */
+  readonly previous: ProductDiff | undefined;
   readonly effort: Effort;
   readonly log: Logger;
   readonly warnings: WarningCollector;

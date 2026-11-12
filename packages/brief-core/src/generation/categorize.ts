@@ -689,6 +689,9 @@ export function carryDraftBrief(
   if (previous.outlineForm !== undefined) {
     brief.outlineForm = previous.outlineForm;
   }
+  if (previous.productDiff !== undefined) {
+    brief.productDiff = previous.productDiff;
+  }
   return { brief, context };
 }
 

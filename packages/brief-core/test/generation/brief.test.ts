@@ -31,6 +31,15 @@ import { SUMMARY_MEDIA_LABEL } from "../../src/generation/summary-media/consts";
 import { FakeGenerator, type RecordedRequest } from "../helpers";
 import { pr as multiCallPr, singleBrief } from "./fixtures/multi-call-pr";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
+import {
+  commitRange,
+  incrementalDiff,
+  makeChunk,
+  makeGroup,
+  noneIntentCheck,
+  pr,
+  wholeDiff,
+} from "./fixtures/two-file-pr";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 import {
   insertAfter,
@@ -48,88 +57,6 @@ const GITHUB_TOKEN_LENGTH = 36;
 /** Answers each request with the next queued output. */
 function makeQueuedGenerator(outputs: unknown[]): FakeGenerator {
   return new FakeGenerator((_request, index) => outputs[index]);
-}
-
-const wholeDiff = [
-  "diff --git a/src/a.ts b/src/a.ts",
-  "@@ -0,0 +1,2 @@",
-  "+a1",
-  "+a2",
-  "diff --git a/src/b.ts b/src/b.ts",
-  "@@ -0,0 +1,3 @@",
-  "+b1",
-  "+b2",
-  "+b3",
-  "",
-].join("\n");
-
-const incrementalDiff = [
-  "diff --git a/src/b.ts b/src/b.ts",
-  "@@ -1,2 +1,3 @@",
-  " b1",
-  " b2",
-  "+b3",
-  "",
-].join("\n");
-
-const pr: FetchedPr = {
-  locator: { owner: "o", repo: "r", number: 1 },
-  meta: {
-    title: "t",
-    body: "d",
-    url: "https://github.com/o/r/pull/1",
-    sha: "head2000",
-    baseSha: "base0000",
-    commitCount: 2,
-    files: [
-      { path: "src/a.ts", additions: 2, deletions: 0 },
-      { path: "src/b.ts", additions: 3, deletions: 0 },
-    ],
-  },
-  diff: wholeDiff,
-  links: [],
-};
-
-const commitRange = { base: "base0000", head: "head2000", commitCount: 2 };
-
-const noneIntentCheck = {
-  ticketUrls: [],
-  ticketTitles: [],
-  specificity: "none",
-  scopeNote: "",
-  items: [],
-  alignment: { read: "", goal: "", response: "" },
-};
-
-function makeGroup(id: string, summary = "group summary"): unknown {
-  return {
-    id,
-    title: `group ${id}`,
-    summary,
-    dominantCategory: "new-feature",
-    secondaryCategories: [],
-    uncertain: false,
-    uncertainBetween: [],
-  };
-}
-
-function makeChunk(
-  id: string,
-  groupId: string,
-  file: string,
-  end: number,
-  start = 1,
-) {
-  return {
-    id,
-    changeGroupId: groupId,
-    file,
-    concern: "implementation",
-    role: "core",
-    addedRanges: [{ start, end }],
-    removedRanges: [],
-    riskSurface: [] as string[],
-  };
 }
 
 const baseOutput = {

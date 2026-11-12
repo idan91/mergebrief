@@ -122,6 +122,7 @@ async function addProductDiff(
     generator: run.options.generator,
     pr: run.options.pr,
     changeGroups: brief.changeGroups,
+    previous: run.options.previous?.brief.productDiff,
     effort: run.effort,
     log: run.log,
     warnings: run.warnings,

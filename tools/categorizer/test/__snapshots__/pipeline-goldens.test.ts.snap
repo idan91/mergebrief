@@ -10468,6 +10468,11 @@ exports[`adversarial stitch goldens > pair-real-sveltekit-2-0 stitches the adver
     "title": "SvelteKit 2.0",
     "url": "https://github.com/sveltejs/kit/pull/11161"
   },
+  "productDiff": {
+    "availability": "unavailable",
+    "changes": [],
+    "hasMore": false
+  },
   "readingOrder": [
     {
       "groupId": "g1",
@@ -23132,8 +23137,8 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
 
 exports[`brief goldens > pair-real-sveltekit-2-0 produces the recorded brief 1`] = `
 "{
-  "bytes": 337962,
-  "sha256": "815fce65172173d7603bc02699a22a58c3b0e9da00cc7b6d7176c56486e26e20"
+  "bytes": 338071,
+  "sha256": "3d237ce76597f43b8bc1dc4e929981c241ab83342c284398cbe001c247dd6992"
 }"
 `;
 

@@ -253,6 +253,38 @@ export function validateProductDiff(
   return { productDiff: checked, issues };
 }
 
+/** The wire's own spelling of an absent before, so a copied row stays an empty one. */
+const ABSENT_BEFORE = '""';
+
+function renderPreviousChange(change: ProductChange): string {
+  const before =
+    change.before === undefined
+      ? ABSENT_BEFORE
+      : sanitizeUntrustedText(change.before);
+  return [
+    `- when: ${sanitizeUntrustedText(change.when)}`,
+    `  before: ${before}`,
+    `  beforeSource: ${change.beforeSource}`,
+    `  after: ${sanitizeUntrustedText(change.after)}`,
+    `  affects: ${change.affects}`,
+  ].join("\n");
+}
+
+/**
+ * The previous revision's Product changes for an anchored call, without
+ * their group ids, which the new revision may not have. Nothing when that
+ * revision listed none: the call then runs as a fresh one.
+ */
+export function renderPreviousProductDiff(
+  previous: ProductDiff | undefined,
+): string {
+  if (previous === undefined || previous.changes.length === 0) {
+    return "";
+  }
+  const rows = previous.changes.map(renderPreviousChange).join("\n");
+  return `\n\n## Previous Product diff\n<pr_previous_product_diff>\n${rows}\n</pr_previous_product_diff>`;
+}
+
 function renderChangeGroupLine(group: ListedChangeGroup): string {
   const title = sanitizeUntrustedText(group.title);
   const summary = sanitizeUntrustedText(group.summary);

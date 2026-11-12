@@ -86,6 +86,10 @@ describe("system prompts are byte-pinned", () => {
     expect(buildProductDiffSystemPrompt()).toMatchSnapshot();
   });
 
+  it("product diff, over a previous Product diff", () => {
+    expect(buildProductDiffSystemPrompt(true)).toMatchSnapshot();
+  });
+
   it("detail, without repo context", () => {
     expect(buildDetailSystemPrompt()).toMatchSnapshot();
   });
