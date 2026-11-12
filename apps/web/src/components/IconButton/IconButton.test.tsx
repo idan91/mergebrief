@@ -12,7 +12,7 @@ import { startColdCalloutTimers } from "@web/test/callouts";
 
 import { Callout } from "../Callout";
 import { CALLOUT_HOVER_DELAY_MS } from "../Callout/consts";
-import { IconButton } from ".";
+import { IconButton, IconButtonVariants } from ".";
 
 afterEach(() => {
   cleanup();
@@ -41,6 +41,17 @@ describe("IconButton", () => {
     expect(button.getAttribute("type")).toBe("button");
     expect(button.getAttribute("data-variant")).toBe("ghost");
     expect(button.getAttribute("data-size")).toBe("sm");
+  });
+
+  it("stamps the outline variant for a button that shows its edge", () => {
+    render(
+      <IconButton label="Go to group" variant={IconButtonVariants.OUTLINE}>
+        ↳
+      </IconButton>,
+    );
+
+    const button = screen.getByRole("button", { name: "Go to group" });
+    expect(button.getAttribute("data-variant")).toBe("outline");
   });
 
   it("keeps the compact callout on label when aria-label is longer", () => {

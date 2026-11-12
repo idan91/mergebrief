@@ -28,6 +28,7 @@ import { DiffTimeoutNotice } from "../DiffTimeoutNotice";
 import { LineLinkNotice } from "./LineLinkNotice";
 import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
+import { ProductDiffBar } from "./ProductDiffBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
 import { BriefControlsSheet } from "./BriefControlsSheet";
@@ -190,15 +191,24 @@ function BriefViewContent(props: BriefViewProps) {
       conversationWiring.conversationComposer,
     ],
   );
+  const groupTitles = Object.fromEntries(
+    brief.changeGroups.map((group) => [group.id, group.title]),
+  );
   const intentBar = brief.intentCheck ? (
     <IntentBar
-      groupTitles={Object.fromEntries(
-        brief.changeGroups.map((group) => [group.id, group.title]),
-      )}
+      groupTitles={groupTitles}
       key={`intent-${briefId}`}
       intentCheck={brief.intentCheck}
       jumpToGroup={(groupId) => queueJumpFromChanges(groupId, false)}
       ref={intentBarRef}
+    />
+  ) : null;
+  const productDiffBar = brief.productDiff ? (
+    <ProductDiffBar
+      groupTitles={groupTitles}
+      key={`product-diff-${briefId}`}
+      jumpToGroup={(groupId) => queueJumpFromChanges(groupId, false)}
+      productDiff={brief.productDiff}
     />
   ) : null;
   const conversationSection =
@@ -390,6 +400,7 @@ function BriefViewContent(props: BriefViewProps) {
                           repoConfig={repoConfig}
                         >
                           {intentBar}
+                          {productDiffBar}
                           {conversationSection}
                         </Masthead>
                       ) : null}

@@ -10,7 +10,6 @@ import {
 } from "brief-core/types";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Chip } from "@web/components/Chip";
-import { IconButton } from "@web/components/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
@@ -24,6 +23,7 @@ import {
 import { AlarmMark } from "./AlarmMark";
 import styles from "./IntentBar.module.scss";
 import { IntentCount } from "./IntentCount";
+import { GroupJumps } from "../GroupJumps";
 import { InlineCodeText } from "../InlineCodeText";
 import { IntentLegend } from "./IntentLegend";
 import { ScopeNote } from "./ScopeNote";
@@ -105,9 +105,6 @@ function IntentItemRow({
   const sourceLabel = fromTicket
     ? t("brief.intent.ticket")
     : t("brief.intent.source");
-  // ids-multi disambiguation: a visible id only where the ambiguity
-  // exists, claims carrying several groups.
-  const multiGroup = item.groupIds.length > 1;
   return (
     <li className={styles["item"]}>
       <span className={styles["itemBody"]}>
@@ -130,35 +127,11 @@ function IntentItemRow({
           </span>
         ) : null}
       </span>
-      {item.groupIds.length > 0 ? (
-        <span className={styles["gotoSet"]}>
-          {item.groupIds.map((groupId) => {
-            const groupTitle = groupTitles[groupId];
-            const label =
-              groupTitle === undefined
-                ? t("brief.intent.jumpToGroup", { groupId })
-                : t("brief.intent.jumpToGroupTitled", {
-                    groupId,
-                    title: groupTitle,
-                  });
-            return (
-              <IconButton
-                autoWidth={multiGroup}
-                callout="left"
-                className={styles["goto"]}
-                key={groupId}
-                label={label}
-                onClick={() => jumpToGroup(groupId)}
-              >
-                ↳
-                {multiGroup ? (
-                  <span className={styles["gotoId"]}>{groupId}</span>
-                ) : null}
-              </IconButton>
-            );
-          })}
-        </span>
-      ) : null}
+      <GroupJumps
+        groupIds={item.groupIds}
+        groupTitles={groupTitles}
+        jumpToGroup={jumpToGroup}
+      />
     </li>
   );
 }
@@ -347,7 +320,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
         ) : null}
         {showsInference ? (
           <p className={styles["inferenceCaution"]}>
-            {t("brief.intent.inferenceCaution")}
+            {t("brief.inferenceCaution")}
           </p>
         ) : null}
       </CollapsibleBar>

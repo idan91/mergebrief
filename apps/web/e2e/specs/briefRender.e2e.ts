@@ -46,3 +46,22 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
   await waitForInteractive(page);
   expect(faults).toEqual([]);
 });
+
+test("opens the Product diff and shows a change as before and after", async ({
+  page,
+}) => {
+  await page.goto(FIXTURE_ROUTE_REV2);
+  await waitForInteractive(page);
+
+  const toggle = page.getByRole("button", { name: /Product diff/ });
+  await expect(toggle).toContainText("5 product changes");
+  await toggle.click();
+
+  const bar = page.getByTestId("product-diff-bar");
+  await expect(
+    bar.getByRole("heading", { name: "a link to the app is shared" }),
+  ).toBeVisible();
+  await expect(bar.getByText("Not shown in this diff")).toBeVisible();
+  await expect(bar.getByText("Did not exist before this PR")).toBeVisible();
+  await expect(bar.getByText("per the PR description")).toBeVisible();
+});

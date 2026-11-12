@@ -464,5 +464,49 @@
     ],
     "deviations": [],
     "maskedFixes": []
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [
+      {
+        "when": "a keyboard user opens the brief page",
+        "before": "Focus started at the top of the document, ahead of the header.",
+        "after": "A skip-to-content link is the first stop, and the brief body takes focus on load.",
+        "affects": "user-flow",
+        "beforeSource": "diff",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a reader presses `J`, `K` or `?`",
+        "before": "The brief page had no keyboard shortcuts.",
+        "after": "`J` and `K` step through chunks, and `?` opens the shortcuts modal.",
+        "affects": "user-flow",
+        "beforeSource": "did-not-exist",
+        "groupIds": ["g1", "g4"]
+      },
+      {
+        "when": "faint text is drawn on the front door",
+        "before": "The faint text token failed the contrast ratio.",
+        "after": "The token is lifted to a passing contrast ratio.",
+        "affects": "user-flow",
+        "beforeSource": "pr-text",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a link to the app is shared",
+        "after": "The link unfurls with a favicon, a description and OG/Twitter tags.",
+        "affects": "integration",
+        "beforeSource": "did-not-exist",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a screen reader user lands on the brief page",
+        "after": "Reading starts at the brief summary, inside the `#main-content` landmark.",
+        "affects": "user-flow",
+        "beforeSource": "not-shown",
+        "groupIds": ["g1"]
+      }
+    ],
+    "hasMore": false
   }
 }

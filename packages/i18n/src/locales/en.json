@@ -511,8 +511,6 @@
       "emptyNeedsALook": "Nothing needs a look",
       "showAll": "Show all {{count}}",
       "showFewer": "Show fewer",
-      "jumpToGroup": "Go to change-group {{groupId}}",
-      "jumpToGroupTitled": "Go to change-group {{groupId}}: {{title}}",
       "deviations_one": "<0>{{count}}</0> deviation",
       "deviations_other": "<0>{{count}}</0> deviations",
       "unavailable": "Intent check unavailable: {{reason}}",
@@ -575,8 +573,33 @@
         "github": "GitHub",
         "notion": "Notion"
       },
-      "inferenceCaution": "AI-inferred. Verify against the ticket and the diff.",
       "alarmCaution": "AI-inferred tension. Check the diff and the ticket before acting on it."
+    },
+    "productDiff": {
+      "title": "Product diff",
+      "summary_one": "{{count}} product change",
+      "summary_other": "{{count}} product changes",
+      "summaryMore_one": "{{count}} product change*",
+      "summaryMore_other": "{{count}} product changes*",
+      "noneFound": "No product change found",
+      "unavailable": "Not available: this PR was read in parts",
+      "noneNote": "Nothing in this PR changes what a user, a caller or an operator gets for the same action.",
+      "unavailableNote": "The model did not read this PR's whole diff in one pass, so it states no before and no after.",
+      "before": "Before",
+      "after": "After",
+      "notShown": "Not shown in this diff",
+      "didNotExist": "Did not exist before this PR",
+      "perPrDescription": "per the PR description",
+      "moreNote": "* Only the most significant are listed. This PR has more product changes.",
+      "area": {
+        "userFlow": "User flow",
+        "apiContract": "API contract",
+        "businessRule": "Business rule",
+        "data": "Data",
+        "integration": "Integration",
+        "operations": "Operations",
+        "backgroundProcess": "Background process"
+      }
     },
     "toolbar": {
       "ariaLabelGroupStepper": "Step between change groups",
@@ -1115,6 +1138,9 @@
       "fileGone": "This file is no longer in this brief, so the draft can only be deleted.",
       "actionReanchorArmed": "Cancel re-anchor"
     },
+    "inferenceCaution": "AI-inferred. Verify against the code.",
+    "jumpToGroup": "Go to change-group {{groupId}}",
+    "jumpToGroupTitled": "Go to change-group {{groupId}}: {{title}}",
     "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.",
     "demoReadOnlyReason": "This brief is a public demo. Commenting, addressing flags and submitting a review are off.",
     "mobile": {

@@ -11,6 +11,8 @@ import styles from "./IconButton.module.scss";
 
 export const IconButtonVariants = {
   GHOST: "ghost",
+  /** The ghost with its edge drawn at rest, for a button that sits in a row of text. */
+  OUTLINE: "outline",
 } as const;
 export type IconButtonVariant = ValueOf<typeof IconButtonVariants>;
 

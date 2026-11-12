@@ -30,6 +30,10 @@
       }
     }
 
+    &[data-variant="outline"] {
+      border-color: var(--color-line-strong);
+    }
+
     &[data-size="sm"] {
       inline-size: functions.to-rem(24px);
       block-size: functions.to-rem(24px);

@@ -1,0 +1,130 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .item {
+    --strip-inner-radius: #{functions.inner-radius(var(--radius-md), 1px)};
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: var(--space-4);
+  }
+
+  .when {
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-3);
+    font-weight: 500;
+    line-height: var(--line-height-compact);
+    overflow-wrap: anywhere;
+  }
+
+  .area {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    white-space: nowrap;
+  }
+
+  .strip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    margin: 0;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+  }
+
+  .before,
+  .after {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-size-3);
+    line-height: var(--line-height-body);
+  }
+
+  .before {
+    padding-inline-start: var(--space-5);
+    color: var(--color-text-2);
+  }
+
+  .after {
+    position: relative;
+    border-inline-start: 1px solid var(--color-line-strong);
+    border-start-end-radius: var(--strip-inner-radius);
+    border-end-end-radius: var(--strip-inner-radius);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+  }
+
+  .label {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+  }
+
+  .text {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .arrow {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 0;
+    display: grid;
+    place-items: center;
+    inline-size: functions.to-rem(22px);
+    block-size: functions.to-rem(22px);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-circle);
+    background: var(--color-card);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-control);
+    translate: -50% -50%;
+  }
+
+  @include mixins.for-phone {
+    .head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: var(--space-1);
+    }
+
+    .area {
+      grid-row: 2;
+      grid-column: 1;
+    }
+
+    .strip {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .before,
+    .after {
+      padding-inline: var(--space-5);
+    }
+
+    .after {
+      border-block-start: 1px solid var(--color-line-strong);
+      border-inline-start: 0;
+      border-start-end-radius: 0;
+      border-end-start-radius: var(--strip-inner-radius);
+    }
+
+    .arrow {
+      inset-block-start: 0;
+      inset-inline: auto var(--space-5);
+      rotate: 90deg;
+      translate: 0 -50%;
+    }
+  }
+}

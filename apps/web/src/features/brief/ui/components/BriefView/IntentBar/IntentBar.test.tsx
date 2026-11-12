@@ -498,7 +498,7 @@ describe("IntentBar", () => {
   it("closes the panel with one inference caution below the buckets", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    const caution = "AI-inferred. Verify against the ticket and the diff.";
+    const caution = "AI-inferred. Verify against the code.";
     expect(screen.getAllByText(caution)).toHaveLength(1);
     const body = bodyText();
     expect(body.indexOf(caution)).toBeGreaterThan(
@@ -548,7 +548,7 @@ describe("IntentBar", () => {
       "parent epic spans several PRs",
     );
     expect(
-      screen.getByText("AI-inferred. Verify against the ticket and the diff."),
+      screen.getByText("AI-inferred. Verify against the code."),
     ).toBeTruthy();
   });
 });

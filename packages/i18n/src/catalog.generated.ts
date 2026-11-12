@@ -108,8 +108,6 @@ export type Catalog = typeof en & {
     };
     intent: (typeof en)["brief"]["intent"] & {
       showAll: "Show all {{count}}";
-      jumpToGroup: "Go to change-group {{groupId}}";
-      jumpToGroupTitled: "Go to change-group {{groupId}}: {{title}}";
       deviations_one: "<0>{{count}}</0> deviation";
       deviations_other: "<0>{{count}}</0> deviations";
       unavailable: "Intent check unavailable: {{reason}}";
@@ -130,6 +128,12 @@ export type Catalog = typeof en & {
         unsupported: "No {{tracker}} reader is configured on this deployment";
         unsupported_inline: "no {{tracker}} reader is configured on this deployment";
       };
+    };
+    productDiff: (typeof en)["brief"]["productDiff"] & {
+      summary_one: "{{count}} product change";
+      summary_other: "{{count}} product changes";
+      summaryMore_one: "{{count}} product change*";
+      summaryMore_other: "{{count}} product changes*";
     };
     toolbar: (typeof en)["brief"]["toolbar"] & {
       groupCount: "Group {{current}}/{{total}}";
@@ -272,6 +276,8 @@ export type Catalog = typeof en & {
       pending_one: "{{count}} item from your last review needs a re-look";
       pending_other: "{{count}} items from your last review need a re-look";
     };
+    jumpToGroup: "Go to change-group {{groupId}}";
+    jumpToGroupTitled: "Go to change-group {{groupId}}: {{title}}";
     mobile: (typeof en)["brief"]["mobile"] & {
       viewedSummary: "{{viewed}} of {{total}} viewed";
       chunkPosition: "Chunk {{current}} of {{total}}";
