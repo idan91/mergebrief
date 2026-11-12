@@ -37,6 +37,17 @@ export interface HunkSide {
   startLine?: number;
 }
 
+/**
+ * Where a side begins in its file. A hunk knows its first line; a snippet
+ * with no hunk behind it does not.
+ */
+export const SideStarts = {
+  FILE_START: "file-start",
+  MID_FILE: "mid-file",
+  UNKNOWN: "unknown",
+} as const;
+export type SideStart = ValueOf<typeof SideStarts>;
+
 export const Preludes = {
   BLOCK_COMMENT: "/*",
   OPEN_TAG: "<Prelude",
@@ -46,10 +57,21 @@ export const Preludes = {
   OPEN_ARGUMENTS: "a {\nb: f(",
   OPEN_KEYFRAMES: "@keyframes{",
   OPEN_KEYFRAMES_COMMENT: "@keyframes{\n/*",
+  OPEN_FRONTMATTER: "---",
+  OPEN_SCRIPT: "<script>",
+  OPEN_STYLE: "<style>",
+  OPEN_SCRIPT_TAG: "<script",
+  OPEN_STYLE_TAG: "<style",
+  OPEN_FRONTMATTER_COMMENT: "---\n/*",
+  OPEN_SCRIPT_COMMENT: "<script>\n/*",
+  OPEN_STYLE_COMMENT: "<style>\n/*",
 } as const;
 export type Prelude = ValueOf<typeof Preludes>;
 
-export type DerivedPrelude = Prelude | undefined;
+/** A style region composed with the stylesheet state the side starts in. */
+export type StyleRegionPrelude = `${typeof Preludes.OPEN_STYLE}\n${Prelude}`;
+
+export type DerivedPrelude = Prelude | StyleRegionPrelude | undefined;
 
 export const GrammarNames = {
   ASTRO: "astro",

@@ -1,9 +1,16 @@
 import {
+  deriveCommentedRegionPrelude,
+  deriveRegionPrelude,
+} from "./markup-region";
+import {
   GrammarNames,
   Preludes,
+  SideStarts,
   type DerivedPrelude,
   type GrammarName,
   type Prelude,
+  type SideStart,
+  type StyleRegionPrelude,
 } from "./types";
 
 const STATEMENT_ENDS = ["{", ";", "}"] as const;
@@ -29,6 +36,7 @@ const BLOCK_COMMENT_GRAMMARS = new Set<GrammarName>([
   GrammarNames.SCSS,
   GrammarNames.VUE,
   GrammarNames.ASTRO,
+  GrammarNames.HTML,
   GrammarNames.SQL,
   GrammarNames.GRAPHQL,
   GrammarNames.C,
@@ -71,6 +79,7 @@ const BLOCK_COMMENT_CLOSER = "*/";
 const CLOSER_AT_LINE_END = /\*\/(?=\s|$)/;
 const ATTRIBUTE_LINE = /^\s*[A-Za-z][\w-]*=(\{|"|')/;
 const TAG_CLOSE_LINE = /^\s*\/?>\s*$/;
+const STYLE_CLOSER_LINE = /^[ \t]*<\/style\s*>/im;
 const NOT_FOUND = -1;
 
 /**
@@ -84,6 +93,7 @@ const NOT_FOUND = -1;
 export function derivePrelude(
   text: string,
   grammar: GrammarName,
+  sideStart: SideStart = SideStarts.UNKNOWN,
 ): DerivedPrelude {
   if (startsInsideBlockComment(text, grammar)) {
     return deriveCommentPrelude(text, grammar);
@@ -95,7 +105,12 @@ export function derivePrelude(
     return Preludes.OPEN_TAG;
   }
 
-  return deriveRulePrelude(text, grammar);
+  const region = deriveRegionPrelude(text, grammar, sideStart);
+  if (region === Preludes.OPEN_STYLE) {
+    return deriveStyleRegionPrelude(text);
+  }
+
+  return region ?? deriveRulePrelude(text, grammar);
 }
 
 function startsInsideBlockComment(text: string, grammar: GrammarName): boolean {
@@ -113,10 +128,29 @@ function startsInsideBlockComment(text: string, grammar: GrammarName): boolean {
   return open === NOT_FOUND || close < open;
 }
 
-function deriveCommentPrelude(text: string, grammar: GrammarName): Prelude {
-  const closerEnd =
-    text.search(CLOSER_AT_LINE_END) + BLOCK_COMMENT_CLOSER.length;
-  const afterComment = deriveRulePrelude(text.slice(closerEnd), grammar);
+function deriveCommentPrelude(
+  text: string,
+  grammar: GrammarName,
+): Prelude | StyleRegionPrelude {
+  const commentEnd = findCommentEnd(text);
+  const commentedRegion = deriveCommentedRegionPrelude(
+    text.slice(0, commentEnd),
+    text.slice(commentEnd),
+    grammar,
+  );
+  if (commentedRegion === Preludes.OPEN_STYLE_COMMENT) {
+    return deriveStyleRegionPrelude(text);
+  }
+
+  return commentedRegion ?? deriveStylesheetCommentPrelude(text, grammar);
+}
+
+function deriveStylesheetCommentPrelude(
+  text: string,
+  grammar: GrammarName,
+): Prelude {
+  const textAfterComment = text.slice(findCommentEnd(text));
+  const afterComment = deriveRulePrelude(textAfterComment, grammar);
   if (afterComment === undefined) {
     return Preludes.BLOCK_COMMENT;
   }
@@ -125,6 +159,36 @@ function deriveCommentPrelude(text: string, grammar: GrammarName): Prelude {
   }
 
   return Preludes.OPEN_RULE_COMMENT;
+}
+
+function findCommentEnd(text: string): number {
+  return text.search(CLOSER_AT_LINE_END) + BLOCK_COMMENT_CLOSER.length;
+}
+
+/**
+ * A style region is a stylesheet, so a side there may also start inside a
+ * rule or a comment, and its prelude carries that state. Read from the top
+ * level, a side that closes a rule it never opened keeps the grammar from
+ * seeing the closing tag, and everything below it takes stylesheet colours.
+ */
+function deriveStyleRegionPrelude(text: string): Prelude | StyleRegionPrelude {
+  const closer = STYLE_CLOSER_LINE.exec(text);
+  const body = closer === null ? text : text.slice(0, closer.index);
+  const stylesheetState = deriveStylesheetState(body);
+  if (stylesheetState === undefined) {
+    return Preludes.OPEN_STYLE;
+  }
+
+  return `${Preludes.OPEN_STYLE}\n${stylesheetState}`;
+}
+
+/** Read with the nesting rules, which hold for a nested stylesheet of any dialect. */
+function deriveStylesheetState(body: string): Prelude | undefined {
+  if (startsInsideBlockComment(body, GrammarNames.SCSS)) {
+    return deriveStylesheetCommentPrelude(body, GrammarNames.SCSS);
+  }
+
+  return deriveRulePrelude(body, GrammarNames.SCSS);
 }
 
 /**
@@ -179,7 +243,10 @@ function opensMidTag(text: string, grammar: GrammarName): boolean {
  * or with no end in sight it may close a selector's `:is(` list instead.
  * Comments and strings are read past.
  */
-function deriveRulePrelude(text: string, grammar: GrammarName): DerivedPrelude {
+function deriveRulePrelude(
+  text: string,
+  grammar: GrammarName,
+): Prelude | undefined {
   if (!RULE_GRAMMARS.has(grammar)) {
     return undefined;
   }
@@ -281,7 +348,7 @@ function readDepthStep(character: string, bracket: Bracket): number {
 }
 
 /** Without a `;` a `prop:` start needs the space after its colon, or `a:hover,` would match. */
-function deriveUnendedPrelude(code: string): DerivedPrelude {
+function deriveUnendedPrelude(code: string): Prelude | undefined {
   const first = findFirstContentLine(code) ?? "";
 
   return SPACED_DECLARATION_START.test(first) ? Preludes.OPEN_RULE : undefined;
@@ -291,7 +358,7 @@ function deriveUnendedPrelude(code: string): DerivedPrelude {
 function deriveStatementPrelude(
   statement: string,
   grammar: GrammarName,
-): DerivedPrelude {
+): Prelude | undefined {
   const first = findFirstContentLine(statement) ?? "";
   const opensStatement =
     AT_RULE_START.test(first) || SCSS_VARIABLE_START.test(first);

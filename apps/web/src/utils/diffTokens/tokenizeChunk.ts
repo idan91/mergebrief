@@ -12,11 +12,13 @@ import { MERGEBRIEF_THEME_NAME } from "./theme";
 import { isContextKind } from "./utils";
 import { DiffLineKinds } from "types/diff-lines";
 import {
+  SideStarts,
   TokenizeModes,
   type TokenizableRow,
   type GrammarName,
   type RowTokenLine,
   type RowTokenMap,
+  type SideStart,
   type TokenizeMode,
 } from "./types";
 
@@ -50,11 +52,19 @@ export function tokenizeChunkRows(
       highlighter,
       side.text.join("\n"),
       grammar,
-      side.startLine === 1,
+      resolveSideStart(side.startLine),
     ),
   );
 
   return mapTokensToRows(sides, tokensBySide);
+}
+
+function resolveSideStart(startLine: number | undefined): SideStart {
+  if (startLine === undefined) {
+    return SideStarts.UNKNOWN;
+  }
+
+  return startLine === 1 ? SideStarts.FILE_START : SideStarts.MID_FILE;
 }
 
 /**
@@ -113,9 +123,12 @@ export function tokenizeSide(
   highlighter: HighlighterCore,
   text: string,
   grammar: GrammarName,
-  atFileStart = false,
+  sideStart: SideStart = SideStarts.UNKNOWN,
 ): RowTokenLine[] {
-  const prelude = atFileStart ? undefined : derivePrelude(text, grammar);
+  const prelude =
+    sideStart === SideStarts.FILE_START
+      ? undefined
+      : derivePrelude(text, grammar, sideStart);
 
   const options: CodeToTokensBaseOptions = {
     lang: grammar,

@@ -12,6 +12,7 @@ import {
 import { DiffLineKinds } from "types/diff-lines";
 import {
   GrammarNames,
+  SideStarts,
   type DiffLine,
   type GrammarName,
   type RowTokenLine,
@@ -147,7 +148,7 @@ describe("tokenizeSide on css", () => {
       highlighter,
       ".badge {\n  line-height: 1;\n}",
       GrammarNames.SCSS,
-      true,
+      SideStarts.FILE_START,
     );
 
     expect(readClassIdFor(inside, "line-height")).toBe(
@@ -169,7 +170,7 @@ describe("tokenizeSide on css", () => {
       highlighter,
       [...selectors, "    color: red;", "  }"].join("\n"),
       GrammarNames.CSS,
-      true,
+      SideStarts.FILE_START,
     );
 
     expect(readClassIdFor(inside, ".badge:focus-visible")).toBe(
@@ -191,7 +192,7 @@ describe("tokenizeSide on css", () => {
       highlighter,
       [...lines, "  }"].join("\n"),
       GrammarNames.CSS,
-      true,
+      SideStarts.FILE_START,
     );
 
     expect(readClassIdFor(inside, ".badge:hover")).toBe(
@@ -213,7 +214,7 @@ describe("tokenizeSide on css", () => {
       highlighter,
       [".badge {", "  transition:", ...values, "  }"].join("\n"),
       GrammarNames.CSS,
-      true,
+      SideStarts.FILE_START,
     );
 
     expect(readClassIdFor(inside, "ease")).toBe(readClassIdFor(whole, "ease"));
@@ -228,7 +229,7 @@ describe("tokenizeSide on css", () => {
         highlighter,
         [".badge {", "  /*", ...rest].join("\n"),
         grammar,
-        true,
+        SideStarts.FILE_START,
       );
 
       expect(readClassIdFor(inside, "* legacy")).toBe(
@@ -616,7 +617,12 @@ describe("tokenizeChunkRows on a stylesheet slice", () => {
         newLine: start + offset,
       }));
       const sliced = tokenizeChunkRows(highlighter, rows, grammar);
-      const whole = tokenizeSide(highlighter, source.join("\n"), grammar, true);
+      const whole = tokenizeSide(
+        highlighter,
+        source.join("\n"),
+        grammar,
+        SideStarts.FILE_START,
+      );
 
       const slicedInk = rows.map((_, offset) =>
         readInkClassIds(sliced.get(offset) ?? []),
