@@ -62,8 +62,8 @@ case whose properties could plausibly move. The flag takes a single
 id (a repeated `--case` silently keeps only the last), and each
 invocation overwrites `out/eval-report.{json,md}`, so capture the
 report between runs. Justify the selection in the PR body, e.g. an
-intent-check-only change is honestly gated by the eight `intent-*` cases
-(eight runs), and a Product-diff-only change by the five `product-diff-*`
+intent-check-only change is honestly gated by the nine `intent-*` cases
+(nine runs), and a Product-diff-only change by the five `product-diff-*`
 cases. Run the full suite for prompt-wide changes (shared prompt
 sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
@@ -210,7 +210,14 @@ precise-ticket diff and asks read as a GitHub issue reaches
 production: no key, the title only in the `title · state · labels`
 header, a body that never repeats it; the title at the issue's
 `ticketUrls` position must be the title alone, never the header line;
-a test proves the fixture matches the GitHub read's output).
+a test proves the fixture matches the GitHub read's output);
+`intent-jira-primary` (the precise-ticket PR and asks with the ticket in a
+Jira issue: the summary leads the header, the body opens on a `Parent:`
+line, and the PR body links the issue on the site; the PR is otherwise
+byte-identical to `intent-precise-ticket`. Its `jira-issue.json` is a
+hand-written response in Jira Cloud's shape, not one recorded from a live
+site, and a test reads it through the production Jira read and holds the
+fixture's primary equal to the result).
 
 The alarm buckets added a **twin pair**: `intent-masked-fix` and
 `intent-legit-demotion` share ONE diff byte-identically and differ in their

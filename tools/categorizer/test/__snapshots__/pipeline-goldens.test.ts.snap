@@ -15309,6 +15309,265 @@ exports[`brief goldens > intent-github-primary produces the recorded brief 1`] =
 }"
 `;
 
+exports[`brief goldens > intent-jira-primary produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches src/components/CopyButton/CopyButton.facade.ts, src/components/CopyButton/CopyButton.module.scss, src/components/CopyButton/CopyButton.stories.tsx, src/components/CopyButton/CopyButton.test.tsx, src/components/CopyButton/CopyButton.tsx, src/components/CopyButton/CopyButton.types.ts, src/components/CopyButton/index.ts.",
+      "title": "Changes under src/components/CopyButton",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches src/index.ts.",
+      "title": "Changes under src",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 48,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.facade.ts",
+      "id": "c1",
+      "loc": {
+        "added": 48,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 66,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.module.scss",
+      "id": "c2",
+      "loc": {
+        "added": 66,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 46,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.stories.tsx",
+      "id": "c3",
+      "loc": {
+        "added": 46,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 58,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.test.tsx",
+      "id": "c4",
+      "loc": {
+        "added": 58,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 68,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 68,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 35,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/CopyButton.types.ts",
+      "id": "c6",
+      "loc": {
+        "added": 35,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 2,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/CopyButton/index.ts",
+      "id": "c7",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 13,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/index.ts",
+      "id": "c8",
+      "loc": {
+        "added": 3,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "f31242334198ae0fe8c8dd93b929f0fa4d552300",
+    "commitCount": 5,
+    "head": "d1a7ef0bca50c6f293e923835629850f22e8ff50"
+  },
+  "concernView": [
+    {
+      "added": 326,
+      "concern": "implementation",
+      "deleted": 0
+    }
+  ],
+  "diffTotals": {
+    "added": 326,
+    "deleted": 0
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "inputFingerprint": "948cd6866a2eb96eb9c3408a0fa4a3e3e984bb58e185355fe28c612c86ca1665",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "primaryTicket": {
+      "foundIn": "description",
+      "header": "Copy-to-clipboard button for the design system · In Progress · Story · Medium · Test User · design-system, frontend · DS-42",
+      "key": "DS-42",
+      "reason": "",
+      "status": "read",
+      "title": "Copy-to-clipboard button for the design system",
+      "tracker": "jira",
+      "url": "https://acme.atlassian.net/browse/DS-42"
+    },
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 327,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\nAdds a \`CopyButton\` component to the design system. Writes text to the clipboard and reflects an \`idle -> copied/error -> idle\` status machine with an auto-resetting timeout. Folder structure, styling conventions, and facade pattern mirror \`SegmentedControl\` / \`StarRating\`.\\n\\n### Changelog\\n- \`CopyButton.types.ts\` — \`CopyStatuses\` (\`as const\` + \`ValueOf\`), \`CopyButtonProps\` (\`text\`, \`timeout\`, \`onCopy\`, \`onError\`, render-prop \`children\`).\\n- \`CopyButton.facade.ts\` — \`useCopyButtonFacade\`: async \`navigator.clipboard.writeText\`, status state, timeout reset with unmount cleanup, \`useStableCallback\`.\\n- \`CopyButton.tsx\` — semantic \`button\`, copy/check icon swap, \`data-status\` attribute, \`aria-live=\\"polite\\"\`, optional label render prop.\\n- \`CopyButton.module.scss\` — scoped CSS custom props, \`to-rem\`, \`button-reset\` mixin, per-status color tokens, theme-color TODOs.\\n- \`CopyButton.stories.tsx\` — Default, CustomTimeout, CustomLabels.\\n- \`CopyButton.test.tsx\` — 5 vitest + RTL tests (idle, copy success, timeout reset, error path, custom label).\\n- Exported from \`src/index.ts\` and folder \`index.ts\`.\\n\\n### Notes\\n- Graceful fallback: throws (-> error state + \`onError\`) when the Clipboard API is unavailable rather than silently failing.\\n- Colors flagged with \`// TODO: theme color\`, matching existing placeholder convention.\\n\\n### Verification\\n- \`npx vitest run src/components/CopyButton\` — 5 passing.\\n- \`npx tsc --noEmit\` — clean for CopyButton (pre-existing Carousel error unrelated).\\n- \`npx biome check\` + \`stylelint\` — clean.\\n\\nTicket: https://acme.atlassian.net/browse/DS-42\\n",
+    "number": 7,
+    "repo": "Idan91/components",
+    "sha": "d1a7ef0bca50c6f293e923835629850f22e8ff50",
+    "title": "feat: Copy Button",
+    "url": "https://github.com/Idan91/components/pull/7"
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [],
+    "hasMore": false
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 8 changed file(s).",
+  "unattributed": []
+}"
+`;
+
 exports[`brief goldens > intent-legit-demotion produces the recorded brief 1`] = `
 "{
   "changeGroups": [
@@ -32375,6 +32634,41 @@ exports[`request goldens > intent-github-primary sends the recorded request dige
     "user": {
       "bytes": 13795,
       "sha256": "2b898aa675f8160c628e7e25d100d7061e2d8db76b4ad99daf05501e623f9679"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > intent-jira-primary sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10590,
+      "sha256": "38bdc613b0b503c6ad71534ee664825b7425df77c45d921722ae4e2b77b0bf7d"
+    },
+    "system": {
+      "bytes": 26077,
+      "sha256": "3ff7d80028f1ec806c72a7b34eb6e5d1690641bd0134f2364f2e16deebaf2e8d"
+    },
+    "user": {
+      "bytes": 14549,
+      "sha256": "028dcd875fdf2bd98f4f4a0be0bcade216a5d1d916936fe1e50152d5de1b998d"
+    }
+  },
+  {
+    "label": "product-diff",
+    "schema": {
+      "bytes": 1331,
+      "sha256": "033d6775708e9f1c19ce72d8a969d0c347b0cb5e6bc211992b935d5b88dae04d"
+    },
+    "system": {
+      "bytes": 5317,
+      "sha256": "b7925e0242106ff4b9fa402b2b09c6a25585d2d07282e0a7857390990141a44f"
+    },
+    "user": {
+      "bytes": 13832,
+      "sha256": "5631e32dd9d0d304c58bf9e56a9a7c5d3f0434b72b4567b9b13859f7eb28231f"
     }
   }
 ]"

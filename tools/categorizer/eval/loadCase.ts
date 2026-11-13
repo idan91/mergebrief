@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { z } from "zod/v4";
+import { TicketTrackers } from "types/trackers";
 import type { Mutable, Result } from "types/utils";
 import {
   ContextProviderTypes,
@@ -52,7 +53,7 @@ export const FixtureSchema = z.object({
       .object({
         url: z.string(),
         key: z.string().default(""),
-        tracker: z.enum(["github", "notion"]).default("github"),
+        tracker: z.enum(TicketTrackers).default(TicketTrackers.GITHUB),
         title: z.string().default(""),
         header: z.string().default(""),
         content: z.string(),

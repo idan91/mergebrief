@@ -53,6 +53,7 @@ describe("the shipped case set", () => {
       "intent-adversarial-ticket",
       "intent-broad-epic",
       "intent-github-primary",
+      "intent-jira-primary",
       "intent-legit-demotion",
       "intent-masked-fix",
       "intent-none-no-ticket",
