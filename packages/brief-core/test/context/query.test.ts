@@ -48,7 +48,7 @@ describe("buildContextQuery", () => {
     expect(query.primary).toMatchObject({
       number: 12,
       url: "https://github.com/acme/widget/issues/12",
-      foundIn: "description",
+      foundIn: "branch",
       closing: true,
     });
   });

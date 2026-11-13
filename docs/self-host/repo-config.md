@@ -114,8 +114,12 @@ trackers the repo uses:
   `issuesRepo` when set, else the PR's own repo.
 - When a PR names several references, ones on a listed tracker come
   first: in a Notion repo, `[ACME-12]` in the title outranks `#467`
-  in the description, which is usually a pull request. Within that pool a
-  closing keyword wins, then reading order, across boards alike.
+  in the description, which is usually a pull request. Within that pool
+  the title wins, then the branch name, then the description, across
+  boards and trackers alike: `[ACME-12]` in the title outranks a `WEB-3`
+  the description mentions in passing. A closing keyword (`Fixes WEB-3`)
+  puts its reference first among the description's own and never above
+  the title or the branch name.
 - An invalid block rejects the whole file, like any other key.
 
 ### `trustedBots:`, bots whose PRs generate without a click

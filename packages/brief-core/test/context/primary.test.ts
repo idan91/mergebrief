@@ -296,6 +296,89 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
     ).toBe("https://github.com/o/r/issues/12");
   });
 
+  it("after a skip an own branch key beats a description issue", async () => {
+    // Title "Follow-up to #465" (a PR), branch BRIEF-7-x, description "See #13".
+    const named: TicketReference = {
+      ...prNumber,
+      foundIn: "title",
+      closing: false,
+    };
+    const branchKey: TicketReference = {
+      tracker: "notion",
+      key: "BRIEF-7",
+      url: "https://www.notion.so/board/BRIEF-7",
+      foundIn: "branch",
+      closing: false,
+    };
+    const described: TicketReference = {
+      ...reference,
+      number: 13,
+      url: "https://github.com/o/r/issues/13",
+      closing: false,
+    };
+    const visited: string[] = [];
+    const read = stubRead(async (ref) => {
+      visited.push(ref.url);
+      return ref.number === 465
+        ? resolvedToPullRequest
+        : { ok: true, value: { ...snippet, source: ref.url } };
+    });
+    const { primaryTicket } = await fetchContextSnippets(
+      {
+        ...query,
+        trackers: [
+          { kind: "github" },
+          { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
+        ],
+        primary: named,
+        references: [named, branchKey, described],
+      },
+      [],
+      undefined,
+      { reads: stubReads(read) },
+    );
+    expect(visited).toEqual([named.url, branchKey.url]);
+    expect(
+      primaryTicket?.status === "read" && primaryTicket.snippet.source,
+    ).toBe(branchKey.url);
+  });
+
+  it("after a skip a repo listing no tracker tries GitHub first", async () => {
+    // Title "Follow-up to #465" (a PR), description "Spec: <notion page> ... See #13".
+    const named: TicketReference = {
+      ...prNumber,
+      foundIn: "title",
+      closing: false,
+    };
+    const page: TicketReference = {
+      tracker: "notion",
+      key: "",
+      url: `https://www.notion.so/${"a".repeat(32)}`,
+      foundIn: "description",
+      closing: false,
+    };
+    const described: TicketReference = {
+      ...reference,
+      number: 13,
+      url: "https://github.com/o/r/issues/13",
+      closing: false,
+    };
+    const visited: string[] = [];
+    const read = stubRead(async (ref) => {
+      visited.push(ref.url);
+      return ref.number === 465
+        ? resolvedToPullRequest
+        : { ok: true, value: { ...snippet, source: ref.url } };
+    });
+    await fetchContextSnippets(
+      { ...query, primary: named, references: [named, page, described] },
+      [],
+      undefined,
+      { reads: stubReads(read) },
+    );
+    expect(visited).toEqual([named.url, described.url]);
+  });
+
   it("yields no primary when every reference is a pull request", async () => {
     const read = stubRead(async () => resolvedToPullRequest);
     const { primaryTicket } = await fetchContextSnippets(

@@ -18,6 +18,12 @@ deprecation note here, removal only at a major.
 - **Added** `jira` to `intentCheck.primaryTicket.tracker` on `read-brief`: the
   primary ticket is a key of a Jira project the repository lists. Clients that
   treat the tracker set as closed must accept the new value.
+- **Changed** which reference becomes `intentCheck.primaryTicket` on
+  `read-brief`: a ticket the title names outranks one the branch names, which
+  outranks one the description names, closing keyword or not. The keyword now
+  only puts its reference first among the description's own. A ticket named in
+  several places reports the first of them in `foundIn`. Briefs already stored
+  keep their ticket until regenerated.
 
 ## dev (2026-11-04)
 

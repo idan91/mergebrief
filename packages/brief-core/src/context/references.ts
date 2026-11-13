@@ -58,17 +58,19 @@ function scanLocation(
 }
 
 /**
- * Every ticket reference in the PR, description first, then title, then
- * branch, each location in reading order; one entry per identity, the
- * first occurrence kept. Pure: no I/O, no config reads.
+ * Every ticket reference in the PR, title first, then branch, then
+ * description, each location in reading order; one entry per identity, the
+ * first occurrence kept. The title and the branch lead because they name
+ * the PR's own ticket, where a description also names tickets in passing.
+ * Pure: no I/O, no config reads.
  */
 export function collectTicketReferences(
   input: TicketReferenceInput,
 ): TicketReference[] {
   const ordered = [
-    ...scanLocation(input.body, ReferenceLocations.DESCRIPTION, input),
     ...scanLocation(input.title, ReferenceLocations.TITLE, input),
     ...scanLocation(input.branch, ReferenceLocations.BRANCH, input),
+    ...scanLocation(input.body, ReferenceLocations.DESCRIPTION, input),
   ];
   // One entry per identity, first location kept; a later closing-keyword
   // mention of the same ticket still marks it, or the closing rule would
@@ -107,8 +109,10 @@ export function canonicalizeTicketUrl(
 /**
  * The one ticket the PR is about. References to the repo's own trackers come
  * first (a bare `#N` in a Notion repo is usually a pull request); within
- * that pool a closing-keyword reference wins, else the first, since the list
- * is already in description, title, branch order.
+ * that pool the first in the title or the branch wins, since the list is
+ * already in title, branch, description order. A closing keyword only
+ * orders the description's own references: it can mark a side fix, so it
+ * never outranks the title or the branch.
  */
 export function resolvePrimaryTicket(
   references: readonly TicketReference[],
@@ -119,5 +123,8 @@ export function resolvePrimaryTicket(
   );
   const pool = own.length > 0 ? own : references;
 
-  return pool.find((reference) => reference.closing) ?? pool[0];
+  const named = pool.find(
+    (reference) => reference.foundIn !== ReferenceLocations.DESCRIPTION,
+  );
+  return named ?? pool.find((reference) => reference.closing) ?? pool[0];
 }

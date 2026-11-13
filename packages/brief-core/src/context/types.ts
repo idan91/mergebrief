@@ -47,7 +47,7 @@ export interface ContextQuery {
   readonly jiraSite?: JiraSite | undefined;
   /** The one ticket this PR is about, when a reference was found. */
   readonly primary?: TicketReference | undefined;
-  /** Every reference found, primary first; the read falls through when the primary is not a ticket. */
+  /** Every reference found, in title, branch, description order; the read falls through them when the primary is not a ticket. */
   readonly references: readonly TicketReference[];
 }
 

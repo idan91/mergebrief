@@ -143,17 +143,20 @@ async function readPrimaryTicket(
   // Each candidate is read by its own tracker; references to a tracker this
   // root cannot read stay text. A reference that resolves to a pull request
   // is not a ticket: it is skipped and the next reference becomes the
-  // primary, in the parser's order, the primary's tracker ranked first.
-  // Every candidate shares the one budget, so the phase never outlives a
-  // single read.
+  // primary by the rule that picked the first. A primary on one of the
+  // repo's trackers ranks them all first; any other primary ranks its own
+  // tracker first, as a repo listing none ranks GitHub. Every candidate
+  // shares the one budget, so the phase never outlives a single read.
   let remainingReferences = query.references.filter(
     (candidate) => reads[candidate.tracker] !== undefined,
   );
+  const ownTrackers = query.trackers.map((tracker) => tracker.kind);
+  const rankedTrackers = ownTrackers.includes(reference.tracker)
+    ? ownTrackers
+    : [reference.tracker];
   const deadline = Date.now() + timeoutMs;
   for (let tried = 0; tried < MAX_PRIMARY_CANDIDATES; tried += 1) {
-    const candidate = resolvePrimaryTicket(remainingReferences, [
-      reference.tracker,
-    ]);
+    const candidate = resolvePrimaryTicket(remainingReferences, rankedTrackers);
     const read = candidate === undefined ? undefined : reads[candidate.tracker];
     if (candidate === undefined || read === undefined) {
       return undefined;

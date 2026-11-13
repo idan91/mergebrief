@@ -255,7 +255,7 @@ describe("collectTicketReferences: shapes", () => {
       makeInput({ title: "#5", body: "closes #5 and #5", branch: "5-x" }),
     );
     expect(refs).toHaveLength(1);
-    expect(refs[0]?.foundIn).toBe("description");
+    expect(refs[0]).toMatchObject({ foundIn: "title", closing: true });
   });
 });
 
@@ -395,7 +395,7 @@ describe("collectTicketReferences: jira links", () => {
         key: "ACME-12",
         url: JIRA_ISSUE_URL,
         projectKeys: JIRA_TRACKER.projectKeys,
-        foundIn: "description",
+        foundIn: "title",
         closing: false,
       },
     ]);
@@ -480,20 +480,38 @@ describe("resolvePrimaryTicket", () => {
     expect(resolvePrimaryTicket([])).toBeUndefined();
   });
 
-  it("prefers the description over the title over the branch", () => {
+  it("prefers the title over the branch over the description", () => {
     const refs = collectTicketReferences(
       makeInput({ title: "#1", body: "see #2", branch: "3-x" }),
     );
-    expect(resolvePrimaryTicket(refs)?.number).toBe(2);
-    const noBody = collectTicketReferences(
-      makeInput({ title: "#1", branch: "3-x" }),
+    expect(resolvePrimaryTicket(refs)?.number).toBe(1);
+    const noTitle = collectTicketReferences(
+      makeInput({ body: "see #2", branch: "3-x" }),
     );
-    expect(resolvePrimaryTicket(noBody)?.number).toBe(1);
-    const branchOnly = collectTicketReferences(makeInput({ branch: "3-x" }));
-    expect(resolvePrimaryTicket(branchOnly)?.number).toBe(3);
+    expect(resolvePrimaryTicket(noTitle)?.number).toBe(3);
+    const bodyOnly = collectTicketReferences(makeInput({ body: "see #2" }));
+    expect(resolvePrimaryTicket(bodyOnly)?.number).toBe(2);
   });
 
-  it("a closing keyword in the description beats reading order", () => {
+  it("a title key beats a closing keyword in the description", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        title: "[BRIEF-239] x",
+        body: "Also fixes BRIEF-240",
+        trackers: [NOTION],
+      }),
+    );
+    expect(resolvePrimaryTicket(refs, [NOTION.kind])?.key).toBe("BRIEF-239");
+  });
+
+  it("a branch reference beats a closing keyword in the description", () => {
+    const refs = collectTicketReferences(
+      makeInput({ body: "Fixes #2", branch: "3-x" }),
+    );
+    expect(resolvePrimaryTicket(refs)?.number).toBe(3);
+  });
+
+  it("a closing keyword beats reading order inside the description", () => {
     const refs = collectTicketReferences(
       makeInput({ body: "Related: #1.\n\nFixes #2" }),
     );
@@ -518,11 +536,14 @@ describe("resolvePrimaryTicket", () => {
     expect(resolvePrimaryTicket(refs)?.number).toBe(2);
   });
 
-  it("a closing keyword in the title does not outrank the description", () => {
+  it("a closing keyword counts in the description only", () => {
     const refs = collectTicketReferences(
-      makeInput({ title: "fixes #9", body: "see #4" }),
+      makeInput({ title: "#9 then fixes #8" }),
     );
-    expect(resolvePrimaryTicket(refs)?.number).toBe(4);
+    expect(refs.map((r) => [r.number, r.closing])).toEqual([
+      [9, false],
+      [8, false],
+    ]);
   });
 
   it("with a notion tracker, a closing #N still loses to a key", () => {

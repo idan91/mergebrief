@@ -348,7 +348,7 @@ A mention of a ticket found in the PR description, PR title, or branch name: a *
 _Avoid_: linked ticket (ambiguous with the generic linked context), issue link
 
 **Primary ticket**:
-The one **Ticket reference** the brief treats as the ticket this PR is about, chosen by precedence: references to the repo's configured tracker first, then a closing-keyword reference in the description, then description, title, branch name in reading order. Only the primary is fetched and shown to the model. An unreadable primary stays primary and is reported as unread.
+The one **Ticket reference** the brief treats as the ticket this PR is about, chosen by precedence: references to the repo's configured tracker first, then title, branch name, description, each in reading order. The title and the branch name lead because they name the PR's own ticket, where a description also names tickets in passing. Inside the description a reference after a closing keyword comes first; it never outranks the title or the branch name, since it can mark a side fix. Only the primary is fetched and shown to the model. An unreadable primary stays primary and is reported as unread.
 _Avoid_: main ticket, parent ticket, epic
 
 **Ticket key**:
