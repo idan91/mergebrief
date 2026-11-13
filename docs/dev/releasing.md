@@ -93,7 +93,7 @@ Five jobs. `cli` and `image` run in parallel after `verify`; `npm` waits for
 4. **image** pushes `ghcr.io/idan91/mergebrief:X.Y.Z` for linux/amd64 and
    linux/arm64, and tags it `latest` only when `verify` placed it there.
 5. **release** creates a draft Release, uploads `version.json`, the two
-   compose files with the exact image pin, and `.env.example` as it is under the name `env.example`,
+   compose files with the exact image pin, `.env.example` as it is under the name `env.example`, and `mergebrief.config.example.yaml`,
    then publishes, passing `--latest` by placement. `version.json` is built
    only for the highest stable release, because every instance reads
    `releases/latest/download/version.json`.

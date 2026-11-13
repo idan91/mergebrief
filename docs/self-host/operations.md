@@ -93,7 +93,7 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=cust
    until someone migrates.
 2. **Fetch the release's compose file.** It replaces yours byte for byte
    and pins that release's exact image tag. Your own edits (ports, volumes,
-   limits, a config mount) live in `docker-compose.override.yml`, which
+   limits) live in `docker-compose.override.yml`, which
    compose merges on its own (through its `COMPOSE_FILE` entry on an
    external database) and the upgrade never touches. `.env` stays as it
    is.

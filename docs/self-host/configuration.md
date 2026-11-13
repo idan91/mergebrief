@@ -109,7 +109,7 @@ it.
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `MERGEBRIEF_CONFIG` | api, worker | unset | no | Path to `mergebrief.config.yaml`. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
+| `MERGEBRIEF_CONFIG` | api, worker | unset; `/app/mergebrief.config.yaml` under compose | no | Path to `mergebrief.config.yaml`. `docker-compose.yml` sets it to the file it mounts, so a value in `.env` reaches host processes only. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
 | `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable. A provider whose key variable is unset or empty refuses boot. |
 | `OPENAI_API_KEY` | worker | none | with `provider: openai` | The `openai` provider's default key variable; same rules. |
 | `OPENROUTER_API_KEY` | worker | none | with `provider: openrouter` | The `openrouter` provider's default key variable; same rules. |
@@ -266,8 +266,9 @@ A variable set to an empty string reads as unset, with these exceptions:
 
 `MERGEBRIEF_CONFIG` locates it. No file runs the defaults below; an empty
 file does the same. Those defaults name no Operator, so nobody can sign in
-until the file lists one. The image carries no config file, so mount it into
-`api` and `worker` ([The config file](./generators.md#the-config-file)).
+until the file lists one. The image carries no config file: `docker-compose.yml`
+mounts the one beside it into `api` and `worker`
+([The config file](./generators.md#the-config-file)).
 Edits apply on restart. A credential is never a value here: the file names
 the variable that holds it.
 

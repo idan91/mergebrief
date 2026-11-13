@@ -88,8 +88,8 @@ no config file refuses everyone, you included, and the api logs
 `gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under
 `operators` or `allowed.users`, or list its organization under `allowed.accounts`,
 then restart the api. Never take an id from someone else's link or message without
-checking whose it is. Check that `MERGEBRIEF_CONFIG` names the
-file and that `api` and `worker` both mount it.
+checking whose it is. Under compose the file is the `mergebrief.config.yaml`
+beside `docker-compose.yml`; on the host, check that `MERGEBRIEF_CONFIG` names it.
 
 ## Sign-in does not stick
 

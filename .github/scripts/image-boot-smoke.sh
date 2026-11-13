@@ -64,12 +64,12 @@ GITHUB_OAUTH_CLIENT_SECRET=smoke-oauth-secret
 SESSION_KEY_V1=$(openssl rand -base64 32)
 PUBLIC_BASE_URL=http://localhost:3000
 MERGEBRIEF_API_HOST=0.0.0.0
-MERGEBRIEF_CONFIG=mergebrief.config.yaml
+MERGEBRIEF_CONFIG=/app/mergebrief.config.yaml
 ANTHROPIC_API_KEY=sk-ant-smoke-not-real
 EOF
 key="$(cat "$work/app.pem")"
 
-# The instance config, mounted where compose mounts it. The update check is
+# The instance config, mounted and named as compose does. The update check is
 # off so the smoke never fetches the release manifest.
 cat > "$work/mergebrief.config.yaml" <<EOF
 updateCheck:

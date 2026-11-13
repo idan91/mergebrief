@@ -116,7 +116,8 @@ How processes find it:
 
 | Surface | Mechanism |
 |---|---|
-| worker + api | `MERGEBRIEF_CONFIG=mergebrief.config.yaml`; relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
+| worker + api under compose | `docker-compose.yml` mounts `./mergebrief.config.yaml` at `/app/mergebrief.config.yaml` and sets `MERGEBRIEF_CONFIG` to that path; a missing file stops `up` |
+| worker + api on the host | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`; relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
 | categorizer CLIs | explicit `--config <path>` only; they never read `MERGEBRIEF_CONFIG` (`pnpm -C tools/categorizer categorize --config ../../mergebrief.config.yaml <pr-url>` also doubles as a fast config validator; the path is relative to `tools/categorizer`) |
 
 **Path form**: a relative `MERGEBRIEF_CONFIG` is resolved
@@ -125,24 +126,16 @@ working directory containing `pnpm-workspace.yaml`), never against bare
 cwd (the worker runs from `apps/worker`, the api from `apps/api`;
 cwd-relative would let one env value silently name different files). So
 `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
-file everywhere, local and dockerized alike: the docker image is a full
-workspace checkout, so the anchor holds there too. Absolute paths pass
-through unchanged. No workspace root above cwd refuses boot and points at
-absolute paths. The image carries no config file, so whenever
-`MERGEBRIEF_CONFIG` names one, mount it into `api` and `worker` from
-`docker-compose.override.yml`. Leave `docker-compose.yml` alone: an
-upgrade replaces it ([compose.md](./compose.md#what-the-host-holds)).
+file for every host process. Absolute paths pass through unchanged. No
+workspace root above cwd refuses boot and points at absolute paths.
 
-```yaml
-# docker-compose.override.yml
-services:
-  api:
-    volumes:
-      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-  worker:
-    volumes:
-      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-```
+The image carries no config file. Under compose, `docker-compose.yml` mounts
+the `mergebrief.config.yaml` beside it read-only into `api` and `worker` and
+sets `MERGEBRIEF_CONFIG` to the mounted path, whatever `.env` says. A missing
+file stops `docker compose up` with `bind source path does not exist`. To
+read a file from somewhere else, replace the mount's source in
+`docker-compose.override.yml`; leave `docker-compose.yml` alone, an upgrade
+replaces it ([compose.md](./compose.md#what-the-host-holds)).
 
 The containers run as UID 1000, so that user must be able to read the file.
 Under a restrictive `umask`, or when root created it, run
@@ -555,11 +548,9 @@ otherwise take down the deployed worker. If you want a CLI provider
 locally AND a running compose worker, give the worker its own config: a
 worker-only `environment:` entry in `docker-compose.override.yml` pointing
 `MERGEBRIEF_CONFIG` at a separate file (with its own mount); an empty YAML file is a valid
-zero-config choice and gets you the anthropic default. (Note a compose
-`environment:` entry can override but never *unset* a var from `.env`,
-and set-but-empty is refused by design; a separate file is the
-mechanism, or keep `MERGEBRIEF_CONFIG` out of `.env` entirely and set it
-only in your local shell.)
+zero-config choice and gets you the anthropic default. The `MERGEBRIEF_CONFIG`
+in `.env` reaches only host processes, since compose sets its own for the
+containers.
 
 Isolation per CLI (what a generation run may touch): every harness CLI,
 startup checks included, runs from a fresh empty directory under

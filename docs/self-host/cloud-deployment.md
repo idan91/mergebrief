@@ -272,7 +272,9 @@ cd ~/deploy/mergebrief
 umask 077
 curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
 curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
 cp .env.example .env
+cp mergebrief.config.example.yaml mergebrief.config.yaml
 ```
 
 For H2, E2 or E3, also download the external-database overlay from the same
@@ -338,7 +340,8 @@ events exactly as [github-app.md](github-app.md) specifies, then install the
 App on the test repository. Activate the webhook after readiness succeeds.
 
 An instance starts closed: nobody can sign in until its config names them.
-Create `mergebrief.config.yaml` with your GitHub user id, which
+In the `mergebrief.config.yaml` you copied in section 3, replace the
+placeholder under `operators` with your GitHub user id, which
 `gh api users/<login> --jq .id` prints
 ([who may start a brief](generators.md#who-may-start-a-brief)):
 
@@ -351,9 +354,9 @@ That covers repositories on your own account. For a test repository in an
 organization, also list the organization under `allowed.accounts`, or its
 deliveries start nothing.
 
-Set `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`, and mount the file
-read-only into API and worker from `docker-compose.override.yml`, as the Compose
-guide requires. The image does not contain your config.
+`docker-compose.yml` mounts the file read-only into API and worker and sets
+`MERGEBRIEF_CONFIG` for both. The image does not contain your config, and
+Compose refuses to start either service while the file is missing.
 
 For a first deployment, also choose a low daily generation cap in that file, following
 [generator configuration](generators.md). This limits generation count, not
@@ -647,8 +650,7 @@ Run these on the VM, from `~/deploy/mergebrief`.
    ```
 
 3. Create `docker-compose.override.yml`. If one already exists, merge these
-   entries into it instead of replacing it. The `mergebrief.config.yaml` mounts
-   are the ones section 4 asks for.
+   entries into it instead of replacing it.
 
    With a public certificate (Neon):
 
@@ -657,13 +659,9 @@ Run these on the VM, from `~/deploy/mergebrief`.
      api:
        secrets:
          - database-url
-       volumes:
-         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
      worker:
        secrets:
          - database-url
-       volumes:
-         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
    secrets:
      database-url:
        file: ./secrets/database-url
@@ -677,13 +675,11 @@ Run these on the VM, from `~/deploy/mergebrief`.
        secrets:
          - database-url
        volumes:
-         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
          - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
      worker:
        secrets:
          - database-url
        volumes:
-         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
          - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
    secrets:
      database-url:
@@ -885,6 +881,7 @@ git checkout --detach origin/main
 git rev-parse HEAD
 umask 077
 cp .env.example .env
+cp mergebrief.config.example.yaml mergebrief.config.yaml
 ```
 
 Record the full SHA with your test results: it fixes the build to the main

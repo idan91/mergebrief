@@ -7,6 +7,10 @@
 # own Postgres, layer docker-compose.external-db.yml on this file
 # (docs/self-host/compose.md).
 #
+# `mergebrief.config.yaml` beside this file is the instance config (copy
+# `mergebrief.config.example.yaml`). `api` and `worker` mount it read-only,
+# and `up` refuses to create them while the file is missing.
+#
 # Settings come from `.env` beside this file (copy `.env.example`). Compose uses
 # it for ${...} interpolation, and `api` and `worker` load it via env_file, so a
 # var you leave out of .env is ABSENT in the container: the config loaders treat
@@ -86,11 +90,21 @@ services:
       # Reachable from the web service, not from the host.
       MERGEBRIEF_API_HOST: 0.0.0.0
       MERGEBRIEF_API_PORT: "3001"
-    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image carries no config file (.dockerignore), so whenever
-    # MERGEBRIEF_CONFIG names one, mount it into api and worker from
-    # docker-compose.override.yml (docs/self-host/compose.md). Edits apply on
-    # restart.
+      # The mount below. Set here, so a host-oriented value in .env never
+      # reaches the container.
+      MERGEBRIEF_CONFIG: /app/mergebrief.config.yaml
+    # The instance config. The image carries none, so the file beside this
+    # one is mounted; edits apply on restart. `create_host_path: false` makes
+    # a missing file an error: left on, docker would create a root-owned
+    # DIRECTORY of that name on the host.
+    volumes:
+      - &instance-config
+        type: bind
+        source: ./mergebrief.config.yaml
+        target: /app/mergebrief.config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
     # Liveness only: /healthz is static, never /readyz here, or a DB blip
     # would trigger restart churn on the tier that owns the database.
     healthcheck:
@@ -178,6 +192,10 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
       # The Entry comment's deep-link base, the same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      MERGEBRIEF_CONFIG: /app/mergebrief.config.yaml
+    # The same file the api reads, see its mount note.
+    volumes:
+      - *instance-config
     # Worker containers. Concurrent generations = WORKER_COUNT x
     # (WORKER_CONCURRENCY + WORKER_LARGE_CONCURRENCY), both slot counts set in
     # .env (docs/self-host/generators.md, "Worker slots"). `docker compose up
@@ -185,7 +203,6 @@ services:
     # ports, so scaling needs nothing else.
     deploy:
       replicas: ${WORKER_COUNT:-1}
-    # See the api service's mergebrief.config.yaml mount note.
     # No HTTP surface to probe; liveness = the runner process itself.
     # on-failure: transient crashes (nonzero exit, e.g. a Postgres boot race)
     # self-heal; config errors exit 0 and STAY DOWN. The reason is the last

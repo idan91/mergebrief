@@ -459,7 +459,7 @@ jobs:
           if [ "$LATEST" = "true" ]; then
             pnpm --silent -C tools/release run version-json "$TAG" --known-tags "$KNOWN" --out "$OUT/version.json"
           fi
-          cp docker-compose.yml docker-compose.external-db.yml "$OUT/"
+          cp docker-compose.yml docker-compose.external-db.yml mergebrief.config.example.yaml "$OUT/"
           # GitHub renames an asset whose name starts with a period.
           cp .env.example "$OUT/env.example"
 
@@ -502,7 +502,7 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
-          ASSETS=(docker-compose.yml docker-compose.external-db.yml env.example)
+          ASSETS=(docker-compose.yml docker-compose.external-db.yml env.example mergebrief.config.example.yaml)
           if test -e "$RUNNER_TEMP/release/version.json"; then
             ASSETS+=(version.json)
           else

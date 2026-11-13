@@ -1,6 +1,8 @@
-# MergeBrief instance config. Copy to `mergebrief.config.yaml` (gitignored),
-# set MERGEBRIEF_CONFIG=mergebrief.config.yaml in `.env`, and mount the file
-# into `api` and `worker` (docs/self-host/compose.md). Edits apply on restart.
+# MergeBrief instance config. Copy to `mergebrief.config.yaml` (gitignored)
+# beside docker-compose.yml, which mounts it into `api` and `worker`
+# (docs/self-host/compose.md). Host processes (`pnpm app:host`) find it
+# through MERGEBRIEF_CONFIG=mergebrief.config.yaml in `.env`. Edits apply on
+# restart.
 #
 # You need this file: nobody can sign in until `operators` or `allowed` names
 # them. Every other block is optional. A commented line shows the default, or

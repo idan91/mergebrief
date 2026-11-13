@@ -88,12 +88,15 @@ With Docker installed:
 mkdir mergebrief && cd mergebrief
 curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
 curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
 cp .env.example .env    # GitHub App creds + your Anthropic key
+cp mergebrief.config.example.yaml mergebrief.config.yaml    # your GitHub user id under operators
 docker compose up -d --wait
 ```
 
-An instance starts closed, so nobody signs in until its config lists them under `operators`
-([setup](./docs/self-host/compose.md)). Once it does, that's the whole product running: Postgres, the web app on
+An instance starts closed: nobody signs in until `mergebrief.config.yaml` lists them under
+`operators`, and compose refuses to start `api` and `worker` without that file
+([setup](./docs/self-host/compose.md)). That's the whole product running: Postgres, the web app on
 http://localhost:3000, and a background worker that briefs **the pushes to
 every PR** on the repos your GitHub App is installed on, debounced and under
 the instance's daily cap, with no manual step for an author the repository

@@ -8,7 +8,9 @@ worker that generates Briefs as pull requests are pushed.
 mkdir mergebrief && cd mergebrief
 curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
 curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
 cp .env.example .env      # fill in (see the first-boot table below)
+cp mergebrief.config.example.yaml mergebrief.config.yaml   # your GitHub user id under operators
 docker compose up -d --wait
 ```
 
@@ -34,18 +36,12 @@ operators:
   - 583231
 ```
 
-Set `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`, mount the file in
-`docker-compose.override.yml`, and run `docker compose up -d --wait` again:
-
-```yaml
-services:
-  api:
-    volumes:
-      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-  worker:
-    volumes:
-      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-```
+`docker-compose.yml` mounts that file read-only into `api` and `worker` and sets
+`MERGEBRIEF_CONFIG` for both, so there is nothing to set in `.env`. The file
+must exist: without it `docker compose up` stops at `api` with
+`bind source path does not exist`. The containers run as UID 1000, so that user
+must be able to read it (`chmod 644 mergebrief.config.yaml` under a restrictive
+`umask`). Edits apply when `api` and `worker` restart.
 
 Installing the App does not start briefs by itself: a repository's deliveries count
 only when its account is listed. An organization needs a line under
@@ -70,8 +66,11 @@ One folder, no checkout of the repository and no build:
   it.
 - **`.env`**, your settings, started from the same release's `env.example`
   asset.
+- **`mergebrief.config.yaml`**, the instance config, started from the same
+  release's `mergebrief.config.example.yaml` asset. Compose mounts it into
+  `api` and `worker`.
 - **`docker-compose.override.yml`**, optional, for your own edits:
-  [ports](#moving-a-host-port), volumes, resource limits, a mount for `mergebrief.config.yaml`, an
+  [ports](#moving-a-host-port), volumes, resource limits, an
   external database. Compose merges it into `docker-compose.yml` on its
   own (on an external database, through `COMPOSE_FILE`: see below), and an
   upgrade never touches it.
@@ -186,7 +185,6 @@ Set these for a first boot:
 | `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | the App's OAuth client |
 | `SESSION_KEY_V1` | `openssl rand -base64 32` |
 | `ANTHROPIC_API_KEY` | your model key, or the variable your provider's [config](./generators.md#the-config-file) names |
-| `MERGEBRIEF_CONFIG` | `mergebrief.config.yaml`, so its `operators` can sign in (above) |
 | `PUBLIC_BASE_URL` | the origin reviewers browse; defaults to `http://localhost:3000` |
 | `POSTGRES_PASSWORD` | the raw output of `openssl rand -hex 24`, before the first boot ([why](#1-postgres-credentials)) |
 
@@ -204,7 +202,7 @@ in both.
 | daily generation cap (`spend.maxGenerationsPerDay`) | `mergebrief.config.yaml` | yaml only; no env and no `.mergebrief/` override |
 | provider, model, effort (`generator.*`) | `mergebrief.config.yaml` | yaml only; the key VALUE comes from the env var the yaml names |
 | credentials, DSN, public origin | `.env` | `DATABASE_URL_FILE` wins over `DATABASE_URL` |
-| `MERGEBRIEF_CONFIG` (the yaml's own path) | `.env` | unset = zero-config defaults |
+| `MERGEBRIEF_CONFIG` (the yaml's own path) | `docker-compose.yml` | set to the mounted file; `.env` holds it for host processes only |
 
 ## External Postgres (managed database)
 
