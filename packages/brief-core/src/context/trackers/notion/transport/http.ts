@@ -1,13 +1,12 @@
 import { z } from "zod/v4";
 import { TicketUnreadReasons } from "../../../../types";
-import {
-  failRead,
-  type NotionBlock,
-  type NotionBlockPage,
-  type NotionPage,
-  type NotionSession,
-  type NotionTransport,
-  type ReadResult,
+import { failRead, type ReadResult } from "../../read-failure";
+import type {
+  NotionBlock,
+  NotionBlockPage,
+  NotionPage,
+  NotionSession,
+  NotionTransport,
 } from "./port";
 
 const NOTION_API_BASE = "https://api.notion.com";

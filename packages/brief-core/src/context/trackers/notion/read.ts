@@ -9,17 +9,16 @@ import {
   type PrimarySnippet,
 } from "../../types";
 import { truncateToCodeUnits } from "../../utils";
+import { failRead, type ReadResult } from "../read-failure";
 import { refuseTrackerRead } from "../refusal";
 import { resolveTokenByName } from "../tokens";
 import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
-import {
-  failRead,
-  type NotionBlock,
-  type NotionDataSource,
-  type NotionPage,
-  type NotionSession,
-  type NotionTransport,
-  type ReadResult,
+import type {
+  NotionBlock,
+  NotionDataSource,
+  NotionPage,
+  NotionSession,
+  NotionTransport,
 } from "./transport";
 
 /** Same cap as a linked URL: a huge page must not blow up token cost. */

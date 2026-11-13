@@ -7,11 +7,9 @@ export const NotionTransports = {
 
 export { type NotionHttpTransportOptions } from "./http";
 export {
-  failRead,
   type NotionBlock,
   type NotionDataSource,
   type NotionPage,
   type NotionSession,
   type NotionTransport,
-  type ReadResult,
 } from "./port";
