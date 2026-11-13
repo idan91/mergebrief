@@ -85,7 +85,7 @@ export interface AppDeps {
   readonly attachmentQuota?: UploadQuotaLimits;
   /** Per-viewer GitHub calls the committed-file read may make; omitted = the defaults. */
   readonly committedLookupBudget?: CommittedLookupBudgetLimits;
-  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes: the largest file a media read streams; omitted = the default. */
+  /** `attachments.mediaMaxMb` in bytes: the largest file a media read streams; omitted = the default. */
   readonly mediaMaxBytes?: number | undefined;
   /** The dev-only local Brief directory, absolute; absent answers its paths 404. */
   readonly localBriefsDir?: string | undefined;

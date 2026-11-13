@@ -118,8 +118,8 @@ async function main(): Promise<void> {
       readInstallationPresence(githubApp, installationId),
     operatorToken,
     githubAppSlug: boot.github.appSlug,
-    attachmentQuota: boot.api.attachmentQuota,
-    mediaMaxBytes: boot.api.mediaMaxBytes,
+    attachmentQuota: boot.attachmentLimits.attachmentQuota,
+    mediaMaxBytes: boot.attachmentLimits.mediaMaxBytes,
     localBriefsDir,
     auth: {
       oauthClientId: boot.github.oauthClientId,

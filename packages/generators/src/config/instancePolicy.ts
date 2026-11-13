@@ -3,6 +3,15 @@ import type { DraftPolicy, Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import { validateAllowedBlock, type AllowedAccess } from "./allowed";
 import {
+  DEFAULT_ATTACHMENTS_SETTINGS,
+  validateAttachmentsBlock,
+  type AttachmentsSettings,
+} from "./attachments";
+import {
+  listMovedVariables,
+  MOVED_ATTACHMENT_VARIABLES,
+} from "./moved-variables";
+import {
   NO_OPERATORS,
   validateOperatorsBlock,
   type OperatorIds,
@@ -24,7 +33,7 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
 
 /**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
- * `drafts`, `spend`, `operators` and `allowed` blocks out of
+ * `drafts`, `spend`, `operators`, `allowed` and `attachments` blocks out of
  * `mergebrief.config.yaml`.
  * Deliberately tolerant of everything else in the file. An invalid generator
  * block or an unknown root key is the FULL loader's (worker's) problem; the
@@ -46,6 +55,8 @@ export interface LoadedInstancePolicy {
   readonly operatorIds: OperatorIds;
   /** Who besides Operators may use the instance; absent = nobody. */
   readonly allowedAccess: AllowedAccess | undefined;
+  /** The upload and media limits the file sets; the api defaults the rest. */
+  readonly attachments: AttachmentsSettings;
   /** The file the policy came from; null for zero-config defaults. */
   readonly source: string | null;
 }
@@ -56,6 +67,7 @@ export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   spendPolicy: DEFAULT_SPEND_POLICY,
   operatorIds: NO_OPERATORS,
   allowedAccess: undefined,
+  attachments: DEFAULT_ATTACHMENTS_SETTINGS,
 };
 
 /**
@@ -107,6 +119,11 @@ export function validateDraftsBlock(
 export function loadInstancePolicy(
   env: Record<string, string | undefined>,
 ): Result<LoadedInstancePolicy, ConfigError> {
+  const movedVariables = listMovedVariables(env, MOVED_ATTACHMENT_VARIABLES);
+  if (movedVariables.length > 0) {
+    return configError(movedVariables);
+  }
+
   const path = env["MERGEBRIEF_CONFIG"];
   if (path === undefined) {
     return { ok: true, value: { ...DEFAULT_INSTANCE_POLICY, source: null } };
@@ -155,6 +172,14 @@ export function loadInstancePolicy(
   if (!allowedAccess.ok) {
     return allowedAccess;
   }
+  const attachments = readBlock(
+    blocks["attachments"],
+    validateAttachmentsBlock,
+    DEFAULT_ATTACHMENTS_SETTINGS,
+  );
+  if (!attachments.ok) {
+    return attachments;
+  }
 
   return {
     ok: true,
@@ -163,6 +188,7 @@ export function loadInstancePolicy(
       spendPolicy: spendPolicy.value,
       operatorIds: operatorIds.value,
       allowedAccess: allowedAccess.value,
+      attachments: attachments.value,
       source: resolved.value,
     },
   };

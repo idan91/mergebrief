@@ -55,6 +55,13 @@ operators:
 #   # Detail calls a multi-call run keeps in flight. Lower it for a rate limit.
 #   detailConcurrency: 8
 #
+#   # false skips the revision narrative against the previous brief.
+#   revisionNarrative: true
+#
+#   # The share of a PR's changed lines, above 0 and at most 1, at which an
+#   # incremental span falls back to the full brief.
+#   hugeSpanRatio: 0.65
+#
 #   # API providers: the NAME of the variable holding the key. Defaults:
 #   # ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY.
 #   # apiKeyEnv: MY_PROVIDER_KEY_VAR
@@ -119,6 +126,15 @@ operators:
 #     tokenEnv: JIRA_API_TOKEN
 #     linkHosts:
 #       - jira.acme.example
+
+# --- Attachments and media --------------------------------------------------
+# What one reviewer may attach per window, and the largest video or image,
+# in megabytes, the api streams. docs/self-host/attachments.md
+# attachments:
+#   quotaFiles: 10
+#   quotaMb: 30
+#   quotaWindowMinutes: 10
+#   mediaMaxMb: 100
 
 # --- Link fetch (the links a PR description cites) ---------------------------
 # public (the default) | off | allowlist. `hosts` goes with allowlist only.

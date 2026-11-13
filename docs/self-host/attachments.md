@@ -39,13 +39,22 @@ exits 7 with the wait in its error line. Every attempt that reaches
 GitHub counts, a failed push included. A browser session and an API token of
 the same reviewer share one count.
 
-| Variable | Default | What it bounds |
-| --- | --- | --- |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` | `10` | Files per reviewer per window |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_MB` | `30` | Megabytes per reviewer per window; at least `10`, the size limit of one file |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | `10` | Window length; it starts at the reviewer's first upload |
+The limits are keys of the `attachments` block in `mergebrief.config.yaml`:
 
-Each is a positive whole number; unset or empty takes the default, anything
+| Key | Default | What it bounds |
+| --- | --- | --- |
+| `quotaFiles` | `10` | Files per reviewer per window |
+| `quotaMb` | `30` | Megabytes per reviewer per window; at least `10`, the size limit of one file |
+| `quotaWindowMinutes` | `10` | Window length; it starts at the reviewer's first upload |
+
+```yaml
+attachments:
+  quotaFiles: 10
+  quotaMb: 30
+  quotaWindowMinutes: 10
+```
+
+Each is a positive whole number; an omitted key takes the default, anything
 else refuses boot. The count lives in the api process: a restart clears it,
 and each replica counts on its own
 ([operations.md](operations.md#running-more-than-one-api)).
@@ -67,9 +76,9 @@ GitHub's short-lived address: each reply is a `206` of at most 4 MiB, and
 the player asks for the next piece itself. The API waits at most 15 seconds
 for GitHub's headers, and a reader who leaves cancels the upstream read.
 
-| Variable | Default | What it bounds |
+| Key | Default | What it bounds |
 | --- | --- | --- |
-| `MERGEBRIEF_MEDIA_MAX_MB` | `100` | The largest video or image, in megabytes, the API streams; judged on the file's full size, so a larger one answers `413 media-too-large` and shows as could not load |
+| `attachments.mediaMaxMb` | `100` | The largest video or image, in megabytes, the API streams; judged on the file's full size, so a larger one answers `413 media-too-large` and shows as could not load |
 
 At most 64 media streams are open per api process, whole images included;
 past that a read answers `503 media-streams-busy` until one ends. A piece
@@ -77,7 +86,7 @@ has 30 seconds from its headers to finish; past that a reader too slow for
 it gets the bytes served so far, and a player asks for the rest as its next
 piece. A whole image cannot be resumed, so it gets the time its full size
 takes at the same pace (about 1.1 Mbit/s), never under 30 seconds and never
-over the time `MERGEBRIEF_MEDIA_MAX_MB` takes; one of no stated size is
+over the time `attachments.mediaMaxMb` takes; one of no stated size is
 given the time of a 10 MB image, and one stating a size past the cap
 answers `413 media-too-large` before it holds a stream. A Git LFS pointer committed under a
 video name is refused like any file whose bytes are not the type its name
@@ -88,7 +97,7 @@ reads the original whole, checks from its bytes that it is a PNG, JPEG, WebP
 or GIF, and answers one WebP size (fitting 496x156, never enlarged, metadata
 dropped; an animated GIF gives its first frame) under the same headers.
 Nothing is cached. An SVG, a video, an original over 20 MB (or over
-`MERGEBRIEF_MEDIA_MAX_MB` when that is lower), one whose header declares
+`attachments.mediaMaxMb` when that is lower), one whose header declares
 more than 40 megapixels, or one the resizer cannot read answers `404`, and the page shows the original instead. At most 4 resizes
 run at once per api process; a request waits up to 10 seconds for a turn,
 then answers `503 thumbnails-busy`. The image carries the notices, licence

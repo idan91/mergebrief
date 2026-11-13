@@ -6,13 +6,5 @@ export interface RevisionNarrativeConfig {
   enabled: boolean;
 }
 
-const DISABLED_VALUES = new Set(["false", "0", "off", "no"]);
-
-/** Reads the `REVISION_NARRATIVE_ENABLED` value a composition root passes in. */
-export function parseRevisionNarrativeFlag(
-  raw: string | undefined,
-): RevisionNarrativeConfig {
-  const enabled =
-    raw === undefined ? true : !DISABLED_VALUES.has(raw.toLowerCase());
-  return { enabled };
-}
+/** The revision narrative runs unless the instance config turns it off. */
+export const DEFAULT_REVISION_NARRATIVE_ENABLED = true;

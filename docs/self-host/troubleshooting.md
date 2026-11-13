@@ -256,7 +256,7 @@ push a commit to the pull request: the comment is not posted retroactively.
   produced from the diff either way.
 - **"Too large to compare" or "too large to summarize":** the push changed more
   than 300 files, GitHub would not serve the diff, its changed lines reached
-  `HUGE_SPAN_RATIO`, or it exceeds one call's limits. The brief itself is complete
+  `generator.hugeSpanRatio`, or it exceeds one call's limits. The brief itself is complete
   ([generators.md](./generators.md#the-300-file-span-limit)).
 
 ## GitHub refused the URL fallback token

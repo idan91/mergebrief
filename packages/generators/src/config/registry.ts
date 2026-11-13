@@ -118,6 +118,22 @@ const fullRegenerationOption = z.enum(FullRegenerations).optional();
 /** Runs every brief through the multi-call path whatever the diff's size; off by default. */
 const forceMultiCallOption = z.boolean().optional();
 
+/** `false` skips the revision narrative against the previous brief; on by default. */
+const revisionNarrativeOption = z.boolean().optional();
+
+const HUGE_SPAN_RATIO_OUT_OF_RANGE = "must be a number above 0 and at most 1";
+
+/**
+ * The share of a pull request's changed lines at which an incremental span
+ * falls back to the full brief; the DEFAULT is brief-core's
+ * `DEFAULT_HUGE_SPAN_RATIO`.
+ */
+const hugeSpanRatioOption = z
+  .number(HUGE_SPAN_RATIO_OUT_OF_RANGE)
+  .gt(0, HUGE_SPAN_RATIO_OUT_OF_RANGE)
+  .lte(1, HUGE_SPAN_RATIO_OUT_OF_RANGE)
+  .optional();
+
 /**
  * Detail calls a multi-call run keeps in flight at once; the DEFAULT (8) is
  * brief-core's `DEFAULT_DETAIL_CONCURRENCY`.
@@ -158,6 +174,8 @@ const anthropicOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -182,6 +200,8 @@ const claudeCodeOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -200,6 +220,8 @@ const codexOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -230,6 +252,8 @@ const cursorOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -254,6 +278,8 @@ const openaiOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -278,6 +304,8 @@ const openrouterOptions = z
     effort: effortOption,
     fullRegeneration: fullRegenerationOption,
     forceMultiCall: forceMultiCallOption,
+    revisionNarrative: revisionNarrativeOption,
+    hugeSpanRatio: hugeSpanRatioOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();

@@ -8,6 +8,7 @@ import type {
 import type { LoadedInstancePolicy } from "generators/instance-policy";
 import type { DraftPolicy, Result, ValueOf } from "types";
 import type { ApiConfig } from "../config";
+import type { AttachmentLimits } from "./attachment-limits";
 
 /** Process exit codes the two entries share. A service's config error exits
  * SUCCESS on purpose: a restart can never fix one, so under
@@ -27,6 +28,7 @@ export interface BootConfig {
   readonly spendPolicy: LoadedInstancePolicy["spendPolicy"];
   readonly operatorIds: LoadedInstancePolicy["operatorIds"];
   readonly allowedAccess: LoadedInstancePolicy["allowedAccess"];
+  readonly attachmentLimits: AttachmentLimits;
 }
 
 /** The two values the migrate entry loads: nothing about GitHub, sessions

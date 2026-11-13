@@ -371,6 +371,54 @@ describe("detailConcurrency on the generator block", () => {
   });
 });
 
+describe("generation behaviour on the generator block", () => {
+  it("leaves revisionNarrative and hugeSpanRatio undefined when omitted", () => {
+    const parsed = GeneratorConfigSchema.safeParse({
+      provider: Providers.ANTHROPIC,
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+    expect(parsed.data.revisionNarrative).toBeUndefined();
+    expect(parsed.data.hugeSpanRatio).toBeUndefined();
+  });
+
+  it("parses revisionNarrative as a boolean", () => {
+    const parsed = GeneratorConfigSchema.safeParse({
+      provider: Providers.OPENAI,
+      model: "gpt-5.2",
+      revisionNarrative: false,
+    });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.revisionNarrative).toBe(false);
+  });
+
+  it("parses a hugeSpanRatio above 0 and at most 1", () => {
+    for (const ratio of [0.01, 0.5, 1]) {
+      const parsed = GeneratorConfigSchema.safeParse({
+        provider: Providers.ANTHROPIC,
+        hugeSpanRatio: ratio,
+      });
+      expect(parsed.success && parsed.data.hugeSpanRatio).toBe(ratio);
+    }
+  });
+
+  it.each([0, -0.2, 1.5])("rejects a hugeSpanRatio of %s", (ratio) => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      hugeSpanRatio: ratio,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("hugeSpanRatio");
+    expect(text).not.toContain("unrecognized");
+  });
+});
+
 describe("fullRegeneration on the generator block", () => {
   // Minimal valid block per adapter; openai/openrouter require a model.
   const minimalBlocks = [

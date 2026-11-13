@@ -54,7 +54,7 @@ export {
   writeComparisonMarks,
   type ComparisonMarks,
 } from "./diff/comparison";
-export { isHugeSpan, parseHugeSpanRatio } from "./generation/huge-span";
+export { DEFAULT_HUGE_SPAN_RATIO, isHugeSpan } from "./generation/huge-span";
 export {
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
   PARKED_ATTRIBUTE_CANDIDATES,
@@ -63,7 +63,7 @@ export {
   type RepoContext,
 } from "./generation/repo-context";
 export {
-  parseRevisionNarrativeFlag,
+  DEFAULT_REVISION_NARRATIVE_ENABLED,
   type RevisionNarrativeConfig,
 } from "./generation/config";
 export {

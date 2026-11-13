@@ -7,13 +7,13 @@ import {
   buildContextQuery,
   categorizeRevisionNarrative,
   countChangedLines,
+  DEFAULT_HUGE_SPAN_RATIO,
+  DEFAULT_REVISION_NARRATIVE_ENABLED,
   fetchContextSnippets,
   generateBrief,
   isHugeSpan,
   listReadableTrackers,
-  parseHugeSpanRatio,
   parsePrUrl,
-  parseRevisionNarrativeFlag,
   splitDiffByFile,
   writeComparisonMarks,
   type ContextProvider,
@@ -46,7 +46,9 @@ import {
   DEFAULT_CONTEXT_SOURCES,
   DEFAULT_LINK_FETCH,
   defaultGeneratorConfig,
+  listMovedVariables,
   loadGeneratorConfigFile,
+  MOVED_GENERATOR_VARIABLES,
   type ContextSourcesConfig,
   type Effort,
   type Generator,
@@ -708,9 +710,12 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
-  const hugeSpanRatio = parseHugeSpanRatio(process.env["HUGE_SPAN_RATIO"]);
-  if (!hugeSpanRatio.ok) {
-    console.error(`HUGE_SPAN_RATIO: ${hugeSpanRatio.error}`);
+  const movedVariables = listMovedVariables(
+    process.env,
+    MOVED_GENERATOR_VARIABLES,
+  );
+  if (movedVariables.length > 0) {
+    console.error(movedVariables.join("; "));
     process.exit(1);
   }
   // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent → the
@@ -766,10 +771,13 @@ async function main(): Promise<void> {
     contextProviders: createCliContextProviders(loaded.value.linkFetch),
     reads: reads.value,
     contextSources: loaded.value.contextSources,
-    revisionNarrative: parseRevisionNarrativeFlag(
-      process.env["REVISION_NARRATIVE_ENABLED"],
-    ),
-    hugeSpanRatio: hugeSpanRatio.value,
+    revisionNarrative: {
+      enabled:
+        loaded.value.generator.revisionNarrative ??
+        DEFAULT_REVISION_NARRATIVE_ENABLED,
+    },
+    hugeSpanRatio:
+      loaded.value.generator.hugeSpanRatio ?? DEFAULT_HUGE_SPAN_RATIO,
   };
 
   // PRs are independent, run them in parallel, sharing one generator so the

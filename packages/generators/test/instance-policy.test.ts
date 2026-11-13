@@ -6,7 +6,8 @@ import { loadInstancePolicy } from "../src/config/instancePolicy";
 
 /**
  * The narrow instance-policy loader: the api process
- * reads ONLY the `drafts`, `spend`, `operators` and `allowed` blocks out of
+ * reads ONLY the `drafts`, `spend`, `operators`, `allowed` and `attachments`
+ * blocks out of
  * mergebrief.config.yaml. It must
  * succeed on files whose generator block would refuse the full loader;
  * the api never validates adapters and never needs provider keys.
@@ -40,6 +41,7 @@ describe("loadInstancePolicy", () => {
       draftPolicy: DEFAULT_POLICY,
       spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
+      attachments: {},
       source: null,
     });
   });
@@ -83,6 +85,7 @@ describe("loadInstancePolicy", () => {
       draftPolicy: DEFAULT_POLICY,
       spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
+      attachments: {},
       source: path,
     });
   });
@@ -276,5 +279,93 @@ describe("loadInstancePolicy spend and operators", () => {
     const path = configFile("operators:\n  - 0\n");
 
     expect(loadInstancePolicy({ MERGEBRIEF_CONFIG: path }).ok).toBe(false);
+  });
+});
+
+describe("loadInstancePolicy attachments", () => {
+  it("reads no attachment setting from a file without the block", () => {
+    const path = configFile("operators: []\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.attachments).toEqual({});
+  });
+
+  it("reads the four attachment settings", () => {
+    const path = configFile(
+      "attachments:\n  quotaFiles: 3\n  quotaMb: 50\n  quotaWindowMinutes: 60\n  mediaMaxMb: 250\n",
+    );
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.attachments).toEqual({
+      quotaFiles: 3,
+      quotaMb: 50,
+      quotaWindowMinutes: 60,
+      mediaMaxMb: 250,
+    });
+  });
+
+  it.each([0, -5, 1.5, "lots"])(
+    "refuses a mediaMaxMb of %s without echoing it",
+    (value) => {
+      const path = configFile(
+        `attachments:\n  mediaMaxMb: ${JSON.stringify(value)}\n`,
+      );
+      const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        return;
+      }
+      expect(result.error.issues).toEqual([
+        "attachments: mediaMaxMb: must be a positive whole number",
+      ]);
+    },
+  );
+
+  it("refuses an unknown key in the attachments block by name", () => {
+    const path = configFile("attachments:\n  quotaFile: 3\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join("; ")).toContain(
+      'attachments: unrecognized key "quotaFile"',
+    );
+  });
+
+  it("redacts a secret-shaped unknown key inside the attachments block", () => {
+    const path = configFile('attachments:\n  "sk-ant-api03-SENTINEL999": 3\n');
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("(redacted)");
+    expect(text).not.toContain("SENTINEL999");
+  });
+
+  it.each([
+    ["MERGEBRIEF_ATTACHMENT_QUOTA_FILES", "attachments.quotaFiles"],
+    ["MERGEBRIEF_ATTACHMENT_QUOTA_MB", "attachments.quotaMb"],
+    [
+      "MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES",
+      "attachments.quotaWindowMinutes",
+    ],
+    ["MERGEBRIEF_MEDIA_MAX_MB", "attachments.mediaMaxMb"],
+  ])("refuses %s still set in the environment", (variable, configKey) => {
+    const result = loadInstancePolicy({ [variable]: "leak-marker" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain(
+      `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
+    );
+    expect(text).not.toContain("leak-marker");
+  });
+
+  it("ignores a moved variable left empty", () => {
+    const result = loadInstancePolicy({ MERGEBRIEF_MEDIA_MAX_MB: " " });
+    expect(result.ok).toBe(true);
   });
 });

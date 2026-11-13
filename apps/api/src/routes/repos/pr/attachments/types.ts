@@ -27,7 +27,7 @@ export interface AttachmentsRouteDeps
   readonly attachmentQuota?: UploadQuotaLimits;
   /** Omitted = `DEFAULT_COMMITTED_LOOKUP_LIMITS`. */
   readonly committedLookupBudget?: CommittedLookupBudgetLimits;
-  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes; omitted = the default. */
+  /** `attachments.mediaMaxMb` in bytes; omitted = the default. */
   readonly mediaMaxBytes?: number | undefined;
 }
 
@@ -440,7 +440,7 @@ export interface ResizeTurns {
 
 /** The per-process media limits both reads share. */
 export interface MediaStreamBudget {
-  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes, judged on the upstream file's total. */
+  /** `attachments.mediaMaxMb` in bytes, judged on the upstream file's total. */
   readonly maxFileBytes: number;
   readonly permits: StreamPermits;
   readonly resizeTurns: ResizeTurns;

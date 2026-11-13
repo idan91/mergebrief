@@ -280,44 +280,56 @@ describe("loadConfig", () => {
     expect(set.ok && set.value.serverVersion).toBe("1.4.0");
   });
 
-  it("defaults the revision narrative on when unset or empty", () => {
+  it("defaults the revision narrative on", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.revisionNarrative).toEqual({
       enabled: true,
     });
-    const empty = loadConfig({ ...VALID_ENV, REVISION_NARRATIVE_ENABLED: "" });
-    expect(empty.ok && empty.value.revisionNarrative).toEqual({
-      enabled: true,
-    });
   });
 
-  it("reads REVISION_NARRATIVE_ENABLED=false as off", () => {
-    const result = loadConfig({
-      ...VALID_ENV,
-      REVISION_NARRATIVE_ENABLED: "false",
-    });
+  it("reads generator.revisionNarrative false as off", () => {
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  revisionNarrative: false\n",
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
     expect(result.ok && result.value.revisionNarrative).toEqual({
       enabled: false,
     });
   });
 
-  it("defaults HUGE_SPAN_RATIO to 0.65 when unset or empty", () => {
+  it("defaults the huge span ratio to 0.65 and reads the generator's", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.hugeSpanRatio).toBe(0.65);
-    const empty = loadConfig({ ...VALID_ENV, HUGE_SPAN_RATIO: "" });
-    expect(empty.ok && empty.value.hugeSpanRatio).toBe(0.65);
-    const set = loadConfig({ ...VALID_ENV, HUGE_SPAN_RATIO: "0.5" });
+
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  hugeSpanRatio: 0.5\n",
+    );
+    const set = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
     expect(set.ok && set.value.hugeSpanRatio).toBe(0.5);
+  });
+
+  it.each([
+    ["REVISION_NARRATIVE_ENABLED", "generator.revisionNarrative"],
+    ["HUGE_SPAN_RATIO", "generator.hugeSpanRatio"],
+  ])("refuses %s still set in the environment", (variable, configKey) => {
+    const result = loadConfig({ ...VALID_ENV, [variable]: "leak-marker" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join(";");
+    expect(text).toContain(`${variable}: moved to ${configKey}`);
+    expect(text).not.toContain("leak-marker");
+  });
+
+  it("ignores a moved variable left empty", () => {
+    const result = loadConfig({ ...VALID_ENV, HUGE_SPAN_RATIO: "" });
+    expect(result.ok && result.value.hugeSpanRatio).toBe(0.65);
   });
 
   it.each([
     ["PUBLIC_BASE_URL", { PUBLIC_BASE_URL: "ftp://leak-marker.test" }],
     ["SERVER_VERSION", { SERVER_VERSION: "leak-marker 1.4.0" }],
-    [
-      "REVISION_NARRATIVE_ENABLED",
-      { REVISION_NARRATIVE_ENABLED: "leak-marker" },
-    ],
-    ["HUGE_SPAN_RATIO", { HUGE_SPAN_RATIO: "leak-marker" }],
   ])("names %s without echoing its value", (key, overrides) => {
     const result = loadConfig({ ...VALID_ENV, ...overrides });
     expect(result.ok).toBe(false);

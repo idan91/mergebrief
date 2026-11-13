@@ -69,6 +69,10 @@ export {
   type SpendPolicy,
 } from "./config/spendPolicy";
 export {
+  listMovedVariables,
+  MOVED_GENERATOR_VARIABLES,
+} from "./config/moved-variables";
+export {
   ContextSourceTypes,
   ContextSourcesConfigSchema,
   buildContextSourcesConfigError,

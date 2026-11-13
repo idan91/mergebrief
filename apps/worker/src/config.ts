@@ -1,6 +1,7 @@
 import {
   DEFAULT_DETAIL_CONCURRENCY,
-  parseHugeSpanRatio,
+  DEFAULT_HUGE_SPAN_RATIO,
+  DEFAULT_REVISION_NARRATIVE_ENABLED,
   type RevisionNarrativeConfig,
 } from "brief-core";
 import {
@@ -65,9 +66,9 @@ export interface WorkerConfig {
   readonly linkFetch: LinkFetchPolicy;
   /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
   readonly serverVersion: string;
-  /** `REVISION_NARRATIVE_ENABLED`; on when unset. */
+  /** `generator.revisionNarrative`; on when unset. */
   readonly revisionNarrative: RevisionNarrativeConfig;
-  /** `HUGE_SPAN_RATIO`; brief-core's default when unset. */
+  /** `generator.hugeSpanRatio`; brief-core's default when unset. */
   readonly hugeSpanRatio: number;
 }
 
@@ -97,19 +98,12 @@ const MIN_CONCURRENCY = 1;
 /** One large slot: a multi-call run holds up to `detailConcurrency` streams by itself. */
 const DEFAULT_LARGE_CONCURRENCY = 1;
 
-const DEFAULT_REVISION_NARRATIVE = true;
-
-const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
-const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
-
 /** The worker's own knobs, parsed beside the loaders other packages own. */
 interface WorkerKnobs {
   readonly concurrency: number;
   readonly largeConcurrency: number;
   readonly publicBaseUrl: string;
   readonly serverVersion: string;
-  readonly revisionNarrative: RevisionNarrativeConfig;
-  readonly hugeSpanRatio: number;
 }
 
 /**
@@ -149,27 +143,6 @@ function parsePublicBaseUrl(raw: string | undefined): Result<string, string> {
   return { ok: true, value: raw };
 }
 
-/** Unset and empty both take the default; any other token outside the two
- * sets refuses boot rather than reading as on. */
-function parseFlag(
-  raw: string | undefined,
-  defaultValue: boolean,
-): Result<boolean, string> {
-  const token = raw?.trim().toLowerCase() ?? "";
-  if (token === "") {
-    return { ok: true, value: defaultValue };
-  }
-  const isTrueToken = TRUE_TOKENS.has(token);
-  if (isTrueToken) {
-    return { ok: true, value: true };
-  }
-  const isFalseToken = FALSE_TOKENS.has(token);
-  if (isFalseToken) {
-    return { ok: true, value: false };
-  }
-  return { ok: false, error: "must be true or false" };
-}
-
 function parseWorkerKnobs(
   env: Readonly<Record<string, string | undefined>>,
 ): Result<WorkerKnobs, readonly string[]> {
@@ -183,19 +156,12 @@ function parseWorkerKnobs(
   );
   const publicBaseUrl = parsePublicBaseUrl(env["PUBLIC_BASE_URL"]);
   const serverVersion = parseServerVersion(env["SERVER_VERSION"]);
-  const narrative = parseFlag(
-    env["REVISION_NARRATIVE_ENABLED"],
-    DEFAULT_REVISION_NARRATIVE,
-  );
-  const hugeSpanRatio = parseHugeSpanRatio(env["HUGE_SPAN_RATIO"]);
 
   const allParsed =
     concurrency.ok &&
     largeConcurrency.ok &&
     publicBaseUrl.ok &&
-    serverVersion.ok &&
-    narrative.ok &&
-    hugeSpanRatio.ok;
+    serverVersion.ok;
   if (allParsed) {
     return {
       ok: true,
@@ -204,8 +170,6 @@ function parseWorkerKnobs(
         largeConcurrency: largeConcurrency.value,
         publicBaseUrl: publicBaseUrl.value,
         serverVersion: serverVersion.value,
-        revisionNarrative: { enabled: narrative.value },
-        hugeSpanRatio: hugeSpanRatio.value,
       },
     };
   }
@@ -215,8 +179,6 @@ function parseWorkerKnobs(
     ["WORKER_LARGE_CONCURRENCY", largeConcurrency],
     ["PUBLIC_BASE_URL", publicBaseUrl],
     ["SERVER_VERSION", serverVersion],
-    ["REVISION_NARRATIVE_ENABLED", narrative],
-    ["HUGE_SPAN_RATIO", hugeSpanRatio],
   ] as const;
   const issues = keyed.flatMap(([key, parsed]) =>
     parsed.ok ? [] : [`${key}: ${parsed.error}`],
@@ -299,8 +261,14 @@ export function loadConfig(
       siblingRepos: generatorConfig.value.siblingRepos,
       linkFetch: generatorConfig.value.linkFetch,
       serverVersion: knobs.value.serverVersion,
-      revisionNarrative: knobs.value.revisionNarrative,
-      hugeSpanRatio: knobs.value.hugeSpanRatio,
+      revisionNarrative: {
+        enabled:
+          generatorConfig.value.generator.revisionNarrative ??
+          DEFAULT_REVISION_NARRATIVE_ENABLED,
+      },
+      hugeSpanRatio:
+        generatorConfig.value.generator.hugeSpanRatio ??
+        DEFAULT_HUGE_SPAN_RATIO,
     },
   };
 }

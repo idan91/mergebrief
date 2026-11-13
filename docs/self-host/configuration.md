@@ -115,20 +115,14 @@ it.
 | `OPENROUTER_API_KEY` | worker | none | with `provider: openrouter` | The `openrouter` provider's default key variable; same rules. |
 | `WORKER_CONCURRENCY` | worker | `1` | no | Jobs one worker process runs at once: a whole number of at least 1 ([Worker slots](./generators.md#worker-slots)). Empty takes the default. |
 | `WORKER_LARGE_CONCURRENCY` | worker | `1` | no | Slots of the large pool, which runs the multi-call briefs: a whole number of at least 1 ([The large pool](./generators.md#the-large-pool)). Empty takes the default. |
-| `REVISION_NARRATIVE_ENABLED` | worker | `true` | no | Boolean. `false` skips the revision narrative against the previous brief. Empty takes the default. |
-| `HUGE_SPAN_RATIO` | worker | `0.65` | no | A number above 0 and at most 1: the share of a pull request's changed lines at which an incremental span falls back to the full brief. Empty takes the default. |
 | `NOTION_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `notion` context source is configured | The Notion integration token. Unset or empty refuses boot while the config lists a `notion` entry ([trackers.md](./trackers.md#notion)). |
 | `JIRA_EMAIL` (or the name `contextSources[].emailEnv` gives) | worker | none | when a `jira` context source is configured | The email of the Atlassian account that owns the Jira API token. Unset or empty refuses boot while the config lists a `jira` entry ([trackers.md](./trackers.md#jira)). |
 | `JIRA_API_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `jira` context source is configured | The Jira API token, scoped to `read:jira-work`. Same rules. |
 
-### Attachments and the update check
+### The update check
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` | api | `10` | no | Files one reviewer may attach per window: a positive whole number. Empty takes the default. |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_MB` | api | `30` | no | Megabytes one reviewer may attach per window: a whole number of at least 10, the size limit of one file. Empty takes the default. |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | `10` | no | The window's length in minutes: a positive whole number. Empty takes the default. Each `api` replica counts on its own ([attachments.md](./attachments.md#upload-quota)). |
-| `MERGEBRIEF_MEDIA_MAX_MB` | api | `100` | no | The largest video or image, in megabytes, the API streams: a positive whole number, judged on the file's full size; a larger one answers `413 media-too-large`, and the page shows "could not load" with an Open on GitHub link ([attachments.md](./attachments.md)). Empty takes the default; anything else refuses boot. |
 | `MERGEBRIEF_UPDATE_CHECK` | api | `true` | no | Boolean. `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Empty takes the default. |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
 
@@ -246,6 +240,8 @@ passes none of them to `web`.
 | Variable | What happens |
 | --- | --- |
 | `GENERATOR_API_KEY_ENV` | Removed. Set at all, even empty, the worker refuses boot and points at `generator.apiKeyEnv`. |
+| `REVISION_NARRATIVE_ENABLED`, `HUGE_SPAN_RATIO` | Moved to `generator.revisionNarrative` and `generator.hugeSpanRatio`. Set and not empty, the worker refuses boot and names the key. |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES`, `MERGEBRIEF_ATTACHMENT_QUOTA_MB`, `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES`, `MERGEBRIEF_MEDIA_MAX_MB` | Moved to the `attachments` block. Set and not empty, the api refuses boot and names the key. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Ignored; MergeBrief sets the export timeout itself. |
 | `MERGEBRIEF_URL_BOX_TOKEN` | Renamed to `MERGEBRIEF_URL_FALLBACK_TOKEN`. Set and non-empty, `api` and `worker` log one warning naming the new key and ignore it. |
 | `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | Removed. Set and non-empty, `api` and `worker` log one warning and ignore it. |
@@ -299,11 +295,12 @@ the variable that holds it.
 | `contextSources` | worker | built-in sources only | Ticket trackers that need a deployment credential. |
 | `trackers` | worker | none: GitHub issues only | The boards and Jira projects every repository reads tickets from. |
 | `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
+| `attachments` | api; worker validates | 10 files or 30 MB per 10 minutes, 100 MB of media | What one reviewer may upload, and the largest media file the API streams. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
 Any other root key refuses boot in `worker`. `api` reads only `drafts`,
-`spend`, `operators` and `allowed`, so it ignores the rest of the file and needs no
-provider key. Every block rejects keys it does not define.
+`spend`, `operators`, `allowed` and `attachments`, so it ignores the rest of
+the file and needs no provider key. Every block rejects keys it does not define.
 
 ### `generator`
 
@@ -317,6 +314,8 @@ provider key. Every block rejects keys it does not define.
 | `fullRegeneration` | all | `never` | `never` (each revision anchors to the previous brief), `on-model-swap` (a fresh brief when the provider or model changed), `always` (every revision from scratch). |
 | `forceMultiCall` | all | `false` | `true` runs every brief as a multi-call run (a grouping call over an outline, then detail calls per batch of hunks), the path a diff over 400k input tokens or 120 hunks takes on its own. A diagnostic switch; it costs more calls per brief. |
 | `detailConcurrency` | all | `8` | A whole number of at least 1: the detail calls a multi-call run keeps in flight at once. Lower it for a provider rate limit ([the large pool](./generators.md#the-large-pool)). |
+| `revisionNarrative` | all | `true` | `false` skips the revision narrative against the previous brief. |
+| `hugeSpanRatio` | all | `0.65` | A number above 0 and at most 1: the share of a pull request's changed lines at which an incremental span falls back to the full brief ([the 300-file span limit](./generators.md#the-300-file-span-limit)). |
 | `apiKeyEnv` | `anthropic`, `openai`, `openrouter` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` | The NAME of the variable holding the key. A value that is not an uppercase variable name refuses boot. |
 | `baseUrl` | `anthropic`, `openai` | the provider's own host | A URL. `anthropic` takes the gateway's host root; a path ending in `/v1` refuses boot. `openai` takes the `/v1` root of a gateway or compatible server, and turns the `/models` check at boot into a warning. |
 | `providerRouting` | `openrouter` | none | A mapping passed to OpenRouter under `provider`; `require_parameters: true` is always forced. |
@@ -357,6 +356,15 @@ The harness providers are refused in the shipped image
 | `trackers[].projectKeys` | | `jira` only, required: 1 to 50 Jira project keys, each a letter followed by letters or digits, 2 to 255 characters in all ([trackers.md](./trackers.md#jira)). |
 | `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. `.` and `..` are refused as either part. |
 | `trackers[].siblingRepos` | `false` | `github` only, instance config only: `true` lets issue references resolve in every repository the installation covers, not only the pull request's repository and its `issuesRepo` ([trackers.md](./trackers.md#credential-and-reach)). Anything but `true` or `false` refuses boot. |
+
+### `attachments`
+
+| Key | Default | Accepts |
+| --- | --- | --- |
+| `attachments.quotaFiles` | `10` | Files one reviewer may attach per window: a positive whole number. |
+| `attachments.quotaMb` | `30` | Megabytes one reviewer may attach per window: a whole number of at least 10, the size limit of one file. `api` refuses a smaller one. |
+| `attachments.quotaWindowMinutes` | `10` | The window's length in minutes: a positive whole number. Each `api` replica counts on its own ([attachments.md](./attachments.md#upload-quota)). |
+| `attachments.mediaMaxMb` | `100` | The largest video or image, in megabytes, the API streams: a positive whole number, judged on the file's full size; a larger one answers `413 media-too-large`, and the page shows "could not load" with an Open on GitHub link ([attachments.md](./attachments.md)). |
 
 ### `linkFetch`
 

@@ -3,7 +3,6 @@ import {
   DEFAULT_HUGE_SPAN_RATIO,
   exceedsCallLimits,
   isHugeSpan,
-  parseHugeSpanRatio,
 } from "../../src/generation/huge-span";
 
 const FILE_HEADER = "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n";
@@ -13,33 +12,9 @@ function makeDiff(hunks: number): string {
   return `${FILE_HEADER}${"@@ -1 +1 @@\n-x\n+y\n".repeat(hunks)}`;
 }
 
-describe("parseHugeSpanRatio", () => {
-  it("defaults to 0.65 when the value is absent or empty", () => {
+describe("DEFAULT_HUGE_SPAN_RATIO", () => {
+  it("is 0.65", () => {
     expect(DEFAULT_HUGE_SPAN_RATIO).toBe(0.65);
-    expect(parseHugeSpanRatio(undefined)).toEqual({ ok: true, value: 0.65 });
-    expect(parseHugeSpanRatio("")).toEqual({ ok: true, value: 0.65 });
-  });
-
-  it("reads a ratio above zero and up to one", () => {
-    expect(parseHugeSpanRatio("0.5")).toEqual({ ok: true, value: 0.5 });
-    expect(parseHugeSpanRatio("1")).toEqual({ ok: true, value: 1 });
-  });
-
-  it("refuses zero, a negative ratio and a ratio above one", () => {
-    expect(parseHugeSpanRatio("0").ok).toBe(false);
-    expect(parseHugeSpanRatio("-0.5").ok).toBe(false);
-    expect(parseHugeSpanRatio("5").ok).toBe(false);
-  });
-
-  it("refuses a value without echoing it", () => {
-    for (const raw of ["7.77", "leak-marker"]) {
-      const result = parseHugeSpanRatio(raw);
-      expect(result.ok).toBe(false);
-      if (result.ok) {
-        continue;
-      }
-      expect(result.error).not.toContain(raw);
-    }
   });
 });
 

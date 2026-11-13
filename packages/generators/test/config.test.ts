@@ -396,3 +396,38 @@ describe("loadGeneratorConfigFile", () => {
     });
   });
 });
+
+describe("loadGeneratorConfig on the attachments block and moved variables", () => {
+  it("accepts an attachments root block", () => {
+    const path = configFile("attachments:\n  quotaFiles: 3\n");
+    expect(loadGeneratorConfigFile(path).ok).toBe(true);
+  });
+
+  it("refuses a bad attachments block, as the api does", () => {
+    const path = configFile("attachments:\n  quotaFiles: 0\n");
+    const result = loadGeneratorConfigFile(path);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toEqual([
+      "attachments: quotaFiles: must be a positive whole number",
+    ]);
+  });
+
+  it.each([
+    ["REVISION_NARRATIVE_ENABLED", "generator.revisionNarrative"],
+    ["HUGE_SPAN_RATIO", "generator.hugeSpanRatio"],
+  ])("refuses %s still set in the environment", (variable, configKey) => {
+    const result = loadGeneratorConfig({ [variable]: "leak-marker" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain(
+      `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
+    );
+    expect(text).not.toContain("leak-marker");
+  });
+});

@@ -396,7 +396,7 @@ No server change; the CLI reads the same routes.
 - **Added** `429 attachment-limit-reached` on
   `POST /api/repos/:repoId/pulls/:prNumber/attachments`: each reviewer may
   upload 10 files or 30 MB per 10 minutes by default (operator-set through
-  `MERGEBRIEF_ATTACHMENT_QUOTA_*`), cookie and Bearer counted together, per
+  the `attachments` block of `mergebrief.config.yaml`), cookie and Bearer counted together, per
   api replica. The answer is `no-store` and carries `Retry-After` in whole
   seconds until the reviewer's window ends. A client that attaches in bulk
   should stop on it and retry after that delay.

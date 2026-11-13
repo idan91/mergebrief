@@ -9,6 +9,11 @@ import { validateDraftsBlock } from "./instancePolicy";
 import { DEFAULT_LINK_FETCH, validateLinkFetchBlock } from "./link-fetch";
 import type { LinkFetchPolicy } from "./link-fetch/types";
 import { validateAllowedBlock } from "./allowed";
+import { validateAttachmentsBlock } from "./attachments";
+import {
+  listMovedVariables,
+  MOVED_GENERATOR_VARIABLES,
+} from "./moved-variables";
 import { validateOperatorsBlock } from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
@@ -53,6 +58,11 @@ export interface LoadedGeneratorConfig {
 export function loadGeneratorConfig(
   env: Record<string, string | undefined>,
 ): Result<LoadedGeneratorConfig, ConfigError> {
+  const movedVariables = listMovedVariables(env, MOVED_GENERATOR_VARIABLES);
+  if (movedVariables.length > 0) {
+    return configError(movedVariables);
+  }
+
   const path = env["MERGEBRIEF_CONFIG"];
   if (path === undefined) {
     return {
@@ -117,6 +127,7 @@ export function loadGeneratorConfigFile(
       key === "contextSources" ||
       key === "trackers" ||
       key === "linkFetch" ||
+      key === "attachments" ||
       key.startsWith("x-")
     ) {
       continue;
@@ -151,6 +162,16 @@ export function loadGeneratorConfigFile(
   const allowed = root["allowed"];
   if (allowed !== undefined) {
     const validated = validateAllowedBlock(allowed);
+    if (!validated.ok) {
+      return validated;
+    }
+  }
+
+  // The api enforces the attachment limits; a bad block refuses boot here
+  // too, so the worker never runs beside an api that refuses the file.
+  const attachments = root["attachments"];
+  if (attachments !== undefined) {
+    const validated = validateAttachmentsBlock(attachments);
     if (!validated.ok) {
       return validated;
     }

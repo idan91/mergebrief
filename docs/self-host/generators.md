@@ -24,7 +24,7 @@ before you switch.
 
 One YAML file selects the backend for the **worker and the
 categorizer CLIs** alike; the api reads its `drafts`, `spend`,
-`operators` and `allowed` blocks from the same file. The `generator` block
+`operators`, `allowed` and `attachments` blocks from the same file. The `generator` block
 is optional, the file is not. Nobody can sign in until `operators` or
 `allowed` names them ([Who may start a brief](#who-may-start-a-brief)). A ready-to-copy annotated template ships
 at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
@@ -819,7 +819,7 @@ The next push compares against this push's brief as usual.
 This limit covers the span only. A pull request can change up to 3,000 files and
 still get a brief ([troubleshooting.md](./troubleshooting.md#no-brief-appears)). A
 smaller span can also go without a narrative or delta when its changed lines reach
-`HUGE_SPAN_RATIO` of the pull request's, 0.65 by default, or when it exceeds one
+`generator.hugeSpanRatio` of the pull request's, 0.65 by default, or when it exceeds one
 call's limits. That skip keeps the highlights and the carried groups.
 
 ### GitHub API calls

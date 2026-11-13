@@ -7,6 +7,7 @@ import { createLogger, type Logger } from "logging";
 import { loadConfig as loadPersistenceConfig } from "persistence";
 import { namesAnyone } from "../access/instance-access";
 import { loadConfig, loadServerVersion } from "../config";
+import { resolveAttachmentLimits } from "./attachment-limits";
 import {
   ExitCodes,
   type BootConfig,
@@ -74,14 +75,24 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  // The drafts, spend, operators and allowed blocks only: the generator block is the
-  // worker's concern, so this process needs no adapter validation and no
+  // The drafts, spend, operators, allowed and attachments blocks only: the
+  // generator block is the worker's concern, so this process needs no adapter validation and no
   // provider keys.
   const instancePolicy = loadInstancePolicy(env);
   if (!instancePolicy.ok) {
     exitOnConfigError(
       logger,
       `api composition: invalid instance policy: ${instancePolicy.error.issues.join("; ")}`,
+      configExitCode,
+    );
+  }
+  const attachmentLimits = resolveAttachmentLimits(
+    instancePolicy.value.attachments,
+  );
+  if (!attachmentLimits.ok) {
+    exitOnConfigError(
+      logger,
+      `api composition: invalid instance policy: ${attachmentLimits.error.issues.join("; ")}`,
       configExitCode,
     );
   }
@@ -99,6 +110,7 @@ export function loadBootConfig(
     spendPolicy: instancePolicy.value.spendPolicy,
     operatorIds: instancePolicy.value.operatorIds,
     allowedAccess: instancePolicy.value.allowedAccess,
+    attachmentLimits: attachmentLimits.value,
   };
 }
 
