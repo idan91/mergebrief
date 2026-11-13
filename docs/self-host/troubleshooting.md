@@ -297,5 +297,5 @@ is malformed.
 
 **Fix:** allow the api outbound HTTPS to github.com and
 release-assets.githubusercontent.com, where the release file redirects, or point
-`MERGEBRIEF_UPDATE_CHECK_URL` at a mirror
+`updateCheck.url` at a mirror
 ([operations.md](./operations.md#the-update-check)).

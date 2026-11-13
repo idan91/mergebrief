@@ -24,6 +24,11 @@ export const MOVED_AUDIT_VARIABLES = {
   AUDIT_PRIVATE_WRITES: "audit.privateWrites",
 } as const;
 
+export const MOVED_UPDATE_CHECK_VARIABLES = {
+  MERGEBRIEF_UPDATE_CHECK: "updateCheck.enabled",
+  MERGEBRIEF_UPDATE_CHECK_URL: "updateCheck.url",
+} as const;
+
 export interface MovedVariableOptions {
   /** Refuse the variable when it is set at all, for one whose empty value had a meaning of its own. */
   readonly refusesEmpty?: boolean;

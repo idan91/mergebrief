@@ -231,7 +231,7 @@ gap is the reader who most needs the warning, and the update line stays
 quiet there anyway, because a fresh container never has a cached check to
 print.
 
-The instance's own `MERGEBRIEF_UPDATE_CHECK=false`
+The instance's own `updateCheck.enabled: false`
 ([operations.md](./operations.md#the-update-check)) does not silence the
 CLI: the update line is the CLI asking npm from your machine, and
 `MERGEBRIEF_NO_VERSION_WARNING` is its opt-out.

@@ -255,13 +255,19 @@ carries `manual-forever: two real releases on a real host`.
 
 The machinery is in the gates index. What stays manual is the band against
 a real `version.json` and the CLI nag against a real npm `latest`. The
-local arm needs no release: serve a hand-made file and start the api as an
-older version.
+local arm needs no release: serve a hand-made file, point the instance
+config at it and start the api as an older version.
+
+```yaml
+# mergebrief.config.yaml
+updateCheck:
+  url: http://127.0.0.1:8765/version.json
+```
 
 ```sh
 pnpm -C tools/release version-json v0.1.0 --out /tmp/version.json   # or a hand-edited file with a newer, breaking or security release
 python3 -m http.server 8765 --bind 127.0.0.1 --directory /tmp &
-SERVER_VERSION=0.0.9 MERGEBRIEF_UPDATE_CHECK_URL=http://127.0.0.1:8765/version.json pnpm app:host
+SERVER_VERSION=0.0.9 pnpm app:host
 ```
 
 - [ ] After the 60-second boot delay the api logs `update.available` once

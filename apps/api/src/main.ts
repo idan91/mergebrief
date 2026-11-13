@@ -77,8 +77,8 @@ async function main(): Promise<void> {
 
   const updateCheck = createUpdateCheck({
     serverVersion: boot.api.serverVersion,
-    enabled: boot.api.updateCheck,
-    url: boot.api.updateCheckUrl,
+    enabled: boot.updateCheck.enabled,
+    url: boot.updateCheck.url,
     fetch,
     log: logger,
   });

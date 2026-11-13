@@ -16,6 +16,7 @@ import {
   listMovedVariables,
   MOVED_ATTACHMENT_VARIABLES,
   MOVED_AUDIT_VARIABLES,
+  MOVED_UPDATE_CHECK_VARIABLES,
 } from "./moved-variables";
 import {
   NO_OPERATORS,
@@ -28,6 +29,11 @@ import {
   validateSpendBlock,
   type SpendPolicy,
 } from "./spendPolicy";
+import {
+  DEFAULT_UPDATE_CHECK_SETTINGS,
+  validateUpdateCheckBlock,
+  type UpdateCheckSettings,
+} from "./update-check";
 
 /**
  * Runtime marker: the compose worker image bakes
@@ -39,8 +45,8 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
 
 /**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
- * `drafts`, `spend`, `operators`, `allowed`, `attachments` and `audit` blocks out of
- * `mergebrief.config.yaml`.
+ * `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and
+ * `updateCheck` blocks out of `mergebrief.config.yaml`.
  * Deliberately tolerant of everything else in the file. An invalid generator
  * block or an unknown root key is the FULL loader's (worker's) problem; the
  * api process must boot without adapter validation and without provider
@@ -65,6 +71,8 @@ export interface LoadedInstancePolicy {
   readonly attachments: AttachmentsSettings;
   /** Whether writes that stay inside the instance are recorded. */
   readonly audit: AuditSettings;
+  /** Whether the api fetches the release manifest, and from where. */
+  readonly updateCheck: UpdateCheckSettings;
   /** The file the policy came from; null for zero-config defaults. */
   readonly source: string | null;
 }
@@ -77,6 +85,7 @@ export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   allowedAccess: undefined,
   attachments: DEFAULT_ATTACHMENTS_SETTINGS,
   audit: DEFAULT_AUDIT_SETTINGS,
+  updateCheck: DEFAULT_UPDATE_CHECK_SETTINGS,
 };
 
 /**
@@ -133,6 +142,7 @@ export function loadInstancePolicy(
   const movedVariables = [
     ...listMovedVariables(env, MOVED_ATTACHMENT_VARIABLES),
     ...listMovedVariables(env, MOVED_AUDIT_VARIABLES, { refusesEmpty: true }),
+    ...listMovedVariables(env, MOVED_UPDATE_CHECK_VARIABLES),
   ];
   if (movedVariables.length > 0) {
     return configError(movedVariables);
@@ -202,6 +212,14 @@ export function loadInstancePolicy(
   if (!audit.ok) {
     return audit;
   }
+  const updateCheck = readBlock(
+    blocks["updateCheck"],
+    validateUpdateCheckBlock,
+    DEFAULT_UPDATE_CHECK_SETTINGS,
+  );
+  if (!updateCheck.ok) {
+    return updateCheck;
+  }
 
   return {
     ok: true,
@@ -212,6 +230,7 @@ export function loadInstancePolicy(
       allowedAccess: allowedAccess.value,
       attachments: attachments.value,
       audit: audit.value,
+      updateCheck: updateCheck.value,
       source: resolved.value,
     },
   };

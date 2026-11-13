@@ -43,6 +43,7 @@ describe("loadInstancePolicy", () => {
       operatorIds: new Set(),
       attachments: {},
       audit: { privateWrites: true },
+      updateCheck: { enabled: true },
       source: null,
     });
   });
@@ -88,6 +89,7 @@ describe("loadInstancePolicy", () => {
       operatorIds: new Set(),
       attachments: {},
       audit: { privateWrites: true },
+      updateCheck: { enabled: true },
       source: path,
     });
   });
@@ -404,5 +406,68 @@ describe("loadInstancePolicy audit", () => {
     const text = result.error.issues.join("; ");
     expect(text).toContain("(redacted)");
     expect(text).not.toContain("SENTINEL999");
+  });
+});
+
+describe("loadInstancePolicy update check", () => {
+  it("leaves the update check on when the file names no block", () => {
+    const path = configFile("operators: []\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.updateCheck).toEqual({ enabled: true });
+  });
+
+  it("reads updateCheck.enabled false and a mirror url", () => {
+    const path = configFile(
+      "updateCheck:\n  enabled: false\n  url: https://mirror.example.test/version.json\n",
+    );
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.updateCheck).toEqual({
+      enabled: false,
+      url: "https://mirror.example.test/version.json",
+    });
+  });
+
+  it.each(["off", "false", 0])("refuses an enabled of %j", (value) => {
+    const path = configFile(
+      `updateCheck:\n  enabled: ${JSON.stringify(value)}\n`,
+    );
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toEqual([
+      "updateCheck: enabled: must be true or false",
+    ]);
+  });
+
+  it("redacts a secret-shaped unknown key inside the updateCheck block", () => {
+    const path = configFile(
+      'updateCheck:\n  "sk-ant-api03-SENTINEL999": true\n',
+    );
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("(redacted)");
+    expect(text).not.toContain("SENTINEL999");
+  });
+
+  it.each([
+    ["MERGEBRIEF_UPDATE_CHECK", "updateCheck.enabled"],
+    ["MERGEBRIEF_UPDATE_CHECK_URL", "updateCheck.url"],
+  ])("refuses %s still set in the environment", (variable, configKey) => {
+    const result = loadInstancePolicy({ [variable]: "leak-marker" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain(
+      `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
+    );
+    expect(text).not.toContain("leak-marker");
   });
 });

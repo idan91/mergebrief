@@ -64,15 +64,25 @@ GITHUB_OAUTH_CLIENT_SECRET=smoke-oauth-secret
 SESSION_KEY_V1=$(openssl rand -base64 32)
 PUBLIC_BASE_URL=http://localhost:3000
 MERGEBRIEF_API_HOST=0.0.0.0
-MERGEBRIEF_UPDATE_CHECK=false
+MERGEBRIEF_CONFIG=mergebrief.config.yaml
 ANTHROPIC_API_KEY=sk-ant-smoke-not-real
 EOF
 key="$(cat "$work/app.pem")"
 
+# The instance config, mounted where compose mounts it. The update check is
+# off so the smoke never fetches the release manifest.
+cat > "$work/mergebrief.config.yaml" <<EOF
+updateCheck:
+  enabled: false
+EOF
+# The image runs as a user that does not own the temp dir.
+chmod 644 "$work/mergebrief.config.yaml"
+config_mount=(-v "$work/mergebrief.config.yaml:/app/mergebrief.config.yaml:ro")
+
 docker run --rm --network "$net" --env-file "$work/env" -e GITHUB_APP_PRIVATE_KEY="$key" "$image" migrate
 
-start api-$$ --env-file "$work/env" -e GITHUB_APP_PRIVATE_KEY="$key" "$image" api
-start worker-$$ --env-file "$work/env" -e GITHUB_APP_PRIVATE_KEY="$key" "$image" worker
+start api-$$ --env-file "$work/env" "${config_mount[@]}" -e GITHUB_APP_PRIVATE_KEY="$key" "$image" api
+start worker-$$ --env-file "$work/env" "${config_mount[@]}" -e GITHUB_APP_PRIVATE_KEY="$key" "$image" worker
 worker_started=$SECONDS
 start web-$$ -p 127.0.0.1::3000 \
   -e PUBLIC_BASE_URL=http://localhost:3000 -e MERGEBRIEF_API_ORIGIN="http://api-$$:3001" \

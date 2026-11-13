@@ -32,50 +32,6 @@ describe("loadConfig PUBLIC_BASE_URL", () => {
   });
 });
 
-describe("loadConfig update check knobs", () => {
-  const BASE = { PUBLIC_BASE_URL: "http://localhost:3000" };
-
-  it("defaults the check on with the GitHub release URL", () => {
-    const result = loadConfig(BASE);
-    expect(result).toMatchObject({
-      ok: true,
-      value: {
-        updateCheck: true,
-        updateCheckUrl: expect.stringContaining("/releases/latest/download/"),
-      },
-    });
-  });
-
-  it("reads MERGEBRIEF_UPDATE_CHECK=false as off", () => {
-    const result = loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "false" });
-    expect(result).toMatchObject({ ok: true, value: { updateCheck: false } });
-  });
-
-  it("reads an empty MERGEBRIEF_UPDATE_CHECK as the default", () => {
-    const result = loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "" });
-    expect(result).toMatchObject({ ok: true, value: { updateCheck: true } });
-  });
-
-  it("refuses an update check token it does not know", () => {
-    expect(loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK: "maybe" }).ok).toBe(
-      false,
-    );
-  });
-
-  it("takes an absolute update check URL and refuses a relative one", () => {
-    const mirror = "https://mirror.example.test/version.json";
-    expect(
-      loadConfig({ ...BASE, MERGEBRIEF_UPDATE_CHECK_URL: mirror }),
-    ).toMatchObject({ ok: true, value: { updateCheckUrl: mirror } });
-    expect(
-      loadConfig({
-        ...BASE,
-        MERGEBRIEF_UPDATE_CHECK_URL: "mirror/version.json",
-      }).ok,
-    ).toBe(false);
-  });
-});
-
 describe("loadConfig SERVER_VERSION", () => {
   const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
 
@@ -180,7 +136,6 @@ describe("loadConfig refusals never echo the value", () => {
   it.each([
     ["SERVER_VERSION", { ...BASE, SERVER_VERSION: `${MARKER} 1.4.0` }],
     ["PUBLIC_BASE_URL", { PUBLIC_BASE_URL: `ftp://${MARKER}.test` }],
-    ["MERGEBRIEF_UPDATE_CHECK", { ...BASE, MERGEBRIEF_UPDATE_CHECK: MARKER }],
     ["SESSION_KEY_REF", { ...BASE, SESSION_KEY_REF: MARKER }],
   ])("names %s without its value", (key, env) => {
     const result = loadConfig(env);

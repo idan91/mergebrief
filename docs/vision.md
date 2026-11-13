@@ -30,7 +30,7 @@ funded SaaS structurally cannot occupy:
 - **Open & self-hostable.** One core, `docker compose up`, your infrastructure, your data.
 - **BYOK, no per-seat cost, no telemetry.** Your model key, your spend. The one call home is
   the update check: an outbound fetch of a public release file that identifies nothing about
-  the instance, off with `MERGEBRIEF_UPDATE_CHECK=false`.
+  the instance, off with `updateCheck.enabled: false` in the instance config.
 - **Hackable and forkable.** The taxonomy is plain markdown you can read, extend, and
   contribute to: an ESLint-rules-style commons, not a black box.
 - **Stable cross-PR taxonomy under the narrative.** Atlas's cohorts are PR-local. Ours sit on

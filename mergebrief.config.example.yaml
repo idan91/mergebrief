@@ -140,6 +140,14 @@ operators:
 # audit:
 #   privateWrites: true
 
+# --- Update check -----------------------------------------------------------
+# false stops the hourly fetch of version.json and the version notice. `url`
+# names a mirror, for a network that blocks github.com.
+# docs/self-host/operations.md#the-update-check
+# updateCheck:
+#   enabled: true
+#   # url: https://mirror.example.com/version.json
+
 # --- Attachments and media --------------------------------------------------
 # What one reviewer may attach per window, and the largest video or image,
 # in megabytes, the api streams. docs/self-host/attachments.md

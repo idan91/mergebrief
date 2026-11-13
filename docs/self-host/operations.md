@@ -903,14 +903,20 @@ About a minute after it starts, and then at most once an hour, when a signed-in 
 
 The answer drives three things: the banner every signed-in user sees when a newer version exists, one `update.available` line in the API log (`warn` when the release fixes a vulnerability), and the `latest` fields of `GET /api/version`, which `mergebrief auth status` shows.
 
-To turn it off, set `MERGEBRIEF_UPDATE_CHECK=false`. The banner, the log line and the `latest` fields then never appear; nothing else changes. A `dev` build never checks.
+To turn it off, set `updateCheck.enabled: false` in `mergebrief.config.yaml` and restart `api`. The banner, the log line and the `latest` fields then never appear; nothing else changes. A `dev` build never checks.
 
 If your network blocks github.com or release-assets.githubusercontent.com, where the release file redirects, the check fails quietly: one `update.check.fail` line at `info` on the first failure after boot, `debug` after that, and `/api/version` carries no fresh `checkedAt`.
 
-| Variable | Default | What it does |
+```yaml
+updateCheck:
+  enabled: false
+  # url: https://mirror.example.com/version.json
+```
+
+| Key | Default | What it does |
 | --- | --- | --- |
-| `MERGEBRIEF_UPDATE_CHECK` | `true` | Fetch `version.json` from GitHub Releases at most once an hour to learn about newer releases. The request identifies nothing. Off: no banner, no log line, no `latest` in `/api/version`. |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or boot is refused. |
+| `updateCheck.enabled` | `true` | Fetch `version.json` from GitHub Releases at most once an hour to learn about newer releases. The request identifies nothing. Off: no banner, no log line, no `latest` in `/api/version`. |
+| `updateCheck.url` | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or `api` refuses boot. |
 
 ## Uninstalling
 

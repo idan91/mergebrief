@@ -14,6 +14,7 @@ import {
   type ExitCode,
   type MigrateConfig,
 } from "./types";
+import { resolveUpdateCheckSource } from "./update-check-source";
 
 /** The logging boundary, or exit with the entry's config-error code: with
  * no logger there is no channel left but the bare console. */
@@ -75,9 +76,9 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  // The drafts, spend, operators, allowed, attachments and audit blocks only: the
-  // generator block is the worker's concern, so this process needs no adapter validation and no
-  // provider keys.
+  // The drafts, spend, operators, allowed, attachments, audit and updateCheck
+  // blocks only: the generator block is the worker's concern, so this process
+  // needs no adapter validation and no provider keys.
   const instancePolicy = loadInstancePolicy(env);
   if (!instancePolicy.ok) {
     exitOnConfigError(
@@ -93,6 +94,16 @@ export function loadBootConfig(
     exitOnConfigError(
       logger,
       `api composition: invalid instance policy: ${attachmentLimits.error.issues.join("; ")}`,
+      configExitCode,
+    );
+  }
+  const updateCheck = resolveUpdateCheckSource(
+    instancePolicy.value.updateCheck,
+  );
+  if (!updateCheck.ok) {
+    exitOnConfigError(
+      logger,
+      `api composition: invalid instance policy: ${updateCheck.error.issues.join("; ")}`,
       configExitCode,
     );
   }
@@ -112,6 +123,7 @@ export function loadBootConfig(
     allowedAccess: instancePolicy.value.allowedAccess,
     attachmentLimits: attachmentLimits.value,
     auditPrivateWrites: instancePolicy.value.audit.privateWrites,
+    updateCheck: updateCheck.value,
   };
 }
 

@@ -222,14 +222,14 @@ module.exports = {
     {
       name: "instance-policy-imports-no-adapter",
       comment:
-        "The instance-policy subpath loads no adapter: the only workspace code it reaches is its own config leaves (drafts, spend, operators, allowed, attachments, audit, the moved-variable list, the root reader and consts), the config error shape and the types package. npm imports of those are not held here.",
+        "The instance-policy subpath loads no adapter: the only workspace code it reaches is its own config leaves (drafts, spend, operators, allowed, attachments, audit, updateCheck, the moved-variable list, the root reader and consts), the config error shape and the types package. npm imports of those are not held here.",
       severity: "error",
       from: { path: "^packages/generators/src/config/instancePolicy\\.ts$" },
       to: {
         reachable: true,
         path: "^(apps|packages|tools)/",
         pathNot: [
-          "^packages/generators/src/config/(allowed|attachments|audit|consts|instancePolicy|moved-variables|operators|readRoot|spendPolicy)\\.ts$",
+          "^packages/generators/src/config/(allowed|attachments|audit|consts|instancePolicy|moved-variables|operators|readRoot|spendPolicy|update-check)\\.ts$",
           "^packages/generators/src/contract/errors\\.ts$",
           "^packages/types/",
         ],

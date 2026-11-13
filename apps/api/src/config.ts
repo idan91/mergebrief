@@ -5,7 +5,6 @@ import { isHttpUrl, parseServerVersion } from "persistence";
 import { Runtimes } from "types/runtime";
 import type { Mutable, Result, ValueOf } from "types/utils";
 import { z } from "zod/v4";
-import { DEFAULT_UPDATE_CHECK_URL } from "./update-check/consts";
 
 /** Loopback by default: the API is reached through the web tier, not directly. */
 export const DEFAULT_API_HOST = "127.0.0.1";
@@ -31,44 +30,10 @@ export interface ApiConfig {
   /** The origin the OAuth callback URL is built from. */
   readonly publicBaseUrl: string;
   readonly serverVersion: string;
-  /** `MERGEBRIEF_UPDATE_CHECK`: the hourly fetch of the release manifest. */
-  readonly updateCheck: boolean;
-  readonly updateCheckUrl: string;
   /** `MERGEBRIEF_OUT_DIR`, as written; never set in production. */
   readonly localBriefsDir?: string;
   /** `SESSION_KEY_REF`: the env var NAME sign-in and refresh seal under. */
   readonly sessionKeyRef: string;
-}
-
-const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
-const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
-
-/** `z.coerce.boolean()` reads "false" as true; this maps the explicit tokens.
- * Unset and empty both take the default: compose passes an unset variable
- * through as an empty string. */
-function parseEnvBool(defaultValue: boolean): z.ZodType<boolean> {
-  return z.preprocess(
-    (value) => {
-      if (value === undefined) {
-        return defaultValue;
-      }
-      if (typeof value !== "string") {
-        return value;
-      }
-      const token = value.trim().toLowerCase();
-      if (token === "") {
-        return defaultValue;
-      }
-      if (TRUE_TOKENS.has(token)) {
-        return true;
-      }
-      if (FALSE_TOKENS.has(token)) {
-        return false;
-      }
-      return value;
-    },
-    z.boolean({ error: "must be true or false" }),
-  );
 }
 
 // A ref names a variable, so a value shaped like key material is refused
@@ -114,14 +79,6 @@ const ConfigSchema = z.object({
       isHttpUrl,
       "PUBLIC_BASE_URL must be an absolute http(s) URL without credentials",
     ),
-  MERGEBRIEF_UPDATE_CHECK: parseEnvBool(true),
-  MERGEBRIEF_UPDATE_CHECK_URL: z
-    .string()
-    .refine(
-      isHttpUrl,
-      "MERGEBRIEF_UPDATE_CHECK_URL must be an absolute http(s) URL without credentials",
-    )
-    .optional(),
   MERGEBRIEF_OUT_DIR: z.string().optional(),
   MERGEBRIEF_RUNTIME: z.string().optional(),
   NODE_ENV: z.string().optional(),
@@ -192,9 +149,6 @@ export function loadConfig(
     port: value.MERGEBRIEF_API_PORT ?? DEFAULT_API_PORT,
     publicBaseUrl: value.PUBLIC_BASE_URL,
     serverVersion: serverVersion.value,
-    updateCheck: value.MERGEBRIEF_UPDATE_CHECK,
-    updateCheckUrl:
-      value.MERGEBRIEF_UPDATE_CHECK_URL ?? DEFAULT_UPDATE_CHECK_URL,
     sessionKeyRef: value.SESSION_KEY_REF,
   };
 

@@ -109,7 +109,7 @@ it.
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `MERGEBRIEF_CONFIG` | api, worker | unset | no | Path to `mergebrief.config.yaml`. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators` and `allowed` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
+| `MERGEBRIEF_CONFIG` | api, worker | unset | no | Path to `mergebrief.config.yaml`. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
 | `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable. A provider whose key variable is unset or empty refuses boot. |
 | `OPENAI_API_KEY` | worker | none | with `provider: openai` | The `openai` provider's default key variable; same rules. |
 | `OPENROUTER_API_KEY` | worker | none | with `provider: openrouter` | The `openrouter` provider's default key variable; same rules. |
@@ -118,13 +118,6 @@ it.
 | `NOTION_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `notion` context source is configured | The Notion integration token. Unset or empty refuses boot while the config lists a `notion` entry ([trackers.md](./trackers.md#notion)). |
 | `JIRA_EMAIL` (or the name `contextSources[].emailEnv` gives) | worker | none | when a `jira` context source is configured | The email of the Atlassian account that owns the Jira API token. Unset or empty refuses boot while the config lists a `jira` entry ([trackers.md](./trackers.md#jira)). |
 | `JIRA_API_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `jira` context source is configured | The Jira API token, scoped to `read:jira-work`. Same rules. |
-
-### The update check
-
-| Variable | Read by | Default | Required | Accepts and does |
-| --- | --- | --- | --- | --- |
-| `MERGEBRIEF_UPDATE_CHECK` | api | `true` | no | Boolean. `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Empty takes the default. |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
 
 ### Logging and tracing
 
@@ -235,6 +228,7 @@ passes none of them to `web`.
 | `REVISION_NARRATIVE_ENABLED`, `HUGE_SPAN_RATIO` | Moved to `generator.revisionNarrative` and `generator.hugeSpanRatio`. Set and not empty, the worker refuses boot and names the key. |
 | `AUDIT_RETENTION_DAYS`, `PR_RETENTION_DAYS` | Moved to `retention.auditDays` and `retention.pullRequestDays`. Set and not empty, the worker refuses boot and names the key. |
 | `AUDIT_PRIVATE_WRITES` | Moved to `audit.privateWrites`. Set at all, even empty, the api refuses boot and names the key: an empty value used to read as `false`. |
+| `MERGEBRIEF_UPDATE_CHECK`, `MERGEBRIEF_UPDATE_CHECK_URL` | Moved to `updateCheck.enabled` and `updateCheck.url`. Set and not empty, the api refuses boot and names the key. |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_FILES`, `MERGEBRIEF_ATTACHMENT_QUOTA_MB`, `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES`, `MERGEBRIEF_MEDIA_MAX_MB` | Moved to the `attachments` block. Set and not empty, the api refuses boot and names the key. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Ignored; MergeBrief sets the export timeout itself. |
 | `MERGEBRIEF_URL_BOX_TOKEN` | Renamed to `MERGEBRIEF_URL_FALLBACK_TOKEN`. Set and non-empty, `api` and `worker` log one warning naming the new key and ignore it. |
@@ -263,7 +257,7 @@ A variable set to an empty string reads as unset, with these exceptions:
 
 - **Refuses boot:** `MERGEBRIEF_CONFIG`, `MERGEBRIEF_API_HOST`,
   `MERGEBRIEF_API_PORT`, `MERGEBRIEF_WEB_HOST`, `MERGEBRIEF_WEB_PORT`,
-  `MERGEBRIEF_UPDATE_CHECK_URL`, `GITHUB_APP_PRIVATE_KEY`,
+  `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_PRIVATE_KEY_PATH`, `GENERATOR_API_KEY_ENV`, and every
   required variable.
 - **Reads as `false`:** `MERGEBRIEF_AUTO_MIGRATE`.
@@ -292,11 +286,12 @@ the variable that holds it.
 | `retention` | worker | keep forever | How long the daily sweeps keep audit rows and closed pull requests. |
 | `audit` | api; worker validates | `privateWrites: true` | Whether writes that stay inside the instance are recorded. |
 | `attachments` | api; worker validates | 10 files or 30 MB per 10 minutes, 100 MB of media | What one reviewer may upload, and the largest media file the API streams. |
+| `updateCheck` | api; worker validates | `enabled: true`, the project's own release file | Whether `api` fetches the release manifest, and from where. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
 Any other root key refuses boot in `worker`. `api` reads only `drafts`,
-`spend`, `operators`, `allowed`, `attachments` and `audit`, so it ignores the
-rest of the file and needs no provider key. Every block rejects keys it does not define.
+`spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck`, so it
+ignores the rest of the file and needs no provider key. Every block rejects keys it does not define.
 
 ### `generator`
 
@@ -369,6 +364,13 @@ The harness providers are refused in the shipped image
 | `attachments.quotaMb` | `30` | Megabytes one reviewer may attach per window: a whole number of at least 10, the size limit of one file. `api` refuses a smaller one. |
 | `attachments.quotaWindowMinutes` | `10` | The window's length in minutes: a positive whole number. Each `api` replica counts on its own ([attachments.md](./attachments.md#upload-quota)). |
 | `attachments.mediaMaxMb` | `100` | The largest video or image, in megabytes, the API streams: a positive whole number, judged on the file's full size; a larger one answers `413 media-too-large`, and the page shows "could not load" with an Open on GitHub link ([attachments.md](./attachments.md)). |
+
+### `updateCheck`
+
+| Key | Default | Accepts |
+| --- | --- | --- |
+| `updateCheck.enabled` | `true` | `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Anything but `true` or `false` refuses boot. |
+| `updateCheck.url` | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. `api` refuses any other value; `worker` checks only that it is text. |
 
 ### `linkFetch`
 

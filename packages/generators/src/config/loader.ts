@@ -28,6 +28,7 @@ import {
   validateSpendBlock,
   type SpendPolicy,
 } from "./spendPolicy";
+import { validateUpdateCheckBlock } from "./update-check";
 import {
   defaultGeneratorConfig,
   validateGeneratorConfig,
@@ -144,6 +145,7 @@ export function loadGeneratorConfigFile(
       key === "attachments" ||
       key === "retention" ||
       key === "audit" ||
+      key === "updateCheck" ||
       key.startsWith("x-")
     ) {
       continue;
@@ -245,11 +247,19 @@ export function loadGeneratorConfigFile(
     linkFetch = validated.value;
   }
 
-  // The api records audit rows; a bad block refuses boot here too, so the
-  // worker never runs beside an api that refuses the file.
+  // The api reads the audit and updateCheck blocks; a bad one refuses boot
+  // here too, so the worker never runs beside an api that refuses the file.
   const auditBlock = root["audit"];
   if (auditBlock !== undefined) {
     const validated = validateAuditBlock(auditBlock);
+    if (!validated.ok) {
+      return validated;
+    }
+  }
+
+  const updateCheckBlock = root["updateCheck"];
+  if (updateCheckBlock !== undefined) {
+    const validated = validateUpdateCheckBlock(updateCheckBlock);
     if (!validated.ok) {
       return validated;
     }

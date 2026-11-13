@@ -480,3 +480,22 @@ describe("loadGeneratorConfig on the retention and audit blocks", () => {
     );
   });
 });
+
+describe("loadGeneratorConfig on the updateCheck block", () => {
+  it("accepts an updateCheck root block", () => {
+    const path = configFile("updateCheck:\n  enabled: false\n");
+    expect(loadGeneratorConfigFile(path).ok).toBe(true);
+  });
+
+  it("refuses a bad updateCheck block, as the api does", () => {
+    const path = configFile("updateCheck:\n  enabled: maybe\n");
+    const result = loadGeneratorConfigFile(path);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toEqual([
+      "updateCheck: enabled: must be true or false",
+    ]);
+  });
+});

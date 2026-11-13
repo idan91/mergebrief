@@ -67,7 +67,7 @@ recognizable across every PR you ever review.
   send nothing back to us, by design. Beyond the GitHub API and your model provider, the
   outbound requests are the update check, the links a PR cites and any ticket tracker you
   configure. The update check is an hourly fetch of a public release file from GitHub that
-  carries nothing about your instance; `MERGEBRIEF_UPDATE_CHECK=false` turns it off. For
+  carries nothing about your instance; `updateCheck.enabled: false` in the instance config turns it off. For
   context, the worker reads up to five public links from a PR's description, and a tracker
   such as Notion or Jira when you configure one.
 - **Hackable.** The taxonomy is documented in plain markdown: read it, extend it, propose
