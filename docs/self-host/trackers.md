@@ -42,6 +42,8 @@ Two halves of configuration:
   take a full Markdown parse, the worker skips more, never less. A GitHub or
   Notion URL counts only where a link starts: at the start of the text, after
   whitespace or `<`, or as a Markdown link target, never inside another URL.
+  A `PREFIX-N` key inside a link is part of the link, not a reference; the
+  same key as a link's visible text still counts.
 - **Text, capped.** The ticket body is injected as untrusted text under the
   same 20,000-character cap as chased links; fence markers inside it are
   stripped. Comments are not read.

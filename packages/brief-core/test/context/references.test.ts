@@ -37,6 +37,10 @@ describe("collectTicketReferences: shapes", () => {
     ["word-bounded BRIEF-12x", []],
     ["hyphen-bounded pre-BRIEF-12", []],
     ["slug-tailed BRIEF-12-fix-the-loop", ["BRIEF-12"]],
+    ["in a link's path https://example.com/docs/BRIEF-12", []],
+    ["in a link target [docs](https://x/y/BRIEF-12)", []],
+    ["as a link's text [BRIEF-12](https://x)", ["BRIEF-12"]],
+    ["beside a link BRIEF-1 https://x/BRIEF-2 BRIEF-3", ["BRIEF-1", "BRIEF-3"]],
   ])("key: %s", (body, keys) => {
     const refs = collectTicketReferences(
       makeInput({ body, trackers: [NOTION] }),

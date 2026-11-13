@@ -5,6 +5,7 @@ import {
   createEmbeddedUrlCheck,
   trimTrailingPunctuation,
 } from "../../embedded-urls";
+import { collectTicketKeys } from "../ticket-keys";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 /** Only where a link starts: at the start, after whitespace or `<`, after `*`, `_`, `~` or `(`, or at a table cell's `|`. */
@@ -52,24 +53,15 @@ function collectBoardKeys(
   text: string,
   tracker: Extract<TrackerConfig, { kind: typeof TicketTrackers.NOTION }>,
 ): ReferenceHit[] {
-  const prefix = tracker.keyPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // A trailing hyphen is a branch or slug separator, never part of the key.
-  const pattern = new RegExp(`(?<![\\w-])(${prefix})-(\\d+)(?!\\w)`, "gi");
-  const hits: ReferenceHit[] = [];
-
-  for (const match of text.matchAll(pattern)) {
-    const key = `${tracker.keyPrefix.toUpperCase()}-${match[2]}`;
-    hits.push({
-      index: match.index,
-      reference: {
-        tracker: TicketTrackers.NOTION,
-        key,
-        url: "",
-        databaseId: tracker.databaseId,
-      },
-    });
-  }
-  return hits;
+  return collectTicketKeys(text, [tracker.keyPrefix]).map(({ index, key }) => ({
+    index,
+    reference: {
+      tracker: TicketTrackers.NOTION,
+      key,
+      url: "",
+      databaseId: tracker.databaseId,
+    },
+  }));
 }
 
 function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
