@@ -288,7 +288,7 @@ Why a pending **Generation** has not started, read off its **Queued** **Job**: `
 _Avoid_: queue status, pending reason, delay reason
 
 **Anchored generation**:
-Generating a new revision's **Brief** against the previous one: groups the push did not touch are carried frozen and only touched groups get a re-look, with group and chunk ids descended through the push. It reads the **Revision span**, whatever the push (fast-forward, rebase, amend or force push): a file the span changed, a file whose hunks could not pair, a file a group shares with another group that re-looks, or an ambiguous range remap re-looks only the groups that own it. With no span every group re-looks. A **Multi-call run** anchors the same way, and the Brief keeps an **Anchor warning** for what it could not carry. The stored anchor state is `anchored`, `fresh-restart` (the generator config's `full-regeneration` fired on a model swap) or `none` (a first Brief). Distinct from **Comment anchoring**, which places a draft on a moved line.
+Generating a new revision's **Brief** against the previous one: groups the push did not touch are carried frozen and only touched groups get a re-look, with group and chunk ids descended through the push. It reads the **Revision span**, whatever the push (fast-forward, rebase, amend or force push): a file the span changed, a file whose hunks could not pair, a file a group shares with another group that re-looks, or an ambiguous range remap re-looks only the groups that own it. With no span every group re-looks. A **Multi-call run** anchors the same way, and the Brief keeps an **Anchor warning** for what it could not carry. The stored anchor state is `anchored`, `fresh-restart` (the generator config's `fullRegeneration` fired on a model swap) or `none` (a first Brief). Distinct from **Comment anchoring**, which places a draft on a moved line.
 _Avoid_: incremental generation, partial regeneration, anchoring (bare)
 
 **Anchor warning**:
@@ -416,7 +416,7 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Instance config**:
-`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `full-regeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists and shared `trackers`. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
+`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `fullRegeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists and shared `trackers`. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
 _Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
 
 **Repo config**:

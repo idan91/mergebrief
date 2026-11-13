@@ -156,8 +156,8 @@ const anthropicOptions = z
       })
       .optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -180,8 +180,8 @@ const claudeCodeOptions = z
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -198,8 +198,8 @@ const codexOptions = z
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -228,8 +228,8 @@ const cursorOptions = z
      */
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -252,8 +252,8 @@ const openaiOptions = z
      */
     baseUrl: z.string().url().optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();
@@ -276,8 +276,8 @@ const openrouterOptions = z
     referer: z.string().min(1).optional(),
     title: z.string().min(1).optional(),
     effort: effortOption,
-    "full-regeneration": fullRegenerationOption,
-    "force-multi-call": forceMultiCallOption,
+    fullRegeneration: fullRegenerationOption,
+    forceMultiCall: forceMultiCallOption,
     detailConcurrency: detailConcurrencyOption,
   })
   .strict();

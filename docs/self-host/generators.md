@@ -785,7 +785,7 @@ lines changed. A draft on the old side is orphaned when the pull request's base
 moved, which a rebase usually does. A reviewer re-places or deletes an orphaned
 draft before the review can post.
 
-Nothing carries when `generator.full-regeneration` asks for a fresh brief: `always`
+Nothing carries when `generator.fullRegeneration` asks for a fresh brief: `always`
 on every revision, a no-change push included, and `on-model-swap` when the provider
 or model changed ([configuration.md](./configuration.md#generator)).
 

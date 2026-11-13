@@ -100,7 +100,7 @@ export interface GenerateTaskDeps {
   readonly hugeSpanRatio?: number;
   /** Detail calls a multi-call run keeps in flight at once; absent means `DEFAULT_DETAIL_CONCURRENCY`. */
   readonly detailConcurrency?: number;
-  /** The instance's `force-multi-call` switch: every brief runs multi-call; absent means off. */
+  /** The instance's `forceMultiCall` switch: every brief runs multi-call; absent means off. */
   readonly forceMultiCall?: boolean;
   readonly log?: Logger;
 }

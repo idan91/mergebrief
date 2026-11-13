@@ -260,12 +260,12 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("detailConcurrency");
   });
 
-  it("reads force-multi-call from the generator block, off by default", () => {
+  it("reads forceMultiCall from the generator block, off by default", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.forceMultiCall).toBe(false);
 
     const path = configFile(
-      "generator:\n  provider: anthropic\n  force-multi-call: true\n",
+      "generator:\n  provider: anthropic\n  forceMultiCall: true\n",
     );
     const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
     expect(result.ok && result.value.forceMultiCall).toBe(true);

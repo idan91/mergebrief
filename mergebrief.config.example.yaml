@@ -47,10 +47,10 @@ operators:
 #
 #   # never | on-model-swap | always: when a new revision's brief restarts from
 #   # scratch, not from the previous brief.
-#   full-regeneration: never
+#   fullRegeneration: never
 #
 #   # true runs every brief as a multi-call run. A diagnostic, and it costs more.
-#   force-multi-call: false
+#   forceMultiCall: false
 #
 #   # Detail calls a multi-call run keeps in flight. Lower it for a rate limit.
 #   detailConcurrency: 8

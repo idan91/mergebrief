@@ -458,7 +458,7 @@ re-recorded, is a deliberate, reviewed step:
    half, run one deliberately broken pass before believing any 5/5:
    `pnpm eval --case pair-additive --runs 1 --pair-fresh`. The flag runs
    BOTH generations fresh (no anchor view, no stitch, exactly what
-   `full-regeneration: always` produces in production), so
+   `fullRegeneration: always` produces in production), so
    `untouched-survives-*` and `anchored-stamp` MUST fail (text
    byte-equality and the missing stamp fail deterministically).
    `id-carried-*` and `survivor-order-stable-*` are expected to fail too
@@ -469,7 +469,7 @@ re-recorded, is a deliberate, reviewed step:
    never combines with `--rebaseline`.
 2. `pnpm eval --rebaseline --case <id>` per pair (or one full
    `--rebaseline` run), then review + commit the `baseline.json` diffs.
-3. `full-regeneration: always` must keep the EXISTING single-case
+3. `fullRegeneration: always` must keep the EXISTING single-case
    baselines byte-meaningful: the fresh prompt is snapshot-pinned
    unchanged, so a full-suite run under the default config is the
    confirmation, not a requirement.

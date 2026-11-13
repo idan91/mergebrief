@@ -371,7 +371,7 @@ describe("detailConcurrency on the generator block", () => {
   });
 });
 
-describe("full-regeneration on the generator block", () => {
+describe("fullRegeneration on the generator block", () => {
   // Minimal valid block per adapter; openai/openrouter require a model.
   const minimalBlocks = [
     { provider: Providers.ANTHROPIC },
@@ -387,44 +387,69 @@ describe("full-regeneration on the generator block", () => {
       for (const value of Object.values(FullRegenerations)) {
         const parsed = GeneratorConfigSchema.safeParse({
           ...block,
-          "full-regeneration": value,
+          fullRegeneration: value,
         });
         expect(parsed.success).toBe(true);
         if (!parsed.success) {
           continue;
         }
-        expect(parsed.data["full-regeneration"]).toBe(value);
+        expect(parsed.data.fullRegeneration).toBe(value);
       }
     },
   );
 
-  it("leaves full-regeneration undefined when omitted", () => {
+  it("leaves fullRegeneration undefined when omitted", () => {
     const parsed = GeneratorConfigSchema.safeParse(minimalBlocks[0]);
     expect(parsed.success).toBe(true);
     if (!parsed.success) {
       return;
     }
-    expect(parsed.data["full-regeneration"]).toBeUndefined();
+    expect(parsed.data.fullRegeneration).toBeUndefined();
   });
 
   it("rejects an unknown value with a per-field issue naming the key", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
-      "full-regeneration": "sometimes",
+      fullRegeneration: "sometimes",
     });
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
     }
     const text = result.error.issues.join("; ");
-    expect(text).toContain("full-regeneration");
+    expect(text).toContain("fullRegeneration");
     expect(text).not.toContain("sometimes");
+  });
+
+  it.each(["full-regeneration", "force-multi-call"])(
+    "refuses the kebab-case spelling %s as an unknown key",
+    (kebabKey) => {
+      const result = validateGeneratorConfig({
+        provider: "anthropic",
+        [kebabKey]: "never",
+      });
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        return;
+      }
+      expect(result.error.issues.join("; ")).toContain(
+        `unrecognized key(s): "${kebabKey}"`,
+      );
+    },
+  );
+
+  it("parses forceMultiCall as a boolean", () => {
+    const parsed = GeneratorConfigSchema.safeParse({
+      provider: Providers.ANTHROPIC,
+      forceMultiCall: true,
+    });
+    expect(parsed.success && parsed.data.forceMultiCall).toBe(true);
   });
 
   it("still rejects unknown sibling keys next to a valid value", () => {
     const result = validateGeneratorConfig({
       provider: "anthropic",
-      "full-regeneration": "never",
+      fullRegeneration: "never",
       "full-regen": "always",
     });
     expect(result.ok).toBe(false);

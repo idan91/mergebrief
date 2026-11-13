@@ -37,7 +37,7 @@ export interface WorkerConfig {
   readonly largeConcurrency: number;
   /** Detail calls a multi-call run keeps in flight at once (`generator.detailConcurrency`). */
   readonly detailConcurrency: number;
-  /** `generator.force-multi-call`: every brief runs multi-call; off when unset. */
+  /** `generator.forceMultiCall`: every brief runs multi-call; off when unset. */
   readonly forceMultiCall: boolean;
   /** Audit retention window the scheduled sweep enforces; null = keep forever
    * (the default). Validated; floor included; by persistence's loader. */
@@ -288,8 +288,7 @@ export function loadConfig(
       detailConcurrency:
         generatorConfig.value.generator.detailConcurrency ??
         DEFAULT_DETAIL_CONCURRENCY,
-      forceMultiCall:
-        generatorConfig.value.generator["force-multi-call"] ?? false,
+      forceMultiCall: generatorConfig.value.generator.forceMultiCall ?? false,
       auditRetentionDays: persistence.value.auditRetentionDays,
       prRetentionDays: persistence.value.prRetentionDays,
       generator: generatorConfig.value.generator,

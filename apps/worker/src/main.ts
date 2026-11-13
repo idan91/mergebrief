@@ -188,8 +188,7 @@ async function main(): Promise<void> {
     );
   }
   const configuredEffort = config.value.generator.effort;
-  const configuredFullRegeneration =
-    config.value.generator["full-regeneration"];
+  const configuredFullRegeneration = config.value.generator.fullRegeneration;
   // The resolved values join the env so a file-sourced database URL or
   // private key is scanned for too.
   const outputSecrets = collectOutputSecrets(

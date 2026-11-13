@@ -128,7 +128,7 @@ export type AnchorState = ValueOf<typeof AnchorStates>;
 
 /** Why an anchored-capable generation ran fresh instead. */
 export const FreshRestartReasons = {
-  /** `full-regeneration: on-model-swap` fired; stamped provider/model moved. */
+  /** `fullRegeneration: on-model-swap` fired; stamped provider/model moved. */
   MODEL_SWAP: "model-swap",
 } as const;
 export type FreshRestartReason = ValueOf<typeof FreshRestartReasons>;

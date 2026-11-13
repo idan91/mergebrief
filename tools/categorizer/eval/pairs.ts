@@ -153,7 +153,7 @@ export interface PairCase {
   deltaProperties: DeltaEvalProperty[];
   /** The delta reads `reviewComments`, as the dev CLI does; the worker sends none, so off by default. */
   deltaReadsReviewComments: boolean;
-  /** Every Brief the case generates runs through the multi-call engine, as the `force-multi-call` generator config does; a stored `baseBrief` is read as stored. */
+  /** Every Brief the case generates runs through the multi-call engine, as the `forceMultiCall` generator config does; a stored `baseBrief` is read as stored. */
   forceMultiCall: boolean;
   /** Where the case's pair.json lives: its own dir, or a twin's base case's. */
   fixtureDir: string;
