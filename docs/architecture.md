@@ -34,8 +34,8 @@ CLI ──Bearer token───────────────────�
   sessions, closed pull requests past retention).
 - **Postgres** is the only dependency: data, queue and locks in one database.
   The queue is graphile-worker, so an enqueue commits in the same transaction as
-  the rows it belongs to. `docker-compose.external-db.yml` swaps the bundled
-  server for your own.
+  the rows it belongs to. `docker-compose.external-db.yml`, an overlay on the
+  default compose file, swaps the bundled server for your own.
 - **CLI** (`apps/cli`, the `mergebrief` npm package) is a thin HTTP client. It
   sends a Bearer token to the same `/api/*` routes and parses answers with
   `packages/contract`.

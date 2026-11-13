@@ -184,7 +184,7 @@ under these names.
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `code_review` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). |
 | `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api). |
 | `WORKER_COUNT` | `1` | `worker` replicas. `docker compose up --scale worker=N` wins for that run. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
-| `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.external-db.yml` for an external database, and append `:docker-compose.override.yml` once you have an override file, since setting it turns off the automatic load ([compose.md](./compose.md#external-postgres-managed-database)). |
+| `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.yml:docker-compose.external-db.yml` for an external database, and append `:docker-compose.override.yml` once you have an override file, since setting it turns off the automatic load ([compose.md](./compose.md#external-postgres-managed-database)). |
 
 ### What compose passes to each service
 
@@ -197,10 +197,10 @@ A service's `environment:` value wins over the same variable in `.env`.
 | `worker` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL` |
 | `web` | nothing (no `env_file`) | `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN=http://api:3001`, and the six `OTEL_*` variables named [above](#logging-and-tracing), interpolated from `.env` |
 
-`docker-compose.external-db.yml` has no `postgres` service and derives
-nothing: `api` and `worker` take `DATABASE_URL`, `DATABASE_URL_FILE` and
+`docker-compose.external-db.yml`, layered on the default file, removes the
+`postgres` service and derives nothing: `api` and `worker` take `DATABASE_URL`, `DATABASE_URL_FILE` and
 `MERGEBRIEF_AUTO_MIGRATE` from the shell running compose when set there, else
-from `.env`. Under either file `DATABASE_URL_FILE` wins over `DATABASE_URL`,
+from `.env`. With or without the overlay `DATABASE_URL_FILE` wins over `DATABASE_URL`,
 so setting it under the default file moves the services off the bundled
 database.
 

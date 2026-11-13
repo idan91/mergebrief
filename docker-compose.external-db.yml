@@ -1,161 +1,43 @@
-# External-Postgres compose: api + web + worker, with YOUR database
-# (managed provider or any Postgres 16+) replaces the bundled `postgres`
-# service. A separate checked-in file, not a profile or override, on purpose:
-# `depends_on` cannot reference a profiled-out service without erroring, and
-# an override file cannot REMOVE a service. Usage:
+# External-Postgres overlay. Layered on docker-compose.yml, it removes the
+# bundled `postgres` service and hands api and worker YOUR database (a managed
+# provider, or any Postgres 16+). It is not a compose file by itself: it names
+# no image and no service of its own. Usage:
 #
-#   docker compose -f docker-compose.external-db.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.external-db.yml up -d
 #
-# or set `COMPOSE_FILE=docker-compose.external-db.yml` in `.env` so every
-# plain `docker compose` command reads this file.
+# or set this in `.env`, so every plain `docker compose` command reads both:
 #
-# An upgrade replaces this file: put your own edits (a config mount, a CA
-# bundle, the DSN as a secret) in docker-compose.override.yml and append it to
-# COMPOSE_FILE. docs/self-host/compose.md has the recipes.
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
 #
-# DATABASE_URL comes from `.env` (env_file below) or the shell you run
-# compose from (the pass-through entries under `environment:`; a shell value
-# wins over `.env`). A NON-loopback host boots only on `sslmode=verify-full`
-# or `sslmode=disable`; see docs/self-host/compose.md for the provider
-# recipes (verify-full + CA bundle, why `require` is refused, `_FILE`
-# secrets). There is no `depends_on` on the database: the services fail
-# loudly against an unreachable one instead of gating on a healthcheck
-# compose cannot see.
+# COMPOSE_FILE turns off the automatic override file. Once you have one, append
+# it: docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml
 #
-# All published ports bind loopback-only, same as the default compose.
+# DATABASE_URL comes from `.env` or from the shell that runs compose. A host
+# beyond loopback boots only on `sslmode=verify-full` or `sslmode=disable`.
+# docs/self-host/compose.md has the provider recipes: a CA bundle, why
+# `require` is refused, and the DSN as a secret file.
 services:
-  api:
-    image: ghcr.io/idan91/mergebrief:dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: api
-    # Same policy as the default compose: a config error exits 0 and stays
-    # down, a transient fault (pending migrations included) exits 1 and
-    # self-heals on the restart.
-    restart: on-failure
-    # No published port: reached through the web tier on the compose network.
-    expose:
-      - "3001"
-    # API containers. Every replica is interchangeable (state lives in
-    # Postgres; boot migrations take an advisory lock); web reaches them by
-    # service name, which gives failover when one exits, not an even split,
-    # and a write can read stale for a minute from another replica
-    # (docs/self-host/operations.md, "Running more than one api").
-    # `docker compose up --scale api=N` wins over this for that run. No
-    # container_name and no ports, so scaling needs nothing else.
-    deploy:
-      replicas: ${API_COUNT:-1}
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      # Pass-through (no `=`): each rides in from the shell running compose
-      # when set there, otherwise the `.env` value applies; an entry unset in
-      # both stays genuinely ABSENT in the container (the loaders distinguish
-      # unset from empty, so do not give these empty defaults).
-      - DATABASE_URL
-      - DATABASE_URL_FILE
-      - MERGEBRIEF_AUTO_MIGRATE
-      # Defaulted (not pass-through): parity with the default compose, so an
-      # .env that omits it keeps working after switching files.
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
-      # Reachable from the web service, not from the host.
-      - MERGEBRIEF_API_HOST=0.0.0.0
-      - MERGEBRIEF_API_PORT=3001
-    # Liveness only: /healthz is static, never /readyz here, or a DB blip
-    # would trigger restart churn on the tier that owns the database.
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -qO /dev/null http://127.0.0.1:3001/healthz || exit 1",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      # The api does not listen until its migrations finish, and a long one
-      # must not read as a failed start.
-      start_period: 5m
-    logging: &log-rotation
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+  postgres: !reset null
 
-  web:
-    image: ghcr.io/idan91/mergebrief:dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: web
-    restart: on-failure
-    # The web tier drains for up to its longest proxied request, a review
-    # submit (150 s), so a stop never cuts one the browser waits on.
-    stop_grace_period: 160s
-    ports:
-      - "127.0.0.1:3000:3000"
-    depends_on:
-      api:
-        # `service_healthy`, not `service_started`: the API does not listen
-        # until the schema and queue migrations finish.
-        condition: service_healthy
-    # No `env_file` on purpose: the internet-facing tier holds no
-    # credentials, so `.env` never reaches its process environment. A bad
-    # value here exits 1, so unlike api and worker it restarts until fixed.
+  api:
+    # No database to wait for. Compose cannot see yours, so the service fails
+    # loudly against an unreachable one where the default file gates on a
+    # healthcheck.
+    depends_on: !reset null
     environment:
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
-      MERGEBRIEF_API_ORIGIN: http://api:3001
-      # Tracing, off unless an endpoint is set in `.env`. OTLP headers stay
-      # out: point the web tier at a local collector or Agent, so the
-      # internet-facing process holds no vendor key.
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
-      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
-      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
-      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
-      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
-    # Liveness only: /healthz is static, never /readyz here,
-    # or an upstream blip would trigger web restart churn.
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    logging: *log-rotation
+      # No value: each comes from the shell that runs compose when set there,
+      # else from `.env`. Unset in both, the variable is ABSENT in the
+      # container, so give these no empty default: the loaders tell unset
+      # from empty.
+      DATABASE_URL:
+      DATABASE_URL_FILE:
+      MERGEBRIEF_AUTO_MIGRATE:
 
   worker:
-    image: ghcr.io/idan91/mergebrief:dev
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: worker
-    env_file:
-      - path: .env
-        required: false
+    depends_on: !reset null
     environment:
-      # Same pass-through contract as the api service.
-      - DATABASE_URL
-      - DATABASE_URL_FILE
-      - MERGEBRIEF_AUTO_MIGRATE
-      # Defaulted (not pass-through): parity with the default compose, so an
-      # .env that omits it keeps working after switching files.
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
-    # Worker containers, same contract as the default compose:
-    # `--scale worker=N` wins for that run.
-    deploy:
-      replicas: ${WORKER_COUNT:-1}
-    # No HTTP surface to probe; liveness = the runner process itself.
-    # on-failure: transient crashes (nonzero exit, e.g. a network blip or
-    # provider failover) self-heal; config errors exit 0 and STAY DOWN. The
-    # reason is the last line of `docker compose logs worker`.
-    restart: on-failure
-    # A job aborts within 5s of a stop, then the pool closes and the last
-    # spans flush within 5s more; the default 10s would cut that flush.
-    stop_grace_period: 30s
-    logging: *log-rotation
+      DATABASE_URL:
+      DATABASE_URL_FILE:
+      MERGEBRIEF_AUTO_MIGRATE:
+
+volumes: !reset null

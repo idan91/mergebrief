@@ -158,8 +158,8 @@ services:
 shows the result: each service should list one published port. Change only
 the host port, the number after `127.0.0.1`, and keep the loopback address.
 List only the service you are moving. On an external database
-drop the `postgres` entry, since naming a service the file does not define
-fails every compose command, and add the override to `COMPOSE_FILE`
+drop the `postgres` entry, since the overlay removed that service and naming
+it again fails every compose command, and add the override to `COMPOSE_FILE`
 ([below](#external-postgres-managed-database)).
 
 With no proxy in front, moving `web` moves the origin reviewers browse: set
@@ -212,17 +212,18 @@ The second supported deployment shape: `api`, `web` and `worker` from
 compose, the database from a managed provider (Neon, Supabase, RDS, ...)
 or any Postgres you operate yourself.
 
-A second shipped file, `docker-compose.external-db.yml`, carries the same
-three services without the bundled `postgres`. It is a separate file on
-purpose: an override cannot remove a service, and `depends_on` cannot name
-a profiled-out one. Fetch it from the release beside the default file and
-name it in `.env`, so every plain `docker compose` command in these pages
-reads it:
+A second shipped file, `docker-compose.external-db.yml`, is an overlay on
+`docker-compose.yml`: it removes the bundled `postgres` service, drops the
+wait on it, and hands `api` and `worker` the `DATABASE_URL` you set. It is
+not a compose file by itself. It names no image, so the three services and
+the release's image pin always come from `docker-compose.yml`. Fetch it
+from the release beside the default file and name both in `.env`, in this
+order, so every plain `docker compose` command in these pages reads them:
 
 ```sh
 curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
 # .env: DATABASE_URL=postgres://...?sslmode=verify-full&sslrootcert=...
-# .env: COMPOSE_FILE=docker-compose.external-db.yml
+# .env: COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
 docker compose up -d --wait
 ```
 
@@ -230,7 +231,7 @@ Setting `COMPOSE_FILE` turns off the automatic load of
 `docker-compose.override.yml`, and every file it lists must exist or each
 compose command fails before anything starts. Your own edits still live in
 the override file, which an upgrade never touches: once you create it,
-append it to the list, `COMPOSE_FILE=docker-compose.external-db.yml:docker-compose.override.yml`.
+append it to the list, `COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml`.
 
 `api` and `worker` then read `DATABASE_URL` (and the other variables below)
 from `.env`. The bundled `postgres` service and its `POSTGRES_*` derivation

@@ -275,9 +275,9 @@ curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/
 cp .env.example .env
 ```
 
-For H2, E2 or E3, also download the external-database Compose file from the
-same release. Section 5B names it in `COMPOSE_FILE`, and Compose then reads it
-instead of `docker-compose.yml`:
+For H2, E2 or E3, also download the external-database overlay from the same
+release. Section 5B names it in `COMPOSE_FILE` after `docker-compose.yml`, and
+Compose then reads both, the overlay removing the bundled database:
 
 ```sh
 curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
@@ -693,7 +693,7 @@ Run these on the VM, from `~/deploy/mergebrief`.
 4. Add these to `.env`, and remove any `DATABASE_URL` line:
 
    ```dotenv
-   COMPOSE_FILE=docker-compose.external-db.yml:docker-compose.override.yml
+   COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml
    DATABASE_URL_FILE=/run/secrets/database-url
    DATABASE_POOL_MAX=3
    MERGEBRIEF_AUTO_MIGRATE=true
@@ -707,8 +707,8 @@ Run these on the VM, from `~/deploy/mergebrief`.
    sudo docker compose ps -a
    ```
 
-The external Compose file ignores the bundled `POSTGRES_*` settings.
-`COMPOSE_FILE` lists the override because setting it turns off the automatic
+The overlay removes the bundled `postgres` service, so the `POSTGRES_*`
+settings no longer apply. `COMPOSE_FILE` lists the override because setting it turns off the automatic
 override load. Compose file-backed secrets are mounted files, not an encrypted
 vault, so keep the `secrets` folder private. If your plan offers an IP
 allowlist, restrict the database to the VM's address too.
@@ -734,7 +734,7 @@ sudo docker compose down
 ```
 
 Never add `-v`: that deletes the Postgres volume. An H1 folder installed from
-a release holds no external-database Compose file, because section 3 downloads
+a release holds no external-database overlay, because section 3 downloads
 it only for the external tracks. Download it now, from the release this
 instance runs: the first command prints the version `docker-compose.yml` pins,
 and a pin of `0.1.0` is `v0.1.0` in the URL. A source build skips this step,

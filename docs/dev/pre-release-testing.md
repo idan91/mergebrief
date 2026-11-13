@@ -291,7 +291,8 @@ SERVER_VERSION=0.0.9 MERGEBRIEF_UPDATE_CHECK_URL=http://127.0.0.1:8765/version.j
 ### External Postgres
 
 Setup: a managed-provider database (a free tier is enough), the Release's
-`docker-compose.external-db.yml` selected through `COMPOSE_FILE` in `.env`,
+`docker-compose.external-db.yml` layered on `docker-compose.yml` through
+`COMPOSE_FILE` in `.env`,
 recipes in
 [`../self-host/compose.md`](../self-host/compose.md#external-postgres-managed-database).
 The refusal and precedence LOGIC (the TLS gate matrix, `_FILE` precedence,
@@ -323,8 +324,8 @@ release`.
       migrate run creates the app schema AND `graphile_worker`; the first
       `up -d` then boots clean with no DDL.
 - [ ] An upgrade under `MERGEBRIEF_AUTO_MIGRATE=false` follows the
-      operations recipe: provider snapshot, curl the new external-db compose
-      file, migrate with the new image, then `up -d --wait`.
+      operations recipe: provider snapshot, curl the new compose file and
+      its external-db overlay, migrate with the new image, then `up -d --wait`.
 - [ ] `DATABASE_URL_FILE` through the compose `secrets:` block boots; with
       BOTH set the boot warning names the shadowed `DATABASE_URL`.
 

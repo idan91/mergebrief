@@ -48,7 +48,6 @@ function makeRepo(): string {
   writeTree(root, {
     "apps/cli/package.json": PACKAGE_JSON,
     "docker-compose.yml": COMPOSE,
-    "docker-compose.external-db.yml": COMPOSE,
   });
   return root;
 }
@@ -165,30 +164,27 @@ describe("stamping the release version", () => {
     expect(result.ok && result.value).toEqual([
       "apps/cli/package.json",
       "docker-compose.yml",
-      "docker-compose.external-db.yml",
     ]);
-    expect(
-      readFileSync(join(root, "docker-compose.external-db.yml"), "utf8"),
-    ).toContain("image: ghcr.io/idan91/mergebrief:0.2.0-rc.1");
+    expect(readFileSync(join(root, "docker-compose.yml"), "utf8")).toContain(
+      "image: ghcr.io/idan91/mergebrief:0.2.0-rc.1",
+    );
   });
 
-  it("writes nothing when one compose file has no pin", () => {
+  it("writes nothing when the compose file has no pin", () => {
+    const unpinned = "services:\n  api:\n    image: other\n";
     const root = makeRepo();
-    writeTree(root, {
-      "docker-compose.external-db.yml": "services:\n  api:\n    image: other\n",
-    });
+    writeTree(root, { "docker-compose.yml": unpinned });
 
     const result = stampTree(root, "0.1.0");
 
-    expect(
-      !result.ok &&
-        result.error.path.endsWith("docker-compose.external-db.yml"),
-    ).toBe(true);
+    expect(!result.ok && result.error.path.endsWith("docker-compose.yml")).toBe(
+      true,
+    );
     expect(readFileSync(join(root, "apps/cli/package.json"), "utf8")).toBe(
       PACKAGE_JSON,
     );
     expect(readFileSync(join(root, "docker-compose.yml"), "utf8")).toBe(
-      COMPOSE,
+      unpinned,
     );
   });
 

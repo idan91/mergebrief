@@ -17,10 +17,8 @@ export const DEV_PACKAGE_VERSION = "0.0.0";
 
 export const CLI_PACKAGE_PATH = "apps/cli/package.json";
 
-export const COMPOSE_PATHS = [
-  "docker-compose.yml",
-  "docker-compose.external-db.yml",
-] as const;
+/** The compose files that pin the image. The external-database overlay names none. */
+export const COMPOSE_PATHS = ["docker-compose.yml"] as const;
 
 export const REPOSITORY = {
   owner: "Idan91",

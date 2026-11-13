@@ -209,21 +209,9 @@ flag. Under a ratio sampler that trace id still steers the decision, so a
 client can push its own requests in or out of the sample; that costs you
 volume, never data.
 
-To try it locally, `docker-compose.tracing.yml` in the repository runs a
-throwaway Jaeger, with the UI on `127.0.0.1:16686`. With the compose stack,
-set `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318` in `.env` and merge the
-file in:
-
-```sh
-docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --wait
-```
-
-With the processes on the host (`pnpm app:host`), set
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` and run it alone:
-
-```sh
-docker compose -f docker-compose.tracing.yml up -d
-```
+To try tracing on a checkout before you pick a backend, a throwaway local
+Jaeger ships in the repository, not in a release:
+[local tracing](../dev/local-tracing.md).
 
 ## Health endpoints
 

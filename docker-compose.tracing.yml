@@ -1,7 +1,7 @@
 # A local Jaeger for development: the trace viewer at http://127.0.0.1:16686
 # and an OTLP/HTTP receiver on 4318, in memory, gone on restart. Not for
-# production. docs/self-host/observability.md has how to start it and the
-# backend recipes.
+# production. docs/dev/local-tracing.md has how to start it;
+# docs/self-host/observability.md has the backend recipes.
 services:
   jaeger:
     image: jaegertracing/jaeger:2.11.0

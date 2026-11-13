@@ -3,7 +3,9 @@
 # long-lived generation worker.
 #
 # An upgrade replaces this file: put your own edits in
-# docker-compose.override.yml, which compose merges in on its own.
+# docker-compose.override.yml, which compose merges in on its own. For your
+# own Postgres, layer docker-compose.external-db.yml on this file
+# (docs/self-host/compose.md).
 #
 # Settings come from `.env` beside this file (copy `.env.example`). Compose uses
 # it for ${...} interpolation, and `api` and `worker` load it via env_file, so a

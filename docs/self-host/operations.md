@@ -82,11 +82,10 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=cust
    Keep the file until the new release has run for a while: it is the only
    way back across more than one release. On an external database, take
    the provider's snapshot instead, then run the chain's last four lines by
-   hand with `docker-compose.external-db.yml` in place of
-   `docker-compose.yml` on the `curl` line, as the local filename and in the
-   asset name both: that is the file `COMPOSE_FILE` in `.env` names, and
-   compose never reads the default file there, so fetching the default file
-   would leave the old release pinned and still exit 0. Under
+   hand. The `curl` line is the same: `docker-compose.yml` pins the image
+   there too, and the overlay beside it names none. Fetch the release's
+   `docker-compose.external-db.yml` as well, since an overlay belongs to the
+   file it sits on. Under
    `MERGEBRIEF_AUTO_MIGRATE=false`, follow
    [External database: auto-migrate=false](#external-database-auto-migratefalse)
    instead: it applies the migrations before the new containers start,
@@ -187,11 +186,12 @@ restart succeeds and the web tier recovers on its own. The migrate command
 is the one the refusal names, `docker compose run --rm api migrate`: the
 image carries it, it applies the app schema and the `graphile_worker` queue
 schema in one run, and it needs no checkout. Take the provider's snapshot,
-then fetch the release's compose file and pull the images, which needs no
-credential and stops at the first failure:
+then fetch the release's compose file and its overlay and pull the images,
+which needs no credential and stops at the first failure:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml \
+curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml \
+  && curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml \
   && docker compose pull api web worker
 ```
 
@@ -245,9 +245,9 @@ as long as the rollout takes one release at a time.
 
 A rollback runs the previous release again. There is no down migration;
 what makes a rollback safe is the expand-and-contract promise above. On an
-external database the compose file in every case below is
-`docker-compose.external-db.yml`, in the filename and the asset name both,
-as in the upgrade step.
+external database the commands below are the same, with that release's
+`docker-compose.external-db.yml` fetched beside the compose file, as in the
+upgrade step.
 
 - **One release back** is the previous release's compose file alone, no
   restore. `vX.Y.Z` is the release you are going back to:
