@@ -14,6 +14,24 @@ const EXAMPLE_FILE = join(
 const OPERATOR_PLACEHOLDER = "<your-github-user-id>";
 const BLOCK_HEADER = /^# ([a-zA-Z]+):$/;
 const BLOCK_LINE = "#   ";
+/** A line that opens with a key, under any depth of commenting. */
+const KEY_LINE = /^(?:- )?([A-Za-z]+):(?: |$)/;
+/** Keys that only hold other keys, so they carry no value of their own. */
+const MAPPING_KEYS = new Set([
+  "allowed",
+  "generator",
+  "timeouts",
+  "spend",
+  "drafts",
+  "trackers",
+  "contextSources",
+  "retention",
+  "audit",
+  "updateCheck",
+  "attachments",
+  "linkFetch",
+]);
+const VALUE_TAG = /# (default|required|example; (default \S.*|no default))$/;
 /** Blocks whose example needs a real id or a credential to load. */
 const BLOCKS_NEEDING_REAL_VALUES = ["allowed", "trackers", "contextSources"];
 
@@ -56,7 +74,26 @@ function loadText(
   return loadGeneratorConfigFile(path);
 }
 
+/** Every line of the example that sets a value or a list, with its comment markers stripped. */
+function listValueLines(example: string): string[] {
+  return example
+    .split("\n")
+    .map((line) => line.replace(/^(#\s*)+/, "").trim())
+    .filter((line) => {
+      const key = KEY_LINE.exec(line)?.[1];
+      return key !== undefined && !MAPPING_KEYS.has(key);
+    });
+}
+
 describe("mergebrief.config.example.yaml", () => {
+  it("tags every value as the default, an example or required", () => {
+    const valueLines = listValueLines(readExample());
+    const untagged = valueLines.filter((line) => !VALUE_TAG.test(line));
+
+    expect(valueLines.length).toBeGreaterThan(30);
+    expect(untagged).toEqual([]);
+  });
+
   it("refuses boot as shipped, on the operators placeholder alone", () => {
     const result = loadText(readExample());
     expect(result.ok).toBe(false);
