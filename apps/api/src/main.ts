@@ -3,7 +3,10 @@
 // below stays env-INJECTED. A misconfigured API must fail LOUDLY at boot
 // rather than serve a half-wired surface.
 import { serve, type ServerType } from "@hono/node-server";
-import { RUNTIME_MARKER_VAR } from "generators/instance-policy";
+import {
+  applyDefaultConfigPath,
+  RUNTIME_MARKER_VAR,
+} from "generators/instance-policy";
 import {
   bindInstallationGitHub,
   bindOperatorGitHub,
@@ -33,7 +36,7 @@ import { createUpdateCheck, type UpdateCheck } from "./update-check";
 
 function readEnv(): NodeJS.ProcessEnv {
   loadEnvFiles(process.cwd());
-  return process.env;
+  return applyDefaultConfigPath(process.env, process.cwd());
 }
 
 const env = readEnv();

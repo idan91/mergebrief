@@ -9,5 +9,8 @@ import { Runtimes } from "types/runtime";
  */
 export const ENV_VAR_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
+/** The instance config a process reads from its workspace root when `MERGEBRIEF_CONFIG` is unset. */
+export const DEFAULT_CONFIG_FILE = "mergebrief.config.yaml";
+
 /** The `RUNTIME_MARKER_VAR` value the compose worker image bakes. */
 export const COMPOSE_WORKER_RUNTIME = Runtimes.COMPOSE_WORKER;

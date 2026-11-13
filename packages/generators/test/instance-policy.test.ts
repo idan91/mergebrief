@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadInstancePolicy } from "../src/config/instancePolicy";
+import {
+  applyDefaultConfigPath,
+  loadInstancePolicy,
+} from "../src/config/instancePolicy";
 
 /**
  * The narrow instance-policy loader: the api process
@@ -469,5 +472,51 @@ describe("loadInstancePolicy update check", () => {
       `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
     );
     expect(text).not.toContain("leak-marker");
+  });
+});
+
+describe("applyDefaultConfigPath", () => {
+  /** A workspace root holding the marker file, and a member directory inside it. */
+  function makeWorkspace(): { root: string; memberDir: string } {
+    const root = mkdtempSync(join(tmpdir(), "mergebrief-workspace-"));
+    tempDirs.push(root);
+    writeFileSync(join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    const memberDir = join(root, "apps", "api");
+    mkdirSync(memberDir, { recursive: true });
+    return { root, memberDir };
+  }
+
+  it("names the workspace root's file when the variable is unset", () => {
+    const { root, memberDir } = makeWorkspace();
+    const file = join(root, "mergebrief.config.yaml");
+    writeFileSync(file, "operators:\n  - 583231\n");
+
+    const env = applyDefaultConfigPath({ LOG_LEVEL: "info" }, memberDir);
+
+    expect(env).toEqual({ LOG_LEVEL: "info", MERGEBRIEF_CONFIG: file });
+    const policy = loadInstancePolicy(env);
+    expect(policy.ok && policy.value.source).toBe(file);
+  });
+
+  it("leaves the variable unset when the root holds no such file", () => {
+    const { memberDir } = makeWorkspace();
+    expect(applyDefaultConfigPath({}, memberDir)).toEqual({});
+  });
+
+  it("leaves the variable unset outside a workspace", () => {
+    const outside = mkdtempSync(join(tmpdir(), "mergebrief-outside-"));
+    tempDirs.push(outside);
+    writeFileSync(join(outside, "mergebrief.config.yaml"), "operators: []\n");
+
+    expect(applyDefaultConfigPath({}, outside)).toEqual({});
+  });
+
+  it.each(["elsewhere.yaml", ""])("keeps a variable set to %j", (value) => {
+    const { root, memberDir } = makeWorkspace();
+    writeFileSync(join(root, "mergebrief.config.yaml"), "operators: []\n");
+
+    const env = applyDefaultConfigPath({ MERGEBRIEF_CONFIG: value }, memberDir);
+
+    expect(env).toEqual({ MERGEBRIEF_CONFIG: value });
   });
 });

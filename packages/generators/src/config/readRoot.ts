@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
+import { DEFAULT_CONFIG_FILE } from "./consts";
 
 /**
  * Shared file→root-mapping step for the instance-config loaders (the full
@@ -11,6 +12,8 @@ import { configError, type ConfigError } from "../contract/errors";
  * posture lives HERE once: io errors echo only the code, YAML errors echo
  * only the position; file content can carry pasted credentials.
  */
+
+const WORKSPACE_MARKER = "pnpm-workspace.yaml";
 
 /** `null` root = empty file, a valid zero-config choice. */
 export type ConfigRoot = Record<string, unknown> | null;
@@ -27,25 +30,44 @@ export function resolveEnvConfigPath(
   // surfacing as a baffling EISDIR.
   if (path === "") {
     return configError([
-      "MERGEBRIEF_CONFIG: set but empty — unset it for zero-config defaults, or point it at a config file",
+      `MERGEBRIEF_CONFIG: set but empty. Unset it to read ${DEFAULT_CONFIG_FILE} at the workspace root, or point it at a config file`,
     ]);
   }
   if (isAbsolute(path)) {
     return { ok: true, value: path };
   }
+  const root = findWorkspaceRoot(cwd);
+  if (root === undefined) {
+    return configError([
+      "MERGEBRIEF_CONFIG: relative path, but no workspace root (pnpm-workspace.yaml) above the working directory. Use an absolute path",
+    ]);
+  }
+  return { ok: true, value: join(root, path) };
+}
+
+/** The nearest directory at or above `cwd` that holds `pnpm-workspace.yaml`. */
+function findWorkspaceRoot(cwd: string): string | undefined {
   let dir = resolve(cwd);
   for (;;) {
-    if (existsSync(join(dir, "pnpm-workspace.yaml"))) {
-      return { ok: true, value: join(dir, path) };
+    if (existsSync(join(dir, WORKSPACE_MARKER))) {
+      return dir;
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      return configError([
-        "MERGEBRIEF_CONFIG: relative path, but no workspace root (pnpm-workspace.yaml) above the working directory — use an absolute path",
-      ]);
+      return undefined;
     }
     dir = parent;
   }
+}
+
+/** The default config file of the workspace `cwd` sits in, when that file exists. */
+export function findDefaultConfigFile(cwd: string): string | undefined {
+  const root = findWorkspaceRoot(cwd);
+  if (root === undefined) {
+    return undefined;
+  }
+  const file = join(root, DEFAULT_CONFIG_FILE);
+  return existsSync(file) ? file : undefined;
 }
 
 export function readConfigRoot(path: string): Result<ConfigRoot, ConfigError> {

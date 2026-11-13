@@ -4,8 +4,9 @@ Every setting MergeBrief reads, in one place. There are four surfaces:
 
 - **Environment variables**, read by the `api`, `web`, `worker` and
   `migrate` processes at boot. Secrets, capacity and addresses live here.
-- **The instance config file**, `mergebrief.config.yaml`, located by
-  `MERGEBRIEF_CONFIG`. Provider, model, spend and instance policy live here.
+- **The instance config file**, `mergebrief.config.yaml`, read from the
+  workspace root or from the path `MERGEBRIEF_CONFIG` gives. Provider, model,
+  spend and instance policy live here.
 - **Repo-local files** under `.mergebrief/` in each repository, read from
   the default branch per generation.
 - **The CLI's own environment and `config.json`** on the machine that runs
@@ -109,7 +110,7 @@ it.
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `MERGEBRIEF_CONFIG` | api, worker | unset; `/app/mergebrief.config.yaml` under compose | no | Path to `mergebrief.config.yaml`. `docker-compose.yml` sets it to the file it mounts, so a value in `.env` reaches host processes only. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
+| `MERGEBRIEF_CONFIG` | api, worker | `mergebrief.config.yaml` at the workspace root, when that file exists; `/app/mergebrief.config.yaml` under compose | no | Path to `mergebrief.config.yaml`. `docker-compose.yml` sets it to the file it mounts, so a value in `.env` reaches host processes only. Unset, a process reads the workspace root's `mergebrief.config.yaml`, and runs the zero-config defaults when there is none. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
 | `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable. A provider whose key variable is unset or empty refuses boot. |
 | `OPENAI_API_KEY` | worker | none | with `provider: openai` | The `openai` provider's default key variable; same rules. |
 | `OPENROUTER_API_KEY` | worker | none | with `provider: openrouter` | The `openrouter` provider's default key variable; same rules. |
@@ -264,7 +265,8 @@ A variable set to an empty string reads as unset, with these exceptions:
 
 ## Instance config (`mergebrief.config.yaml`)
 
-`MERGEBRIEF_CONFIG` locates it. No file runs the defaults below; an empty
+A process reads `mergebrief.config.yaml` from its workspace root, or the
+file `MERGEBRIEF_CONFIG` names. No file runs the defaults below; an empty
 file does the same. Those defaults name no Operator, so nobody can sign in
 until the file lists one. The image carries no config file: `docker-compose.yml`
 mounts the one beside it into `api` and `worker`

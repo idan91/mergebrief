@@ -3,7 +3,11 @@
 // library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
 // at boot, never limp into draining jobs it cannot complete.
 import { createBuiltInContextProviders, JiraTransports } from "brief-core";
-import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
+import {
+  applyDefaultConfigPath,
+  createGenerator,
+  RUNTIME_MARKER_VAR,
+} from "generators";
 import {
   createAppClient,
   createOAuthApp,
@@ -71,7 +75,7 @@ const FAILURE_DUMP_DIR = "out";
 
 function readEnv(): NodeJS.ProcessEnv {
   loadEnvFiles(process.cwd());
-  return process.env;
+  return applyDefaultConfigPath(process.env, process.cwd());
 }
 
 // The one process logger: everything here, composition, task, graphile

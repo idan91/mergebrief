@@ -109,7 +109,7 @@ export function loadBootConfig(
   }
   if (!namesAnyone(instancePolicy.value)) {
     logger.error(
-      "api composition: the instance config names nobody; put your GitHub user id under operators in the file MERGEBRIEF_CONFIG names. Every sign-in and new brief is refused until then",
+      "api composition: the instance config names nobody; put your GitHub user id under operators in mergebrief.config.yaml, or in the file MERGEBRIEF_CONFIG names. Every sign-in and new brief is refused until then",
     );
   }
 

@@ -117,17 +117,18 @@ How processes find it:
 | Surface | Mechanism |
 |---|---|
 | worker + api under compose | `docker-compose.yml` mounts `./mergebrief.config.yaml` at `/app/mergebrief.config.yaml` and sets `MERGEBRIEF_CONFIG` to that path; a missing file stops `up` |
-| worker + api on the host | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`; relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
+| worker + api on the host | `mergebrief.config.yaml` at the workspace root, with nothing to set. `MERGEBRIEF_CONFIG` in `.env` names a file kept elsewhere: relative resolves against the workspace root (see path-form note), absolute also fine. Unset with no file at the root → zero-config default; set-but-empty or unreadable → refuses boot |
 | categorizer CLIs | explicit `--config <path>` only; they never read `MERGEBRIEF_CONFIG` (`pnpm -C tools/categorizer categorize --config ../../mergebrief.config.yaml <pr-url>` also doubles as a fast config validator; the path is relative to `tools/categorizer`) |
 
 **Path form**: a relative `MERGEBRIEF_CONFIG` is resolved
 against the **workspace root** (the nearest ancestor of the process
 working directory containing `pnpm-workspace.yaml`), never against bare
 cwd (the worker runs from `apps/worker`, the api from `apps/api`;
-cwd-relative would let one env value silently name different files). So
-`MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
-file for every host process. Absolute paths pass through unchanged. No
-workspace root above cwd refuses boot and points at absolute paths.
+cwd-relative would let one env value silently name different files). The
+default follows the same rule: with the variable unset, every host process
+reads `mergebrief.config.yaml` at that root. Absolute paths pass through
+unchanged. A relative path with no workspace root above cwd refuses boot and
+points at absolute paths.
 
 The image carries no config file. Under compose, `docker-compose.yml` mounts
 the `mergebrief.config.yaml` beside it read-only into `api` and `worker` and

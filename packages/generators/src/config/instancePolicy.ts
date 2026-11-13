@@ -23,7 +23,12 @@ import {
   validateOperatorsBlock,
   type OperatorIds,
 } from "./operators";
-import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
+import {
+  findDefaultConfigFile,
+  readConfigRoot,
+  renderKey,
+  resolveEnvConfigPath,
+} from "./readRoot";
 import {
   DEFAULT_SPEND_POLICY,
   validateSpendBlock,
@@ -131,6 +136,29 @@ export function validateDraftsBlock(
     );
   }
   return { ok: true, value: parsed.data };
+}
+
+/**
+ * `env` as a process entry hands it to the loaders: with `MERGEBRIEF_CONFIG`
+ * unset, it names the workspace root's `mergebrief.config.yaml` when that
+ * file exists. A variable set to anything, the empty string included, is
+ * left as it is. The loaders stay driven by `env` alone, so a test never
+ * picks up the config file of the checkout it runs in.
+ */
+export function applyDefaultConfigPath(
+  env: Readonly<Record<string, string | undefined>>,
+  cwd: string,
+): Record<string, string | undefined> {
+  const resolved = { ...env };
+  if (resolved["MERGEBRIEF_CONFIG"] !== undefined) {
+    return resolved;
+  }
+
+  const defaultFile = findDefaultConfigFile(cwd);
+  if (defaultFile !== undefined) {
+    resolved["MERGEBRIEF_CONFIG"] = defaultFile;
+  }
+  return resolved;
 }
 
 /** Env-driven load for the api startup wiring. Unset env var = defaults. */

@@ -58,6 +58,7 @@ export {
   type LoadedGeneratorConfig,
 } from "./config/loader";
 export {
+  applyDefaultConfigPath,
   DEFAULT_DRAFT_POLICY,
   loadInstancePolicy,
   RUNTIME_MARKER_VAR,

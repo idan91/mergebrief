@@ -89,7 +89,8 @@ no config file refuses everyone, you included, and the api logs
 `operators` or `allowed.users`, or list its organization under `allowed.accounts`,
 then restart the api. Never take an id from someone else's link or message without
 checking whose it is. Under compose the file is the `mergebrief.config.yaml`
-beside `docker-compose.yml`; on the host, check that `MERGEBRIEF_CONFIG` names it.
+beside `docker-compose.yml`; on the host it is the one at the repo root, unless
+`MERGEBRIEF_CONFIG` names another.
 
 ## Sign-in does not stick
 

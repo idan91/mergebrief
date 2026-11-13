@@ -133,8 +133,8 @@ pnpm app:host
 `pnpm app:host` starts the compose Postgres, then runs the api, the worker and the web app on
 the host with `.env` loaded. An instance starts closed, so first copy
 `mergebrief.config.example.yaml` to `mergebrief.config.yaml`, put your GitHub user id under
-`operators` (`gh api users/<login> --jq .id`) and set `MERGEBRIEF_CONFIG=mergebrief.config.yaml`
-in `.env` ([who may start a brief](docs/self-host/generators.md#who-may-start-a-brief)). Open
+`operators` (`gh api users/<login> --jq .id`). The api and the worker read that file from the
+repo root ([who may start a brief](docs/self-host/generators.md#who-may-start-a-brief)). Open
 http://localhost:3000, sign in with GitHub, paste a pull request URL on Home and click
 **Generate brief**. The worker generates the brief and stores it
 in Postgres; reopening the PR reads the stored brief at no extra cost. A pasted pull request gets

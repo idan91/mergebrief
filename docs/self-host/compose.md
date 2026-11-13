@@ -202,7 +202,7 @@ in both.
 | daily generation cap (`spend.maxGenerationsPerDay`) | `mergebrief.config.yaml` | yaml only; no env and no `.mergebrief/` override |
 | provider, model, effort (`generator.*`) | `mergebrief.config.yaml` | yaml only; the key VALUE comes from the env var the yaml names |
 | credentials, DSN, public origin | `.env` | `DATABASE_URL_FILE` wins over `DATABASE_URL` |
-| `MERGEBRIEF_CONFIG` (the yaml's own path) | `docker-compose.yml` | set to the mounted file; `.env` holds it for host processes only |
+| `MERGEBRIEF_CONFIG` (the yaml's own path) | `docker-compose.yml` | set to the mounted file; host processes read the repo root's file without it |
 
 ## External Postgres (managed database)
 

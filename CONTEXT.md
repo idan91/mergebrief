@@ -416,7 +416,7 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Instance config**:
-`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `fullRegeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists, shared `trackers`, the `attachments` limits, the `retention` windows, the `audit` switch and the `updateCheck` switch. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
+`mergebrief.config.yaml`, read from the workspace root or from the path the **Operator** gives in `MERGEBRIEF_CONFIG`: the generator (provider, model, effort, `fullRegeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists, shared `trackers`, the `attachments` limits, the `retention` windows, the `audit` switch and the `updateCheck` switch. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
 _Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
 
 **Repo config**:
