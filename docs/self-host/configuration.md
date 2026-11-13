@@ -276,7 +276,8 @@ A variable set to an empty string reads as unset, with these exceptions:
 ## Instance config (`mergebrief.config.yaml`)
 
 `MERGEBRIEF_CONFIG` locates it. No file runs the defaults below; an empty
-file does the same. The image carries no config file, so mount it into
+file does the same. Those defaults name no Operator, so nobody can sign in
+until the file lists one. The image carries no config file, so mount it into
 `api` and `worker` ([The config file](./generators.md#the-config-file)).
 Edits apply on restart. A credential is never a value here: the file names
 the variable that holds it.
@@ -306,7 +307,7 @@ provider key. Every block rejects keys it does not define.
 | Key | Providers | Default | Accepts |
 | --- | --- | --- | --- |
 | `provider` | all | required in the block; `anthropic` when the `generator` block is absent | `anthropic`, `claude-code`, `codex`, `cursor`, `openai`, `openrouter`. |
-| `model` | all | `anthropic`, `claude-code`: `claude-opus-5-5`; `codex`, `cursor`: the CLI's configured default | A non-empty model id. Required for `openai` and `openrouter` (an OpenRouter slug such as `anthropic/claude-opus-4.8`). For `cursor`, an id from `cursor-agent --list-models`; an id with `[` refuses boot. |
+| `model` | all | `anthropic`, `claude-code`: `claude-opus-5-5`; `codex`, `cursor`: the CLI's configured default | A non-empty model id. Required for `openai` and `openrouter` (an OpenRouter slug such as `anthropic/claude-opus-4.8`). For `cursor`, an id from `cursor-agent --list-models`; an id with `[` refuses boot. Where each provider lists its ids: [Model names by provider](./generators.md#model-names-by-provider). |
 | `effort` | all | `medium` | `low`, `medium` or `high`. |
 | `full-regeneration` | all | `never` | `never` (each revision anchors to the previous brief), `on-model-swap` (a fresh brief when the provider or model changed), `always` (every revision from scratch). |
 | `force-multi-call` | all | `false` | `true` runs every brief as a multi-call run (a grouping call over an outline, then detail calls per batch of hunks), the path a diff over 400k input tokens or 120 hunks takes on its own. A diagnostic switch; it costs more calls per brief. |

@@ -30,7 +30,7 @@ violation, auth, timeout, refusal):
 # API adapters (need the key env var set):
 pnpm -C packages/generators smoke -- --adapter anthropic
 pnpm -C packages/generators smoke -- --adapter openai --model gpt-5.2
-pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/claude-sonnet-5
+pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/claude-sonnet-5.5
 
 # Harness-CLI adapters (need the CLI logged in on THIS machine):
 pnpm -C packages/generators smoke -- --adapter claude-code

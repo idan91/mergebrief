@@ -10,17 +10,23 @@ are visible: in logs, and on the artifact itself (the header's amber
 
 ## Zero-config default
 
-No config file at all: **Anthropic API + `ANTHROPIC_API_KEY` + Claude Opus
-5.5**.
+With no `generator` block, or no config file at all: **Anthropic API +
+`ANTHROPIC_API_KEY` + Claude Opus 5.5**.
 
-The documented cost knob: `model: claude-sonnet-5` on the `anthropic`
-provider (~5x cheaper input/output than Opus at very good Brief quality).
+The cheaper option is `model: claude-sonnet-5-5` on the `anthropic` provider.
+It costs less per token than Opus 5.5
+([pricing](https://platform.claude.com/docs/en/about-claude/pricing)). The
+committed eval baselines ran on the default, so read
+[what degrades on a weaker model](#length-discipline-and-anchoring-degrade-on-weaker-models)
+before you switch.
 
 ## The config file
 
-One optional YAML file selects the backend for the **worker and the
+One YAML file selects the backend for the **worker and the
 categorizer CLIs** alike; the api reads its `drafts`, `spend`,
-`operators` and `allowed` blocks from the same file. A ready-to-copy annotated template ships
+`operators` and `allowed` blocks from the same file. The `generator` block
+is optional, the file is not. Nobody can sign in until `operators` or
+`allowed` names them ([Who may start a brief](#who-may-start-a-brief)). A ready-to-copy annotated template ships
 at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
 (copy to `mergebrief.config.yaml`, which is gitignored, the same convention as
 `.env.example`).
@@ -29,7 +35,7 @@ at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.exa
 # mergebrief.config.yaml: next to your compose file
 generator:
   provider: anthropic          # anthropic | claude-code | codex | cursor | openai | openrouter
-  model: claude-sonnet-5       # optional here; REQUIRED for openai/openrouter
+  model: claude-sonnet-5-5     # optional here; REQUIRED for openai/openrouter
   # effort: medium             # low | medium | high: reasoning effort for every
   #                            # generation (default medium); see the effort-knob
   #                            # column below for what each provider does with it
@@ -43,7 +49,8 @@ generator:
   #   inactivityMs: 180000
   #   killGraceMs: 5000
   # providerRouting:           # openrouter only: routing options passthrough:
-  #   order: ["anthropic"]     # any key from openrouter.ai/docs/features/provider-routing
+  #   order: ["anthropic"]     # any key from openrouter.ai/docs/features/provider-routing;
+  #                            # `order` is one example, `sort: throughput` another
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
@@ -375,7 +382,7 @@ under one instance-wide lock, so N slots cannot start past it together.
 
 | provider | class | auth | effort knob | notes |
 |---|---|---|---|---|
-| `anthropic` | API | `apiKeyEnv` (default `ANTHROPIC_API_KEY`) | yes | the default; `claude-sonnet-5` = cost knob; `baseUrl` routes through a gateway and is its host root without `/v1` (the SDK appends `/v1/messages`); a `baseUrl` ending in `/v1` refuses boot |
+| `anthropic` | API | `apiKeyEnv` (default `ANTHROPIC_API_KEY`) | yes | the default; `claude-sonnet-5-5` is the cheaper option; `baseUrl` routes through a gateway and is its host root without `/v1` (the SDK appends `/v1/messages`); a `baseUrl` ending in `/v1` refuses boot |
 | `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` routes through a gateway or a self-hosted compatible server and ends in its `/v1` root (the SDK appends `/chat/completions`; preflight downgrades to warnings) |
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null`, an honest gap) | lockdown: `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
@@ -397,23 +404,116 @@ assume the default (anthropic at `medium`); running an instance at a
 non-default effort is a deliberate divergence from them, same as running a
 non-default provider or model.
 
-### Picking a `model:` value without typos
+### Model names by provider
 
-Model names are provider-owned lists that change often, so this repo never
-hardcodes them (a checked-in list would go stale and start rejecting valid
-new models). Instead, copy the exact name from the provider's own list, and
-know when a typo gets caught:
+Model names are provider-owned lists that change often, so MergeBrief keeps no
+list of its own: a checked-in one would go stale and reject valid new models.
+Copy the id from the provider's own page, exactly as written there. Each
+provider below has that page, an example, and what a wrong id does.
 
-| provider | where the valid names live | what a typo does |
-|---|---|---|
-| `anthropic` | [platform.claude.com/docs: models overview](https://platform.claude.com/docs/en/about-claude/models/overview) (ids like `claude-opus-5-5`, `claude-sonnet-5`), or query `GET /v1/models` with your key | fails the **first generation** with a config-classified error (no boot check) |
-| `openai` | [platform.openai.com/docs/models](https://platform.openai.com/docs/models); with `baseUrl`, whatever your server's `/models` serves | **refuses boot**: the `/models/{id}` preflight 404s on a bad id (downgraded to a warning when `baseUrl` is set) |
-| `openrouter` | [openrouter.ai/models](https://openrouter.ai/models): copy the full slug, e.g. `anthropic/claude-sonnet-5` | **refuses boot**: the `/models` preflight requires your slug to exist (and list `structured_outputs`) |
-| `claude-code` | whatever your installed `claude` CLI accepts: aliases like `opus` / `sonnet` / `haiku` or full ids from the Anthropic models page above ([model config docs](https://code.claude.com/docs)) | fails the **first generation** (`model_not_found` → config error); post-run the served model is verified against the CLI's own report, mismatch = warning |
-| `codex` | your installed `codex` CLI's configured models ([platform.openai.com/docs/models](https://platform.openai.com/docs/models)); omit `model:` to use the CLI's default | **weakest**: the CLI's output carries no model id, so the stamp records what you configured, unverified |
-| `cursor` | **run `cursor-agent --list-models`**: the list lives in your installed CLI (~200 ids, moves with CLI updates; [CLI reference](https://cursor.com/docs/cli/reference/parameters)); copy the id VERBATIM, effort variant included (`gpt-5.2-high`, `cursor-grok-4.6-low`). `--model` accepts nothing outside this list, bracket overrides included. Omit `model:` to use the CLI's default (`cursor-agent about --format json` shows which; the stamp then reads `cursor-default`) | a bracketed id **refuses boot** (config check); a bad id fails the **first generation** (`Cannot use this model` → config error); the stamp records what you configured, unverified |
+#### `anthropic`
 
-Fast pre-check for any provider without spending a webhook:
+The ids are the "Claude API ID" row of the
+[models overview](https://platform.claude.com/docs/en/models/overview). You can
+also ask the API with your key: `GET /v1/models`.
+
+The id is not the display name. "Claude Sonnet 5.5" is `claude-sonnet-5-5`:
+lowercase, with a hyphen for each space and for the dot. Copy the id from the
+table instead of converting the name by hand.
+
+```yaml
+generator:
+  provider: anthropic
+  model: claude-sonnet-5-5   # omit for the default, claude-opus-5-5
+```
+
+Nothing checks the id at boot. A wrong one fails the **first generation**
+with a config-classified error.
+
+#### `openai`
+
+The ids are on the [OpenAI models page](https://developers.openai.com/api/docs/models).
+With `baseUrl` set, they are whatever your server's `/models` serves.
+
+```yaml
+generator:
+  provider: openai
+  model: gpt-6.1-sol   # required
+```
+
+A wrong id **refuses boot**: the `/models/{id}` preflight answers 404. With
+`baseUrl` set, that refusal is a warning.
+
+#### `openrouter`
+
+Copy the full slug, vendor prefix included, from
+[openrouter.ai/models](https://openrouter.ai/models). OpenRouter writes a
+version with a dot where the vendor's own id may use a hyphen: Claude Sonnet
+5.5 is `anthropic/claude-sonnet-5.5` here and `claude-sonnet-5-5` on the
+`anthropic` provider.
+
+```yaml
+generator:
+  provider: openrouter
+  model: anthropic/claude-sonnet-5.5   # required
+```
+
+A wrong slug **refuses boot**: the `/models` preflight needs the slug to exist
+and to list `structured_outputs`.
+
+#### `claude-code`
+
+Whatever your installed `claude` CLI accepts: an alias such as `opus`,
+`sonnet` or `haiku`, or a full id from the Anthropic page above
+([model configuration](https://code.claude.com/docs/en/model-config)).
+
+```yaml
+generator:
+  provider: claude-code
+  model: claude-sonnet-5-5   # omit for the default, claude-opus-5-5
+```
+
+A wrong id fails the **first generation** (`model_not_found`, a config
+error). After a run, the served model is checked against the CLI's own
+report, and a mismatch logs a warning.
+
+#### `codex`
+
+The models your installed `codex` CLI offers
+([Codex models](https://learn.chatgpt.com/docs/models)). Omit `model:` to run
+the CLI's configured default; the provenance stamp then reads `codex-default`.
+
+```yaml
+generator:
+  provider: codex
+  model: gpt-6.1-sol   # omit for the CLI's default
+```
+
+This is the **weakest** check of the six: the CLI's output carries no model
+id, so the stamp records what you configured, unverified.
+
+#### `cursor`
+
+The list lives in your installed CLI, about 200 ids, and it moves with CLI
+updates. Print it with `cursor-agent --list-models`
+([CLI parameters](https://cursor.com/docs/cli/reference/parameters)). Copy an
+id VERBATIM, effort variant included (`gpt-5.2-high`, `cursor-grok-4.6-low`):
+`--model` accepts nothing outside this list, bracket overrides included. Omit
+`model:` to run the CLI's default; `cursor-agent about --format json` shows
+which, and the stamp then reads `cursor-default`.
+
+```yaml
+generator:
+  provider: cursor
+  model: gpt-5.2-high   # omit for the CLI's default
+```
+
+A bracketed id **refuses boot** (config check). A bad id fails the **first
+generation** (`Cannot use this model`, a config error). The stamp records
+what you configured, unverified.
+
+#### Check a model without spending a webhook
+
 `pnpm -C tools/categorizer categorize --config ../../mergebrief.config.yaml <pr-url>`
 boots the same generator the worker would and fails fast on the same checks.
 

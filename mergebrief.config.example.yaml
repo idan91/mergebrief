@@ -1,200 +1,130 @@
-# MergeBrief instance config — copy to `mergebrief.config.yaml` (gitignored)
-# and point MERGEBRIEF_CONFIG at it (worker + web/api). The categorizer CLIs
-# take it explicitly: `pnpm categorize --config ./mergebrief.config.yaml <pr-url>`.
+# MergeBrief instance config. Copy to `mergebrief.config.yaml` (gitignored),
+# set MERGEBRIEF_CONFIG=mergebrief.config.yaml in `.env`, and mount the file
+# into `api` and `worker` (docs/self-host/compose.md). Edits apply on restart.
 #
-# NO file at all = zero-config default: anthropic + ANTHROPIC_API_KEY +
-# claude-opus-5-5, and draft PRs generate with the normal debounce. Only
-# create this file to change that.
+# You need this file: nobody can sign in until `operators` or `allowed` names
+# them. Every other block is optional. A commented line shows the default, or
+# an example where the key has none. A line commented twice is an example for
+# one provider or one mode: uncommenting its block leaves it off.
 #
-# Full reference: docs/self-host/generators.md. Unknown keys refuse boot
-# (root keys starting with `x-` are ignored — compose-style extension slot).
-# API keys are BYOK-by-env-NAME: never put a key VALUE in this file.
-
-generator:
-  # anthropic | openai | openrouter | claude-code | codex | cursor
-  provider: anthropic
-
-  # Model id. Optional for anthropic/claude-code (Opus 5.5 default), codex
-  # and cursor (the CLI's configured default runs; provenance stamps
-  # "codex-default" / "cursor-default"); REQUIRED for openai and openrouter
-  # (full slug there, e.g. anthropic/claude-sonnet-5). cursor takes an id
-  # VERBATIM from `cursor-agent --list-models`, effort variant included
-  # (e.g. gpt-5.2-high) — the CLI accepts nothing else; effort: has no wire
-  # effect for cursor.
-  # The documented cost knob:
-  model: claude-sonnet-5
-
-  # Cross-revision regeneration policy: never (default) keeps
-  # each new revision's brief anchored to the previous one; on-model-swap
-  # runs one fresh restart when the configured provider/model changed since
-  # the previous brief; always regenerates every revision from scratch
-  # (pre-anchoring behavior — the kill-switch).
-  # full-regeneration: never
-
-  # Run every brief as a multi-call run (grouping call over an outline, then
-  # detail calls per batch), the path a diff over 400k input tokens or 120
-  # hunks takes on its own. Diagnostic; more calls per brief. Default: false.
-  # force-multi-call: false
-
-  # Reasoning effort for every generation: low | medium | high.
-  # Default: medium. Each provider maps it to its own setting; providers
-  # without the concept stay honest via provenance (`effort: null`). The
-  # committed eval baselines assume the default — a non-default effort is a
-  # deliberate divergence (docs/self-host/generators.md).
-  # effort: medium
-
-  # Detail calls a multi-call run (a PR past one call's input) keeps in
-  # flight at once. Default: 8. Lower it for a provider rate limit; it
-  # multiplies the streams one large slot holds (docs/self-host/generators.md,
-  # "Worker slots").
-  # detailConcurrency: 8
-
-  # --- API providers (anthropic / openai / openrouter) ---------------------
-  # NAME of the env var holding the key. Defaults: ANTHROPIC_API_KEY /
-  # OPENAI_API_KEY / OPENROUTER_API_KEY.
-  # apiKeyEnv: MY_PROVIDER_KEY_VAR
-
-  # anthropic and openai: gateway URL; the provider's own host when unset
-  # (ANTHROPIC_BASE_URL / OPENAI_BASE_URL are ignored). The two forms differ:
-  # anthropic takes the host root with NO /v1 (the SDK appends /v1/messages;
-  # a path ending in /v1 refuses boot);
-  # openai takes the /v1 root of a gateway or OpenAI-compatible server, and
-  # its /models preflight downgrades to warnings when set.
-  # baseUrl: https://gateway.example          # anthropic
-  # baseUrl: https://your-server.example/v1   # openai
-
-  # openrouter only: routing options passed through under `provider`
-  # (require_parameters: true is always forced on top) + attribution headers.
-  # ANY key from OpenRouter's provider-routing docs works here — `order` is
-  # an example, not the menu (e.g. sort: throughput routes to the fastest
-  # host): https://openrouter.ai/docs/features/provider-routing
-  # providerRouting:
-  #   order: ["anthropic"]
-  # referer: https://you.example
-  # title: MergeBrief
-
-  # --- Harness CLIs (claude-code / codex / cursor; LOCAL dev loop only) ----
-  # These run the CLI on YOUR machine under YOUR interactive login
-  # (`claude /login` / `codex login` / `cursor-agent login`) — not available
-  # to the deployed worker (docs/self-host/generators.md explains the
-  # boundary).
-  # command: /usr/local/bin/claude   # binary path/name; defaults:
-  #                                  #   claude / codex / cursor-agent
-  # timeouts:                        # harness watchdogs, milliseconds
-  #   hardMs: 900000                 #   hard wall-clock cap (default 15 min)
-  #   inactivityMs: 180000           #   output-inactivity watchdog (default
-  #                                  #   3 min; cursor: defaults to hardMs —
-  #                                  #   its stream is silent until exit)
-  #   killGraceMs: 5000              #   SIGINT → SIGKILL grace (default 5 s)
-
-# --- Draft-PR generation policy (spend knobs) -------------------------------
-# Both keys optional; omit the whole block for the defaults shown.
-# drafts:
-#   # on | off — whether briefs generate for draft PRs at all. Default: on.
-#   # off = a draft gets its first brief when it's marked ready; the web view
-#   # still shows PR conversation/meta meanwhile.
-#   generate: on
+# An unknown key refuses boot. A credential never goes here: the file names
+# the environment variable that holds it.
 #
-#   # Trailing debounce window (seconds) for draft-PR REgenerations — damps
-#   # WIP push-storm spend. Unset = drafts use the normal window (60s).
-#   # A draft's FIRST brief always uses the normal window regardless.
-#   debounceSeconds: 900
+# Every key and what it accepts: docs/self-host/configuration.md
 
-# --- Daily generation cap ----------------------------------------------------
-# The spend guardrail: at most N generations per UTC calendar day, counted
-# across every repo this instance serves. Omit the block, or the key, for the
-# default of 300; write `maxGenerationsPerDay: unlimited` for no cap at all.
-# One number, not fair share: a busy repo can use the day for the others.
-#
-# At the cap the worker SKIPS the generation: the PR view shows a "daily
-# generation cap reached" state carrying the reset time, an Entry comment that
-# already exists is updated to say so (none is created), and the worker logs
-# `evt: spend.cap.trip` at warn. The count resets at 00:00 UTC; a PR skipped
-# today gets its brief on its next push after the reset.
-# spend:
-#   maxGenerationsPerDay: 50
+# --- Operators (required) ----------------------------------------------------
+# The GitHub users who run this instance, by numeric id, never by login.
+# Find yours with `gh api users/<login> --jq .id`. Boot refuses until you
+# replace the placeholder. docs/self-host/generators.md#operators
+operators:
+  - <your-github-user-id>
 
-# --- Operators ---------------------------------------------------------------
-# The GitHub users who run this instance, by numeric user id (never a login:
-# a renamed login can be claimed by someone else). An Operator can read
-# instance-wide state such as the day's started runs, and may always sign in and
-# start a brief. Omit the block, or write `operators: []`, for nobody; a bare
-# `operators:` with no list refuses boot.
-# Find an id with `gh api users/<login> --jq .id`.
-# operators:
-#   - 583231
-
-# --- Who may start a brief ----------------------------------------------------
-# An instance starts closed: name someone under `operators` or here, or nobody
-# can sign in and no delivery starts a brief. `accounts` lets in everyone in an
-# installation of this App on those orgs or personal accounts and starts briefs on
-# their repositories; `users` adds people on top, such as an external
-# reviewer. Ids, never logins. Find one with `gh api orgs/<org> --jq .id`. A bare
-# `allowed:` refuses boot.
+# --- Who else may sign in and start a brief ----------------------------------
+# `accounts` lets in the people of an org or personal account the App is
+# installed on. `users` adds single people. Ids, never logins: find an org's
+# with `gh api orgs/<org> --jq .id`.
+# docs/self-host/generators.md#who-may-start-a-brief
 # allowed:
 #   users:
-#     - 9919
+#     - <github-user-id>
 #   accounts:
-#     - 12345678
+#     - <org-or-account-id>
+
+# --- Generator (provider and model) ------------------------------------------
+# No block runs `anthropic` on ANTHROPIC_API_KEY with claude-opus-5-5.
+# Where each provider's model names come from, with an example for each:
+# docs/self-host/generators.md#model-names-by-provider
+# generator:
+#   # anthropic | openai | openrouter | claude-code | codex | cursor
+#   provider: anthropic
+#
+#   # Default claude-opus-5-5. This line is the cheaper option, not the default.
+#   # Required for openai and openrouter.
+#   model: claude-sonnet-5-5
+#
+#   # low | medium | high. cursor ignores it and reads the model id's suffix.
+#   effort: medium
+#
+#   # never | on-model-swap | always: when a new revision's brief restarts from
+#   # scratch, not from the previous brief.
+#   full-regeneration: never
+#
+#   # true runs every brief as a multi-call run. A diagnostic, and it costs more.
+#   force-multi-call: false
+#
+#   # Detail calls a multi-call run keeps in flight. Lower it for a rate limit.
+#   detailConcurrency: 8
+#
+#   # API providers: the NAME of the variable holding the key. Defaults:
+#   # ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY.
+#   # apiKeyEnv: MY_PROVIDER_KEY_VAR
+#
+#   # anthropic, openai: a gateway. anthropic takes the host root with no /v1,
+#   # openai takes the /v1 root.
+#   # baseUrl: https://gateway.example
+#
+#   # openrouter only: routing options and attribution headers.
+#   # providerRouting:
+#   #   order: ["anthropic"]
+#   # referer: https://you.example
+#   # title: MergeBrief
+#
+#   # claude-code, codex, cursor only: host processes, refused in the image.
+#   # The binary, and the run's timers in milliseconds.
+#   # command: claude
+#   # timeouts:
+#   #   hardMs: 900000
+#   #   inactivityMs: 180000
+#   #   killGraceMs: 5000
+
+# --- Daily generation cap ----------------------------------------------------
+# The most runs per UTC day across every repo. `unlimited` lifts the cap.
+# docs/self-host/generators.md#daily-generation-cap
+# spend:
+#   maxGenerationsPerDay: 300
+
+# --- Draft pull requests -----------------------------------------------------
+# `generate: off` holds a draft's first brief until it is marked ready.
+# `debounceSeconds` sets a longer wait before a draft regenerates. It has no
+# default: unset, a draft waits the normal 60 seconds.
+# docs/self-host/repo-config.md#related-instance-block-drafts-operator-side
+# drafts:
+#   generate: on
+#   debounceSeconds: 900
+
+# --- Trackers (the boards every repo reads tickets from) ---------------------
+# No block reads GitHub issues only. A repo's own `.mergebrief/settings.yaml`
+# replaces this list for that repo. A notion or jira entry needs its
+# `contextSources` entry below. docs/self-host/trackers.md
+# trackers:
+#   - kind: notion
+#     keyPrefix: ACME
+#     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
+#   - kind: jira
+#     projectKeys: [WEB, OPS]
+#   - kind: github
+#     issuesRepo: owner/name
+#     siblingRepos: false
+
+# --- Context sources (tracker credentials) -----------------------------------
+# One entry per tracker type that needs a credential. Each key names the
+# variable holding it, and an entry whose variable is unset refuses boot.
+# docs/self-host/trackers.md
+# contextSources:
+#   - type: notion
+#     tokenEnv: NOTION_TOKEN
+#   - type: jira
+#     site: acme.atlassian.net
+#     emailEnv: JIRA_EMAIL
+#     tokenEnv: JIRA_API_TOKEN
+#     linkHosts:
+#       - jira.acme.example
 
 # --- Link fetch (the links a PR description cites) ---------------------------
-# The worker fetches up to five links from a PR description as context.
-# public (default) fetches any link that passes the address checks; off fetches
-# none; allowlist fetches only links whose host is listed, exact lowercase
-# names, no wildcard. A listed host still passes every address check. The real
-# control against internal services on routable addresses is an egress policy;
-# see docs/self-host/configuration.md. maxTotalChars (default 40000) caps the
-# linked text one prompt carries across every link.
+# public (the default) | off | allowlist. `hosts` goes with allowlist only.
+# docs/self-host/configuration.md#linkfetch
 # linkFetch:
 #   mode: allowlist
 #   hosts:
 #     - docs.example.com
 #   maxTotalChars: 40000
-
-# --- Context sources (ticket trackers needing a credential) -----------------
-# The URL and GitHub Issues providers are built in and need no entry; this
-# block lists the providers that need a deployment credential. Omit it for the
-# built-ins only. Credentials are BYOK-by-env-NAME, like generator.apiKeyEnv:
-# the file names the env var, never a value. A listed entry whose var is unset
-# refuses boot. Which board a key like ACME-12 resolves in is the trackers:
-# block below, or a repo's own `.mergebrief/settings.yaml`; see
-# docs/self-host/trackers.md.
-# contextSources:
-#   - type: notion
-#     # NAME of the env var holding the internal-integration token.
-#     # Default: NOTION_TOKEN
-#     tokenEnv: NOTION_TOKEN
-#   - type: jira
-#     # The Jira Cloud site host alone; one deployment reads one site.
-#     site: acme.atlassian.net
-#     # NAMEs of the env vars holding the token owner's account email and the
-#     # API token (scoped to read:jira-work). Defaults: JIRA_EMAIL, JIRA_API_TOKEN
-#     emailEnv: JIRA_EMAIL
-#     tokenEnv: JIRA_API_TOKEN
-#     # Optional: up to 4 custom domains whose issue links count as the site's.
-#     # linkHosts:
-#     #   - jira.acme.example
-
-# --- Trackers (the boards every repo reads tickets from) --------------------
-# One entry per board, up to 8, any mix of kinds; a key like ACME-12 resolves
-# on the board whose keyPrefix it carries, or in Jira when the jira entry
-# lists ACME. A repo whose `.mergebrief/settings.yaml` names trackers replaces
-# this list for that repo; a repo that names none reads these. A Notion board
-# or Jira entry here needs the notion or jira contextSources entry above, or
-# boot refuses. At most one github entry and one jira entry; a prefix or
-# project key may appear once. Omit the block and only GitHub issues (#N) are
-# read.
-# trackers:
-#   - kind: notion
-#     keyPrefix: ACME
-#     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9   # database or data source id
-#   - kind: notion
-#     keyPrefix: DS
-#     databaseId: 4935e9400eeb80b0ad46000b1ce17b37
-#   - kind: jira
-#     projectKeys: [WEB, OPS]   # 1 to 50 project keys on the jira site
-#   - kind: github
-#     issuesRepo: owner/name   # optional: where a bare #N resolves
-#     # Instance only: true reads issues in every repo the installation
-#     # covers; false (the default) reads the PR's repo and issuesRepo only.
-#     siblingRepos: false

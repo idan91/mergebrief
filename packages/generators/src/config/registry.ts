@@ -141,8 +141,8 @@ const anthropicOptions = z
   .object({
     provider: z.literal(Providers.ANTHROPIC),
     /**
-     * Model id; default Opus 5.5. Sonnet (`claude-sonnet-5`) is the
-     * documented cost knob.
+     * Model id; default Opus 5.5. Sonnet (`claude-sonnet-5-5`) is the
+     * cheaper option.
      */
     model: z.string().min(1).optional(),
     /** NAME of the env var holding the key (BYOK-by-env-name). */
