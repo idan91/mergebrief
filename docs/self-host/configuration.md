@@ -69,12 +69,12 @@ it.
 | --- | --- | --- | --- | --- |
 | `GITHUB_APP_ID` | api, worker | none | yes | The App's numeric id, digits only. |
 | `GITHUB_APP_PRIVATE_KEY` | api, worker | none | one of the pair | The App's PEM private key, inline. Exactly one of this and `GITHUB_APP_PRIVATE_KEY_PATH` may be set; both, neither, or an empty value refuses boot. Quote a multi-line value in `.env`. |
-| `GITHUB_APP_PRIVATE_KEY_PATH` | api, worker | none | one of the pair | Path to a file holding the PEM. An unreadable or empty file refuses boot. |
+| `GITHUB_APP_PRIVATE_KEY_PATH` | api, worker | none | one of the pair | Path to a file holding the PEM. Under compose, mount the file into `api` and `worker` at this path. An unreadable or empty file refuses boot. |
 | `GITHUB_WEBHOOK_SECRET` | api, worker | none | yes | The HMAC secret GitHub signs deliveries with. At least 32 characters after trimming; the HMAC keys on the value as set. Only `api` verifies deliveries. |
 | `GITHUB_OAUTH_CLIENT_ID` | api, worker | none | yes | The App's OAuth client id, for reviewer sign-in. The worker uses it to revoke a dead grant's token at GitHub. |
 | `GITHUB_OAUTH_CLIENT_SECRET` | api, worker | none | yes | The App's OAuth client secret. |
 | `GITHUB_APP_SLUG` | api, worker | unset | no | The App's URL name, the last segment of `https://github.com/apps/<slug>`: lowercase letters, digits and hyphens. Set, Home links a viewer with no reachable installation to the install page; unset, that line carries no link. Empty reads as unset. |
-| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token (fine-grained, Contents and Pull requests read) tried after a reviewer's own token is denied on a pasted pull request. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
+| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token (fine-grained, Contents and Pull requests read) tried after a reviewer's own token is denied on a pasted pull request. A sign-in token is scoped to the App's installations, so it cannot read a private repository the App is not installed on; a public repository needs no such token. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
 | `SESSION_KEY_REF` | api | `SESSION_KEY_V1` | no | The NAME of the variable new GitHub tokens are sealed under: an uppercase letter, then uppercase letters, digits or underscores. Anything else refuses boot. Empty takes the default. |
 | `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it (the worker for pasted pull requests and the hourly sweep's GitHub revokes), so a rotated-out key stays set until no grant names it ([Tokens at rest](./operations.md#tokens-at-rest)). |
 
@@ -85,7 +85,7 @@ it.
 | `DATABASE_URL` | api, worker, migrate | none | yes, unless `DATABASE_URL_FILE` is set | A `postgres://` or `postgresql://` URL. A host that is not loopback (`localhost`, `127.0.0.0/8`, `::1`, or a unix socket path) must carry `sslmode=verify-full` or `sslmode=disable`, and `uselibpqcompat=true` only beside `verify-full`; anything else refuses boot ([TLS](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). A file the DSN names, such as `sslrootcert`, that cannot be read refuses boot naming the path. The default compose file sets its own value, so there this is ignored; `pnpm app:host` and an external database need it. |
 | `DATABASE_URL_FILE` | api, worker, migrate | unset | no | Path to a file holding the DSN, trimmed, for a compose `secrets:` mount. Wins over `DATABASE_URL` and logs a warning when `DATABASE_URL` is also set and non-empty. An unreadable file refuses boot. Empty reads as unset. |
 | `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection, then fails. Keep `api` replicas x this value + `worker` count x (2 x this value + `WORKER_LARGE_CONCURRENCY` + 2) under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). Empty takes the default. |
-| `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind ([operations.md](./operations.md#external-database-auto-migratefalse)). `migrate` always applies. **Empty reads as `false`.** |
+| `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind; apply the migrations with `docker compose run --rm api migrate`, or `pnpm -C apps/api migrate` from a checkout ([operations.md](./operations.md#external-database-auto-migratefalse)). `migrate` always applies. **Empty reads as `false`.** |
 
 ### Addresses and listeners
 
@@ -121,7 +121,7 @@ it.
 | `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` | api | `10` | no | Files one reviewer may attach per window: a positive whole number. Empty takes the default. |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_MB` | api | `30` | no | Megabytes one reviewer may attach per window: a whole number of at least 10, the size limit of one file. Empty takes the default. |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | `10` | no | The window's length in minutes: a positive whole number. Empty takes the default. Each `api` replica counts on its own ([attachments.md](./attachments.md#upload-quota)). |
-| `MERGEBRIEF_MEDIA_MAX_MB` | api | `100` | no | The largest video or image, in megabytes, the API streams: a positive whole number, judged on the file's full size; a larger one answers `413 media-too-large` ([attachments.md](./attachments.md)). Empty takes the default; anything else refuses boot. |
+| `MERGEBRIEF_MEDIA_MAX_MB` | api | `100` | no | The largest video or image, in megabytes, the API streams: a positive whole number, judged on the file's full size; a larger one answers `413 media-too-large`, and the page shows "could not load" with an Open on GitHub link ([attachments.md](./attachments.md)). Empty takes the default; anything else refuses boot. |
 | `MERGEBRIEF_UPDATE_CHECK` | api | `true` | no | Boolean. `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Empty takes the default. |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
 
@@ -132,7 +132,6 @@ it.
 | `PR_RETENTION_DAYS` | api, worker, migrate | unset (keep forever) | no | Days a closed or merged pull request is kept before the worker's daily sweep erases it with its briefs: a whole number of at least 1 ([Retention](./operations.md#retention-what-grows-and-what-does-not-prune-itself)). Empty reads as unset. |
 | `AUDIT_RETENTION_DAYS` | api, worker, migrate | unset (keep forever) | no | Days the daily sweep keeps audit rows: a whole number of at least 30. Empty reads as unset. |
 | `AUDIT_PRIVATE_WRITES` | api, worker, migrate | `true` | no | Boolean. `false` stops `api` recording writes that stay inside the instance; writes that reach GitHub and every denial are recorded either way. **Empty reads as `false`.** |
-| `STORE_DISPLAY_NAMES` | api, worker, migrate | `true` | no | Boolean, parsed and validated; no code reads the parsed value yet, so it changes nothing. An invalid token still refuses boot. **Empty reads as `false`.** |
 
 ### Logging and tracing
 
@@ -270,8 +269,7 @@ A variable set to an empty string reads as unset, with these exceptions:
   `MERGEBRIEF_UPDATE_CHECK_URL`, `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_PRIVATE_KEY_PATH`, `GENERATOR_API_KEY_ENV`, and every
   required variable.
-- **Reads as `false`:** `MERGEBRIEF_AUTO_MIGRATE`, `AUDIT_PRIVATE_WRITES`,
-  `STORE_DISPLAY_NAMES`.
+- **Reads as `false`:** `MERGEBRIEF_AUTO_MIGRATE`, `AUDIT_PRIVATE_WRITES`.
 
 ## Instance config (`mergebrief.config.yaml`)
 

@@ -18,8 +18,6 @@ import { checkDsnTls } from "./tls";
 export interface PersistenceConfig {
   /** Postgres connection URL (`pg` driver, one pool for data + queue). */
   readonly databaseUrl: string;
-  /** Keep purgeable display-name columns populated. Self-host: ON. */
-  readonly storeDisplayNames: boolean;
   /** Apply migrations at boot (default) vs check-only refusal, the posture
    * for a runtime role without DDL. */
   readonly autoMigrate: boolean;
@@ -159,7 +157,6 @@ const poolMaxSchema = z.preprocess(
 
 const ConfigSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
-  STORE_DISPLAY_NAMES: envBool(true),
   MERGEBRIEF_AUTO_MIGRATE: envBool(true),
   AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
   PR_RETENTION_DAYS: prRetentionDaysSchema,
@@ -228,7 +225,6 @@ export function loadConfig(
     ok: true,
     value: {
       databaseUrl: parsed.data.DATABASE_URL,
-      storeDisplayNames: parsed.data.STORE_DISPLAY_NAMES,
       autoMigrate: parsed.data.MERGEBRIEF_AUTO_MIGRATE,
       auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,
       prRetentionDays: parsed.data.PR_RETENTION_DAYS,

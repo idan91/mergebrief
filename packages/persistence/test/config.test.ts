@@ -32,10 +32,9 @@ function err(result: Result<PersistenceConfig, ConfigError>): ConfigError {
 }
 
 describe("config: loadConfig", () => {
-  it("keeps display names ON by default when only DATABASE_URL is set", () => {
+  it("loads with only DATABASE_URL set", () => {
     const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
     expect(config.databaseUrl).toBe(VALID_URL);
-    expect(config.storeDisplayNames).toBe(true);
   });
 
   it("keeps audit history forever and records private writes by default", () => {
@@ -152,19 +151,19 @@ describe("config: loadConfig", () => {
       const config = ok(
         loadConfig({
           DATABASE_URL: VALID_URL,
-          STORE_DISPLAY_NAMES: token,
+          AUDIT_PRIVATE_WRITES: token,
         }),
       );
-      expect(config.storeDisplayNames).toBe(true);
+      expect(config.auditPrivateWrites).toBe(true);
     }
   });
 
   it("parses falsy boolean tokens", () => {
     for (const token of ["false", "0", "no", "off", "FALSE", ""]) {
       const config = ok(
-        loadConfig({ DATABASE_URL: VALID_URL, STORE_DISPLAY_NAMES: token }),
+        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_PRIVATE_WRITES: token }),
       );
-      expect(config.storeDisplayNames).toBe(false);
+      expect(config.auditPrivateWrites).toBe(false);
     }
   });
 
