@@ -24,12 +24,16 @@ const HEADER_SEPARATOR = " · ";
 const LABEL_SEPARATOR = ", ";
 const BODY_PART_SEPARATOR = "\n\n";
 
-interface JiraClient {
-  readonly transport: JiraTransport;
+/** The site a root's `type: jira` entry names and the credential it reads that site with. */
+export interface JiraAccount {
   /** The `.atlassian.net` host of the `type: jira` entry. */
   readonly site: string;
   readonly email: string;
   readonly token: string;
+}
+
+interface JiraClient extends JiraAccount {
+  readonly transport: JiraTransport;
 }
 
 /** An issue the repository lists: the key Jira answered under, its URL, and the listed projects its parent is checked against. */
@@ -208,21 +212,18 @@ async function readJiraPrimary(
   };
 }
 
-/** Jira's read for one root: the site's `contextSources` entry, its account email and its API token, each variable by NAME. */
-export function createJiraRead(
+/**
+ * A root's Jira account, each variable by NAME: `undefined` when the config
+ * lists no `type: jira` entry, a refusal naming the variable that is unset.
+ */
+export function resolveJiraAccount(
   shared: SharedRootDeps,
-  transport: JiraTransport | undefined,
-): Result<PrimaryRead, ConfigError> {
-  if (transport === undefined) {
-    return refuseTrackerRead(["jira: no transport bound at this root"]);
-  }
+): Result<JiraAccount | undefined, ConfigError> {
   const entry = shared.contextSources.find(
     (source) => source.type === ContextProviderTypes.JIRA,
   );
   if (entry === undefined) {
-    return refuseTrackerRead([
-      "jira: no `contextSources` entry of type jira on this deployment",
-    ]);
+    return { ok: true, value: undefined };
   }
   const email = resolveCredentialByName(shared.env, {
     owner: "jira",
@@ -243,12 +244,31 @@ export function createJiraRead(
     return token;
   }
 
-  const client: JiraClient = {
-    transport,
-    site: entry.site,
-    email: email.value,
-    token: token.value,
+  return {
+    ok: true,
+    value: { site: entry.site, email: email.value, token: token.value },
   };
+}
+
+/** Jira's read for one root: the account its `contextSources` entry names, over the root's transport. */
+export function createJiraRead(
+  shared: SharedRootDeps,
+  transport: JiraTransport | undefined,
+): Result<PrimaryRead, ConfigError> {
+  if (transport === undefined) {
+    return refuseTrackerRead(["jira: no transport bound at this root"]);
+  }
+  const account = resolveJiraAccount(shared);
+  if (!account.ok) {
+    return account;
+  }
+  if (account.value === undefined) {
+    return refuseTrackerRead([
+      "jira: no `contextSources` entry of type jira on this deployment",
+    ]);
+  }
+
+  const client: JiraClient = { transport, ...account.value };
   return {
     ok: true,
     value: {

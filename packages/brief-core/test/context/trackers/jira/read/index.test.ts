@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   JiraTransports,
   createJiraRead,
+  resolveJiraAccount,
 } from "../../../../../src/context/trackers/jira";
 import type { SharedRootDeps } from "../../../../../src/context/trackers/types";
 import {
@@ -138,6 +139,27 @@ describe("createJiraRead", () => {
   it("builds a read of the jira kind", () => {
     const read = createJiraRead(SHARED, JiraTransports.HTTP.create());
     expect(read.ok && read.value.kind).toBe("jira");
+  });
+});
+
+describe("resolveJiraAccount", () => {
+  it("answers the entry's site with the email and the token", () => {
+    expect(resolveJiraAccount(SHARED)).toEqual({
+      ok: true,
+      value: { site: SITE, email: EMAIL, token: TOKEN },
+    });
+  });
+
+  it("answers no account for a config that lists no Jira source", () => {
+    const account = resolveJiraAccount({ ...SHARED, contextSources: [] });
+    expect(account).toEqual({ ok: true, value: undefined });
+  });
+
+  it("refuses an unset variable by name", () => {
+    const account = resolveJiraAccount({ ...SHARED, env: {} });
+    expect(account.ok || account.error.issues).toEqual([
+      "JIRA_EMAIL: jira account email env var is not set",
+    ]);
   });
 });
 

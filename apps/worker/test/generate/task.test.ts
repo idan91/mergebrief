@@ -22,8 +22,10 @@ import { RepoConfigPaths } from "repo-config";
 import {
   ContextProviderTypes,
   createBuiltInContextProviders,
+  JiraTransports,
   type ContextProvider,
   type ContextQuery,
+  type JiraTransport,
   type SharedRootDeps,
 } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
@@ -60,6 +62,13 @@ import {
   stubHangingGenerator,
   trigger,
 } from "./helpers";
+import {
+  JIRA_CLOUD_ID,
+  JIRA_EMAIL,
+  JIRA_SITE,
+  JIRA_TOKEN,
+  JIRA_TRACKER,
+} from "../helpers";
 import { TransientJobError } from "../../src/task/failure";
 import { createGenerateTask } from "../../src/task/generate";
 import {
@@ -77,14 +86,52 @@ const NOTION_ROOT = {
   contextSources: [{ type: "notion" as const }],
 };
 
-const JIRA_ISSUE_URL = "https://acme.atlassian.net/browse/ACME-12";
-const JIRA_ROOT: SharedRootDeps = {
+const JIRA_ISSUE_URL = `https://${JIRA_SITE}/browse/ACME-12`;
+/** A root whose instance lists a Jira project and a custom domain, with no credential set. */
+const JIRA_BOARD_ROOT: SharedRootDeps = {
   env: {},
   contextSources: [
-    { type: "jira", site: "acme.atlassian.net", linkHosts: ["jira.acme.com"] },
+    { type: "jira", site: JIRA_SITE, linkHosts: ["jira.acme.com"] },
   ],
-  trackers: [{ kind: "jira", projectKeys: ["ACME"] }],
+  trackers: [JIRA_TRACKER],
 };
+
+/** `JIRA_BOARD_ROOT` with the credential set, so a root that offers a Jira transport reads. */
+const JIRA_CREDENTIAL_ROOT: SharedRootDeps = {
+  ...JIRA_BOARD_ROOT,
+  env: { JIRA_EMAIL, JIRA_API_TOKEN: JIRA_TOKEN },
+};
+const JIRA_TENANT_INFO_CALL = `${JIRA_SITE}/_edge/tenant_info`;
+const JIRA_ISSUE_CALL = `api.atlassian.com/ex/jira/${JIRA_CLOUD_ID}/rest/api/3/issue/ACME-12`;
+
+/** The real Jira transport over a recorded site: its cloud id and one issue. */
+function stubJiraSite(): { calls: string[]; transport: JiraTransport } {
+  const calls: string[] = [];
+  const routes: Record<string, unknown> = {
+    [JIRA_TENANT_INFO_CALL]: { cloudId: JIRA_CLOUD_ID },
+    [JIRA_ISSUE_CALL]: {
+      key: "ACME-12",
+      fields: {
+        summary: "Checkout rework",
+        status: { name: "In Progress" },
+        issuetype: { name: "Story" },
+      },
+    },
+  };
+  const transport = JiraTransports.HTTP.create({
+    fetch: async (url) => {
+      const { host, pathname } = new URL(url);
+      const call = `${host}${pathname}`;
+      calls.push(call);
+      const body = routes[call];
+      if (body === undefined) {
+        return new Response("{}", { status: 404 });
+      }
+      return new Response(JSON.stringify(body), { status: 200 });
+    },
+  });
+  return { calls, transport };
+}
 
 /** A source that fetches nothing and keeps each query the task built. */
 function recordContextQueries(): {
@@ -416,7 +463,7 @@ describe("generate task", () => {
 
     await makeTask({
       github,
-      trackerRoot: JIRA_ROOT,
+      trackerRoot: JIRA_BOARD_ROOT,
       contextProviders: [recorded.provider],
     })(payload);
 
@@ -426,7 +473,7 @@ describe("generate task", () => {
       HEAD_1,
     );
     expect(recorded.queries[0]?.jiraSite).toEqual({
-      host: "acme.atlassian.net",
+      host: JIRA_SITE,
       linkHosts: ["jira.acme.com"],
     });
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
@@ -464,13 +511,12 @@ describe("generate task", () => {
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { body: `Fixes ${JIRA_ISSUE_URL}` });
     const recorded = recordContextQueries();
+    const jira = stubJiraSite();
 
     await makeTask({
       github,
-      trackerRoot: {
-        ...JIRA_ROOT,
-        env: { JIRA_EMAIL: "dana@acme.example", JIRA_API_TOKEN: "jira-token" },
-      },
+      trackerRoot: JIRA_CREDENTIAL_ROOT,
+      jiraTransport: jira.transport,
       contextProviders: [recorded.provider],
     })(payload);
 
@@ -478,10 +524,42 @@ describe("generate task", () => {
       harness.handle,
       ownerCtx,
     ).briefs.get(pr.id, BASE, HEAD_1);
+    expect(jira.calls).toEqual([]);
     expect(recorded.queries.map((query) => query.references)).toEqual([[]]);
     expect(
       JSON.parse(brief?.body ?? "{}").intentCheck?.primaryTicket,
     ).toBeUndefined();
+  });
+
+  it("reads an installation job's Jira link on the deployment's token", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: `Fixes ${JIRA_ISSUE_URL}` });
+    const jira = stubJiraSite();
+
+    await makeTask({
+      github,
+      trackerRoot: JIRA_CREDENTIAL_ROOT,
+      jiraTransport: jira.transport,
+    })(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(jira.calls).toEqual([JIRA_TENANT_INFO_CALL, JIRA_ISSUE_CALL]);
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: {
+          key: "ACME-12",
+          tracker: "jira",
+          url: JIRA_ISSUE_URL,
+          status: "read",
+          title: "Checkout rework",
+        },
+      },
+    });
   });
 
   it("reads a key on the instance's default board when the repo names none", async () => {

@@ -10,6 +10,7 @@ export {
   JiraScopeChecks,
   type JiraIssue,
   type JiraReadFailure,
+  type JiraScopeCheck,
   type JiraSession,
   type JiraTransport,
 } from "./port";

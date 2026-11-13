@@ -416,6 +416,40 @@ describe("collectOutputSecrets with configured credential names", () => {
 
     expect(vars.toSorted()).toEqual(["MY_ANTHROPIC", "NOTION_CREDENTIAL"]);
   });
+
+  it("lists a Jira source's token var and never its email var", () => {
+    const vars = listCredentialVars({ provider: "anthropic", model: "m" }, [
+      {
+        type: "jira",
+        site: "acme.atlassian.net",
+        emailEnv: "BOT_ACCOUNT",
+        tokenEnv: "BOT_CREDENTIAL",
+      },
+    ]);
+
+    expect(vars).toEqual(["BOT_CREDENTIAL"]);
+  });
+});
+
+describe("collectOutputSecrets over the Jira variables", () => {
+  const JIRA_API_TOKEN = "jira-api-token-0123456789";
+  const ACCOUNT_EMAIL = "dana.reviewer@acme.example";
+
+  function listSecretVars(env: Record<string, string>): string[] {
+    const vars = collectOutputSecrets(env).map((secret) => secret.envVar);
+    return [...new Set(vars)];
+  }
+
+  it("takes the default Jira token var by its name", () => {
+    expect(listSecretVars({ JIRA_API_TOKEN })).toEqual(["JIRA_API_TOKEN"]);
+  });
+
+  it.each(["JIRA_EMAIL", "JIRA_TOKEN_OWNER_EMAIL"])(
+    "leaves the account email in %s unguarded",
+    (emailVar) => {
+      expect(listSecretVars({ [emailVar]: ACCOUNT_EMAIL })).toEqual([]);
+    },
+  );
 });
 
 describe("guardGeneratorOutput side channels", () => {

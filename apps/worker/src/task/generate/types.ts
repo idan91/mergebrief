@@ -2,6 +2,7 @@ import type {
   Brief,
   ContextFetch,
   ContextProvider,
+  JiraTransport,
   MultiCallHooks,
   PrLocator,
   PrMetadata,
@@ -89,6 +90,8 @@ export interface GenerateTaskDeps {
   readonly contextProviders: readonly ContextProvider[];
   /** What main.ts offers every tracker's read; GitHub's transport is bound per job. */
   readonly trackerRoot?: SharedRootDeps;
+  /** Absent means no job reads Jira. */
+  readonly jiraTransport?: JiraTransport;
   /** The instance's `siblingRepos`; absent means off: an installation job reads its own repo and `issuesRepo` only. */
   readonly siblingRepos?: boolean;
   /** The revision-narrative gate main.ts read; absent means enabled. */

@@ -46,6 +46,7 @@ import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   createCliContextProviders,
   createCliRootDeps,
+  describeTrackerRefusal,
   resolveCliTrackerReads,
 } from "./context-providers";
 import {
@@ -338,7 +339,7 @@ async function main(): Promise<void> {
     createCliRootDeps(process.env, loaded.value.contextSources),
   );
   if (!reads.ok) {
-    console.error(reads.error.issues.join("; "));
+    console.error(describeTrackerRefusal(reads.error));
     process.exit(1);
   }
   if (local.warning !== undefined) {

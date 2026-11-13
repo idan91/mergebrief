@@ -61,3 +61,12 @@ export function resolveCliTrackerReads(
   }
   return resolveTrackerReads(trackers, root);
 }
+
+/**
+ * A refused tracker read as both CLIs print it before exiting 1: the issues,
+ * then where each fix goes.
+ */
+export function describeTrackerRefusal(error: ConfigError): string {
+  const issues = error.issues.join("; ");
+  return `${issues} — a variable goes in tools/categorizer/.env (see .env.example), a \`contextSources\` entry in the file --config names.`;
+}

@@ -2,12 +2,7 @@
 // This is the ONE place env is read and real dependencies are wired, the
 // library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
 // at boot, never limp into draining jobs it cannot complete.
-import {
-  checkConfiguredTrackerReads,
-  createBuiltInContextProviders,
-  NotionTransports,
-  resolveTrackerReads,
-} from "brief-core";
+import { createBuiltInContextProviders, JiraTransports } from "brief-core";
 import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
 import {
   createAppClient,
@@ -63,6 +58,7 @@ import {
 import { startWorker, type WorkerRunner } from "./runner";
 import { buildLargePoolTaskList, buildTaskList } from "./task-list";
 import { buildToolAccessWarning } from "./tool-access";
+import { checkTrackerBoot } from "./tracker-boot";
 import {
   collectOutputSecrets,
   guardGeneratorOutput,
@@ -157,34 +153,19 @@ async function main(): Promise<void> {
     logger.warn(toolAccess.message, toolAccess.fields);
   }
 
-  // Tracker reads: every `contextSources:` entry must be able to build its
-  // read here, tokens by env-var NAME. An unset token refuses boot like a
-  // missing generator key.
+  // The tracker config's boot checks, awaited before the runner starts.
   const trackerRoot = {
     env,
     contextSources: config.value.contextSources,
     trackers: config.value.trackers,
   };
-  const trackerTransports = { notion: NotionTransports.HTTP.create() };
-  const trackerReads = checkConfiguredTrackerReads({
-    ...trackerRoot,
-    transports: trackerTransports,
+  const jiraTransport = JiraTransports.HTTP.create();
+  const trackerBoot = await checkTrackerBoot(trackerRoot, {
+    jiraTransport,
+    log: logger,
   });
-  if (!trackerReads.ok) {
-    exitOnConfigError(
-      `worker composition: invalid tracker configuration — ${trackerReads.error.issues.join("; ")}`,
-    );
-  }
-  // The instance's default boards must be readable here too, or every job
-  // on a repo without its own settings would warn instead of read.
-  const defaultBoards = resolveTrackerReads(config.value.trackers, {
-    ...trackerRoot,
-    transports: trackerTransports,
-  });
-  if (!defaultBoards.ok) {
-    exitOnConfigError(
-      `worker composition: trackers — ${defaultBoards.error.issues.join("; ")}`,
-    );
+  if (!trackerBoot.ok) {
+    exitOnConfigError(trackerBoot.error);
   }
 
   // Pool error observer: a DB restart surfaces as warn lines, not an
@@ -229,6 +210,7 @@ async function main(): Promise<void> {
     spend: config.value.spend,
     contextProviders: createBuiltInContextProviders(config.value.linkFetch),
     trackerRoot,
+    jiraTransport,
     siblingRepos: config.value.siblingRepos,
     revisionNarrative: config.value.revisionNarrative,
     hugeSpanRatio: config.value.hugeSpanRatio,

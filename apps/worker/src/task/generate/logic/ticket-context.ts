@@ -6,6 +6,7 @@ import {
   NotionTransports,
   resolveTrackerReads,
   type ContextFetch,
+  type JiraTransport,
   type TrackerRootDeps,
 } from "brief-core";
 import {
@@ -26,14 +27,15 @@ interface TransportBinding {
   /** Runs on the viewer's grant, not the installation's. */
   readonly urlBox: boolean;
   readonly siblingRepos: boolean;
+  readonly jira: JiraTransport | undefined;
 }
 
 /**
  * GitHub's reach for one job. A url-box job runs on the viewer's grant: it
  * stays inside the PR's repo and is offered no deployment credential, so
- * the repo's settings cannot borrow the operator's Notion integration. An
- * installation job reads its repo and `issuesRepo`, every repo the
- * installation reaches only where the instance allows sibling repos.
+ * the repo's settings cannot borrow the operator's Notion integration or
+ * Jira token. An installation job reads its repo and `issuesRepo`, every
+ * repo the installation reaches only where the instance allows sibling repos.
  */
 function bindTrackerTransports(
   binding: TransportBinding,
@@ -47,8 +49,10 @@ function bindTrackerTransports(
   }
 
   const notion = NotionTransports.HTTP.create();
+  const { jira } = binding;
   if (binding.siblingRepos) {
-    return { github: GitHubTransports.INSTALLATION.create(issues), notion };
+    const github = GitHubTransports.INSTALLATION.create(issues);
+    return { github, notion, jira };
   }
   const onlyRepos: RepoName[] = [binding.locator];
   const issuesRepo = findIssuesRepo(binding.trackers);
@@ -56,7 +60,7 @@ function bindTrackerTransports(
     onlyRepos.push(issuesRepo);
   }
   const github = GitHubTransports.INSTALLATION.create(issues, { onlyRepos });
-  return { github, notion };
+  return { github, notion, jira };
 }
 
 /**
@@ -97,6 +101,7 @@ export function createTicketContextLoader(
       trackers,
       urlBox: payload.grantId !== undefined,
       siblingRepos: deps.siblingRepos === true,
+      jira: deps.jiraTransport,
     });
     const reads = resolveTrackerReads(trackers, {
       ...trackerRoot,

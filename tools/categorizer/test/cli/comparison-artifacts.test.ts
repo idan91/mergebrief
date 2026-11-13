@@ -17,6 +17,7 @@ import {
   NO_PRODUCT_CHANGE_ANSWER,
   PRODUCT_DIFF_LABEL,
 } from "../canned-generator";
+import { JIRA_TRACKER } from "./helpers";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
 // shell out to `gh`, same fixtures serve both the whole-PR and incremental
@@ -680,7 +681,7 @@ describe("generateAndWriteDelta checkpoint marks", () => {
 // --- the context query both CLIs build -----------------------------------------
 
 describe("the CLIs' context query", () => {
-  const JIRA_TRACKERS = [{ kind: "jira" as const, projectKeys: ["ACME"] }];
+  const JIRA_TRACKERS = [JIRA_TRACKER];
   const JIRA_SOURCES = [
     {
       type: "jira" as const,
