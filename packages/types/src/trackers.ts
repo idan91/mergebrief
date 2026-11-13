@@ -4,5 +4,6 @@ import type { ValueOf } from "./utils";
 export const TicketTrackers = {
   GITHUB: "github",
   NOTION: "notion",
+  JIRA: "jira",
 } as const;
 export type TicketTracker = ValueOf<typeof TicketTrackers>;

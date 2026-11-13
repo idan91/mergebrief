@@ -63,7 +63,7 @@ describe("readLocalTracker", () => {
   });
 
   it("warns and yields no tracker on an invalid block", async () => {
-    await writeSettings("version: 1\ntracker:\n  kind: jira\n");
+    await writeSettings("version: 1\ntracker:\n  kind: linear\n");
     const read = readLocalTracker(cwd);
     expect(read.trackers).toEqual([]);
     expect(read.warning).toContain("invalid");

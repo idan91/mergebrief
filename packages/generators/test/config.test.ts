@@ -286,7 +286,7 @@ describe("loadGeneratorConfigFile", () => {
 
   it("refuses boot on a bad contextSources entry", () => {
     const result = loadGeneratorConfigFile(
-      configFile("contextSources:\n  - type: jira\n"),
+      configFile("contextSources:\n  - type: linear\n"),
     );
     expect(result.ok).toBe(false);
     if (result.ok) {

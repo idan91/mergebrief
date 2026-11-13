@@ -14,10 +14,22 @@ import { renderKey } from "./readRoot";
 
 export const ContextSourceTypes = {
   NOTION: "notion",
+  JIRA: "jira",
 } as const;
 export type ContextSourceType = ValueOf<typeof ContextSourceTypes>;
 
 export const DEFAULT_NOTION_TOKEN_ENV = "NOTION_TOKEN";
+export const DEFAULT_JIRA_EMAIL_ENV = "JIRA_EMAIL";
+export const DEFAULT_JIRA_TOKEN_ENV = "JIRA_API_TOKEN";
+
+/** A custom domain or two covers a site; the cap bounds the link scan. */
+const MAX_JIRA_LINK_HOSTS = 4;
+const HOST_LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
+/** One Jira Cloud site: a single label before `.atlassian.net`. */
+export const JIRA_SITE = new RegExp(`^${HOST_LABEL}\\.atlassian\\.net$`, "i");
+const HOST_NAME = new RegExp(`^(?:${HOST_LABEL}\\.)+${HOST_LABEL}$`, "i");
+const ATLASSIAN_HOST = /(?:^|\.)atlassian\.net$/i;
+const MAX_HOST_CHARS = 253;
 
 /** A fixed message: a value pasted where a NAME belongs must never echo. */
 const ENV_VAR_NAME_MESSAGE =
@@ -32,9 +44,57 @@ export type NotionContextSourceConfig = z.infer<
   typeof NotionContextSourceSchema
 >;
 
+/** Fixed messages: a pasted URL may carry a credential, so no value echoes. */
+const JIRA_SITE_MESSAGE =
+  "must be the Jira Cloud site host alone, such as acme.atlassian.net: no scheme, path, port or other domain";
+const LINK_HOST_MESSAGE = "must be a bare host name: no scheme, path or port";
+const LINK_HOST_ATLASSIAN_MESSAGE =
+  "must not be an atlassian.net host; list only the site's custom domains";
+
+const LinkHostListSchema = z
+  .array(
+    z
+      .string()
+      .max(MAX_HOST_CHARS, LINK_HOST_MESSAGE)
+      .regex(HOST_NAME, LINK_HOST_MESSAGE)
+      .refine((host) => !ATLASSIAN_HOST.test(host), LINK_HOST_ATLASSIAN_MESSAGE)
+      .transform((host) => host.toLowerCase()),
+  )
+  .max(MAX_JIRA_LINK_HOSTS, `at most ${MAX_JIRA_LINK_HOSTS} hosts`)
+  .superRefine((hosts, ctx) => {
+    hosts.forEach((host, index) => {
+      if (hosts.indexOf(host) !== index) {
+        ctx.addIssue({
+          code: "custom",
+          path: [index],
+          message: "lists a host twice",
+        });
+      }
+    });
+  });
+
+const JiraContextSourceSchema = z.strictObject({
+  type: z.literal(ContextSourceTypes.JIRA),
+  site: z
+    .string()
+    .regex(JIRA_SITE, JIRA_SITE_MESSAGE)
+    .transform((site) => site.toLowerCase()),
+  /** NAME of the env var holding the token owner's account email; default JIRA_EMAIL. */
+  emailEnv: z.string().regex(ENV_VAR_NAME, ENV_VAR_NAME_MESSAGE).optional(),
+  /** NAME of the env var holding the API token; default JIRA_API_TOKEN. */
+  tokenEnv: z.string().regex(ENV_VAR_NAME, ENV_VAR_NAME_MESSAGE).optional(),
+  /** Hosts whose issue links count as this site's, such as a custom domain. */
+  linkHosts: LinkHostListSchema.optional(),
+});
+
 /** One entry per kind: nothing downstream selects among several, so a second one could only be ignored. */
 export const ContextSourcesConfigSchema = z
-  .array(z.discriminatedUnion("type", [NotionContextSourceSchema]))
+  .array(
+    z.discriminatedUnion("type", [
+      NotionContextSourceSchema,
+      JiraContextSourceSchema,
+    ]),
+  )
   .superRefine((entries, ctx) => {
     const seen = new Set<string>();
     entries.forEach((entry, index) => {

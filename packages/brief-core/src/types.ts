@@ -644,7 +644,11 @@ export const PrimaryTicketSchema = z.object({
     .string()
     .describe('the tracker key, e.g. "BRIEF-239"; "" for a URL-only reference'),
   url: z.string().describe("canonical ticket URL"),
-  tracker: z.enum([TicketTrackers.GITHUB, TicketTrackers.NOTION]),
+  tracker: z.enum([
+    TicketTrackers.GITHUB,
+    TicketTrackers.NOTION,
+    TicketTrackers.JIRA,
+  ]),
   foundIn: z.enum([
     ReferenceLocations.DESCRIPTION,
     ReferenceLocations.TITLE,

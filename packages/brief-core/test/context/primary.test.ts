@@ -12,7 +12,7 @@ import {
   type ContextQuery,
   type PrimarySnippet,
 } from "../../src/context/types";
-import { TicketUnreadReasons } from "../../src/types";
+import { PrimaryTicketSchema, TicketUnreadReasons } from "../../src/types";
 
 const READ_MS = 30;
 
@@ -177,6 +177,30 @@ describe("fetchContextSnippets: the primary ticket", () => {
       reason: "unsupported",
       detail: "no notion read on this deployment",
     });
+  });
+
+  it("reports a jira key with no read unread, stored as a jira ticket", async () => {
+    const jiraRef: TicketReference = {
+      tracker: "jira",
+      key: "ACME-12",
+      url: "",
+      foundIn: "branch",
+      closing: false,
+    };
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: jiraRef, references: [jiraRef, reference] },
+      [],
+    );
+    expect(primaryTicket).toMatchObject({
+      status: "unread",
+      reason: TicketUnreadReasons.UNSUPPORTED,
+      detail: "no jira read on this deployment",
+    });
+    if (primaryTicket === undefined) {
+      return;
+    }
+    const stored = PrimaryTicketSchema.parse(toPrimaryTicket(primaryTicket));
+    expect(stored).toMatchObject({ tracker: "jira", reason: "unsupported" });
   });
 
   it("a supplied primary replaces the read and is stamped as read", async () => {

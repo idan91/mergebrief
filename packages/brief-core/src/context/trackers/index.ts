@@ -2,15 +2,21 @@ import { TicketTrackers, type Result, type TicketTracker } from "types";
 import type { ConfigError } from "generators";
 import type { TrackerConfig } from "generators/trackers";
 import { githubTracker } from "./github";
+import { jiraTracker } from "./jira";
 import { notionTracker } from "./notion";
 import type { PrimaryRead, Tracker, TrackerRootDeps } from "./types";
 
 /** Every tracker the parser scans for, in scan order. Adding one is a module plus a line here. */
-export const TRACKERS: readonly Tracker[] = [githubTracker, notionTracker];
+export const TRACKERS: readonly Tracker[] = [
+  githubTracker,
+  notionTracker,
+  jiraTracker,
+];
 
 const TRACKER_BY_KIND: { readonly [Kind in TicketTracker]: Tracker<Kind> } = {
   [TicketTrackers.GITHUB]: githubTracker,
   [TicketTrackers.NOTION]: notionTracker,
+  [TicketTrackers.JIRA]: jiraTracker,
 };
 
 /** The tracker module behind a `tracker:` kind or a reference's `tracker`. */

@@ -13,6 +13,12 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-13)
+
+- **Added** `jira` to `intentCheck.primaryTicket.tracker` on `read-brief`: the
+  primary ticket is a key of a Jira project the repository lists. Clients that
+  treat the tracker set as closed must accept the new value.
+
 ## dev (2026-11-04)
 
 No server change; the CLI reads the same routes.

@@ -7,6 +7,7 @@ import type {
 import {
   createBuiltInContextProviders,
   GitHubTransports,
+  JiraTransports,
   NotionTransports,
   resolveTrackerReads,
   type ContextProvider,
@@ -32,6 +33,7 @@ export function createCliRootDeps(
     transports: {
       github: GitHubTransports.GH.create(),
       notion: NotionTransports.HTTP.create(),
+      jira: JiraTransports.HTTP.create(),
     },
   };
 }

@@ -8,6 +8,7 @@ import type {
   PrimarySnippet,
 } from "../types";
 import type { GitHubTransport } from "./github/transport";
+import type { JiraTransport } from "./jira/transport";
 import type { NotionTransport } from "./notion/transport";
 
 /** The pure parser's input: PR text plus what the deployment can resolve. */
@@ -28,13 +29,13 @@ export interface TicketReference {
   readonly tracker: TicketTracker;
   /** `PREFIX-N` for a key reference, else "". */
   readonly key: string;
-  /** GitHub issue number; absent for Notion. */
+  /** GitHub issue number; absent for every other tracker. */
   readonly number?: number;
   /** Notion page id (32 hex); absent for GitHub and for a Notion key. */
   readonly pageId?: string;
   /** The board a Notion key resolves in; absent for GitHub and page URLs. */
   readonly databaseId?: string;
-  /** Canonical URL; "" for a Notion key until the provider resolves it. */
+  /** Canonical URL; "" for a Notion key until the provider resolves it, and for a Jira key. */
   readonly url: string;
   readonly foundIn: ReferenceLocation;
   /** Introduced by a closing keyword in the description. */
@@ -63,6 +64,7 @@ export interface SharedRootDeps {
 export interface TrackerTransports {
   readonly github: GitHubTransport;
   readonly notion: NotionTransport;
+  readonly jira: JiraTransport;
 }
 
 /** A composition root: the shared deps plus one transport slot per tracker it serves. */

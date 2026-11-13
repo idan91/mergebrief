@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { TicketTrackers } from "types/trackers";
 import {
   TRACKERS,
+  checkConfiguredTrackerReads,
   getTracker,
   resolveTrackerReads,
 } from "../../src/context/trackers";
+import { JiraTransports } from "../../src/context/trackers/jira";
 import { NotionTransports } from "../../src/context/trackers/notion";
 
 const GITHUB_STUB = {
@@ -71,5 +73,28 @@ describe("trackers", () => {
       databaseId: "a".repeat(32),
     };
     expect(resolveTrackerReads([notionBlock], noToken).ok).toBe(false);
+  });
+
+  it.each([
+    ["the token set and the email unset", { JIRA_API_TOKEN: "t" }],
+    ["the email set and the token unset", { JIRA_EMAIL: "dana@acme.com" }],
+  ])("refuses boot on a jira source with %s", (_label, env) => {
+    const root = {
+      env,
+      contextSources: [{ type: "jira" as const, site: "acme.atlassian.net" }],
+      transports: { jira: JiraTransports.HTTP.create() },
+    };
+    expect(checkConfiguredTrackerReads(root).ok).toBe(false);
+  });
+
+  it("refuses a repo whose tracker is jira when no jira source is listed", () => {
+    const root = {
+      env: { JIRA_EMAIL: "dana@acme.com", JIRA_API_TOKEN: "t" },
+      contextSources: [],
+      transports: { jira: JiraTransports.HTTP.create() },
+    };
+    const jiraBlock = { kind: "jira" as const, projectKeys: ["ACME"] };
+    expect(resolveTrackerReads([jiraBlock], root).ok).toBe(false);
+    expect(resolveTrackerReads([], root)).toEqual({ ok: true, value: {} });
   });
 });

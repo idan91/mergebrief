@@ -82,6 +82,23 @@ describe("readContextFile", () => {
     });
   });
 
+  it("accepts a jira ticket", async () => {
+    const path = await write(
+      "t.json",
+      JSON.stringify({
+        url: "https://acme.atlassian.net/browse/ACME-12",
+        key: "ACME-12",
+        tracker: "jira",
+        content: "Body",
+      }),
+    );
+    const read = readContextFile(path);
+    expect(read.ok && read.value).toMatchObject({
+      key: "ACME-12",
+      tracker: "jira",
+    });
+  });
+
   it.each([
     ["an unreadable path", null],
     ["invalid JSON", "{"],
@@ -92,7 +109,7 @@ describe("readContextFile", () => {
     ],
     [
       "an unknown tracker",
-      JSON.stringify({ url: "https://x", content: "b", tracker: "jira" }),
+      JSON.stringify({ url: "https://x", content: "b", tracker: "linear" }),
     ],
   ])("fails on %s", async (_label, content) => {
     const path =

@@ -106,10 +106,26 @@ describe("settings.yaml validation", () => {
     ["an unknown tracker key", { kind: "github", issueRepo: "acme/tracker" }],
     ["a bad issuesRepo", { kind: "github", issuesRepo: "acme" }],
     ["the instance-only siblingRepos", { kind: "github", siblingRepos: true }],
+    ["a jira entry with no project keys", { kind: "jira", projectKeys: [] }],
+    [
+      "a jira entry naming a site",
+      { kind: "jira", projectKeys: ["ACME"], site: "acme.atlassian.net" },
+    ],
   ])("rejects the whole file for %s", (_label, tracker) => {
     const result = validate(yaml({ version: 1, tracker }));
     expect(result.settings).toBeUndefined();
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+  });
+
+  it("applies a jira tracker, project keys stored upper-case", () => {
+    const result = validate(
+      yaml({ version: 1, tracker: { kind: "jira", projectKeys: ["acme"] } }),
+    );
+    expect(result.settings?.tracker).toEqual({
+      kind: "jira",
+      projectKeys: ["ACME"],
+    });
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
   it("applies a trackers list and keeps file order", () => {
@@ -130,6 +146,15 @@ describe("settings.yaml validation", () => {
       { tracker: { kind: "github" }, trackers: [{ kind: "github" }] },
     ],
     ["an empty list", { trackers: [] }],
+    [
+      "a jira project key that is a notion prefix",
+      {
+        trackers: [
+          { kind: "notion", keyPrefix: "ACME", databaseId: "a".repeat(32) },
+          { kind: "jira", projectKeys: ["acme"] },
+        ],
+      },
+    ],
   ])("rejects the whole file for %s", (_label, block) => {
     const result = validate(yaml({ version: 1, ...block }));
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);

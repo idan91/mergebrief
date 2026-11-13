@@ -1,10 +1,14 @@
 import { z } from "zod/v4";
-import { TicketTrackers } from "types/trackers";
+import { TicketTrackers, type TicketTracker } from "types/trackers";
 import type { Mutable, Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 
 /** Key prefixes are short identifier words; anything else refuses the block. */
 const KEY_PREFIX = /^[A-Za-z][A-Za-z0-9_]{0,19}$/;
+/** Jira's own project key rule: a letter, then letters or digits, 2 to 255 in all. */
+const JIRA_PROJECT_KEY = /^[A-Za-z][A-Za-z0-9]{1,254}$/;
+/** The most projects one Jira entry lists; the keys share one scan per location. */
+export const MAX_JIRA_PROJECT_KEYS = 50;
 /** Notion hands out ids bare (URL) or dashed (the "Copy data source ID" button). */
 const NOTION_ID =
   /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -27,6 +31,20 @@ const NotionTrackerSchema = z
       .transform((id) => id.replaceAll("-", "")),
   })
   .strict();
+const JiraTrackerSchema = z
+  .object({
+    kind: z.literal(TicketTrackers.JIRA),
+    projectKeys: z
+      .array(
+        z
+          .string()
+          .regex(JIRA_PROJECT_KEY)
+          .transform((key) => key.toUpperCase()),
+      )
+      .min(1)
+      .max(MAX_JIRA_PROJECT_KEYS),
+  })
+  .strict();
 const GitHubTrackerSchema = z
   .object({
     kind: z.literal(TicketTrackers.GITHUB),
@@ -36,6 +54,7 @@ const GitHubTrackerSchema = z
 
 export const TrackerConfigSchema = z.discriminatedUnion("kind", [
   NotionTrackerSchema,
+  JiraTrackerSchema,
   GitHubTrackerSchema,
 ]);
 export type TrackerConfig = z.infer<typeof TrackerConfigSchema>;
@@ -47,6 +66,7 @@ export type TrackerConfig = z.infer<typeof TrackerConfigSchema>;
  */
 const InstanceTrackerConfigSchema = z.discriminatedUnion("kind", [
   NotionTrackerSchema,
+  JiraTrackerSchema,
   GitHubTrackerSchema.extend({ siblingRepos: z.boolean().optional() }).strict(),
 ]);
 type InstanceTrackerConfig = z.infer<typeof InstanceTrackerConfigSchema>;
@@ -120,10 +140,92 @@ export function resolveEffectiveTrackers(
   return own.length > 0 ? own : [...instance];
 }
 
+/** Kinds a list may name once: one place a bare `#N` resolves, one Jira site. */
+const SINGLE_ENTRY_KINDS: readonly TicketTracker[] = [
+  TicketTrackers.GITHUB,
+  TicketTrackers.JIRA,
+];
+
+/** A prefix a list entry names, with the field that names it. */
+interface ListedPrefix {
+  readonly prefix: string;
+  readonly kind: TicketTracker;
+  readonly label: "keyPrefix" | "project key";
+  readonly entryIndex: number;
+  readonly path: readonly (string | number)[];
+}
+
+function listPrefixes(tracker: TrackerConfig, index: number): ListedPrefix[] {
+  if (tracker.kind === TicketTrackers.NOTION) {
+    return [
+      {
+        prefix: tracker.keyPrefix,
+        kind: tracker.kind,
+        label: "keyPrefix",
+        entryIndex: index,
+        path: ["trackers", index, "keyPrefix"],
+      },
+    ];
+  }
+  if (tracker.kind === TicketTrackers.JIRA) {
+    return tracker.projectKeys.map((key, keyIndex) => ({
+      prefix: key,
+      kind: tracker.kind,
+      label: "project key",
+      entryIndex: index,
+      path: ["trackers", index, "projectKeys", keyIndex],
+    }));
+  }
+  return [];
+}
+
+function describeRepeatedPrefix(
+  listed: ListedPrefix,
+  earlier: ListedPrefix,
+): string {
+  if (listed.entryIndex === earlier.entryIndex) {
+    return `${listed.label} ${listed.prefix} is listed twice`;
+  }
+  const bothNotion =
+    listed.kind === TicketTrackers.NOTION &&
+    earlier.kind === TicketTrackers.NOTION;
+  if (bothNotion) {
+    return `keyPrefix ${listed.prefix} names two boards`;
+  }
+  return `${listed.label} ${listed.prefix} is already a prefix on another tracker of this list`;
+}
+
+/**
+ * No prefix twice on one list, compared without case, since a key can
+ * resolve on only one tracker: a Notion `keyPrefix` and every Jira project
+ * key draw on the same keys.
+ */
+function refineUniquePrefixes(
+  trackers: readonly TrackerConfig[],
+  context: z.RefinementCtx,
+): void {
+  const listedPrefixes = trackers.flatMap(listPrefixes);
+  const firstByPrefix = new Map<string, ListedPrefix>();
+
+  for (const listed of listedPrefixes) {
+    const normalised = listed.prefix.toUpperCase();
+    const earlier = firstByPrefix.get(normalised);
+    if (earlier === undefined) {
+      firstByPrefix.set(normalised, listed);
+      continue;
+    }
+    context.addIssue({
+      code: "custom",
+      message: describeRepeatedPrefix(listed, earlier),
+      path: [...listed.path],
+    });
+  }
+}
+
 /**
  * The rules one list must hold, run on every schema that carries it: one
- * spelling per file, one GitHub entry, and no prefix on two boards, since
- * a key can resolve on only one.
+ * spelling per file, one GitHub and one Jira entry, and no prefix on two
+ * trackers.
  */
 export function refineTrackerSettings(
   settings: TrackerSettings,
@@ -138,31 +240,22 @@ export function refineTrackerSettings(
     return;
   }
   const trackers = resolveTrackerConfigs(settings);
-  const seenPrefixes = new Set<string>();
-  let githubEntries = 0;
+  const seenKinds = new Set<TicketTracker>();
 
   for (const [index, tracker] of trackers.entries()) {
-    if (tracker.kind === TicketTrackers.GITHUB) {
-      githubEntries += 1;
-      if (githubEntries > 1) {
-        context.addIssue({
-          code: "custom",
-          message: "at most one github tracker",
-          path: ["trackers", index],
-        });
-      }
+    if (!SINGLE_ENTRY_KINDS.includes(tracker.kind)) {
       continue;
     }
-    const prefix = tracker.keyPrefix.toUpperCase();
-    if (seenPrefixes.has(prefix)) {
+    if (seenKinds.has(tracker.kind)) {
       context.addIssue({
         code: "custom",
-        message: `keyPrefix ${tracker.keyPrefix} names two boards`,
-        path: ["trackers", index, "keyPrefix"],
+        message: `at most one ${tracker.kind} tracker`,
+        path: ["trackers", index],
       });
     }
-    seenPrefixes.add(prefix);
+    seenKinds.add(tracker.kind);
   }
+  refineUniquePrefixes(trackers, context);
 }
 
 const trackersBlockSchema = z
@@ -180,7 +273,7 @@ export interface InstanceTrackers {
 
 /** The entry as every repo's list holds it: `siblingRepos` stays with the instance. */
 function stripInstanceFields(entry: InstanceTrackerConfig): TrackerConfig {
-  if (entry.kind === TicketTrackers.NOTION) {
+  if (entry.kind !== TicketTrackers.GITHUB) {
     return entry;
   }
   const github: Mutable<TrackerConfig> = { kind: TicketTrackers.GITHUB };

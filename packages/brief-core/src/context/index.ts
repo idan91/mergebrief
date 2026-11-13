@@ -21,6 +21,7 @@ export { createBuiltInContextProviders } from "./registry";
 export { GitHubTransports, type InstallationIssueApi } from "./trackers/github";
 export { buildContextQuery } from "./query";
 export { NotionTransports } from "./trackers/notion";
+export { JiraTransports } from "./trackers/jira";
 export {
   checkConfiguredTrackerReads,
   listReadableTrackers,

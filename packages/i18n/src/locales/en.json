@@ -571,7 +571,8 @@
       },
       "tracker": {
         "github": "GitHub",
-        "notion": "Notion"
+        "notion": "Notion",
+        "jira": "Jira"
       },
       "alarmCaution": "AI-inferred tension. Check the diff and the ticket before acting on it."
     },

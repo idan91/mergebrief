@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
+import { JIRA_SITE } from "generators";
 import { TicketUnreadReasons } from "../../../../types";
 import { failRead } from "../../read-failure";
 import {
@@ -34,8 +35,6 @@ const MAX_CLOUD_ID_LENGTH = 128;
 /** Opaque, but it becomes a path segment: a dot or slash could rewrite the API route. */
 const CLOUD_ID = /^[A-Za-z0-9-]+$/;
 const TENANT_INFO_PATH = "/_edge/tenant_info";
-/** One lower-case label before `.atlassian.net`: never an IP literal, a port or another domain. */
-const JIRA_SITE_HOST = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.atlassian\.net$/;
 
 const FAILURE_CATEGORY_HEADER = "x-failure-category";
 /** The gateway's own 404: no site answers to the cloud id. */
@@ -341,7 +340,7 @@ function failCloudId(
  * a request leaves, so the lookup cannot be pointed at an internal address.
  */
 function buildTenantInfoUrl(site: string): string | undefined {
-  if (!JIRA_SITE_HOST.test(site)) {
+  if (!JIRA_SITE.test(site)) {
     return undefined;
   }
   let url: URL;

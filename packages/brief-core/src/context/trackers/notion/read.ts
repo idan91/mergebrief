@@ -11,7 +11,7 @@ import {
 import { truncateToCodeUnits } from "../../utils";
 import { failRead, type ReadResult } from "../read-failure";
 import { refuseTrackerRead } from "../refusal";
-import { resolveTokenByName } from "../tokens";
+import { resolveCredentialByName } from "../tokens";
 import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
 import type {
   NotionBlock,
@@ -546,11 +546,12 @@ export function createNotionRead(
       "notion: no `contextSources` entry of type notion on this deployment",
     ]);
   }
-  const token = resolveTokenByName(
-    shared.env,
-    entry.tokenEnv ?? DEFAULT_NOTION_TOKEN_ENV,
-    "notion",
-  );
+  const token = resolveCredentialByName(shared.env, {
+    owner: "notion",
+    field: "tokenEnv",
+    name: entry.tokenEnv ?? DEFAULT_NOTION_TOKEN_ENV,
+    holds: "integration token",
+  });
   if (!token.ok) {
     return token;
   }

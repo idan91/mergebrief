@@ -18,7 +18,7 @@ const contextFileSchema = z
     url: z.string().min(1),
     key: z.string().default(""),
     tracker: z
-      .enum([TicketTrackers.GITHUB, TicketTrackers.NOTION])
+      .enum([TicketTrackers.GITHUB, TicketTrackers.NOTION, TicketTrackers.JIRA])
       .default(TicketTrackers.GITHUB),
     title: z.string().default(""),
     header: z.string().default(""),

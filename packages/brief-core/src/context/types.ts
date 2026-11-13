@@ -9,6 +9,7 @@ export const ContextProviderTypes = {
   URL: "url",
   GITHUB_ISSUES: "github-issues",
   NOTION: "notion",
+  JIRA: "jira",
 } as const;
 export type ContextProviderType = ValueOf<typeof ContextProviderTypes>;
 

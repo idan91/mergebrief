@@ -356,7 +356,7 @@ A tracker's short identifier for a ticket, `PREFIX-N`, recognized only when the 
 _Avoid_: ticket id, issue key
 
 **Ticket tracker**:
-Where a repository's tickets live, declared under `trackers` in the **Repo config**'s `settings.yaml` or, for boards every repository shares, in the **Instance config**: `github` (issues, optionally in another repository) or `notion` (a database behind a **Ticket key** prefix). A repository file that names any tracker replaces the instance list whole.
+Where a repository's tickets live, declared under `trackers` in the **Repo config**'s `settings.yaml` or, for boards every repository shares, in the **Instance config**: `github` (issues, optionally in another repository), `notion` (a database behind a **Ticket key** prefix) or `jira` (the listed projects of the one Jira Cloud site the **Instance config** names, each project key a **Ticket key** prefix). A repository file that names any tracker replaces the instance list whole.
 _Avoid_: issue tracker (GitHub's is one kind), board (the Notion side of one)
 
 **Linked context**:

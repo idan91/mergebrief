@@ -5,6 +5,7 @@ export {
   ContextProviderTypes,
   createBuiltInContextProviders,
   GitHubTransports,
+  JiraTransports,
   NotionTransports,
   checkConfiguredTrackerReads,
   listReadableTrackers,
