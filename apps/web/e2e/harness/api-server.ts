@@ -61,9 +61,9 @@ export async function startApiServer(): Promise<void> {
       `e2e api port ${String(E2E_API_PORT)} is already in use. Stop whatever holds it, or set MERGEBRIEF_E2E_API_PORT.`,
     );
   }
-  // An empty cwd: the API's `readEnv` calls `loadEnvFile()` against it, and
-  // starting in `apps/api` would let a developer's `.env` fill anything this
-  // harness leaves unset.
+  // An empty cwd: the API loads a `.env` from it and from the workspace root
+  // above it, and starting in `apps/api` would let a developer's files fill
+  // anything this harness leaves unset.
   const child = spawn("node", ["--import", TSX_LOADER, API_ENTRY], {
     cwd: mkdtempSync(join(tmpdir(), "mergebrief-e2e-api-")),
     env: { PATH: process.env["PATH"] ?? "", ...buildApiServerEnv() },

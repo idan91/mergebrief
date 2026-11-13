@@ -4,17 +4,14 @@
 // config only.
 import { createLogger, type Logger } from "logging";
 import { startTracing, TracingStatuses } from "logging/tracing";
+import { loadEnvFiles } from "./env-file";
 
 const SERVICE_NAME = "mergebrief-worker";
 // A config error exits 0, as main.ts does: a restart can never fix one.
 const CONFIG_ERROR_EXIT_CODE = 0;
 
 function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file; the vars may still be set in the ambient env.
-  }
+  loadEnvFiles(process.cwd());
   return process.env;
 }
 

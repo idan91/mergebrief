@@ -40,14 +40,21 @@ explain when to change one; this page says what each one accepts.
 
 | Process | Started by | Env files it loads | In compose |
 | --- | --- | --- | --- |
-| `api` | `docker-entrypoint.sh api` | `.env` in its working directory, if present | `env_file: .env`, plus the service's `environment:` block, which wins |
-| `worker` | `docker-entrypoint.sh worker` | `.env` in its working directory, if present | `env_file: .env`, plus `environment:` |
+| `api` | `docker-entrypoint.sh api` | `.env` in its working directory, then the workspace root `.env`, each if present | `env_file: .env`, plus the service's `environment:` block, which wins |
+| `worker` | `docker-entrypoint.sh worker` | `.env` in its working directory, then the workspace root `.env`, each if present | `env_file: .env`, plus `environment:` |
 | `web` | `docker-entrypoint.sh web` | `.env` in its working directory, if present | no `env_file`: only what the service's `environment:` block sets |
 | `migrate` | `docker compose run --rm api migrate` | `apps/api/.env`, then the workspace root `.env` | the `api` service's environment |
 
-A file never overwrites a variable already set in the process environment.
-In the image the working directories hold no `.env`, so compose's
-`env_file` and `environment:` are the whole input.
+A file never overwrites a variable already set in the process environment,
+so the shell wins, then the working directory's file, then the workspace
+root's. The files merge variable by variable, so the nearer file overrides a
+variable but cannot hide one the root file sets. The workspace root is the
+nearest directory above the working directory that holds
+`pnpm-workspace.yaml`; a process started outside a
+checkout reads only its own directory. `web` never reads the root file: it
+holds no credentials, on a checkout as in compose. In the image no directory
+holds a `.env`, so compose's `env_file` and `environment:` are the whole
+input.
 
 ### Which file to fill in
 
@@ -55,7 +62,7 @@ In the image the working directories hold no `.env`, so compose's
 | --- | --- | --- |
 | `docker compose` | `.env` beside the compose file, from `.env.example` | [What compose passes to each service](#what-compose-passes-to-each-service). |
 | `pnpm app:host`, `pnpm app:host:prod` | the repo root `.env`, from `.env.example` | Sourced into the shell for all three processes. Also set the host `DATABASE_URL` the example shows, since nothing derives it here. |
-| `pnpm dev` | `apps/api/.env` and `apps/web/.env`, from each member's `.env.example` | Runs `api` and `web` only, so there is no worker file. Each example lists what a dev run usually sets; this page lists the rest. `vite dev` reads `PUBLIC_BASE_URL` from the shell ([webhook loop](../dev/webhook-loop.md)). |
+| `pnpm dev` | the repo root `.env`, from `.env.example` | Runs `api` and `web` only. `api` reads the root file, and a value in `apps/api/.env` wins over it. `web` needs no file: set one of its variables in the shell or in `apps/web/.env`. Also set the host `DATABASE_URL` the example shows. `vite dev` reads `PUBLIC_BASE_URL` from the shell ([webhook loop](../dev/webhook-loop.md)). |
 
 ## Environment variables
 
@@ -179,7 +186,7 @@ protocol refuses boot in `api` and `worker` but never reaches `web`.
 | Variable | Read by | Default | What it does |
 | --- | --- | --- | --- |
 | `MERGEBRIEF_OUT_DIR` | api | unset | A directory of locally generated briefs the API serves to a signed-in session on a dev checkout: absolute, or relative to the checkout root. Ignored under `MERGEBRIEF_RUNTIME=compose-worker` or `NODE_ENV=production`; blank reads as unset. |
-| `ENABLE_LANGUAGE_SELECTION` | `vite build` of `web` | off | `true` or `1` shows the language picker. Read when the web bundle is built, not at run time, so it has no effect on a pulled image. |
+| `ENABLE_LANGUAGE_SELECTION` | `vite build` of `web` | off | `true` or `1` shows the language picker. Read when the web bundle is built, not at run time, so it has no effect on a pulled image. Every `ENABLE_*` variable is inlined into the client bundle, so it holds a toggle and never a secret. |
 
 ### Compose file variables
 

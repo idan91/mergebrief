@@ -118,7 +118,7 @@ that still lists it.
   - Free tunnel URLs are ephemeral (they change on restart), so expect to re-paste; a paid
     static domain avoids that for sustained work.
 - **Running the loop end-to-end:** see [`../dev/webhook-loop.md`](../dev/webhook-loop.md)
-  for the full local recipe: `docker compose up -d postgres`, the `apps/api/.env` vars, `pnpm dev`,
+  for the full local recipe: `docker compose up -d postgres`, the `.env` vars, `pnpm dev`,
   the ngrok URL to set, and how to verify the `pull_requests` + `graphile_worker.jobs` rows.
 
 ## Who triggers a brief

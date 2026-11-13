@@ -2,7 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { makeOutDir, removeOutDirs } from "../../test/local-briefs-fixtures";
-import { findWorkspaceRoot, resolveLocalBriefsDir } from "./local-briefs-dir";
+import { resolveLocalBriefsDir } from "./local-briefs-dir";
+import { findWorkspaceRoot } from "./workspace-root";
 
 afterEach(removeOutDirs);
 

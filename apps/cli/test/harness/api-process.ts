@@ -17,9 +17,9 @@ const API_ENTRY = fileURLToPath(
   new URL("../../../api/src/main.ts", import.meta.url),
 );
 /**
- * An empty directory to run from. The API's `readEnv` calls `loadEnvFile()`
- * against its cwd, so starting in `apps/api` would let a developer's `.env`
- * supply every variable this harness leaves unset: a URL-box token opens the
+ * An empty directory to run from. The API loads a `.env` from its cwd and from
+ * the workspace root above it, so starting in `apps/api` would let a
+ * developer's files supply every variable this harness leaves unset: a URL-box token opens the
  * fallback ladder, `MERGEBRIEF_CONFIG` swaps the draft policy, and a private
  * key PATH conflicts with the inline key and stops boot.
  */
@@ -99,8 +99,8 @@ function buildEnv(options: ApiProcessOptions): NodeJS.ProcessEnv {
     GITHUB_OAUTH_CLIENT_ID: "Iv1.test-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "test-client-secret",
     GITHUB_APP_SLUG: "mergebrief-test",
-    // Explicit, not defaulted: `main.ts` loads `apps/api/.env` from its own
-    // cwd, and a developer's copy setting this to false would turn boot into
+    // Explicit, not defaulted: `main.ts` loads a `.env` from its own cwd and
+    // from the workspace root above it, and a developer's copy setting this to false would turn boot into
     // a read-only schema check against a database that is always fresh.
     MERGEBRIEF_AUTO_MIGRATE: "true",
     NODE_OPTIONS: `--import ${PRELOAD}`,

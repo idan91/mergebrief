@@ -18,11 +18,19 @@ docker compose up -d postgres
 This brings up the loopback-only Postgres from `docker-compose.yml`
 (`postgres://code_review:code_review@127.0.0.1:5432/code_review`).
 
-## 2. Configure `apps/api/.env`
+## 2. Configure `.env`
 
-The credentials belong to the API process, not the web tier. Copy
-`apps/api/.env.example` to `apps/api/.env` and fill in the dev-App values. **Placeholders
-below; never commit real values.**
+The credentials belong to the API process, not the web tier. Copy `.env.example` to `.env`
+at the repo root and fill in the dev-App values. **Placeholders below; never commit real
+values.**
+
+The API loads `apps/api/.env` first and the root `.env` second. The two merge variable by
+variable, and the first value wins. So `apps/api/.env` overrides a variable, but it cannot
+hide one: whatever it leaves out still comes from the root file. That bites where two
+variables exclude each other. A root file with an inline `GITHUB_APP_PRIVATE_KEY` and an
+`apps/api/.env` with `GITHUB_APP_PRIVATE_KEY_PATH` sets both, and boot refuses; a root
+`DATABASE_URL_FILE` wins over any `DATABASE_URL`. If the root file holds another
+deployment's values, keep the dev values in the same form it uses, or move that file aside.
 
 ```sh
 # Database (matches docker-compose.yml)
@@ -30,8 +38,9 @@ DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review
 
 # GitHub App (dev registration)
 GITHUB_APP_ID=123456
-# Exactly ONE of the next two: the inline PEM, or a path to the .pem file:
-GITHUB_APP_PRIVATE_KEY_PATH=./secrets/dev-app.private-key.pem
+# Exactly ONE of the next two: the inline PEM, or an ABSOLUTE path to the .pem file.
+# A relative path resolves against each process's own directory, not this file's.
+GITHUB_APP_PRIVATE_KEY_PATH=/absolute/path/to/dev-app.private-key.pem
 # GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 GITHUB_WEBHOOK_SECRET=<output-of-openssl-rand-hex-32>
 GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
@@ -50,14 +59,21 @@ listens. A missing or invalid var stops the process with a `field: reason` line 
 serving a broken webhook, so if `pnpm dev` shows the api pane exiting immediately, that
 line is why.
 
-The web tier needs none of this. Under `vite dev` it reads `MERGEBRIEF_API_ORIGIN` and
-`LOG_LEVEL` from `apps/web/.env`. `PUBLIC_BASE_URL` matters there only to vite's host guard,
-which reads it from the ambient environment when the dev server boots, before that file
-loads: export it in the shell. (The production web server, `src/serve.ts`, does read it from
-the file.)
-The dev-only `MERGEBRIEF_OUT_DIR` in `apps/api/.env` serves local briefs only to a signed-in
-session, so the tunnel does not expose it to a cookieless visitor; leave it unset and Home
-lists rows alone.
+The web tier needs none of this, and it never reads the root `.env`. Under `vite dev` it
+reads `MERGEBRIEF_API_ORIGIN` and `LOG_LEVEL` from `apps/web/.env` when that file exists,
+and serves on port 3000 whatever `MERGEBRIEF_WEB_HOST` and `MERGEBRIEF_WEB_PORT` say.
+`PUBLIC_BASE_URL` matters there only to vite's host guard, which reads it from the ambient
+environment when the dev server boots, before that file loads: export it in the shell. (The
+production web server, `src/serve.ts`, does read it from the file.)
+
+The dev-only `MERGEBRIEF_OUT_DIR` serves local briefs only to a signed-in session, so the
+tunnel does not expose it to a cookieless visitor; leave it unset and Home lists rows alone.
+Fill the directory with either command:
+
+```sh
+pnpm -C apps/web perf:fixture -- --out <dir>                 # synthetic, free
+pnpm -C tools/categorizer categorize --out <dir> <pr-url>    # real, costs a generation
+```
 
 ## 3. Run the app
 

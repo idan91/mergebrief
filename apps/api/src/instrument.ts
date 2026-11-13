@@ -4,16 +4,13 @@
 // config only.
 import { createLogger, type Logger } from "logging";
 import { startTracing, TracingStatuses } from "logging/tracing";
+import { loadEnvFiles } from "./boot/env-file";
 import { ExitCodes } from "./boot/types";
 
 const SERVICE_NAME = "mergebrief-api";
 
 function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file; the vars may still be set in the ambient env.
-  }
+  loadEnvFiles(process.cwd());
   return process.env;
 }
 

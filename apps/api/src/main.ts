@@ -24,19 +24,15 @@ import {
 } from "persistence";
 import { createApp } from "./app";
 import { createBootLogger, exitOnConfigError, loadBootConfig } from "./boot";
+import { loadEnvFiles } from "./boot/env-file";
 import { resolveLocalBriefsDir } from "./boot/local-briefs-dir";
 import { ExitCodes } from "./boot/types";
 import { handleHealthRequest } from "./health";
 import { migrateQueue } from "./queue";
 import { createUpdateCheck, type UpdateCheck } from "./update-check";
 
-/** Load the app's `.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file; the required vars may still be set in the ambient env.
-  }
+  loadEnvFiles(process.cwd());
   return process.env;
 }
 

@@ -55,6 +55,7 @@ import {
   createSweepWebhookDeliveriesTask,
   SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
 } from "./task/sweep-webhook-deliveries";
+import { loadEnvFiles } from "./env-file";
 import { startWorker, type WorkerRunner } from "./runner";
 import { buildLargePoolTaskList, buildTaskList } from "./task-list";
 import { buildToolAccessWarning } from "./tool-access";
@@ -68,13 +69,8 @@ import {
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
 const FAILURE_DUMP_DIR = "out";
 
-/** Load `apps/worker/.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file, the required vars may still be set in the ambient env.
-  }
+  loadEnvFiles(process.cwd());
   return process.env;
 }
 
