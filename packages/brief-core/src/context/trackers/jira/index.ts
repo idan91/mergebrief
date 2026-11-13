@@ -12,4 +12,5 @@ export const jiraTracker: Tracker<typeof TicketTrackers.JIRA> = {
 };
 
 export { createJiraRead } from "./read";
+export { findJiraSite } from "./references";
 export { JiraTransports } from "./transport";

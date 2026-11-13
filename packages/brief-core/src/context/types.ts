@@ -1,7 +1,7 @@
 import type { Result, TicketTracker, ValueOf } from "types";
 import type { Log } from "../github/types";
 import type { ReferenceLocation, TicketUnreadReason } from "../types";
-import type { TicketReference } from "./trackers/types";
+import type { JiraSite, TicketReference } from "./trackers/types";
 import type { RepoName, TrackerConfig } from "generators/trackers";
 
 /** Provider vocabulary. Each token is a registry entry, never a flag. */
@@ -43,6 +43,8 @@ export interface ContextQuery {
   readonly headRef: string;
   readonly repo: RepoName;
   readonly trackers: readonly TrackerConfig[];
+  /** The deployment's Jira site, which decides whether a link is the primary's; absent when the instance names none. */
+  readonly jiraSite?: JiraSite | undefined;
   /** The one ticket this PR is about, when a reference was found. */
   readonly primary?: TicketReference | undefined;
   /** Every reference found, primary first; the read falls through when the primary is not a ticket. */

@@ -37,6 +37,7 @@ import {
   DEFAULT_LINK_FETCH,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
+  type ContextSourcesConfig,
   type Effort,
   type Generator,
 } from "generators";
@@ -72,6 +73,20 @@ function loadEnv(): void {
   }
 }
 
+/** What `generateAndWriteDelta` reads beyond the span, its generator and its log. */
+interface DeltaOptions {
+  /** The configured effort; absent means the generator's default. */
+  readonly effort?: Effort | undefined;
+  /** The repo's trackers; absent or empty means ticket keys never match. */
+  readonly trackers?: readonly TrackerConfig[] | undefined;
+  /** What the context fan-out takes: the root's reads, a supplied primary. */
+  readonly fetchOptions?: FetchContextSnippetsOptions | undefined;
+  /** The providers the composition root built; absent means the CLI defaults. */
+  readonly contextProviders?: readonly ContextProvider[] | undefined;
+  /** The instance config's `contextSources:` block, which names the Jira site; absent means none. */
+  readonly contextSources?: ContextSourcesConfig | undefined;
+}
+
 /**
  * Fetch inputs, write checkpoint comparison marks, generate the delta, and write
  * its artifacts under `outDir`.
@@ -87,13 +102,15 @@ export async function generateAndWriteDelta(
   headSha: string,
   generator: Generator,
   log: (msg: string) => void,
-  effort?: Effort,
-  trackers: readonly TrackerConfig[] = [],
-  fetchOptions: FetchContextSnippetsOptions = {},
-  contextProviders: readonly ContextProvider[] = createCliContextProviders(
-    DEFAULT_LINK_FETCH,
-  ),
+  options: DeltaOptions = {},
 ): Promise<DeltaBrief | DeltaUnchanged | DeltaSkipped> {
+  const {
+    effort,
+    trackers = [],
+    fetchOptions = {},
+    contextProviders = createCliContextProviders(DEFAULT_LINK_FETCH),
+    contextSources = DEFAULT_CONTEXT_SOURCES,
+  } = options;
   const locator = parsePrUrl(url);
 
   // CLI SHAs may arrive abbreviated; artifacts must carry full SHAs or the
@@ -159,6 +176,7 @@ export async function generateAndWriteDelta(
     repo: locator,
     trackers,
     readable: listReadableTrackers(fetchOptions.reads ?? {}),
+    contextSources,
   });
   const { links, primaryTicket } = await fetchContextSnippets(
     query,
@@ -336,10 +354,13 @@ async function main(): Promise<void> {
     headSha,
     constructed.value,
     log,
-    loaded.value.generator.effort,
-    trackers,
-    { ...fetchOptions, reads: reads.value },
-    createCliContextProviders(loaded.value.linkFetch),
+    {
+      effort: loaded.value.generator.effort,
+      trackers,
+      fetchOptions: { ...fetchOptions, reads: reads.value },
+      contextProviders: createCliContextProviders(loaded.value.linkFetch),
+      contextSources: loaded.value.contextSources,
+    },
   );
 
   if ("artifactKind" in delta) {

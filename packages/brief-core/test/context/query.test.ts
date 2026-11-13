@@ -6,6 +6,7 @@ import {
   LINEAR_GROWTH_CEILING,
   measureGrowthRatio,
 } from "../growth-ratio";
+import { JIRA_ISSUE_URL, JIRA_SITE, JIRA_TRACKER } from "./helpers";
 
 const REPO = { owner: "acme", repo: "widget" };
 /** GitHub's cap on a pull request description. */
@@ -23,6 +24,7 @@ function measureBodyGrowth(makeBody: (chars: number) => string): number {
         repo: REPO,
         trackers: [],
         readable: ["github"],
+        contextSources: [],
       });
   });
 }
@@ -36,6 +38,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query).toMatchObject({
       title: "Add thing",
@@ -60,6 +63,7 @@ describe("buildContextQuery", () => {
         { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
       ],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({
       tracker: "notion",
@@ -75,6 +79,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references).toEqual([]);
     expect("primary" in query).toBe(false);
@@ -89,6 +94,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references).toEqual([]);
     expect(extractLinks(query.body)).toEqual([]);
@@ -102,6 +108,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references.map((r) => r.number)).toEqual([12]);
     expect(extractLinks(query.body)).toEqual(["https://docs.example/x"]);
@@ -350,6 +357,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references).toEqual([]);
   });
@@ -432,6 +440,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(extractLinks(query.body)).not.toContain("https://attacker.test/x");
   });
@@ -444,6 +453,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({ number: 12, closing: true });
     expect(extractLinks(query.body)).toEqual([
@@ -460,6 +470,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({ number: 12, closing: true });
   });
@@ -481,6 +492,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references.map((r) => r.number)).toEqual([12]);
   });
@@ -493,6 +505,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references.map((r) => r.url)).toEqual([
       "https://github.com/o/r/issues/1",
@@ -507,6 +520,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({ number: 12, closing: true });
   });
@@ -519,6 +533,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({ number: 12, closing: true });
   });
@@ -531,6 +546,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references).toEqual([]);
     expect(extractLinks(query.body)).toEqual([]);
@@ -544,6 +560,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references.map((r) => r.number)).toEqual([12]);
   });
@@ -619,6 +636,7 @@ describe("buildContextQuery", () => {
           repo: REPO,
           trackers: [],
           readable: ["github", "notion"],
+          contextSources: [],
         });
         extractLinks(query.body);
       };
@@ -635,6 +653,7 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.references).toEqual([]);
   });
@@ -649,6 +668,7 @@ describe("buildContextQuery", () => {
         { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
       ],
       readable: ["github"],
+      contextSources: [],
     });
     expect(query.primary).toMatchObject({ key: "BRIEF-239" });
   });
@@ -661,7 +681,86 @@ describe("buildContextQuery", () => {
       repo: REPO,
       trackers: [],
       readable: ["github"],
+      contextSources: [],
     });
     expect("primary" in query).toBe(false);
+  });
+});
+
+describe("buildContextQuery: the jira site", () => {
+  const JIRA_SOURCE = {
+    type: "jira" as const,
+    site: "acme.atlassian.net",
+    linkHosts: ["jira.acme.com"],
+  };
+
+  it("names the instance's jira site with its link hosts", () => {
+    const query = buildContextQuery({
+      title: "",
+      body: "",
+      branch: "",
+      repo: REPO,
+      trackers: [JIRA_TRACKER],
+      readable: ["github", "jira"],
+      contextSources: [{ type: "notion" }, JIRA_SOURCE],
+    });
+    expect(query.jiraSite).toEqual(JIRA_SITE);
+  });
+
+  it("names a jira site that lists no link hosts", () => {
+    const query = buildContextQuery({
+      title: "",
+      body: "",
+      branch: "",
+      repo: REPO,
+      trackers: [JIRA_TRACKER],
+      readable: ["github", "jira"],
+      contextSources: [{ type: "jira", site: "acme.atlassian.net" }],
+    });
+    expect(query.jiraSite).toEqual({
+      host: "acme.atlassian.net",
+      linkHosts: [],
+    });
+  });
+
+  it("reads a link on a link host as the primary on the site host", () => {
+    const query = buildContextQuery({
+      title: "Fix login",
+      body: "Fixes [the ticket](https://jira.acme.com/browse/acme-12?focusedId=4).",
+      branch: "",
+      repo: REPO,
+      trackers: [JIRA_TRACKER],
+      readable: ["github", "jira"],
+      contextSources: [JIRA_SOURCE],
+    });
+    expect(query.primary).toEqual({
+      tracker: "jira",
+      key: "ACME-12",
+      url: JIRA_ISSUE_URL,
+      foundIn: "description",
+      closing: false,
+    });
+  });
+
+  it("leaves a jira link as text when the instance names no jira site", () => {
+    const query = buildContextQuery({
+      title: "ACME-12 fix login",
+      body: `Fixes ${JIRA_ISSUE_URL}`,
+      branch: "",
+      repo: REPO,
+      trackers: [JIRA_TRACKER],
+      readable: ["github", "jira"],
+      contextSources: [{ type: "notion" }],
+    });
+    expect("jiraSite" in query).toBe(false);
+    expect(query.references).toEqual([
+      {
+        tracker: "jira",
+        key: "ACME-12",
+        url: "",
+        foundIn: "title",
+        closing: false,
+      },
+    ]);
   });
 });

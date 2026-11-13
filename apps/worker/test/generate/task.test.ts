@@ -19,7 +19,13 @@ import {
 import { createI18n } from "i18n";
 import { createLogger } from "logging";
 import { RepoConfigPaths } from "repo-config";
-import { createBuiltInContextProviders, type SharedRootDeps } from "brief-core";
+import {
+  ContextProviderTypes,
+  createBuiltInContextProviders,
+  type ContextProvider,
+  type ContextQuery,
+  type SharedRootDeps,
+} from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { AppClient, PullRequestInfo } from "github";
 import { FakeFailures, type FakeGitHub } from "github/testing";
@@ -70,6 +76,31 @@ const NOTION_ROOT = {
   env: { NOTION_TOKEN: "ntn_test_token_never_shown" },
   contextSources: [{ type: "notion" as const }],
 };
+
+const JIRA_ISSUE_URL = "https://acme.atlassian.net/browse/ACME-12";
+const JIRA_ROOT: SharedRootDeps = {
+  env: {},
+  contextSources: [
+    { type: "jira", site: "acme.atlassian.net", linkHosts: ["jira.acme.com"] },
+  ],
+  trackers: [{ kind: "jira", projectKeys: ["ACME"] }],
+};
+
+/** A source that fetches nothing and keeps each query the task built. */
+function recordContextQueries(): {
+  queries: ContextQuery[];
+  provider: ContextProvider;
+} {
+  const queries: ContextQuery[] = [];
+  const provider: ContextProvider = {
+    providerId: ContextProviderTypes.URL,
+    fetch: async (query) => {
+      queries.push(query);
+      return { ok: true, value: [] };
+    },
+  };
+  return { queries, provider };
+}
 
 /** A recorded Notion behind global fetch: one private page with one paragraph. */
 function stubNotionFetch(): { calls: string[]; restore: () => void } {
@@ -375,6 +406,82 @@ describe("generate task", () => {
     // No Notion slot, so the page URL is never a ticket: no primary at all.
     expect(JSON.parse(body).intentCheck?.primaryTicket).toBeUndefined();
     expect(body).not.toContain("Secret roadmap");
+  });
+
+  it("builds a Jira key's URL on the site the instance config names", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "Fixes ACME-12" });
+    const recorded = recordContextQueries();
+
+    await makeTask({
+      github,
+      trackerRoot: JIRA_ROOT,
+      contextProviders: [recorded.provider],
+    })(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(recorded.queries[0]?.jiraSite).toEqual({
+      host: "acme.atlassian.net",
+      linkHosts: ["jira.acme.com"],
+    });
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: {
+          key: "ACME-12",
+          tracker: "jira",
+          url: JIRA_ISSUE_URL,
+          status: "unread",
+        },
+      },
+    });
+  });
+
+  it("leaves a Jira link as text on a url-box job", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrStates.OPEN,
+    });
+    await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
+      makeTarget(pr, HEAD_1),
+    );
+    const payload = {
+      owner_user_id: "555",
+      grant_id: String(await seedViewerGrant()),
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: `Fixes ${JIRA_ISSUE_URL}` });
+    const recorded = recordContextQueries();
+
+    await makeTask({
+      github,
+      trackerRoot: {
+        ...JIRA_ROOT,
+        env: { JIRA_EMAIL: "dana@acme.example", JIRA_API_TOKEN: "jira-token" },
+      },
+      contextProviders: [recorded.provider],
+    })(payload);
+
+    const brief = await createArtifactStore(
+      harness.handle,
+      ownerCtx,
+    ).briefs.get(pr.id, BASE, HEAD_1);
+    expect(recorded.queries.map((query) => query.references)).toEqual([[]]);
+    expect(
+      JSON.parse(brief?.body ?? "{}").intentCheck?.primaryTicket,
+    ).toBeUndefined();
   });
 
   it("reads a key on the instance's default board when the repo names none", async () => {

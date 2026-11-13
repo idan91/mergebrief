@@ -2,18 +2,18 @@ import { TicketTrackers } from "types/trackers";
 import { findIssuesRepo, type RepoName } from "generators/trackers";
 import { ReferenceLocations, type ReferenceLocation } from "../../../types";
 import { isPathSegment } from "../../../github/pr-url";
-import { createEmbeddedUrlCheck } from "../../embedded-urls";
+import { createEmbeddedUrlCheck, LINK_START } from "../../embedded-urls";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 /**
  * GitHub caps logins at 39 chars and repo names at 100; the bounds keep
- * backtracking constant per position. A URL counts only where a link
- * starts: at the start, after whitespace or `<`, after a GFM autolink's
- * delimiters `*`, `_`, `~` or `(`, or at a table cell's `|`. Closing `_`
- * delimiters end the URL; a `_` running on into a name does not.
+ * backtracking constant per position. Closing `_` delimiters end the URL;
+ * a `_` running on into a name does not.
  */
-const GITHUB_ISSUE_URL =
-  /(?<=^|[\s<*_~(|])https?:\/\/github\.com\/([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})\/issues\/(\d{1,12})(?![A-Za-z0-9-]|_+[A-Za-z0-9-])/g;
+const GITHUB_ISSUE_URL = new RegExp(
+  String.raw`${LINK_START}https?:\/\/github\.com\/([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})\/issues\/(\d{1,12})(?![A-Za-z0-9-]|_+[A-Za-z0-9-])`,
+  "g",
+);
 const OWNER_REPO_HASH =
   /(?<![\w/.-])([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})#(\d{1,12})(?!\w)/g;
 /** A `#N` glued to a name is part of `owner/repo#N`, never a bare reference. */

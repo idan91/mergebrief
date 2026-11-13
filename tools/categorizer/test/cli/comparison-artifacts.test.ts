@@ -88,6 +88,7 @@ vi.mock("brief-core", async (importOriginal) => {
   };
 });
 
+const { fetchContextSnippets } = await import("brief-core");
 const { generateAndWrite } = await import("../../src/cli/categorize");
 const { generateAndWriteDelta } = await import("../../src/cli/delta");
 
@@ -673,5 +674,92 @@ describe("generateAndWriteDelta checkpoint marks", () => {
     expect(existsSync(marksFile())).toBe(true);
     const files = await readdir(dir);
     expect(files.some((f) => f.endsWith(".delta.json"))).toBe(false);
+  });
+});
+
+// --- the context query both CLIs build -----------------------------------------
+
+describe("the CLIs' context query", () => {
+  const JIRA_TRACKERS = [{ kind: "jira" as const, projectKeys: ["ACME"] }];
+  const JIRA_SOURCES = [
+    {
+      type: "jira" as const,
+      site: "acme.atlassian.net",
+      linkHosts: ["jira.acme.com"],
+    },
+  ];
+  const JIRA_QUERY = {
+    jiraSite: { host: "acme.atlassian.net", linkHosts: ["jira.acme.com"] },
+    primary: {
+      tracker: "jira",
+      key: "ACME-12",
+      url: "https://acme.atlassian.net/browse/ACME-12",
+    },
+  };
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "context-query-"));
+    fetched.meta = { ...makeMeta(HEAD_2), body: "Fixes ACME-12" };
+    fetched.prDiff = wholePrDiff;
+    fetched.compareDiff = incrementalDiff;
+    span.unchanged = false;
+    span.failure = undefined;
+    vi.mocked(fetchContextSnippets).mockClear();
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("names the config's jira site in the brief's query", async () => {
+    await generateAndWrite(
+      dir,
+      URL,
+      undefined,
+      new FakeGenerator(),
+      () => {},
+      undefined,
+      undefined,
+      { trackers: JIRA_TRACKERS, contextSources: JIRA_SOURCES },
+    );
+
+    const query = vi.mocked(fetchContextSnippets).mock.calls[0]?.[0];
+    expect(query).toMatchObject(JIRA_QUERY);
+  });
+
+  it("names the config's jira site in the delta's query", async () => {
+    await generateAndWriteDelta(
+      dir,
+      URL,
+      CHECKPOINT,
+      HEAD_2,
+      new FakeGenerator(),
+      () => {},
+      {
+        trackers: JIRA_TRACKERS,
+        contextProviders: [],
+        contextSources: JIRA_SOURCES,
+      },
+    );
+
+    const query = vi.mocked(fetchContextSnippets).mock.calls[0]?.[0];
+    expect(query).toMatchObject(JIRA_QUERY);
+  });
+
+  it("names no jira site when a CLI is handed no context sources", async () => {
+    await generateAndWrite(
+      dir,
+      URL,
+      undefined,
+      new FakeGenerator(),
+      () => {},
+      undefined,
+      undefined,
+      { trackers: JIRA_TRACKERS },
+    );
+
+    const query = vi.mocked(fetchContextSnippets).mock.calls[0]?.[0];
+    expect(query?.jiraSite).toBeUndefined();
+    expect(query?.primary).toMatchObject({ key: "ACME-12", url: "" });
   });
 });

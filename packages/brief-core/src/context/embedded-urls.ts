@@ -1,6 +1,13 @@
 import type { TextRange } from "../generation/untrusted-text";
 import { NOT_FOUND } from "./visible-text/consts";
 
+/**
+ * A pattern source that holds a URL pattern to where a link starts: at the
+ * start, after whitespace or `<`, after a GFM autolink's delimiters `*`, `_`,
+ * `~` or `(`, or at a table cell's `|`.
+ */
+export const LINK_START = String.raw`(?<=^|[\s<*_~(|])`;
+
 const URL_SCHEME = String.raw`(?:https?:\/\/|ftp:\/\/|www\.)`;
 /** A GFM autolink, from a scheme or `www.`, runs to ASCII whitespace or `<`; a URL that starts inside one is part of it. */
 const URL_TOKEN = new RegExp(String.raw`${URL_SCHEME}[^ \t\n\v\f\r<]+`, "gi");

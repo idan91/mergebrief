@@ -11,6 +11,14 @@ import type { GitHubTransport } from "./github/transport";
 import type { JiraTransport } from "./jira/transport";
 import type { NotionTransport } from "./notion/transport";
 
+/** The deployment's Jira Cloud site, as the instance config's `type: jira` entry names it. */
+export interface JiraSite {
+  /** The `.atlassian.net` host, lower-case; every issue URL is built on it. */
+  readonly host: string;
+  /** Other hosts whose issue links are this site's, such as a custom domain; lower-case. */
+  readonly linkHosts: readonly string[];
+}
+
 /** The pure parser's input: PR text plus what the deployment can resolve. */
 export interface TicketReferenceInput {
   readonly title: string;
@@ -23,7 +31,15 @@ export interface TicketReferenceInput {
   readonly trackers: readonly TrackerConfig[];
   /** The trackers this root can read; a tracker whose URLs are plain links without a read checks for its kind here. */
   readonly readable: readonly TicketTracker[];
+  /** Absent when the instance config has no `type: jira` entry: a Jira link is then text and a Jira key has no URL. */
+  readonly jiraSite?: JiraSite | undefined;
 }
+
+/** What a tracker checks a URL against: the repo's trackers and the deployment's Jira site. */
+export type TrackerUrlInput = Pick<
+  TicketReferenceInput,
+  "trackers" | "jiraSite"
+>;
 
 export interface TicketReference {
   readonly tracker: TicketTracker;
@@ -35,7 +51,7 @@ export interface TicketReference {
   readonly pageId?: string;
   /** The board a Notion key resolves in; absent for GitHub and page URLs. */
   readonly databaseId?: string;
-  /** Canonical URL; "" for a Notion key until the provider resolves it, and for a Jira key. */
+  /** Canonical URL; "" for a Notion key until the provider resolves it, and for a Jira key when the instance names no Jira site. */
   readonly url: string;
   readonly foundIn: ReferenceLocation;
   /** Introduced by a closing keyword in the description. */
@@ -97,7 +113,7 @@ export interface Tracker<Kind extends TicketTracker = TicketTracker> {
     input: TicketReferenceInput,
   ): ReferenceHit[];
   /** The canonical form of a URL this tracker owns; undefined for any other. */
-  canonicalizeUrl(raw: string): string | undefined;
+  canonicalizeUrl(raw: string, input: TrackerUrlInput): string | undefined;
   /**
    * This tracker's read for one root: the shared deps and its own slot,
    * `undefined` when the root offers none. A tracker whose transport has

@@ -110,7 +110,7 @@ async function fetchUrlSnippets(
   // The primary ticket is the tracker provider's read; never fetch it twice.
   const primaryUrl = query.primary?.url;
   const urls = extractLinks(query.body).filter(
-    (url) => canonicalizeTicketUrl(url) !== primaryUrl,
+    (url) => canonicalizeTicketUrl(url, query) !== primaryUrl,
   );
   if (policy.mode === LinkFetchModes.OFF) {
     if (urls.length > 0) {

@@ -5,6 +5,7 @@ import {
   resolvePrimaryTicket,
 } from "../../src/context/references";
 import type { TicketReferenceInput } from "../../src/context/trackers/types";
+import { JIRA_ISSUE_URL, JIRA_SITE, JIRA_TRACKER } from "./helpers";
 
 const REPO = { owner: "acme", repo: "widget" };
 const NOTION = {
@@ -368,6 +369,79 @@ describe("collectTicketReferences: standalone links", () => {
   });
 });
 
+describe("collectTicketReferences: jira links", () => {
+  function makeJiraInput(
+    overrides: Partial<TicketReferenceInput>,
+  ): TicketReferenceInput {
+    return makeInput({
+      trackers: [JIRA_TRACKER],
+      readable: ["github", "jira"],
+      jiraSite: JIRA_SITE,
+      ...overrides,
+    });
+  }
+
+  it("reads a key and a link to the same issue as one reference", () => {
+    const refs = collectTicketReferences(
+      makeJiraInput({
+        title: "[acme-12] Fix login",
+        body: `ACME-12, see https://jira.acme.com/browse/ACME-12 and ${JIRA_ISSUE_URL}?filter=1`,
+        branch: "feature/ACME-12-fix-login",
+      }),
+    );
+    expect(refs).toEqual([
+      {
+        tracker: "jira",
+        key: "ACME-12",
+        url: JIRA_ISSUE_URL,
+        foundIn: "description",
+        closing: false,
+      },
+    ]);
+  });
+
+  it("marks a jira link after a closing keyword as closing", () => {
+    const refs = collectTicketReferences(
+      makeJiraInput({ body: `WEB-3 first\n\nFixes ${JIRA_ISSUE_URL}` }),
+    );
+    expect(refs.map((r) => [r.key, r.closing])).toEqual([
+      ["WEB-3", false],
+      ["ACME-12", true],
+    ]);
+    expect(resolvePrimaryTicket(refs, ["jira"])?.key).toBe("ACME-12");
+  });
+
+  it("gives a link to an unlisted jira project no reference and no primary", () => {
+    const refs = collectTicketReferences(
+      makeJiraInput({ body: "Fixes https://acme.atlassian.net/browse/HR-7" }),
+    );
+    expect(refs).toEqual([]);
+    expect(resolvePrimaryTicket(refs, ["jira"])).toBeUndefined();
+  });
+
+  it("ranks a jira link above a closing GitHub issue URL in a jira repo", () => {
+    const refs = collectTicketReferences(
+      makeJiraInput({
+        body: `Fixes https://github.com/o/r/issues/9, see ${JIRA_ISSUE_URL}`,
+      }),
+    );
+    expect(refs.map((r) => r.tracker)).toEqual(["github", "jira"]);
+    expect(resolvePrimaryTicket(refs, ["jira"])?.url).toBe(JIRA_ISSUE_URL);
+  });
+
+  it("lets a closing #N win where the repo lists github beside jira", () => {
+    const refs = collectTicketReferences(
+      makeJiraInput({
+        body: `${JIRA_ISSUE_URL}\n\nFixes #4`,
+        trackers: [JIRA_TRACKER, GITHUB],
+      }),
+    );
+    expect(resolvePrimaryTicket(refs, ["jira", "github"])?.url).toBe(
+      "https://github.com/acme/tracker/issues/4",
+    );
+  });
+});
+
 describe("collectTicketReferences: several boards", () => {
   const DS = {
     kind: "notion",
@@ -495,7 +569,21 @@ describe("canonicalizeTicketUrl", () => {
     ],
     ["https://docs.example/a.md", "https://docs.example/a.md"],
     ["https://github.com/o/r/pull/9", "https://github.com/o/r/pull/9"],
+    [`${JIRA_ISSUE_URL}?filter=1`, `${JIRA_ISSUE_URL}?filter=1`],
   ])("%s → %s", (raw, canonical) => {
-    expect(canonicalizeTicketUrl(raw)).toBe(canonical);
+    expect(canonicalizeTicketUrl(raw, { trackers: [] })).toBe(canonical);
+  });
+
+  const JIRA_INPUT = { trackers: [JIRA_TRACKER], jiraSite: JIRA_SITE };
+
+  it.each([
+    ["a jira issue link with a query", `${JIRA_ISSUE_URL}?filter=1#comment-2`],
+    ["a jira link on a link host", "https://jira.acme.com/browse/acme-12"],
+    [
+      "a jira board's selected issue",
+      "https://acme.atlassian.net/jira/software/projects/ACME/boards/1?selectedIssue=ACME-12",
+    ],
+  ])("answers the site host's issue URL for %s", (_shape, raw) => {
+    expect(canonicalizeTicketUrl(raw, JIRA_INPUT)).toBe(JIRA_ISSUE_URL);
   });
 });

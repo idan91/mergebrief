@@ -117,6 +117,7 @@ export function createTicketContextLoader(
         repo: locator,
         trackers,
         readable,
+        contextSources: trackerRoot.contextSources,
       }),
       deps.contextProviders,
       coreMessageLog,

@@ -42,6 +42,7 @@ import {
   type ContextQuery,
   type ProviderSnippet,
 } from "../../src/context/types";
+import { JIRA_ISSUE_URL, JIRA_SITE, JIRA_TRACKER } from "./helpers";
 
 // The real reader by default; the guard refuses every loopback test server.
 vi.mock(
@@ -336,6 +337,71 @@ describe("the URL context provider", () => {
     );
     expect(outcome).toEqual({ ok: true, value: [] });
     expect(logs).toEqual([]);
+  });
+
+  describe("with a jira primary", () => {
+    const JIRA_QUERY = {
+      trackers: [JIRA_TRACKER],
+      jiraSite: JIRA_SITE,
+      primary: {
+        tracker: "jira" as const,
+        key: "ACME-12",
+        url: JIRA_ISSUE_URL,
+        foundIn: "description" as const,
+        closing: false,
+      },
+    };
+
+    /** The links the chaser asked for, each answered with a page and no network. */
+    async function chaseLinks(query: ContextQuery): Promise<string[]> {
+      const asked: string[] = [];
+      vi.mocked(fetchText).mockImplementation(async (url) => {
+        asked.push(url);
+        return { text: "page" };
+      });
+      try {
+        await provider.fetch(query, stubDeps());
+      } finally {
+        vi.mocked(fetchText).mockReset();
+      }
+      return asked;
+    }
+
+    it("skips the primary's jira link in every form it counts in", async () => {
+      const body = [
+        `${JIRA_ISSUE_URL}?filter=123`,
+        "https://jira.acme.com/browse/acme-12",
+        "https://acme.atlassian.net/jira/software/projects/ACME/boards/1?selectedIssue=ACME-12",
+        "https://JIRA.acme.com/servicedesk/customer/portal/3/ACME-12.",
+      ].join("\n");
+
+      const asked = await chaseLinks({ ...makeQuery(body), ...JIRA_QUERY });
+
+      expect(asked).toEqual([]);
+    });
+
+    it("still chases a link that is not the primary's", async () => {
+      const body = `${JIRA_ISSUE_URL} https://docs.example/spec https://acme.atlassian.net/browse/WEB-3`;
+
+      const asked = await chaseLinks({ ...makeQuery(body), ...JIRA_QUERY });
+
+      expect(asked).toEqual([
+        "https://docs.example/spec",
+        "https://acme.atlassian.net/browse/WEB-3",
+      ]);
+    });
+
+    it("chases a jira link when the query names no jira site", async () => {
+      const body = `https://jira.acme.com/browse/ACME-12 ${JIRA_ISSUE_URL}`;
+
+      const asked = await chaseLinks({
+        ...makeQuery(body),
+        trackers: JIRA_QUERY.trackers,
+        primary: JIRA_QUERY.primary,
+      });
+
+      expect(asked).toEqual(["https://jira.acme.com/browse/ACME-12"]);
+    });
   });
 
   it("refuses a non-web port before any lookup", async () => {

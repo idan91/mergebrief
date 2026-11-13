@@ -47,6 +47,7 @@ import {
   DEFAULT_LINK_FETCH,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
+  type ContextSourcesConfig,
   type Effort,
   type Generator,
 } from "generators";
@@ -163,6 +164,7 @@ async function buildInputs(
     repo: locator,
     trackers: options.trackers ?? [],
     readable: listReadableTrackers(options.reads ?? {}),
+    contextSources: options.contextSources ?? DEFAULT_CONTEXT_SOURCES,
   });
   const fetchOptions: Mutable<FetchContextSnippetsOptions> = {
     reads: options.reads,
@@ -189,6 +191,8 @@ export interface GenerateOptions {
   readonly contextProviders?: readonly ContextProvider[] | undefined;
   /** The root's reads by tracker; absent means every primary is reported unread. */
   readonly reads?: TrackerReads | undefined;
+  /** The instance config's `contextSources:` block, which names the Jira site; absent means none. */
+  readonly contextSources?: ContextSourcesConfig | undefined;
   /** The revision-narrative gate the root read; absent means enabled. */
   readonly revisionNarrative?: RevisionNarrativeConfig | undefined;
   /** The huge-span ratio the root read; absent means the default. */
@@ -762,6 +766,7 @@ async function main(): Promise<void> {
     suppliedPrimary,
     contextProviders: createCliContextProviders(loaded.value.linkFetch),
     reads: reads.value,
+    contextSources: loaded.value.contextSources,
     revisionNarrative: parseRevisionNarrativeFlag(
       process.env["REVISION_NARRATIVE_ENABLED"],
     ),

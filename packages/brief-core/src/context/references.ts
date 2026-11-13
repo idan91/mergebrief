@@ -1,7 +1,11 @@
 import type { TicketTracker } from "types/trackers";
 import { ReferenceLocations, type ReferenceLocation } from "../types";
 import { TRACKERS } from "./trackers";
-import type { TicketReference, TicketReferenceInput } from "./trackers/types";
+import type {
+  TicketReference,
+  TicketReferenceInput,
+  TrackerUrlInput,
+} from "./trackers/types";
 
 const CLOSING_KEYWORDS = [
   "close",
@@ -87,9 +91,12 @@ export function collectTicketReferences(
  * a query string or a comment fragment on the primary's URL still counts as
  * the primary. Anything no tracker owns comes back unchanged.
  */
-export function canonicalizeTicketUrl(raw: string): string {
+export function canonicalizeTicketUrl(
+  raw: string,
+  input: TrackerUrlInput,
+): string {
   for (const tracker of TRACKERS) {
-    const canonical = tracker.canonicalizeUrl(raw);
+    const canonical = tracker.canonicalizeUrl(raw, input);
     if (canonical !== undefined) {
       return canonical;
     }

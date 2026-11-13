@@ -6,7 +6,8 @@ export interface TicketKeyHit {
   readonly key: `${string}-${string}`;
 }
 
-function escapePattern(text: string): string {
+/** Text as a pattern that matches it literally. */
+export function escapePattern(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
