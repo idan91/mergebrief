@@ -121,7 +121,7 @@ export type Catalog = typeof en & {
       doneButUnstated_other: "<0>{{count}}</0> done but unstated";
       ticketUnread: "{{key}} could not be read.";
       reason: (typeof en)["brief"]["intent"]["reason"] & {
-        "not-found": "{{tracker}} returned not found. The page was moved, or the integration has no access to it";
+        "not-found": "{{tracker}} returned not found. The ticket was moved or deleted, or this deployment's credential cannot see it";
         "no-credential": "{{tracker}} refused the read: this deployment has no credential for it, or the credential lacks permission";
         timeout: "{{tracker}} did not answer in time";
         "rate-limited": "{{tracker}} rate-limited the read";

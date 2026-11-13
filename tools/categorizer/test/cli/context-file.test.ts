@@ -137,8 +137,35 @@ describe("describeUnreadPrimary", () => {
         reason: "not-found",
       }),
     ).toBe(
-      "error: BRIEF-1 could not be read (not-found); Notion returned not found. The page was moved, or the integration has no access to it",
+      "error: BRIEF-1 could not be read (not-found); Notion returned not found. The ticket was moved or deleted, or this deployment's credential cannot see it",
     );
+  });
+
+  it.each([
+    [
+      "not-found",
+      "Jira returned not found. The ticket was moved or deleted, or this deployment's credential cannot see it",
+    ],
+    [
+      "no-credential",
+      "Jira refused the read: this deployment has no credential for it, or the credential lacks permission",
+    ],
+    ["timeout", "Jira did not answer in time"],
+    ["rate-limited", "Jira rate-limited the read"],
+    ["unsupported", "no Jira reader is configured on this deployment"],
+  ] as const)("words a Jira ticket's %s read", (reason, sentence) => {
+    expect(
+      describeUnreadPrimary({
+        key: "ACME-12",
+        url: "https://acme.atlassian.net/browse/ACME-12",
+        tracker: "jira",
+        foundIn: "branch",
+        title: "",
+        header: "",
+        status: "unread",
+        reason,
+      }),
+    ).toBe(`error: ACME-12 could not be read (${reason}); ${sentence}`);
   });
 
   it("falls back to the URL when the key is empty", () => {

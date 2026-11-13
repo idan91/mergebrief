@@ -28,6 +28,20 @@ const ALIGNED: Alignment = {
 
 const LINK_NAME = /^BRIEF-88 ?\(opens in a new tab\)$/;
 
+const JIRA_TICKET: PrimaryTicket = {
+  key: "ACME-12",
+  url: "https://acme.atlassian.net/browse/ACME-12",
+  tracker: "jira",
+  foundIn: "branch",
+  title: "Fix the login loop",
+  header:
+    "Fix the login loop · In Progress · Bug · High · Mia Krystof · bugfix, blitz_test · ACME-12",
+  status: "read",
+  reason: "",
+};
+
+const JIRA_LINK_NAME = /^ACME-12 ?\(opens in a new tab\)$/;
+
 describe("TicketAlignment", () => {
   it("renders the full card for a read ticket with an alignment read", () => {
     render(
@@ -150,7 +164,7 @@ describe("TicketAlignment", () => {
     const notice = screen.getByRole("status");
     expect(notice.getAttribute("data-testid")).toBe("ticket-alignment-notice");
     expect(notice.textContent).toBe(
-      "BRIEF-88 could not be read. Notion returned not found. The page was moved, or the integration has no access to it. No alignment read for this PR.",
+      "BRIEF-88 could not be read. Notion returned not found. The ticket was moved or deleted, or this deployment's credential cannot see it. No alignment read for this PR.",
     );
     expect(notice.querySelector("b")?.textContent).toBe(
       "BRIEF-88 could not be read.",
@@ -183,6 +197,48 @@ describe("TicketAlignment", () => {
       "GitHub refused the read: this deployment has no credential for it, or the credential lacks permission.",
     );
     expect(screen.getByText("GitHub")).toBeTruthy();
+  });
+
+  it("renders a read Jira ticket with its tracker label and facts", () => {
+    render(
+      <TicketAlignment
+        alignment={ALIGNED}
+        primaryTicket={JIRA_TICKET}
+        specificity="precise"
+      />,
+    );
+
+    expect(screen.getByText("Jira")).toBeTruthy();
+    const link = screen.getByRole("link", { name: JIRA_LINK_NAME });
+    expect(link.getAttribute("href")).toBe(JIRA_TICKET.url);
+    expect(screen.getAllByText(JIRA_TICKET.title)).toHaveLength(1);
+    expect(
+      screen.getByText(
+        "In Progress · Bug · High · Mia Krystof · bugfix, blitz_test",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("says no Jira reader is configured for an unsupported Jira ticket", () => {
+    const unread: PrimaryTicket = {
+      ...JIRA_TICKET,
+      title: "",
+      header: "",
+      status: "unread",
+      reason: "unsupported",
+    };
+    render(
+      <TicketAlignment
+        alignment={undefined}
+        primaryTicket={unread}
+        specificity="precise"
+      />,
+    );
+
+    expect(screen.getByRole("status").textContent).toBe(
+      "ACME-12 could not be read. No Jira reader is configured on this deployment. No alignment read for this PR.",
+    );
   });
 
   it("a URL-only reference links its title and hides the separate title", () => {
