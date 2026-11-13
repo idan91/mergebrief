@@ -482,7 +482,8 @@ brief and confirm it renders.
 Briefs and their sidecars accumulate per PR revision, so the database grows
 with review volume, and **by default nothing prunes them.** Closing or
 merging a PR records the close time and nothing else. Set
-`PR_RETENTION_DAYS` (minimum 1) and the worker's daily sweep erases every
+`retention.pullRequestDays` in `mergebrief.config.yaml` (minimum 1) and the
+worker's daily sweep erases every
 pull request closed or merged longer ago than that, across every
 installation and every pasted PR, with its briefs and every reviewer's
 session, drafts and decisions. The window counts from the close on GitHub,
@@ -504,14 +505,14 @@ it is drafted. Posting it to GitHub marks the row `submitted` and keeps the
 text. A reviewer can delete a comment they have not posted, but a push copies
 unposted comments into the new head's session, and deleting that copy leaves
 the earlier session's row. Every other row goes only with its brief or
-pull request, as above, so without `PR_RETENTION_DAYS` it stays. A risk's
+pull request, as above, so without `retention.pullRequestDays` it stays. A risk's
 dismissal reason or addressing note in `disposition` follows the same rule,
 and reopening the risk deletes it from that session.
 
 The audit log is the one exception. It is append-only (nothing edits a row),
 and its only removal is the retention sweep, which the worker runs once a day
 across every installation. The sweep keeps everything unless you set
-`AUDIT_RETENTION_DAYS` (minimum 30). Set it longer than your longest open PR:
+`retention.auditDays` (minimum 30). Set it longer than your longest open PR:
 audit has to outlive a review session, and no floor can guarantee that for you.
 Nothing on the web tier can trigger the sweep: it exists only inside the
 worker process.
@@ -771,12 +772,19 @@ and `purge-attachments`, the App's only pushes ([attachments.md](attachments.md)
 carry `target_type = repository` and the repository's id, on a denial past
 the gate as well as on success.
 
-Two knobs, both instance environment variables:
+Two knobs, both in `mergebrief.config.yaml`:
 
-| Variable | Default | What it does |
+| Key | Default | What it does |
 | --- | --- | --- |
-| `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
-| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way; that is not configurable. An empty value reads as `false`. |
+| `retention.auditDays` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
+| `audit.privateWrites` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way; that is not configurable. |
+
+```yaml
+retention:
+  auditDays: 365
+audit:
+  privateWrites: true
+```
 
 Erasing one person's rows is a query, not a feature:
 

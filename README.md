@@ -240,7 +240,7 @@ before the prompt reaches your provider (see
   IP addresses.
 
 **Forgetting is built in, and it's your policy, not ours.** GitHub stays the source of truth,
-so stored artifacts are safe to expire: set `PR_RETENTION_DAYS` and a daily sweep deletes every
+so stored artifacts are safe to expire: set `retention.pullRequestDays` and a daily sweep deletes every
 pull request closed longer ago than that, with its artifacts; leave it unset and nothing expires.
 Uninstalling the GitHub App erases the installation's data completely. Erasure is enforced by
 the database itself (every artifact cascades from its PR, so no table is forgotten), and each

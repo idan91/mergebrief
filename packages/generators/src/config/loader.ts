@@ -10,10 +10,17 @@ import { DEFAULT_LINK_FETCH, validateLinkFetchBlock } from "./link-fetch";
 import type { LinkFetchPolicy } from "./link-fetch/types";
 import { validateAllowedBlock } from "./allowed";
 import { validateAttachmentsBlock } from "./attachments";
+import { validateAuditBlock } from "./audit";
 import {
   listMovedVariables,
   MOVED_GENERATOR_VARIABLES,
+  MOVED_RETENTION_VARIABLES,
 } from "./moved-variables";
+import {
+  DEFAULT_RETENTION_POLICY,
+  validateRetentionBlock,
+  type RetentionPolicy,
+} from "./retention";
 import { validateOperatorsBlock } from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
@@ -50,6 +57,8 @@ export interface LoadedGeneratorConfig {
   siblingRepos: boolean;
   /** What the generic link fetcher may read; public when the block is absent. */
   linkFetch: LinkFetchPolicy;
+  /** How long the daily sweeps keep audit rows and closed pull requests; forever when the block is absent. */
+  retention: RetentionPolicy;
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -58,7 +67,10 @@ export interface LoadedGeneratorConfig {
 export function loadGeneratorConfig(
   env: Record<string, string | undefined>,
 ): Result<LoadedGeneratorConfig, ConfigError> {
-  const movedVariables = listMovedVariables(env, MOVED_GENERATOR_VARIABLES);
+  const movedVariables = listMovedVariables(env, {
+    ...MOVED_GENERATOR_VARIABLES,
+    ...MOVED_RETENTION_VARIABLES,
+  });
   if (movedVariables.length > 0) {
     return configError(movedVariables);
   }
@@ -74,6 +86,7 @@ export function loadGeneratorConfig(
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
         linkFetch: DEFAULT_LINK_FETCH,
+        retention: DEFAULT_RETENTION_POLICY,
         source: null,
       },
     };
@@ -111,6 +124,7 @@ export function loadGeneratorConfigFile(
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
         linkFetch: DEFAULT_LINK_FETCH,
+        retention: DEFAULT_RETENTION_POLICY,
         source: path,
       },
     };
@@ -128,6 +142,8 @@ export function loadGeneratorConfigFile(
       key === "trackers" ||
       key === "linkFetch" ||
       key === "attachments" ||
+      key === "retention" ||
+      key === "audit" ||
       key.startsWith("x-")
     ) {
       continue;
@@ -229,6 +245,26 @@ export function loadGeneratorConfigFile(
     linkFetch = validated.value;
   }
 
+  // The api records audit rows; a bad block refuses boot here too, so the
+  // worker never runs beside an api that refuses the file.
+  const auditBlock = root["audit"];
+  if (auditBlock !== undefined) {
+    const validated = validateAuditBlock(auditBlock);
+    if (!validated.ok) {
+      return validated;
+    }
+  }
+
+  const retentionBlock = root["retention"];
+  let retention = DEFAULT_RETENTION_POLICY;
+  if (retentionBlock !== undefined) {
+    const validated = validateRetentionBlock(retentionBlock);
+    if (!validated.ok) {
+      return validated;
+    }
+    retention = validated.value;
+  }
+
   const block = root["generator"];
   if (block === undefined) {
     return {
@@ -240,6 +276,7 @@ export function loadGeneratorConfigFile(
         trackers,
         siblingRepos,
         linkFetch,
+        retention,
         source: path,
       },
     };
@@ -260,6 +297,7 @@ export function loadGeneratorConfigFile(
       trackers,
       siblingRepos,
       linkFetch,
+      retention,
       source: path,
     },
   };

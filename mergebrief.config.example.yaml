@@ -127,6 +127,19 @@ operators:
 #     linkHosts:
 #       - jira.acme.example
 
+# --- Retention and audit ----------------------------------------------------
+# Days the daily sweeps keep audit rows (at least 30) and closed pull requests
+# (at least 1). Neither has a default: unset, rows are kept forever.
+# docs/self-host/operations.md
+# retention:
+#   auditDays: 365
+#   pullRequestDays: 90
+#
+# false stops recording writes that stay inside the instance. Writes that
+# reach GitHub and every denial are recorded either way.
+# audit:
+#   privateWrites: true
+
 # --- Attachments and media --------------------------------------------------
 # What one reviewer may attach per window, and the largest video or image,
 # in megabytes, the api streams. docs/self-host/attachments.md

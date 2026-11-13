@@ -37,85 +37,6 @@ describe("config: loadConfig", () => {
     expect(config.databaseUrl).toBe(VALID_URL);
   });
 
-  it("keeps audit history forever and records private writes by default", () => {
-    const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
-    expect(config.auditRetentionDays).toBeNull();
-    expect(config.auditPrivateWrites).toBe(true);
-  });
-
-  it("accepts an audit retention window at or above the floor", () => {
-    expect(
-      ok(loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "30" }))
-        .auditRetentionDays,
-    ).toBe(30);
-    expect(
-      ok(loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "365" }))
-        .auditRetentionDays,
-    ).toBe(365);
-  });
-
-  it("refuses a retention window below the floor rather than clamping it", () => {
-    const error = err(
-      loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "7" }),
-    );
-    expect(error.code).toBe(ConfigErrorCodes.INVALID);
-    expect(error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
-  });
-
-  it("refuses a non-integer or unparseable retention window", () => {
-    expect(
-      err(
-        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "30.5" }),
-      ).issues.join("; "),
-    ).toMatch(/whole number/);
-    expect(
-      err(
-        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "soon" }),
-      ).issues.join("; "),
-    ).toMatch(/AUDIT_RETENTION_DAYS/);
-  });
-
-  it("keeps closed pull requests forever by default", () => {
-    const unsetConfig = ok(loadConfig({ DATABASE_URL: VALID_URL }));
-    const blankConfig = ok(
-      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "" }),
-    );
-    expect(unsetConfig.prRetentionDays).toBe(null);
-    expect(blankConfig.prRetentionDays).toBe(null);
-  });
-
-  it("accepts a pull request retention window of one day or more", () => {
-    const oneDayConfig = ok(
-      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "1" }),
-    );
-    const ninetyDayConfig = ok(
-      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: "90" }),
-    );
-    expect(oneDayConfig.prRetentionDays).toBe(1);
-    expect(ninetyDayConfig.prRetentionDays).toBe(90);
-  });
-
-  it.each([
-    ["0", /at least 1/],
-    ["-7", /at least 1/],
-    ["2.5", /whole number/],
-    ["soon", /PR_RETENTION_DAYS/],
-  ])("refuses a pull request retention window of %s", (raw, reason) => {
-    const error = err(
-      loadConfig({ DATABASE_URL: VALID_URL, PR_RETENTION_DAYS: raw }),
-    );
-    expect(error.code).toBe(ConfigErrorCodes.INVALID);
-    expect(error.issues.join("; ")).toMatch(/PR_RETENTION_DAYS/);
-    expect(error.issues.join("; ")).toMatch(reason);
-  });
-
-  it("takes the audit opt-out as a boolean token", () => {
-    const config = ok(
-      loadConfig({ DATABASE_URL: VALID_URL, AUDIT_PRIVATE_WRITES: "off" }),
-    );
-    expect(config.auditPrivateWrites).toBe(false);
-  });
-
   it("accepts the postgresql:// scheme", () => {
     expect(loadConfig({ DATABASE_URL: "postgresql://localhost/app" }).ok).toBe(
       true,
@@ -151,19 +72,19 @@ describe("config: loadConfig", () => {
       const config = ok(
         loadConfig({
           DATABASE_URL: VALID_URL,
-          AUDIT_PRIVATE_WRITES: token,
+          MERGEBRIEF_AUTO_MIGRATE: token,
         }),
       );
-      expect(config.auditPrivateWrites).toBe(true);
+      expect(config.autoMigrate).toBe(true);
     }
   });
 
   it("parses falsy boolean tokens", () => {
     for (const token of ["false", "0", "no", "off", "FALSE", ""]) {
       const config = ok(
-        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_PRIVATE_WRITES: token }),
+        loadConfig({ DATABASE_URL: VALID_URL, MERGEBRIEF_AUTO_MIGRATE: token }),
       );
-      expect(config.auditPrivateWrites).toBe(false);
+      expect(config.autoMigrate).toBe(false);
     }
   });
 
@@ -171,11 +92,11 @@ describe("config: loadConfig", () => {
     const error = err(
       loadConfig({
         DATABASE_URL: VALID_URL,
-        AUDIT_PRIVATE_WRITES: "maybe",
+        MERGEBRIEF_AUTO_MIGRATE: "maybe",
       }),
     );
     const namesTheFlag = error.issues.some((issue) =>
-      issue.startsWith("AUDIT_PRIVATE_WRITES"),
+      issue.startsWith("MERGEBRIEF_AUTO_MIGRATE"),
     );
     expect(namesTheFlag).toBe(true);
   });

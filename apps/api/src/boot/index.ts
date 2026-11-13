@@ -75,7 +75,7 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  // The drafts, spend, operators, allowed and attachments blocks only: the
+  // The drafts, spend, operators, allowed, attachments and audit blocks only: the
   // generator block is the worker's concern, so this process needs no adapter validation and no
   // provider keys.
   const instancePolicy = loadInstancePolicy(env);
@@ -111,6 +111,7 @@ export function loadBootConfig(
     operatorIds: instancePolicy.value.operatorIds,
     allowedAccess: instancePolicy.value.allowedAccess,
     attachmentLimits: attachmentLimits.value,
+    auditPrivateWrites: instancePolicy.value.audit.privateWrites,
   };
 }
 

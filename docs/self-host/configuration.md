@@ -126,14 +126,6 @@ it.
 | `MERGEBRIEF_UPDATE_CHECK` | api | `true` | no | Boolean. `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Empty takes the default. |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
 
-### Retention and audit
-
-| Variable | Read by | Default | Required | Accepts and does |
-| --- | --- | --- | --- | --- |
-| `PR_RETENTION_DAYS` | api, worker, migrate | unset (keep forever) | no | Days a closed or merged pull request is kept before the worker's daily sweep erases it with its briefs: a whole number of at least 1 ([Retention](./operations.md#retention-what-grows-and-what-does-not-prune-itself)). Empty reads as unset. |
-| `AUDIT_RETENTION_DAYS` | api, worker, migrate | unset (keep forever) | no | Days the daily sweep keeps audit rows: a whole number of at least 30. Empty reads as unset. |
-| `AUDIT_PRIVATE_WRITES` | api, worker, migrate | `true` | no | Boolean. `false` stops `api` recording writes that stay inside the instance; writes that reach GitHub and every denial are recorded either way. **Empty reads as `false`.** |
-
 ### Logging and tracing
 
 | Variable | Read by | Default | Required | Accepts and does |
@@ -241,6 +233,8 @@ passes none of them to `web`.
 | --- | --- |
 | `GENERATOR_API_KEY_ENV` | Removed. Set at all, even empty, the worker refuses boot and points at `generator.apiKeyEnv`. |
 | `REVISION_NARRATIVE_ENABLED`, `HUGE_SPAN_RATIO` | Moved to `generator.revisionNarrative` and `generator.hugeSpanRatio`. Set and not empty, the worker refuses boot and names the key. |
+| `AUDIT_RETENTION_DAYS`, `PR_RETENTION_DAYS` | Moved to `retention.auditDays` and `retention.pullRequestDays`. Set and not empty, the worker refuses boot and names the key. |
+| `AUDIT_PRIVATE_WRITES` | Moved to `audit.privateWrites`. Set at all, even empty, the api refuses boot and names the key: an empty value used to read as `false`. |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_FILES`, `MERGEBRIEF_ATTACHMENT_QUOTA_MB`, `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES`, `MERGEBRIEF_MEDIA_MAX_MB` | Moved to the `attachments` block. Set and not empty, the api refuses boot and names the key. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Ignored; MergeBrief sets the export timeout itself. |
 | `MERGEBRIEF_URL_BOX_TOKEN` | Renamed to `MERGEBRIEF_URL_FALLBACK_TOKEN`. Set and non-empty, `api` and `worker` log one warning naming the new key and ignore it. |
@@ -272,7 +266,7 @@ A variable set to an empty string reads as unset, with these exceptions:
   `MERGEBRIEF_UPDATE_CHECK_URL`, `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_PRIVATE_KEY_PATH`, `GENERATOR_API_KEY_ENV`, and every
   required variable.
-- **Reads as `false`:** `MERGEBRIEF_AUTO_MIGRATE`, `AUDIT_PRIVATE_WRITES`.
+- **Reads as `false`:** `MERGEBRIEF_AUTO_MIGRATE`.
 
 ## Instance config (`mergebrief.config.yaml`)
 
@@ -295,12 +289,14 @@ the variable that holds it.
 | `contextSources` | worker | built-in sources only | Ticket trackers that need a deployment credential. |
 | `trackers` | worker | none: GitHub issues only | The boards and Jira projects every repository reads tickets from. |
 | `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
+| `retention` | worker | keep forever | How long the daily sweeps keep audit rows and closed pull requests. |
+| `audit` | api; worker validates | `privateWrites: true` | Whether writes that stay inside the instance are recorded. |
 | `attachments` | api; worker validates | 10 files or 30 MB per 10 minutes, 100 MB of media | What one reviewer may upload, and the largest media file the API streams. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
 Any other root key refuses boot in `worker`. `api` reads only `drafts`,
-`spend`, `operators`, `allowed` and `attachments`, so it ignores the rest of
-the file and needs no provider key. Every block rejects keys it does not define.
+`spend`, `operators`, `allowed`, `attachments` and `audit`, so it ignores the
+rest of the file and needs no provider key. Every block rejects keys it does not define.
 
 ### `generator`
 
@@ -356,6 +352,14 @@ The harness providers are refused in the shipped image
 | `trackers[].projectKeys` | | `jira` only, required: 1 to 50 Jira project keys, each a letter followed by letters or digits, 2 to 255 characters in all ([trackers.md](./trackers.md#jira)). |
 | `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. `.` and `..` are refused as either part. |
 | `trackers[].siblingRepos` | `false` | `github` only, instance config only: `true` lets issue references resolve in every repository the installation covers, not only the pull request's repository and its `issuesRepo` ([trackers.md](./trackers.md#credential-and-reach)). Anything but `true` or `false` refuses boot. |
+
+### `retention`, `audit`
+
+| Key | Default | Accepts |
+| --- | --- | --- |
+| `retention.pullRequestDays` | unset (keep forever) | Days a closed or merged pull request is kept before the worker's daily sweep erases it with its briefs: a whole number of at least 1 ([Retention](./operations.md#retention-what-grows-and-what-does-not-prune-itself)). |
+| `retention.auditDays` | unset (keep forever) | Days the daily sweep keeps audit rows: a whole number of at least 30. |
+| `audit.privateWrites` | `true` | `false` stops `api` recording writes that stay inside the instance; writes that reach GitHub and every denial are recorded either way. |
 
 ### `attachments`
 

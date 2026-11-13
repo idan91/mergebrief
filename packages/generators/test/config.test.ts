@@ -44,6 +44,7 @@ describe("loadGeneratorConfig from env", () => {
       trackers: [],
       siblingRepos: false,
       linkFetch: { mode: "public", hosts: [], maxTotalChars: 40_000 },
+      retention: { auditDays: null, pullRequestDays: null },
       source: null,
     });
   });
@@ -429,5 +430,53 @@ describe("loadGeneratorConfig on the attachments block and moved variables", () 
       `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
     );
     expect(text).not.toContain("leak-marker");
+  });
+});
+
+describe("loadGeneratorConfig on the retention and audit blocks", () => {
+  it("keeps rows forever when the file names no retention window", () => {
+    const path = configFile("operators: []\n");
+    const result = loadGeneratorConfigFile(path);
+    expect(result.ok && result.value.retention).toEqual({
+      auditDays: null,
+      pullRequestDays: null,
+    });
+  });
+
+  it("reads both retention windows", () => {
+    const path = configFile(
+      "retention:\n  auditDays: 365\n  pullRequestDays: 90\n",
+    );
+    const result = loadGeneratorConfigFile(path);
+    expect(result.ok && result.value.retention).toEqual({
+      auditDays: 365,
+      pullRequestDays: 90,
+    });
+  });
+
+  it("refuses a bad audit block, as the api does", () => {
+    const path = configFile("audit:\n  privateWrites: maybe\n");
+    const result = loadGeneratorConfigFile(path);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toEqual([
+      "audit: privateWrites: must be true or false",
+    ]);
+  });
+
+  it.each([
+    ["AUDIT_RETENTION_DAYS", "retention.auditDays"],
+    ["PR_RETENTION_DAYS", "retention.pullRequestDays"],
+  ])("refuses %s still set in the environment", (variable, configKey) => {
+    const result = loadGeneratorConfig({ [variable]: "365" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join("; ")).toContain(
+      `${variable}: moved to ${configKey} in mergebrief.config.yaml`,
+    );
   });
 });

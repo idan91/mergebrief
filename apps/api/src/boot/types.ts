@@ -29,6 +29,8 @@ export interface BootConfig {
   readonly operatorIds: LoadedInstancePolicy["operatorIds"];
   readonly allowedAccess: LoadedInstancePolicy["allowedAccess"];
   readonly attachmentLimits: AttachmentLimits;
+  /** `audit.privateWrites`: whether writes that stay inside the instance are recorded. */
+  readonly auditPrivateWrites: boolean;
 }
 
 /** The two values the migrate entry loads: nothing about GitHub, sessions

@@ -61,7 +61,7 @@ export const AUDIT_REASON_CROSS_ORIGIN = "cross-origin";
 
 /** Which audit rows this instance writes; instance config. */
 export interface AuditEmitConfig {
-  /** `AUDIT_PRIVATE_WRITES`; default on. External writes and denials are
+  /** `audit.privateWrites`; default on. External writes and denials are
    * never switchable: an instance able to post to GitHub with no record is
    * not a configuration. */
   readonly privateWrites: boolean;

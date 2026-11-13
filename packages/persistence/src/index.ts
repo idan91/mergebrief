@@ -99,6 +99,7 @@ export type {
 // composition roots pass their logger's `warn`.
 export {
   AUDIT_RETENTION_FLOOR_DAYS,
+  PR_RETENTION_FLOOR_DAYS,
   ConfigErrorCodes,
   loadConfig,
 } from "./db/config";

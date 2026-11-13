@@ -72,6 +72,7 @@ export {
   listMovedVariables,
   MOVED_GENERATOR_VARIABLES,
 } from "./config/moved-variables";
+export { validateRetentionBlock } from "./config/retention";
 export {
   ContextSourceTypes,
   ContextSourcesConfigSchema,

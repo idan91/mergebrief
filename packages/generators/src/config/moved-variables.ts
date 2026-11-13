@@ -15,13 +15,31 @@ export const MOVED_ATTACHMENT_VARIABLES = {
   MERGEBRIEF_MEDIA_MAX_MB: "attachments.mediaMaxMb",
 } as const;
 
-/** One issue per moved variable still set. Empty reads as unset, as compose passes it. */
+export const MOVED_RETENTION_VARIABLES = {
+  AUDIT_RETENTION_DAYS: "retention.auditDays",
+  PR_RETENTION_DAYS: "retention.pullRequestDays",
+} as const;
+
+export const MOVED_AUDIT_VARIABLES = {
+  AUDIT_PRIVATE_WRITES: "audit.privateWrites",
+} as const;
+
+export interface MovedVariableOptions {
+  /** Refuse the variable when it is set at all, for one whose empty value had a meaning of its own. */
+  readonly refusesEmpty?: boolean;
+}
+
+/** One issue per moved variable still set. Empty reads as unset, as compose passes it, unless `refusesEmpty`. */
 export function listMovedVariables(
   env: Readonly<Record<string, string | undefined>>,
   movedVariables: Readonly<Record<string, string>>,
+  options: MovedVariableOptions = {},
 ): readonly string[] {
   return Object.entries(movedVariables).flatMap(([variable, configKey]) => {
-    const leftover = (env[variable] ?? "").trim() !== "";
+    const value = env[variable];
+    const leftover = options.refusesEmpty
+      ? value !== undefined
+      : (value ?? "").trim() !== "";
     return leftover
       ? [`${variable}: moved to ${configKey} in mergebrief.config.yaml`]
       : [];

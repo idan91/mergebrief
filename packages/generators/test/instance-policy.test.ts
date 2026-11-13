@@ -42,6 +42,7 @@ describe("loadInstancePolicy", () => {
       spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
       attachments: {},
+      audit: { privateWrites: true },
       source: null,
     });
   });
@@ -86,6 +87,7 @@ describe("loadInstancePolicy", () => {
       spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
       attachments: {},
+      audit: { privateWrites: true },
       source: path,
     });
   });
@@ -367,5 +369,40 @@ describe("loadInstancePolicy attachments", () => {
   it("ignores a moved variable left empty", () => {
     const result = loadInstancePolicy({ MERGEBRIEF_MEDIA_MAX_MB: " " });
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("loadInstancePolicy audit", () => {
+  it("reads audit.privateWrites false as off", () => {
+    const path = configFile("audit:\n  privateWrites: false\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.audit).toEqual({ privateWrites: false });
+  });
+
+  it.each(["false", "true", ""])(
+    "refuses AUDIT_PRIVATE_WRITES set to '%s' in the environment",
+    (value) => {
+      // Empty used to read as false, so an empty leftover must not pass as on.
+      const result = loadInstancePolicy({ AUDIT_PRIVATE_WRITES: value });
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        return;
+      }
+      expect(result.error.issues).toEqual([
+        "AUDIT_PRIVATE_WRITES: moved to audit.privateWrites in mergebrief.config.yaml",
+      ]);
+    },
+  );
+
+  it("redacts a secret-shaped unknown key inside the audit block", () => {
+    const path = configFile('audit:\n  "sk-ant-api03-SENTINEL999": true\n');
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("(redacted)");
+    expect(text).not.toContain("SENTINEL999");
   });
 });

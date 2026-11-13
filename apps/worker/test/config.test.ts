@@ -1,6 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { validateRetentionBlock } from "generators";
+import {
+  AUDIT_RETENTION_FLOOR_DAYS,
+  PR_RETENTION_FLOOR_DAYS,
+} from "persistence";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config";
 
@@ -39,32 +44,48 @@ describe("loadConfig", () => {
   });
 
   it("carries the audit retention window, refusing one under the floor", () => {
-    const kept = loadConfig({ ...VALID_ENV, AUDIT_RETENTION_DAYS: "90" });
+    const keptPath = configFile("retention:\n  auditDays: 90\n");
+    const kept = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: keptPath });
     expect(kept.ok && kept.value.auditRetentionDays).toBe(90);
     // Unset is the default posture: keep forever.
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.auditRetentionDays).toBe(null);
 
-    const refused = loadConfig({ ...VALID_ENV, AUDIT_RETENTION_DAYS: "7" });
+    const shortPath = configFile("retention:\n  auditDays: 7\n");
+    const refused = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: shortPath });
     expect(refused.ok).toBe(false);
     if (refused.ok) {
       return;
     }
-    expect(refused.error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
+    expect(refused.error.issues.join("; ")).toMatch(/retention: auditDays/);
   });
 
   it("carries the pull request retention window, unset means keep forever", () => {
-    const kept = loadConfig({ ...VALID_ENV, PR_RETENTION_DAYS: "30" });
+    const keptPath = configFile("retention:\n  pullRequestDays: 30\n");
+    const kept = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: keptPath });
     expect(kept.ok && kept.value.prRetentionDays).toBe(30);
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.prRetentionDays).toBe(null);
+  });
 
-    const refused = loadConfig({ ...VALID_ENV, PR_RETENTION_DAYS: "0" });
-    expect(refused.ok).toBe(false);
-    if (refused.ok) {
-      return;
-    }
-    expect(refused.error.issues.join("; ")).toMatch(/PR_RETENTION_DAYS/);
+  it("refuses a retention window the sweeps' own floors would refuse", () => {
+    const underAuditFloor = validateRetentionBlock({
+      auditDays: AUDIT_RETENTION_FLOOR_DAYS - 1,
+    });
+    const atAuditFloor = validateRetentionBlock({
+      auditDays: AUDIT_RETENTION_FLOOR_DAYS,
+    });
+    const underPullRequestFloor = validateRetentionBlock({
+      pullRequestDays: PR_RETENTION_FLOOR_DAYS - 1,
+    });
+    const atPullRequestFloor = validateRetentionBlock({
+      pullRequestDays: PR_RETENTION_FLOOR_DAYS,
+    });
+
+    expect(underAuditFloor.ok).toBe(false);
+    expect(atAuditFloor.ok).toBe(true);
+    expect(underPullRequestFloor.ok).toBe(false);
+    expect(atPullRequestFloor.ok).toBe(true);
   });
 
   it("carries the pool size, ten when DATABASE_POOL_MAX is unset", () => {

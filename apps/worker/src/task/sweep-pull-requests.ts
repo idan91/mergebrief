@@ -15,7 +15,7 @@ export const SWEEP_PULL_REQUESTS_CRONTAB = `47 3 * * * ${SWEEP_PULL_REQUESTS_TAS
 
 export interface SweepPullRequestsTaskDeps {
   readonly handle: AppDatabase;
-  /** `PR_RETENTION_DAYS`; null (the default) = keep forever. */
+  /** `retention.pullRequestDays`; null (the default) = keep forever. */
   readonly retentionDays: number | null;
   readonly log: Logger;
 }

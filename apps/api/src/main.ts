@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     allowedAccess: boot.allowedAccess,
     updateCheck,
     audit: {
-      privateWrites: boot.persistence.auditPrivateWrites,
+      privateWrites: boot.auditPrivateWrites,
     },
     serverVersion: boot.api.serverVersion,
     bindInstallationGitHub: (installationId) =>

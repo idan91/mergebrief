@@ -17,7 +17,7 @@ export const SWEEP_AUDIT_CRONTAB = `17 3 * * * ${SWEEP_AUDIT_TASK}`;
 
 export interface SweepAuditTaskDeps {
   readonly handle: AppDatabase;
-  /** `AUDIT_RETENTION_DAYS`; null (the default) = keep forever. */
+  /** `retention.auditDays`; null (the default) = keep forever. */
   readonly retentionDays: number | null;
   readonly log: Logger;
 }

@@ -251,8 +251,8 @@ export function loadConfig(
         generatorConfig.value.generator.detailConcurrency ??
         DEFAULT_DETAIL_CONCURRENCY,
       forceMultiCall: generatorConfig.value.generator.forceMultiCall ?? false,
-      auditRetentionDays: persistence.value.auditRetentionDays,
-      prRetentionDays: persistence.value.prRetentionDays,
+      auditRetentionDays: generatorConfig.value.retention.auditDays,
+      prRetentionDays: generatorConfig.value.retention.pullRequestDays,
       generator: generatorConfig.value.generator,
       publicBaseUrl: knobs.value.publicBaseUrl,
       spend: generatorConfig.value.spend,

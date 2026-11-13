@@ -8,8 +8,14 @@ import {
   type AttachmentsSettings,
 } from "./attachments";
 import {
+  DEFAULT_AUDIT_SETTINGS,
+  validateAuditBlock,
+  type AuditSettings,
+} from "./audit";
+import {
   listMovedVariables,
   MOVED_ATTACHMENT_VARIABLES,
+  MOVED_AUDIT_VARIABLES,
 } from "./moved-variables";
 import {
   NO_OPERATORS,
@@ -33,7 +39,7 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
 
 /**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
- * `drafts`, `spend`, `operators`, `allowed` and `attachments` blocks out of
+ * `drafts`, `spend`, `operators`, `allowed`, `attachments` and `audit` blocks out of
  * `mergebrief.config.yaml`.
  * Deliberately tolerant of everything else in the file. An invalid generator
  * block or an unknown root key is the FULL loader's (worker's) problem; the
@@ -57,6 +63,8 @@ export interface LoadedInstancePolicy {
   readonly allowedAccess: AllowedAccess | undefined;
   /** The upload and media limits the file sets; the api defaults the rest. */
   readonly attachments: AttachmentsSettings;
+  /** Whether writes that stay inside the instance are recorded. */
+  readonly audit: AuditSettings;
   /** The file the policy came from; null for zero-config defaults. */
   readonly source: string | null;
 }
@@ -68,6 +76,7 @@ export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   operatorIds: NO_OPERATORS,
   allowedAccess: undefined,
   attachments: DEFAULT_ATTACHMENTS_SETTINGS,
+  audit: DEFAULT_AUDIT_SETTINGS,
 };
 
 /**
@@ -119,7 +128,12 @@ export function validateDraftsBlock(
 export function loadInstancePolicy(
   env: Record<string, string | undefined>,
 ): Result<LoadedInstancePolicy, ConfigError> {
-  const movedVariables = listMovedVariables(env, MOVED_ATTACHMENT_VARIABLES);
+  // An empty AUDIT_PRIVATE_WRITES used to read as false, so it is refused
+  // even when empty: ignored, it would turn private writes back on.
+  const movedVariables = [
+    ...listMovedVariables(env, MOVED_ATTACHMENT_VARIABLES),
+    ...listMovedVariables(env, MOVED_AUDIT_VARIABLES, { refusesEmpty: true }),
+  ];
   if (movedVariables.length > 0) {
     return configError(movedVariables);
   }
@@ -180,6 +194,14 @@ export function loadInstancePolicy(
   if (!attachments.ok) {
     return attachments;
   }
+  const audit = readBlock(
+    blocks["audit"],
+    validateAuditBlock,
+    DEFAULT_AUDIT_SETTINGS,
+  );
+  if (!audit.ok) {
+    return audit;
+  }
 
   return {
     ok: true,
@@ -189,6 +211,7 @@ export function loadInstancePolicy(
       operatorIds: operatorIds.value,
       allowedAccess: allowedAccess.value,
       attachments: attachments.value,
+      audit: audit.value,
       source: resolved.value,
     },
   };
