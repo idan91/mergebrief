@@ -737,6 +737,7 @@ describe("buildContextQuery: the jira site", () => {
       tracker: "jira",
       key: "ACME-12",
       url: JIRA_ISSUE_URL,
+      projectKeys: JIRA_TRACKER.projectKeys,
       foundIn: "description",
       closing: false,
     });
@@ -758,6 +759,7 @@ describe("buildContextQuery: the jira site", () => {
         tracker: "jira",
         key: "ACME-12",
         url: "",
+        projectKeys: JIRA_TRACKER.projectKeys,
         foundIn: "title",
         closing: false,
       },

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
+import { buildContextQuery } from "../../src/context/query";
 import type { TrackerReads } from "../../src/context/trackers";
 import type {
   PrimaryRead,
@@ -12,7 +13,18 @@ import {
   type ContextQuery,
   type PrimarySnippet,
 } from "../../src/context/types";
-import { PrimaryTicketSchema, TicketUnreadReasons } from "../../src/types";
+import {
+  PrimaryTicketSchema,
+  TicketUnreadReasons,
+  type PrimaryTicket,
+} from "../../src/types";
+import { JIRA_TRACKER } from "./helpers";
+import { SHARED, makeRead } from "./trackers/jira/read/helpers";
+import {
+  readFixture,
+  stubSiteFetch,
+  type RecordedAnswer,
+} from "./trackers/jira/transport/http/helpers";
 
 const READ_MS = 30;
 
@@ -179,30 +191,6 @@ describe("fetchContextSnippets: the primary ticket", () => {
     });
   });
 
-  it("reports a jira key with no read unread, stored as a jira ticket", async () => {
-    const jiraRef: TicketReference = {
-      tracker: "jira",
-      key: "ACME-12",
-      url: "",
-      foundIn: "branch",
-      closing: false,
-    };
-    const { primaryTicket } = await fetchContextSnippets(
-      { ...query, primary: jiraRef, references: [jiraRef, reference] },
-      [],
-    );
-    expect(primaryTicket).toMatchObject({
-      status: "unread",
-      reason: TicketUnreadReasons.UNSUPPORTED,
-      detail: "no jira read on this deployment",
-    });
-    if (primaryTicket === undefined) {
-      return;
-    }
-    const stored = PrimaryTicketSchema.parse(toPrimaryTicket(primaryTicket));
-    expect(stored).toMatchObject({ tracker: "jira", reason: "unsupported" });
-  });
-
   it("a supplied primary replaces the read and is stamped as read", async () => {
     const read = stubRead(async () => {
       throw new Error("must not be called");
@@ -334,6 +322,77 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       status: "unread",
       reason: "not-found",
       reference: prNumber,
+    });
+  });
+});
+
+describe("fetchContextSnippets: a jira primary", () => {
+  const ACME_2_URL = "https://acme.atlassian.net/browse/ACME-2";
+
+  /** Dana's PR: the parser finds the reference, the real read answers from a recorded Jira. */
+  async function readJiraPrimary(
+    body: string,
+    answer: RecordedAnswer,
+  ): Promise<PrimaryTicket | undefined> {
+    const jiraQuery = buildContextQuery({
+      title: "Validate the email field",
+      body,
+      branch: "",
+      repo: { owner: "acme", repo: "widget" },
+      trackers: [JIRA_TRACKER],
+      readable: ["jira"],
+      contextSources: SHARED.contextSources,
+    });
+    const { fetch } = stubSiteFetch(answer);
+    const { primaryTicket } = await fetchContextSnippets(
+      jiraQuery,
+      [],
+      () => {},
+      {
+        reads: { jira: makeRead(fetch) },
+      },
+    );
+    if (primaryTicket === undefined) {
+      return undefined;
+    }
+    return PrimaryTicketSchema.parse(toPrimaryTicket(primaryTicket));
+  }
+
+  it.each([
+    ["a key", "Fixes ACME-2"],
+    ["a link", `Fixes ${ACME_2_URL}?focusedId=4`],
+  ])("stores a jira ticket read from %s", async (_label, body) => {
+    const stored = await readJiraPrimary(body, {
+      status: 200,
+      body: readFixture("issue-every-node.json"),
+    });
+    expect(stored).toEqual({
+      key: "ACME-2",
+      url: ACME_2_URL,
+      tracker: "jira",
+      foundIn: "description",
+      title: "Validate the email field at checkout",
+      header:
+        "Validate the email field at checkout · Backlog · Story · High · Test User · checkout, validation · ACME-2",
+      status: "read",
+      reason: "",
+    });
+  });
+
+  it("stores an unread jira ticket with its reason", async () => {
+    const stored = await readJiraPrimary("Fixes ACME-2", {
+      status: 404,
+      body: readFixture("error-404-hidden-or-missing.json"),
+    });
+    expect(stored).toEqual({
+      key: "ACME-2",
+      url: ACME_2_URL,
+      tracker: "jira",
+      foundIn: "description",
+      title: "",
+      header: "",
+      status: "unread",
+      reason: "not-found",
     });
   });
 });

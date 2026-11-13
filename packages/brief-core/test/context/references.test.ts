@@ -394,6 +394,7 @@ describe("collectTicketReferences: jira links", () => {
         tracker: "jira",
         key: "ACME-12",
         url: JIRA_ISSUE_URL,
+        projectKeys: JIRA_TRACKER.projectKeys,
         foundIn: "description",
         closing: false,
       },

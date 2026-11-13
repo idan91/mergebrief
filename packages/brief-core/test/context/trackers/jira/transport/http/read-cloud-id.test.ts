@@ -3,6 +3,7 @@ import { JiraCloudIdFailureReasons } from "../../../../../../src/context/tracker
 import {
   CLOUD_ID,
   ECOSYSTEM_CLOUD_ID,
+  SITE,
   makeEndlessBody,
   makeTransport,
   stubFetch,
@@ -11,7 +12,6 @@ import {
   type RecordedAnswer,
 } from "./helpers";
 
-const SITE = "acme.atlassian.net";
 /** Mirrors the transport's bound on a cloud id. */
 const MAX_CLOUD_ID_LENGTH = 128;
 

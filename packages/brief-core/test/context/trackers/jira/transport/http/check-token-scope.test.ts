@@ -6,32 +6,89 @@ import {
   makeEndlessBody,
   makeSession,
   makeTransport,
+  TENANT_INFO_URL,
   readFixture,
-  stubFetch,
+  stubSiteFetch,
   stubStalledFetch,
   stubUnreachableFetch,
+  type AnswerSource,
   type RecordedAnswer,
 } from "./helpers";
 
 async function checkScopeWith(answer: RecordedAnswer) {
-  const { fetch, calls } = stubFetch(answer);
+  const { fetch, calls } = stubSiteFetch(answer);
   const check = await makeTransport(fetch).checkTokenScope(makeSession());
   return { check, calls };
 }
 
 describe("checkTokenScope", () => {
-  it("asks myself with the token's basic auth", async () => {
+  it("looks up the cloud id, then asks myself with basic auth", async () => {
     const { calls } = await checkScopeWith({ status: 200, body: "{}" });
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(
+    expect(calls.map((call) => call.url)).toEqual([
+      TENANT_INFO_URL,
       `https://api.atlassian.com/ex/jira/${CLOUD_ID}/rest/api/3/myself`,
-    );
-    expect(calls[0]?.headers).toEqual({
+    ]);
+    expect(calls[0]?.headers).toEqual({ Accept: "application/json" });
+    expect(calls[1]?.headers).toEqual({
       Authorization: `Basic ${BASIC_CREDENTIAL}`,
       Accept: "application/json",
     });
-    expect(calls[0]?.redirect).toBe("error");
+    expect(calls[1]?.redirect).toBe("error");
+  });
+
+  it("does not look up again once the transport knows the site", async () => {
+    const { fetch, calls } = stubSiteFetch({ status: 200, body: "{}" });
+    const transport = makeTransport(fetch);
+
+    await transport.checkTokenScope(makeSession());
+    await transport.checkTokenScope(makeSession());
+
+    expect(calls.filter((call) => call.url === TENANT_INFO_URL)).toHaveLength(
+      1,
+    );
+  });
+
+  it.each<[string, AnswerSource]>([
+    ["a 404", { status: 404, body: "" }],
+    ["a server error", { status: 503, body: "" }],
+    ["no cloud id", { status: 200, body: "{}" }],
+    ["no connection", stubUnreachableFetch()],
+  ])("reads a lookup that answers %s as unknown", async (_name, tenantInfo) => {
+    const { fetch, calls } = stubSiteFetch(
+      { status: 200, body: "{}" },
+      tenantInfo,
+    );
+
+    const check = await makeTransport(fetch).checkTokenScope(makeSession());
+
+    expect(check).toBe(JiraScopeChecks.UNKNOWN);
+    expect(calls.map((call) => call.url)).toEqual([TENANT_INFO_URL]);
+  });
+
+  it("reads a host that is not a site as unknown without asking", async () => {
+    const { fetch, calls } = stubSiteFetch({ status: 200, body: "{}" });
+    const session = makeSession(undefined, "localhost");
+
+    const check = await makeTransport(fetch).checkTokenScope(session);
+
+    expect(check).toBe(JiraScopeChecks.UNKNOWN);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("reads an abort during the lookup as unknown", async () => {
+    const controller = new AbortController();
+    const { fetch } = stubSiteFetch(
+      { status: 200, body: "{}" },
+      stubStalledFetch(),
+    );
+
+    const pending = makeTransport(fetch).checkTokenScope(
+      makeSession(controller.signal),
+    );
+    controller.abort();
+
+    expect(await pending).toBe(JiraScopeChecks.UNKNOWN);
   });
 
   it.each<[string, RecordedAnswer, string]>([
@@ -119,7 +176,8 @@ describe("checkTokenScope", () => {
   });
 
   it("reads a failed connection as unknown", async () => {
-    const transport = makeTransport(stubUnreachableFetch());
+    const { fetch } = stubSiteFetch(stubUnreachableFetch());
+    const transport = makeTransport(fetch);
 
     expect(await transport.checkTokenScope(makeSession())).toBe(
       JiraScopeChecks.UNKNOWN,
@@ -128,7 +186,8 @@ describe("checkTokenScope", () => {
 
   it("reads an abort as unknown", async () => {
     const controller = new AbortController();
-    const transport = makeTransport(stubStalledFetch());
+    const { fetch } = stubSiteFetch(stubStalledFetch());
+    const transport = makeTransport(fetch);
 
     const pending = transport.checkTokenScope(makeSession(controller.signal));
     controller.abort();

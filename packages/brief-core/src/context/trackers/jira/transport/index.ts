@@ -8,6 +8,8 @@ export const JiraTransports = {
 export {
   JiraCloudIdFailureReasons,
   JiraScopeChecks,
+  type JiraIssue,
+  type JiraReadFailure,
   type JiraSession,
   type JiraTransport,
 } from "./port";

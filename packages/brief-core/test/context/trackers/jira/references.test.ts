@@ -10,6 +10,12 @@ import {
 } from "../../../../src/types";
 import { JIRA_ISSUE_URL, JIRA_SITE, JIRA_TRACKER } from "../../helpers";
 
+/** What every Jira reference of this repository carries besides its key and URL. */
+const JIRA_REFERENCE_FIELDS = {
+  tracker: "jira" as const,
+  projectKeys: JIRA_TRACKER.projectKeys,
+};
+
 function makeInput(
   overrides: Partial<TicketReferenceInput> = {},
 ): TicketReferenceInput {
@@ -60,7 +66,27 @@ describe("collectJiraReferences", () => {
         makeInput(),
       ),
     ).toEqual([
-      { index: 6, reference: { tracker: "jira", key: "ACME-12", url: "" } },
+      {
+        index: 6,
+        reference: { ...JIRA_REFERENCE_FIELDS, key: "ACME-12", url: "" },
+      },
+    ]);
+  });
+
+  it("carries every listed project key on a key and on a link alike", () => {
+    const trackers = [
+      { kind: "jira" as const, projectKeys: ["ACME"] },
+      { kind: "github" as const },
+      { kind: "jira" as const, projectKeys: ["WEB", "OPS"] },
+    ];
+    const hits = collectJiraReferences(
+      `ACME-12 and ${JIRA_ISSUE_URL}`,
+      ReferenceLocations.DESCRIPTION,
+      makeSiteInput({ trackers }),
+    );
+    expect(hits.map((hit) => hit.reference.projectKeys)).toEqual([
+      ["ACME", "WEB", "OPS"],
+      ["ACME", "WEB", "OPS"],
     ]);
   });
 
@@ -125,7 +151,11 @@ describe("collectJiraReferences: the site", () => {
     ).toEqual([
       {
         index: 6,
-        reference: { tracker: "jira", key: "ACME-12", url: JIRA_ISSUE_URL },
+        reference: {
+          ...JIRA_REFERENCE_FIELDS,
+          key: "ACME-12",
+          url: JIRA_ISSUE_URL,
+        },
       },
     ]);
   });
@@ -158,7 +188,11 @@ describe("collectJiraReferences: links", () => {
     ).toEqual([
       {
         index: 4,
-        reference: { tracker: "jira", key: "ACME-12", url: JIRA_ISSUE_URL },
+        reference: {
+          ...JIRA_REFERENCE_FIELDS,
+          key: "ACME-12",
+          url: JIRA_ISSUE_URL,
+        },
       },
     ]);
   });
@@ -254,7 +288,11 @@ describe("collectJiraReferences: links", () => {
     ).toEqual([
       {
         index: 0,
-        reference: { tracker: "jira", key: "ACME-12", url: JIRA_ISSUE_URL },
+        reference: {
+          ...JIRA_REFERENCE_FIELDS,
+          key: "ACME-12",
+          url: JIRA_ISSUE_URL,
+        },
       },
     ]);
   });
@@ -326,7 +364,10 @@ describe("collectJiraReferences: links", () => {
         makeInput({ readable: ["jira"] }),
       ),
     ).toEqual([
-      { index: 46, reference: { tracker: "jira", key: "WEB-3", url: "" } },
+      {
+        index: 46,
+        reference: { ...JIRA_REFERENCE_FIELDS, key: "WEB-3", url: "" },
+      },
     ]);
   });
 

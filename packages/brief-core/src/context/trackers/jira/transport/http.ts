@@ -45,6 +45,12 @@ const AUTH_CATEGORY = "FAILURE_CLIENT_AUTH";
 const SCOPE_MISMATCH_MESSAGE = "Unauthorized; scope does not match";
 /** Gateway failure categories are SHOUT_CASE words; anything else is not echoed. */
 const FAILURE_CATEGORY_TOKEN = /^[A-Z_]{1,40}$/;
+/** A failed lookup fails the read with one fixed detail per reason. */
+const CLOUD_ID_FAILURE_DETAILS = {
+  [JiraCloudIdFailureReasons.NO_SUCH_SITE]:
+    "no jira site answers at the configured host",
+  [JiraCloudIdFailureReasons.UNKNOWN]: "jira site lookup had no usable answer",
+} as const;
 
 /** The `fetch` slice the HTTP transport uses; injectable so tests replay recorded answers. */
 export type JiraFetch = (
@@ -298,10 +304,11 @@ function shapeIssue(raw: z.infer<typeof issueSchema>): JiraIssue {
 async function readIssueOverHttp(
   context: CallContext,
   session: JiraSession,
+  cloudId: string,
   key: string,
 ): Promise<Result<JiraIssue, JiraReadFailure>> {
   const path = `issue/${encodeURIComponent(key)}?fields=${ISSUE_FIELDS}`;
-  const url = buildApiUrl(session.cloudId, path);
+  const url = buildApiUrl(cloudId, path);
   const sent = await sendGet(context, url, buildAuthHeaders(session));
   if (!sent.ok) {
     return failRead(TicketUnreadReasons.TIMEOUT, sent.error);
@@ -395,6 +402,53 @@ async function readCloudIdOverHttp(
   return { ok: true, value: tenant.data.cloudId };
 }
 
+/** Each site's cloud id, kept for the life of one transport. */
+type CloudIdMemory = Map<string, string>;
+
+/** Asks the site; only a found cloud id is remembered, so a failed lookup asks again next time. */
+async function lookUpCloudId(
+  context: CallContext,
+  cloudIds: CloudIdMemory,
+  site: string,
+): Promise<Result<string, JiraCloudIdFailure>> {
+  const found = await readCloudIdOverHttp(context, site);
+  if (found.ok) {
+    cloudIds.set(site, found.value);
+  }
+  return found;
+}
+
+async function resolveCloudId(
+  context: CallContext,
+  cloudIds: CloudIdMemory,
+  site: string,
+): Promise<Result<string, JiraCloudIdFailure>> {
+  const known = cloudIds.get(site);
+  if (known !== undefined) {
+    return { ok: true, value: known };
+  }
+  return lookUpCloudId(context, cloudIds, site);
+}
+
+async function readIssueOnSite(
+  context: CallContext,
+  cloudIds: CloudIdMemory,
+  session: JiraSession,
+  key: string,
+): Promise<Result<JiraIssue, JiraReadFailure>> {
+  const cloudId = await resolveCloudId(context, cloudIds, session.site);
+  if (!cloudId.ok) {
+    const detail = CLOUD_ID_FAILURE_DETAILS[cloudId.error.reason];
+    return failRead(TicketUnreadReasons.TIMEOUT, detail);
+  }
+
+  const read = await readIssueOverHttp(context, session, cloudId.value, key);
+  if (!read.ok && read.error.unknownCloudId === true) {
+    cloudIds.delete(session.site);
+  }
+  return read;
+}
+
 /** A 401 from `/myself`: the header decides, the body only when the header is missing. */
 async function readRefusalScope(
   context: CallContext,
@@ -425,9 +479,15 @@ async function readRefusalScope(
 /** What the token can do, from `/myself`; the account it names is never read. */
 async function checkTokenScopeOverHttp(
   context: CallContext,
+  cloudIds: CloudIdMemory,
   session: JiraSession,
 ): Promise<JiraScopeCheck> {
-  const url = buildApiUrl(session.cloudId, "myself");
+  const cloudId = await resolveCloudId(context, cloudIds, session.site);
+  if (!cloudId.ok) {
+    return JiraScopeChecks.UNKNOWN;
+  }
+
+  const url = buildApiUrl(cloudId.value, "myself");
   const sent = await sendGet(context, url, buildAuthHeaders(session));
   if (!sent.ok) {
     return JiraScopeChecks.UNKNOWN;
@@ -450,22 +510,23 @@ export function createJiraHttpTransport(
 ): JiraTransport {
   const fetch = options.fetch ?? globalThis.fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const cloudIds: CloudIdMemory = new Map();
 
   return {
     timeoutMs,
 
     readIssue(session, key) {
       const context = { fetch, timeoutMs, signal: session.signal };
-      return readIssueOverHttp(context, session, key);
+      return readIssueOnSite(context, cloudIds, session, key);
     },
 
     readCloudId(site, signal) {
-      return readCloudIdOverHttp({ fetch, timeoutMs, signal }, site);
+      return lookUpCloudId({ fetch, timeoutMs, signal }, cloudIds, site);
     },
 
     checkTokenScope(session) {
       const context = { fetch, timeoutMs, signal: session.signal };
-      return checkTokenScopeOverHttp(context, session);
+      return checkTokenScopeOverHttp(context, cloudIds, session);
     },
   };
 }

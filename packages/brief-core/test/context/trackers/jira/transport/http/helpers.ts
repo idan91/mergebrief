@@ -10,6 +10,12 @@ export const CLOUD_ID = "11111111-2222-4333-8444-555555555555";
 /** The second cloud id form Atlassian gives: a UUID with a suffix. */
 export const ECOSYSTEM_CLOUD_ID =
   "fff89a1a-52c8-11e5-91b2-3c15c2bd8caa-ecosystem";
+export const SITE = "acme.atlassian.net";
+export const TENANT_INFO_URL = "https://acme.atlassian.net/_edge/tenant_info";
+export const TENANT_INFO_ANSWER: RecordedAnswer = {
+  status: 200,
+  body: JSON.stringify({ cloudId: CLOUD_ID }),
+};
 export const EMAIL = "reader@example.invalid";
 export const TOKEN = "atl-token-never-shown";
 /** base64 of `reader@example.invalid:atl-token-never-shown`, encoded outside the code under test. */
@@ -31,6 +37,9 @@ export interface FetchCall {
   readonly redirect: string;
 }
 
+/** What one side of a stubbed site answers: a recorded answer, or a fetch that decides. */
+export type AnswerSource = RecordedAnswer | JiraFetch;
+
 export interface StubbedFetch {
   readonly fetch: JiraFetch;
   readonly calls: FetchCall[];
@@ -41,16 +50,8 @@ export interface EndlessBody {
   wasCancelled(): boolean;
 }
 
-/** A recorded Jira: every call gets the same answer, and every call is kept. */
-export function stubFetch(answer: RecordedAnswer): StubbedFetch {
-  const calls: FetchCall[] = [];
-  const fetch: JiraFetch = async (url, init) => {
-    calls.push({
-      url,
-      method: init.method,
-      headers: init.headers,
-      redirect: init.redirect,
-    });
+function makeAnsweringFetch(answer: RecordedAnswer): JiraFetch {
+  return async () => {
     const headers = new Headers();
     if (answer.failureCategory !== undefined) {
       headers.set(FAILURE_CATEGORY_HEADER, answer.failureCategory);
@@ -60,16 +61,60 @@ export function stubFetch(answer: RecordedAnswer): StubbedFetch {
       headers,
     });
   };
-  return { fetch, calls };
+}
+
+function resolveFetch(source: AnswerSource): JiraFetch {
+  if (typeof source === "function") {
+    return source;
+  }
+  return makeAnsweringFetch(source);
+}
+
+/** Keeps every call, then hands it to `fetch`. */
+function recordFetch(fetch: JiraFetch): StubbedFetch {
+  const calls: FetchCall[] = [];
+  const recorded: JiraFetch = (url, init) => {
+    calls.push({
+      url,
+      method: init.method,
+      headers: init.headers,
+      redirect: init.redirect,
+    });
+    return fetch(url, init);
+  };
+  return { fetch: recorded, calls };
+}
+
+/** A recorded Jira: every call gets the same answer, and every call is kept. */
+export function stubFetch(answer: RecordedAnswer): StubbedFetch {
+  return recordFetch(makeAnsweringFetch(answer));
+}
+
+/** A recorded Jira site: its tenant info answers `tenantInfo`, the API `api`, and every call is kept. */
+export function stubSiteFetch(
+  api: AnswerSource,
+  tenantInfo: AnswerSource = TENANT_INFO_ANSWER,
+): StubbedFetch {
+  const apiFetch = resolveFetch(api);
+  const tenantInfoFetch = resolveFetch(tenantInfo);
+  return recordFetch((url, init) => {
+    if (url === TENANT_INFO_URL) {
+      return tenantInfoFetch(url, init);
+    }
+    return apiFetch(url, init);
+  });
 }
 
 /** A fetch that never answers and rejects once its signal aborts, as the platform's does. */
 export function stubStalledFetch(): JiraFetch {
   return (_url, init) =>
     new Promise((_, reject) => {
-      init.signal.addEventListener("abort", () => {
-        reject(new DOMException("aborted", "AbortError"));
-      });
+      const abort = () => reject(new DOMException("aborted", "AbortError"));
+      if (init.signal.aborted) {
+        abort();
+        return;
+      }
+      init.signal.addEventListener("abort", abort);
     });
 }
 
@@ -102,9 +147,9 @@ export function readFixture(name: string): string {
 
 export function makeSession(
   signal: AbortSignal = new AbortController().signal,
-  cloudId = CLOUD_ID,
+  site = SITE,
 ): JiraSession {
-  return { cloudId, email: EMAIL, token: TOKEN, signal };
+  return { site, email: EMAIL, token: TOKEN, signal };
 }
 
 export function makeTransport(

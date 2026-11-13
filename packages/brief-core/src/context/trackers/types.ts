@@ -51,6 +51,8 @@ export interface TicketReference {
   readonly pageId?: string;
   /** The board a Notion key resolves in; absent for GitHub and page URLs. */
   readonly databaseId?: string;
+  /** The Jira project keys the repo lists, upper-case: an issue Jira answers under any other project is not read. Absent for every other tracker. */
+  readonly projectKeys?: readonly string[];
   /** Canonical URL; "" for a Notion key until the provider resolves it, and for a Jira key when the instance names no Jira site. */
   readonly url: string;
   readonly foundIn: ReferenceLocation;

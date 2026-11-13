@@ -3,8 +3,8 @@ import type { ContextReadFailure } from "../../../types";
 
 /** One read's site and credential; the email and token ride only in a header, never in a detail. */
 export interface JiraSession {
-  /** Opaque site id from `tenant_info`; not always a UUID. */
-  readonly cloudId: string;
+  /** The `.atlassian.net` host from config, lower-case. */
+  readonly site: string;
   readonly email: string;
   readonly token: string;
   readonly signal: AbortSignal;
@@ -58,25 +58,28 @@ export const JiraScopeChecks = {
 export type JiraScopeCheck = ValueOf<typeof JiraScopeChecks>;
 
 export interface JiraReadFailure extends ContextReadFailure {
-  /** The gateway's own 404: the cloud id no longer names a site, so a cached one is stale. */
+  /** The gateway's own 404: the cloud id no longer names a site; the transport has forgotten it. */
   readonly unknownCloudId?: true;
 }
 
 /**
  * The port Jira's read talks through: typed operations, records decoded
- * inside the implementation. A root binds one of `JiraTransports`.
+ * inside the implementation. A root binds one of `JiraTransports`, one per
+ * process: an instance remembers each site's cloud id for its life.
  */
 export interface JiraTransport {
   /** One budget for a whole read; the read enforces it through the session signal. */
   readonly timeoutMs: number;
+  /** Looks up the site's cloud id first unless remembered; a failed lookup is a `timeout`. */
   readIssue(
     session: JiraSession,
     key: string,
   ): Promise<Result<JiraIssue, JiraReadFailure>>;
-  /** The cloud id of a site such as `acme.atlassian.net`, asked without a credential. */
+  /** The cloud id of a site such as `acme.atlassian.net`, always asked without a credential; a found one is remembered. */
   readCloudId(
     site: string,
     signal: AbortSignal,
   ): Promise<Result<string, JiraCloudIdFailure>>;
+  /** Looks up the cloud id like `readIssue`; a failed lookup is `unknown`. */
   checkTokenScope(session: JiraSession): Promise<JiraScopeCheck>;
 }

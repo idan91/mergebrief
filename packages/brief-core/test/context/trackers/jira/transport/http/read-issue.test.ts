@@ -5,12 +5,14 @@ import {
   CLOUD_ID,
   ECOSYSTEM_CLOUD_ID,
   EMAIL,
+  SITE,
+  TENANT_INFO_URL,
   TOKEN,
   makeEndlessBody,
   makeSession,
   makeTransport,
   readFixture,
-  stubFetch,
+  stubSiteFetch,
   stubStalledFetch,
   stubUnreachableFetch,
   type RecordedAnswer,
@@ -22,7 +24,7 @@ const MAX_ISSUE_BYTES = 1024 * 1024;
 const PLACEHOLDER_ACCOUNT_ID = "000000:00000000-0000-0000-0000-000000000000";
 
 async function readIssueWith(answer: RecordedAnswer, key = "ACME-2") {
-  const { fetch, calls } = stubFetch(answer);
+  const { fetch, calls } = stubSiteFetch(answer);
   const result = await makeTransport(fetch).readIssue(makeSession(), key);
   return { result, calls };
 }
@@ -52,33 +54,25 @@ function collectKeys(value: unknown, keys: Set<string> = new Set()) {
 }
 
 describe("readIssue request", () => {
-  it("asks for the issue's fields in one GET without expand", async () => {
-    const { calls } = await readIssueWith({
-      status: 200,
-      body: readFixture("issue-every-node.json"),
-    });
-
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(ISSUE_URL);
-  });
-
   it("sends basic auth and JSON accept, and refuses redirects", async () => {
     const { calls } = await readIssueWith({ status: 404, body: "" });
 
-    expect(calls[0]?.headers).toEqual({
+    expect(calls[1]?.headers).toEqual({
       Authorization: `Basic ${BASIC_CREDENTIAL}`,
       Accept: "application/json",
     });
-    expect(calls[0]?.redirect).toBe("error");
+    expect(calls[1]?.redirect).toBe("error");
   });
 
   it("encodes the cloud id and the key into the path", async () => {
-    const { fetch, calls } = stubFetch({ status: 404, body: "" });
-    const session = makeSession(undefined, ECOSYSTEM_CLOUD_ID);
+    const { fetch, calls } = stubSiteFetch(
+      { status: 404, body: "" },
+      { status: 200, body: JSON.stringify({ cloudId: ECOSYSTEM_CLOUD_ID }) },
+    );
 
-    await makeTransport(fetch).readIssue(session, "A/B?x=1");
+    await makeTransport(fetch).readIssue(makeSession(), "A/B?x=1");
 
-    const url = new URL(calls[0]?.url ?? "");
+    const url = new URL(calls[1]?.url ?? "");
     expect(url.pathname).toBe(
       `/ex/jira/${ECOSYSTEM_CLOUD_ID}/rest/api/3/issue/A%2FB%3Fx%3D1`,
     );
@@ -315,7 +309,7 @@ describe("readIssue failures", () => {
       const { result, calls } = await readIssueWith(answer);
 
       expect(result).toMatchObject({ ok: false, error: { reason } });
-      expect(calls).toHaveLength(1);
+      expect(calls).toHaveLength(2);
     },
   );
 
@@ -383,7 +377,8 @@ describe("readIssue failures", () => {
   });
 
   it("is a timeout when the connection fails", async () => {
-    const result = await makeTransport(stubUnreachableFetch()).readIssue(
+    const { fetch } = stubSiteFetch(stubUnreachableFetch());
+    const result = await makeTransport(fetch).readIssue(
       makeSession(),
       "ACME-2",
     );
@@ -399,7 +394,8 @@ describe("readIssue failures", () => {
 
   it("is a timeout naming the budget when the session aborts", async () => {
     const controller = new AbortController();
-    const transport = makeTransport(stubStalledFetch(), 250);
+    const { fetch } = stubSiteFetch(stubStalledFetch());
+    const transport = makeTransport(fetch, 250);
 
     const pending = transport.readIssue(
       makeSession(controller.signal),
@@ -459,4 +455,192 @@ describe("readIssue on a cloud id that names no site", () => {
       expect(!result.ok && result.error.unknownCloudId === true).toBe(false);
     },
   );
+});
+
+const NO_SITE_DETAIL = "no jira site answers at the configured host";
+const NO_LOOKUP_ANSWER_DETAIL = "jira site lookup had no usable answer";
+const ISSUE_ANSWER: RecordedAnswer = {
+  status: 200,
+  body: readFixture("issue-every-node.json"),
+};
+const GATEWAY_404_ROWS: readonly [string, RecordedAnswer][] = [
+  [
+    "its failure category",
+    {
+      status: 404,
+      body: readFixture("error-404-wrong-cloud-id.json"),
+      failureCategory: "FAILURE_CLIENT_TCS",
+    },
+  ],
+  [
+    "its body",
+    { status: 404, body: readFixture("error-404-wrong-cloud-id.json") },
+  ],
+];
+
+function readUrls(calls: readonly { url: string }[]): string[] {
+  return calls.map((call) => call.url);
+}
+
+describe("readIssue cloud id lookup", () => {
+  it("looks up the cloud id without a credential, then reads", async () => {
+    const { result, calls } = await readIssueWith(ISSUE_ANSWER);
+
+    expect(result.ok).toBe(true);
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL, ISSUE_URL]);
+    expect(calls[0]?.headers).toEqual({ Accept: "application/json" });
+  });
+
+  it("does not look up again on a second read", async () => {
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER);
+    const transport = makeTransport(fetch);
+
+    await transport.readIssue(makeSession(), "ACME-2");
+    const second = await transport.readIssue(makeSession(), "ACME-2");
+
+    expect(second.ok).toBe(true);
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL, ISSUE_URL, ISSUE_URL]);
+  });
+
+  it("asks again after a failed lookup", async () => {
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER, {
+      status: 503,
+      body: "",
+    });
+    const transport = makeTransport(fetch);
+
+    await transport.readIssue(makeSession(), "ACME-2");
+    await transport.readIssue(makeSession(), "ACME-2");
+
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL, TENANT_INFO_URL]);
+  });
+
+  it.each<[string, RecordedAnswer, string]>([
+    ["a 404", { status: 404, body: "" }, NO_SITE_DETAIL],
+    ["a server error", { status: 503, body: "" }, NO_LOOKUP_ANSWER_DETAIL],
+    ["no cloud id", { status: 200, body: "{}" }, NO_LOOKUP_ANSWER_DETAIL],
+  ])(
+    "fails as a timeout when the lookup answers %s",
+    async (_name, tenantInfo, detail) => {
+      const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER, tenantInfo);
+
+      const result = await makeTransport(fetch).readIssue(
+        makeSession(),
+        "ACME-2",
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        error: { reason: TicketUnreadReasons.TIMEOUT, detail },
+      });
+      expect(readUrls(calls)).toEqual([TENANT_INFO_URL]);
+    },
+  );
+
+  it("fails as a timeout when the lookup cannot connect", async () => {
+    const { fetch } = stubSiteFetch(ISSUE_ANSWER, stubUnreachableFetch());
+
+    const result = await makeTransport(fetch).readIssue(
+      makeSession(),
+      "ACME-2",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        reason: TicketUnreadReasons.TIMEOUT,
+        detail: NO_LOOKUP_ANSWER_DETAIL,
+      },
+    });
+  });
+
+  it("refuses a host that is not a site without asking", async () => {
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER);
+    const session = makeSession(undefined, "localhost");
+
+    const result = await makeTransport(fetch).readIssue(session, "ACME-2");
+
+    expect(result).toEqual({
+      ok: false,
+      error: { reason: TicketUnreadReasons.TIMEOUT, detail: NO_SITE_DETAIL },
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("fails as a timeout when the session aborts during the lookup", async () => {
+    const controller = new AbortController();
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER, stubStalledFetch());
+
+    const pending = makeTransport(fetch).readIssue(
+      makeSession(controller.signal),
+      "ACME-2",
+    );
+    controller.abort();
+
+    expect(await pending).toEqual({
+      ok: false,
+      error: {
+        reason: TicketUnreadReasons.TIMEOUT,
+        detail: NO_LOOKUP_ANSWER_DETAIL,
+      },
+    });
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL]);
+  });
+
+  it.each(GATEWAY_404_ROWS)(
+    "looks up again after a gateway 404 told by %s",
+    async (_name, answer) => {
+      const { fetch, calls } = stubSiteFetch(answer);
+      const transport = makeTransport(fetch);
+
+      const first = await transport.readIssue(makeSession(), "ACME-2");
+      await transport.readIssue(makeSession(), "ACME-2");
+
+      expect(!first.ok && first.error.unknownCloudId === true).toBe(true);
+      expect(readUrls(calls)).toEqual([
+        TENANT_INFO_URL,
+        ISSUE_URL,
+        TENANT_INFO_URL,
+        ISSUE_URL,
+      ]);
+    },
+  );
+
+  it("keeps the cloud id after an issue's own 404", async () => {
+    const { fetch, calls } = stubSiteFetch({
+      status: 404,
+      body: readFixture("error-404-hidden-or-missing.json"),
+    });
+    const transport = makeTransport(fetch);
+
+    await transport.readIssue(makeSession(), "ACME-2");
+    await transport.readIssue(makeSession(), "ACME-2");
+
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL, ISSUE_URL, ISSUE_URL]);
+  });
+
+  it("reads without a lookup after readCloudId found the site", async () => {
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER);
+    const transport = makeTransport(fetch);
+
+    await transport.readCloudId(SITE, new AbortController().signal);
+    const result = await transport.readIssue(makeSession(), "ACME-2");
+
+    expect(result.ok).toBe(true);
+    expect(readUrls(calls)).toEqual([TENANT_INFO_URL, ISSUE_URL]);
+  });
+
+  it("does not share a cloud id between two transports", async () => {
+    const { fetch, calls } = stubSiteFetch(ISSUE_ANSWER);
+
+    await makeTransport(fetch).readIssue(makeSession(), "ACME-2");
+    await makeTransport(fetch).readIssue(makeSession(), "ACME-2");
+
+    expect(readUrls(calls)).toEqual([
+      TENANT_INFO_URL,
+      ISSUE_URL,
+      TENANT_INFO_URL,
+      ISSUE_URL,
+    ]);
+  });
 });

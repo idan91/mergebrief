@@ -39,18 +39,44 @@ function listProjectKeys(trackers: readonly TrackerConfig[]): string[] {
   );
 }
 
-function buildIssueUrl(site: JiraSite, key: string): string {
-  return `https://${site.host}/browse/${key}`;
+/** A whole issue key, its project key upper-cased as the config lists project keys. */
+export interface TicketKeyParts {
+  readonly projectKey: string;
+  /** `PROJECT-N`, the project key upper-case. */
+  readonly key: `${string}-${string}`;
 }
 
-/** A key's reference; its URL is built whenever the site is known, so a key and a link to it are one ticket. */
+/** The parts of `text` when all of it is one issue key. */
+export function parseTicketKey(text: string): TicketKeyParts | undefined {
+  const match = TICKET_KEY.exec(text);
+  if (match === null) {
+    return undefined;
+  }
+  const projectKey = (match[1] ?? "").toUpperCase();
+  return { projectKey, key: `${projectKey}-${match[2] ?? ""}` };
+}
+
+export function buildIssueUrl(
+  host: string,
+  key: string,
+): `https://${string}/browse/${string}` {
+  return `https://${host}/browse/${key}`;
+}
+
+/**
+ * A key's reference. Its URL is built whenever the site is known, so a key
+ * and a link to it are one ticket. It carries the listed project keys, which
+ * the read checks the key Jira answers under against.
+ */
 function buildHit(
   index: number,
   key: string,
   site: JiraSite | undefined,
+  projectKeys: readonly string[],
 ): ReferenceHit {
-  const url = site === undefined ? "" : buildIssueUrl(site, key);
-  return { index, reference: { tracker: TicketTrackers.JIRA, key, url } };
+  const url = site === undefined ? "" : buildIssueUrl(site.host, key);
+  const reference = { tracker: TicketTrackers.JIRA, key, url, projectKeys };
+  return { index, reference };
 }
 
 /**
@@ -83,15 +109,12 @@ function parseListedTicketKey(
   const inPath = segments.findLast((segment) => TICKET_KEY.test(segment));
   const named = inPath ?? url.searchParams.get(SELECTED_ISSUE) ?? "";
 
-  const match = TICKET_KEY.exec(named);
-  if (match === null) {
+  const issue = parseTicketKey(named);
+  if (issue === undefined) {
     return undefined;
   }
-  const projectKey = (match[1] ?? "").toUpperCase();
-  if (!projectKeys.includes(projectKey)) {
-    return undefined;
-  }
-  return `${projectKey}-${match[2] ?? ""}`;
+  const isListedIssue = projectKeys.includes(issue.projectKey);
+  return isListedIssue ? issue.key : undefined;
 }
 
 function collectTicketLinks(
@@ -109,7 +132,7 @@ function collectTicketLinks(
     }
     const key = parseListedTicketKey(match[0], projectKeys);
     if (key !== undefined) {
-      hits.push(buildHit(match.index, key, site));
+      hits.push(buildHit(match.index, key, site, projectKeys));
     }
   }
   return hits;
@@ -132,7 +155,7 @@ export function collectJiraReferences(
   }
   const site = input.jiraSite;
   const keys = collectTicketKeys(text, projectKeys).map(({ index, key }) =>
-    buildHit(index, key, site),
+    buildHit(index, key, site, projectKeys),
   );
 
   const readsLinks =
@@ -165,5 +188,5 @@ export function canonicalizeJiraUrl(
   }
   const projectKeys = listProjectKeys(input.trackers);
   const key = parseListedTicketKey(siteLink[0], projectKeys);
-  return key === undefined ? undefined : buildIssueUrl(site, key);
+  return key === undefined ? undefined : buildIssueUrl(site.host, key);
 }
