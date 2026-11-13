@@ -164,14 +164,26 @@ generator:
 #     # NAME of the env var holding the internal-integration token.
 #     # Default: NOTION_TOKEN
 #     tokenEnv: NOTION_TOKEN
+#   - type: jira
+#     # The Jira Cloud site host alone; one deployment reads one site.
+#     site: acme.atlassian.net
+#     # NAMEs of the env vars holding the token owner's account email and the
+#     # API token (scoped to read:jira-work). Defaults: JIRA_EMAIL, JIRA_API_TOKEN
+#     emailEnv: JIRA_EMAIL
+#     tokenEnv: JIRA_API_TOKEN
+#     # Optional: up to 4 custom domains whose issue links count as the site's.
+#     # linkHosts:
+#     #   - jira.acme.example
 
 # --- Trackers (the boards every repo reads tickets from) --------------------
 # One entry per board, up to 8, any mix of kinds; a key like ACME-12 resolves
-# on the board whose keyPrefix it carries. A repo whose
-# `.mergebrief/settings.yaml` names trackers replaces this list for that repo;
-# a repo that names none reads these. A Notion board here needs the notion
-# contextSources entry above, or boot refuses. At most one github entry; a
-# prefix may appear once. Omit the block and only GitHub issues (#N) are read.
+# on the board whose keyPrefix it carries, or in Jira when the jira entry
+# lists ACME. A repo whose `.mergebrief/settings.yaml` names trackers replaces
+# this list for that repo; a repo that names none reads these. A Notion board
+# or Jira entry here needs the notion or jira contextSources entry above, or
+# boot refuses. At most one github entry and one jira entry; a prefix or
+# project key may appear once. Omit the block and only GitHub issues (#N) are
+# read.
 # trackers:
 #   - kind: notion
 #     keyPrefix: ACME
@@ -179,6 +191,8 @@ generator:
 #   - kind: notion
 #     keyPrefix: DS
 #     databaseId: 4935e9400eeb80b0ad46000b1ce17b37
+#   - kind: jira
+#     projectKeys: [WEB, OPS]   # 1 to 50 project keys on the jira site
 #   - kind: github
 #     issuesRepo: owner/name   # optional: where a bare #N resolves
 #     # Instance only: true reads issues in every repo the installation

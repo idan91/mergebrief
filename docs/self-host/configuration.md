@@ -111,6 +111,8 @@ it.
 | `REVISION_NARRATIVE_ENABLED` | worker | `true` | no | Boolean. `false` skips the revision narrative against the previous brief. Empty takes the default. |
 | `HUGE_SPAN_RATIO` | worker | `0.65` | no | A number above 0 and at most 1: the share of a pull request's changed lines at which an incremental span falls back to the full brief. Empty takes the default. |
 | `NOTION_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `notion` context source is configured | The Notion integration token. Unset or empty refuses boot while the config lists a `notion` entry ([trackers.md](./trackers.md#notion)). |
+| `JIRA_EMAIL` (or the name `contextSources[].emailEnv` gives) | worker | none | when a `jira` context source is configured | The email of the Atlassian account that owns the Jira API token. Unset or empty refuses boot while the config lists a `jira` entry ([trackers.md](./trackers.md#jira)). |
+| `JIRA_API_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `jira` context source is configured | The Jira API token, scoped to `read:jira-work`. Same rules. |
 
 ### Attachments and the update check
 
@@ -288,8 +290,8 @@ the variable that holds it.
 | `spend` | worker; api reads it too | `maxGenerationsPerDay: 300` | The daily generation cap. |
 | `operators` | api; worker validates | nobody, so nobody can sign in | The GitHub user ids of the instance's Operators. |
 | `allowed` | api; worker validates | Operators alone | Who else may sign in and start a brief. |
-| `contextSources` | worker | built-in sources only | Ticket sources that need a credential. |
-| `trackers` | worker | none: GitHub issues only | The boards every repository reads tickets from. |
+| `contextSources` | worker | built-in sources only | Ticket trackers that need a deployment credential. |
+| `trackers` | worker | none: GitHub issues only | The boards and Jira projects every repository reads tickets from. |
 | `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
@@ -337,12 +339,16 @@ The harness providers are refused in the shipped image
 | Key | Default | Accepts |
 | --- | --- | --- |
 | `contextSources` | empty list | A list with at most one entry per `type`. URLs and GitHub issues are built in and need no entry. |
-| `contextSources[].type` | | `notion`. |
-| `contextSources[].tokenEnv` | `NOTION_TOKEN` | The NAME of the variable holding the Notion integration token. |
-| `trackers` | none | A list of 1 to 8 entries, at most one `github` entry, and no `keyPrefix` on two boards (compared case-insensitively). A repository's own `trackers:` replaces this list ([trackers.md](./trackers.md)). |
-| `trackers[].kind` | | `notion` or `github`. A `notion` entry refuses boot unless `contextSources` carries a `notion` entry whose token is set. |
+| `contextSources[].type` | | `notion` or `jira`. |
+| `contextSources[].tokenEnv` | `NOTION_TOKEN`; `JIRA_API_TOKEN` for `jira` | The NAME of the variable holding the Notion integration token, or the Jira API token. |
+| `contextSources[].emailEnv` | `JIRA_EMAIL` | `jira` only: the NAME of the variable holding the email of the account that owns the token. |
+| `contextSources[].site` | | `jira` only, required: the Jira Cloud site host alone, one label before `.atlassian.net` (`acme.atlassian.net`), with no scheme, path or port. One deployment reads one site. |
+| `contextSources[].linkHosts` | none | `jira` only, optional: up to 4 bare host names, such as a custom domain, whose issue links count as the site's. An `atlassian.net` host or a host listed twice refuses boot. |
+| `trackers` | none | A list of 1 to 8 entries, at most one `github` entry and one `jira` entry, and no prefix on two trackers: a `keyPrefix` or Jira project key appears once (compared case-insensitively). A repository's own `trackers:` replaces this list ([trackers.md](./trackers.md)). |
+| `trackers[].kind` | | `notion`, `jira` or `github`. A `notion` or `jira` entry refuses boot unless `contextSources` carries an entry of the same type whose variables are set. |
 | `trackers[].keyPrefix` | | `notion` only, required: a letter followed by up to 19 letters, digits or underscores. |
 | `trackers[].databaseId` | | `notion` only, required: the database or data source id, 32 hex characters with or without dashes. |
+| `trackers[].projectKeys` | | `jira` only, required: 1 to 50 Jira project keys, each a letter followed by letters or digits, 2 to 255 characters in all ([trackers.md](./trackers.md#jira)). |
 | `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. `.` and `..` are refused as either part. |
 | `trackers[].siblingRepos` | `false` | `github` only, instance config only: `true` lets issue references resolve in every repository the installation covers, not only the pull request's repository and its `issuesRepo` ([trackers.md](./trackers.md#credential-and-reach)). Anything but `true` or `false` refuses boot. |
 

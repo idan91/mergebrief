@@ -10,9 +10,10 @@ unread, never guessed.
 Two halves of configuration:
 
 - **Instance side**: `mergebrief.config.yaml`'s `trackers:` list names
-  the boards every repo on the instance reads by default, and its
-  `contextSources:` block lists the trackers that need a deployment
-  credential, by env-var NAME. See [generators.md](generators.md).
+  the boards and Jira projects every repo on the instance reads by default,
+  and its `contextSources:` block lists the trackers that need a deployment
+  credential (Notion and Jira), by env-var NAME. See
+  [generators.md](generators.md).
 - **Repo side**: `.mergebrief/settings.yaml`'s `trackers:` list (or
   `tracker:` for one) replaces the instance list for that repo. Non-secret,
   committed with the repo. See [repo-config.md](repo-config.md).
@@ -28,7 +29,8 @@ Two halves of configuration:
   the deployment must be able to read them. Any other tracker the deployment
   can read is read too, so a Notion repo whose PR says only `Fixes #12`
   still reads the issue. A reference to a tracker the deployment cannot
-  read stays ordinary text.
+  read stays ordinary text. A Jira key or link counts only in a repo whose
+  list names its project.
 - **One fetch per brief.** Only the primary is fetched; other references in
   the PR stay ordinary text. The primary's URL is dropped from the generic
   link chaser so it is never fetched twice.
@@ -39,9 +41,10 @@ Two halves of configuration:
   HTML comments, link reference definitions, HTML tags and their attributes,
   images, link titles, reference labels, fence info strings and table cells
   past the header's columns. Where telling hidden text from shown text would
-  take a full Markdown parse, the worker skips more, never less. A GitHub or
-  Notion URL counts only where a link starts: at the start of the text, after
-  whitespace or `<`, or as a Markdown link target, never inside another URL.
+  take a full Markdown parse, the worker skips more, never less. A GitHub,
+  Notion or Jira URL counts only where a link starts: at the start of the
+  text, after whitespace or `<`, or as a Markdown link target, never inside
+  another URL.
   A `PREFIX-N` key inside a link is part of the link, not a reference; the
   same key as a link's visible text still counts.
 - **Text, capped.** The ticket body is injected as untrusted text under the
@@ -257,17 +260,170 @@ rate limit (about three requests a second per integration) is never retried
 inside a generation: a `429` is reported and the brief proceeds without the
 ticket.
 
+## Jira
+
+Reading a Jira ticket needs an Atlassian account's email and an API token.
+The token is yours and never leaves your deployment: MergeBrief has no hosted
+service, the worker sends the token only to Atlassian, and MergeBrief never
+writes to Jira. Only Jira Cloud is read; Data Center and Server are not.
+
+The example below follows one company. Dana's tickets live on
+`acme.atlassian.net`. Everyone can open project `ACME`; only HR can open
+`HR`. Dana's repository lists the projects `ACME` and `WEB`.
+
+### 1. Choose the account that owns the token
+
+Where your organization can create one, use a service account: in Atlassian
+Administration, **Directory**, then **Service accounts**. Give it the Jira
+role and access to only the projects the briefs should quote. Otherwise use a
+person's account that can browse those projects.
+
+MergeBrief was checked with a person's token. Atlassian documents a service
+account's token as working the same way; that was not tested here.
+
+### 2. Create an API token with scopes
+
+1. Open <https://id.atlassian.com/manage-profile/security/api-tokens> as that
+   account and choose **Create API token with scopes**.
+2. Name the token and set its expiry, 365 days at most.
+3. Pick **Jira**, then the scope `read:jira-work` and nothing else.
+4. Copy the token. Atlassian does not show it again.
+
+For a service account, open the account in Atlassian Administration, choose
+**Create credentials**, then **API token**, and pick the same scope.
+
+A classic API token, one with no scopes, also works, but it can do
+everything its account can, writes included. The worker warns at boot when
+it sees one.
+
+### 3. Give the worker the email and the token
+
+Put the account's email in the worker's environment as `JIRA_EMAIL` and the
+token as `JIRA_API_TOKEN`, or under names you choose and give in the next
+step. The Instance config names the variables and never holds a value.
+
+### 4. Name the site in the Instance config
+
+```yaml
+# mergebrief.config.yaml
+contextSources:
+  - type: jira
+    site: acme.atlassian.net # the Jira Cloud host alone: no scheme, path or port
+    emailEnv: JIRA_EMAIL # NAME of the env var; default JIRA_EMAIL
+    tokenEnv: JIRA_API_TOKEN # NAME of the env var; default JIRA_API_TOKEN
+    linkHosts: # optional: custom domains whose issue links count too
+      - jira.acme.example
+```
+
+`site` is one `.atlassian.net` host. One deployment reads one Jira site: the
+list takes one `jira` entry. `linkHosts` takes at most 4 bare host names, none
+of them an `atlassian.net` host. A listed `jira` entry whose email or token
+variable is unset refuses boot, and so does a `site` where no Jira site
+answers.
+
+### 5. Point the repository at its projects
+
+```yaml
+# .mergebrief/settings.yaml
+version: 1
+tracker:
+  kind: jira
+  projectKeys: [ACME, WEB] # 1 to 50 project keys
+```
+
+A repo with other trackers lists this entry under `trackers:` beside them,
+one `jira` entry per list; a project key may not also be another tracker's
+prefix on the same list. Projects every repository shares go in the Instance
+config's `trackers:` instead; a `jira` entry there refuses boot without the
+`contextSources:` entry. See [repo-config.md](repo-config.md).
+
+### What the token can reach
+
+The token reaches every project its account can browse on that one site,
+whatever its scope: the scope limits what the token may do, not which
+projects it sees. Choose an account that sees only the projects the briefs
+should quote. If Dana's token belongs to someone in HR, a repository that
+lists `HR` can make its briefs quote HR tickets.
+
+The token expires within 365 days at most. Replace it before then and
+restart the worker.
+
+### Which issues a PR can make the brief read
+
+Only issues of a listed project:
+
+- **By key**: `ACME-12` in the description, title or branch name. Keys
+  match case-insensitively.
+- **By link**: in the description or title, on the site or a `linkHosts`
+  host. The last path segment that is an issue key decides, as in
+  `https://acme.atlassian.net/browse/ACME-12`. A link with no key in its
+  path counts by its `selectedIssue` query value, which a board or backlog
+  link carries.
+
+In Dana's repository `HR-7` and a link to it stay ordinary text, because
+`HR` is not listed. A key inside a link is part of the link. An issue moved
+to another listed project is quoted under its new key; moved to a project
+the repository does not list, it is reported `not-found`.
+
+Only installation jobs read Jira. A brief started from a pasted PR URL runs
+on the viewer's own GitHub grant and is never offered the deployment's
+token. A Jira key there is reported `unsupported`, and a Jira link stays
+ordinary text.
+
+### What the model sees
+
+One issue, as text: a header line (`summary · status · type · priority ·
+assignee · labels · key`, whatever the issue has), a `Parent: KEY summary`
+line when the issue's parent sits in a listed project, then the description.
+The description is one line per block: lists and nested content indented,
+numbered lists keep their numbers, code blocks keep their fences, a table is
+one row per line, an image or file becomes an `[attachment]` marker, and a
+mention becomes the name Jira shows for it. The parent line and the
+description together are capped at 20,000 characters.
+
+Not read: comments, the contents of attachments, linked issues, subtasks,
+sprints and custom fields. Acceptance criteria kept in a custom field are
+not seen.
+
+### What the worker asks Atlassian
+
+- **Per brief**: one request to `api.atlassian.com` for the primary ticket,
+  sent with the email and token.
+- **Per worker process**: one lookup of the site's cloud id at
+  `https://<site>/_edge/tenant_info`, sent with no credential. A lookup that
+  fails is tried again on the next read, and so is a cloud id Atlassian no
+  longer knows.
+- **Budget**: the lookup and the read share a 10-second budget. No redirect
+  is followed. A `429` is reported and never retried inside a generation.
+- **At boot**: a `site` where no Jira site answers refuses boot; a site that
+  cannot be reached lets boot go on. The worker then asks once what the
+  token can do, and logs `jira.token.check` when Atlassian refuses the
+  token or shows it can do more than read
+  ([observability.md](observability.md#event-vocabulary)). No line is not
+  proof: a check that gets no clear answer logs nothing, and so does a
+  token whose scopes leave out `read:jira-work`, whose reads then report
+  `no-credential`.
+
+### Local runs
+
+`categorize` and `delta` read `JIRA_EMAIL` and `JIRA_API_TOKEN` (or the names
+the entry gives) from `tools/categorizer/.env`, and the site from the file
+`--config` names; see [cli.md](cli.md).
+
 ## When the ticket is unread
 
 The card and the CLI carry one of five codes. What each means for you:
 
 | Code | What happened | What to do |
 | --- | --- | --- |
-| `not-found` | The tracker answered "no such page". For Notion this also covers a board that is not shared with the integration. | Check the key or URL; share the board (and any related database) with the integration. |
-| `no-credential` | The tracker refused the token (`401`), or the integration lacks the capability (`403`). | Rotate or fix the token in the worker's env; check the integration's **Read content** capability. |
-| `timeout` | No usable answer within the 10-second budget, including network errors and `5xx` answers. | Nothing to configure; a later revision reads again. Sustained timeouts point at connectivity from the worker. |
-| `rate-limited` | The tracker answered `429`. | Nothing to configure; it clears on the next revision. If it persists, the integration is shared with something else that spends its quota. |
-| `unsupported` | No read for that tracker on this deployment: a Notion key or URL without a `contextSources:` entry. | Add the `notion` entry and its token, or leave it: the brief still generates. |
+| `not-found` | The tracker answered "no such page". For Notion this also covers a board that is not shared with the integration. For Jira it covers an issue that does not exist, one the account cannot see and an unknown project, which Jira answers alike, and an issue moved to a project the repository does not list. | Check the key or URL; share the board (and any related database) with the integration. For Jira, check the key, the account's access to the project, and the `projectKeys` list. |
+| `no-credential` | The tracker refused the token (`401`), or the integration lacks the capability (`403`). For Jira, Atlassian refused the email and token (`401` or `403`), including an expired or revoked token and a token without the `read:jira-work` scope. | Rotate or fix the token in the worker's env; check the integration's **Read content** capability. For Jira, replace or fix the token, then restart the worker. |
+| `timeout` | No usable answer within the 10-second budget, including network errors and `5xx` answers. For Jira, also a site whose cloud id could not be looked up. | Nothing to configure; a later revision reads again. Sustained timeouts point at connectivity from the worker. |
+| `rate-limited` | The tracker answered `429`. | Nothing to configure; it clears on the next revision. If it persists, the integration or Jira token is shared with something else that spends its quota. |
+| `unsupported` | No read for that tracker on this deployment: a Notion key or URL, or a Jira key, without a `contextSources:` entry of its type. For Jira, also a key in any brief started from a pasted PR URL. | Add the `notion` or `jira` entry and its credential, or leave it: the brief still generates. |
 
 None of these fail a generation. The brief is produced from the diff; only
 the alignment read is absent.
+
+Atlassian documents a CAPTCHA challenge on an account after repeated failed
+logins. How that shows in a Jira read was not tested with MergeBrief.

@@ -284,8 +284,9 @@ The `categorize` and `delta` dev CLIs (`tools/categorizer`) resolve the PR's
 primary ticket from the working tree's `.mergebrief/settings.yaml`
 (`trackers:` list, see [repo-config.md](repo-config.md)). Tracker reads use
 the same env as the worker (`gh auth` for GitHub Issues, `NOTION_TOKEN` for
-Notion); `--context <file>` supplies the ticket text directly when neither
-is available. Details in `tools/categorizer/README.md`.
+Notion, `JIRA_EMAIL` and `JIRA_API_TOKEN` for Jira, with the Jira site from
+the file `--config` names); `--context <file>` supplies the ticket text
+directly when none is available. Details in `tools/categorizer/README.md`.
 
 ## Attaching an image to a draft
 

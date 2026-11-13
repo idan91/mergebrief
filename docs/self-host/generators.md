@@ -68,6 +68,10 @@ generator:
 # contextSources:
 #   - type: notion
 #     tokenEnv: NOTION_TOKEN
+#   - type: jira
+#     site: acme.atlassian.net
+#     emailEnv: JIRA_EMAIL
+#     tokenEnv: JIRA_API_TOKEN
 
 # trackers: the FIFTH root block: the boards every repo on this instance
 # reads tickets from, one entry per board. A repo whose own
@@ -78,6 +82,8 @@ generator:
 #   - kind: notion
 #     keyPrefix: ACME
 #     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
+#   - kind: jira
+#     projectKeys: [WEB, OPS]
 #   - kind: github
 
 # operators: the SIXTH root block: the GitHub user ids of the people who

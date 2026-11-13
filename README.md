@@ -42,9 +42,9 @@ left after that: the part of review a person still does, and answers for.
   as `touches-auth` or `removes-validation` that say where to look closer, and the brief gives
   a **Reading order** across its Change-groups, foundations first.
 - **Does it do what it says.** The **Intent check** compares the PR title, its description
-  and the linked GitHub issue or Notion ticket, when there is one, with what the diff does:
-  what was stated but is missing, what was done but never stated. **Ticket alignment** says
-  whether the diff serves the ticket's goal.
+  and the linked GitHub issue, Notion ticket or Jira issue, when there is one, with what the
+  diff does: what was stated but is missing, what was done but never stated. **Ticket
+  alignment** says whether the diff serves the ticket's goal.
 - **Re-approving after new commits.** Your **Checkpoint** is the commit you last submitted a
   review on. The **Delta Brief** shows what changed since then, and each risk you addressed or
   dismissed comes back with its **Carry-over status**: settled if its code is untouched,
@@ -69,7 +69,7 @@ recognizable across every PR you ever review.
   configure. The update check is an hourly fetch of a public release file from GitHub that
   carries nothing about your instance; `MERGEBRIEF_UPDATE_CHECK=false` turns it off. For
   context, the worker reads up to five public links from a PR's description, and a tracker
-  such as Notion when you configure one.
+  such as Notion or Jira when you configure one.
 - **Hackable.** The taxonomy is documented in plain markdown: read it, extend it, propose
   to it. An ESLint-rules-style commons, not a black box.
 - **Facts, never verdicts.** Risk Surface attributes are factual observations a reviewer can

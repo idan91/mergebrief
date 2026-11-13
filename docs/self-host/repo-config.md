@@ -64,6 +64,8 @@ trackers:
   - kind: notion
     keyPrefix: DS           # a second board: its own prefix, its own database
     databaseId: 0000000000004000a000000000000000
+  - kind: jira
+    projectKeys: [WEB, OPS] # jira: required; 1 to 50 project keys
   - kind: github
     issuesRepo: owner/name  # optional: where a bare #N resolves
 ```
@@ -92,14 +94,18 @@ tracker:
 ```
 
 The brief's Intent check names one **primary ticket** per PR, found in the
-description, title or branch name, and reads it through a tracker
-provider (see [trackers.md](trackers.md)). This block tells it which
+description, title or branch name, and reads it from its ticket
+tracker (see [trackers.md](trackers.md)). This block tells it which
 trackers the repo uses:
 
-- `PREFIX-N` keys match **only** a configured `keyPrefix`
-  (case-insensitive, word-bounded), each on the board its entry names. With
-  no entry, keys never match. A prefix may appear once; at most one
-  `github` entry; at most 8 entries.
+- `PREFIX-N` keys match **only** a configured `keyPrefix` or Jira project
+  key (case-insensitive, word-bounded), each on the board or Jira site its
+  entry names. With no entry, keys never match. A prefix or project key may
+  appear once; at most one `github` entry and one `jira` entry; at most 8
+  entries. A `jira` entry reads only where the instance config names the
+  site ([trackers.md](trackers.md#jira)).
+- Jira issue links match in the description and title when they point at a
+  listed project on the instance's Jira site or one of its `linkHosts`.
 - GitHub issue URLs match wherever the deployment can read GitHub. The
   short forms, `#N`, `owner/repo#N` and a branch starting `N-` (or
   `type/N-slug`), match only when no tracker is listed or a `github` entry
