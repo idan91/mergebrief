@@ -15,7 +15,7 @@ import { buildMentionSource } from "@web/features/conversation/utils";
 import type { Mutable } from "types/utils";
 import {
   buildReplyRecordingPlan,
-  conversationGroupIds,
+  countGroupThreads,
   disabledComparisonQuery,
 } from "../utils";
 import type { ConversationState, UseConversationInput } from "./types";
@@ -56,7 +56,10 @@ export function useConversation({
     conversationData,
     queryClient,
   );
-  const groupIds = conversationGroupIds(rows.conversationByChunk, model.groups);
+  const threadCounts = countGroupThreads(
+    rows.conversationByChunk,
+    model.groups,
+  );
   const jumpToChunkFromConversation = useConversationScroll({
     scrollToTarget: session.scrollToTarget,
     setActiveChunk: session.setActiveChunk,
@@ -70,7 +73,7 @@ export function useConversation({
       lineThreadsByFile: rows.lineThreadsByFile,
       conversationFilterFacets: rows.conversationFilterFacets,
       conversationComposer: composer.conversationComposer,
-      conversationGroupIds: groupIds,
+      groupThreadCounts: threadCounts,
       invalidateConversation: composer.invalidateConversation,
       jumpToChunkFromConversation,
       jumpToConversation: section.jumpToConversation,

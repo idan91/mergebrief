@@ -6,8 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   computeCardMinHeight,
   computeConcernShares,
+  computeStackOffset,
   labelConcernShares,
   writeCardMinHeight,
+  writeStackOffset,
 } from "./utils";
 
 const rollup: ConcernRollup[] = [
@@ -106,26 +108,24 @@ describe("computeCardMinHeight", () => {
     ).toBe(300);
   });
 
-  it("leaves the card natural before the stack was measured closed", () => {
+  it("adds the row gap and the closed stack to the summary", () => {
     expect(
       computeCardMinHeight({
         summaryHeight: 300,
         rowGap: 24,
-        collapsedStackHeight: undefined,
+        collapsedStackHeight: 104,
       }),
-    ).toBeUndefined();
+    ).toBe(428);
   });
 });
 
 describe("writeCardMinHeight", () => {
-  it("writes the height and clears it when the card goes natural", () => {
+  it("writes the height in pixels", () => {
     const grid = document.createElement("div");
 
     writeCardMinHeight(grid, 428);
-    expect(grid.style.getPropertyValue("--masthead-card-min")).toBe("428px");
 
-    writeCardMinHeight(grid, undefined);
-    expect(grid.style.getPropertyValue("--masthead-card-min")).toBe("");
+    expect(grid.style.getPropertyValue("--masthead-card-min")).toBe("428px");
   });
 
   it("skips the write when the height did not change", () => {
@@ -135,6 +135,40 @@ describe("writeCardMinHeight", () => {
 
     writeCardMinHeight(grid, 428);
 
+    expect(setProperty).not.toHaveBeenCalled();
+  });
+});
+
+describe("computeStackOffset", () => {
+  const resting = { summaryHeight: 60, rowGap: 24, collapsedStackHeight: 244 };
+
+  it("is what the card runs past the summary, gap and closed stack", () => {
+    expect(computeStackOffset({ ...resting, cardHeight: 410 })).toBe(82);
+  });
+
+  it("is zero for a card no taller than the resting column", () => {
+    expect(computeStackOffset({ ...resting, cardHeight: 328 })).toBe(0);
+    expect(computeStackOffset({ ...resting, cardHeight: 0 })).toBe(0);
+  });
+
+  it("is zero for an empty stack", () => {
+    const tallCard = { summaryHeight: 60, rowGap: 24, cardHeight: 410 };
+
+    expect(computeStackOffset({ ...tallCard, collapsedStackHeight: 0 })).toBe(
+      0,
+    );
+  });
+});
+
+describe("writeStackOffset", () => {
+  it("writes the offset in pixels and skips an unchanged one", () => {
+    const grid = document.createElement("div");
+
+    writeStackOffset(grid, 82);
+    expect(grid.style.getPropertyValue("--masthead-stack-offset")).toBe("82px");
+
+    const setProperty = vi.spyOn(grid.style, "setProperty");
+    writeStackOffset(grid, 82);
     expect(setProperty).not.toHaveBeenCalled();
   });
 });

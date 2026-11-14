@@ -7,6 +7,7 @@ import ArrowUpGlyph from "../icons/arrow-up.svg?react";
 import ArrowUpRightGlyph from "../icons/arrow-up-right.svg?react";
 import ArrowsClockwiseGlyph from "../icons/arrows-clockwise.svg?react";
 import CaretDownGlyph from "../icons/caret-down.svg?react";
+import ChatFillGlyph from "../icons/chat-fill.svg?react";
 import ChatTextGlyph from "../icons/chat-text.svg?react";
 import CheckGlyph from "../icons/check.svg?react";
 import CheckCircleGlyph from "../icons/check-circle.svg?react";
@@ -66,6 +67,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.ARROW_ELBOW_DOWN_RIGHT]: ArrowElbowDownRightGlyph,
   [IconNames.ARROWS_CLOCKWISE]: ArrowsClockwiseGlyph,
   [IconNames.CARET_DOWN]: CaretDownGlyph,
+  [IconNames.CHAT_FILL]: ChatFillGlyph,
   [IconNames.CHAT_TEXT]: ChatTextGlyph,
   [IconNames.CHECK]: CheckGlyph,
   [IconNames.CHECK_CIRCLE]: CheckCircleGlyph,

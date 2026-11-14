@@ -17,6 +17,23 @@ setI18n(appI18n);
 // one test would stay mounted into the next.
 afterEach(cleanup);
 
+/** Expires every cookie the document holds; a no-op outside jsdom. */
+export function clearCookies(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  for (const pair of document.cookie.split(";")) {
+    const name = pair.split("=")[0]?.trim() ?? "";
+    if (name !== "") {
+      document.cookie = `${name}=; Path=/; Max-Age=0`;
+    }
+  }
+}
+
+// A preference cookie outlives its test: a sidebar one test left open would
+// render open in the next.
+afterEach(clearCookies);
+
 // Vitest global setup. jsdom does not implement ResizeObserver, which
 // Header.tsx uses to track its height; without this stub the brief screen
 // throws into its error boundary under test ("Brief failed to load").

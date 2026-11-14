@@ -11,7 +11,7 @@ import styles from "./ThisPr.module.scss";
 export interface ThisPrProps {
   groups: GroupView[];
   activeGroupId: string | null;
-  conversationGroupIds?: ReadonlySet<string> | undefined;
+  groupThreadCounts?: ReadonlyMap<string, number> | undefined;
   jumpToGroup: JumpFromSidebar;
   /** Lists each group's chunks under it, for the Sidebar sheet; absent keeps the groups alone. */
   jumpToChunk?: JumpChunkFromSidebar | undefined;
@@ -23,7 +23,7 @@ export interface ThisPrProps {
 export function ThisPr({
   groups,
   activeGroupId,
-  conversationGroupIds,
+  groupThreadCounts,
   jumpToGroup,
   jumpToChunk,
   selected,
@@ -48,7 +48,7 @@ export function ThisPr({
           <li key={group.id}>
             <GroupRow
               activeGroupId={activeGroupId}
-              conversationGroupIds={conversationGroupIds}
+              groupThreadCounts={groupThreadCounts}
               group={group}
               jumpToGroup={jumpToGroup}
             />

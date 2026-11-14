@@ -3,16 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews } from "@web/components/DiffRows/types";
 import {
-  buildDiffViewCookie,
   DIFF_VIEW_COOKIE,
   LEGACY_DIFF_VIEW_STORAGE_KEY,
   migrateLegacyDiffView,
   parseDiffView,
-  readCookieValue,
   readDiffView,
   resolveDiffView,
   writeDiffView,
 } from "./diff-view-storage";
+import { readCookieValue } from "@web/utils/preference-cookie";
 
 function clearCookie(): void {
   document.cookie = `${DIFF_VIEW_COOKIE}=; Path=/; Max-Age=0`;
@@ -38,24 +37,6 @@ describe("parseDiffView", () => {
   });
 });
 
-describe("readCookieValue", () => {
-  it("finds one cookie among several", () => {
-    expect(
-      readCookieValue("a=1; mergebrief.diffView=split; b=2", DIFF_VIEW_COOKIE),
-    ).toBe("split");
-  });
-
-  it("is absent when the cookie is not set", () => {
-    expect(readCookieValue("a=1; b=2", DIFF_VIEW_COOKIE)).toBeUndefined();
-  });
-
-  it("matches the whole name, not a prefix", () => {
-    expect(
-      readCookieValue("xmergebrief.diffView=split", DIFF_VIEW_COOKIE),
-    ).toBeUndefined();
-  });
-});
-
 describe("readDiffView", () => {
   it("reads the view from the document's cookie", () => {
     document.cookie = `${DIFF_VIEW_COOKIE}=split; Path=/`;
@@ -72,21 +53,6 @@ describe("writeDiffView", () => {
   it("round trips through the cookie", () => {
     writeDiffView(DiffViews.SPLIT);
     expect(readDiffView()).toBe(DiffViews.SPLIT);
-  });
-});
-
-describe("buildDiffViewCookie", () => {
-  it("scopes the cookie to the site for a long life, readable by script", () => {
-    const cookie = buildDiffViewCookie(DiffViews.SPLIT, false);
-
-    expect(cookie).toBe(
-      "mergebrief.diffView=split; Path=/; Max-Age=34560000; SameSite=Lax",
-    );
-    expect(cookie).not.toMatch(/HttpOnly/i);
-  });
-
-  it("marks the cookie secure on an https page", () => {
-    expect(buildDiffViewCookie(DiffViews.SPLIT, true)).toMatch(/; Secure$/);
   });
 });
 

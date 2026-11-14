@@ -4,11 +4,16 @@
 @layer components {
   .row {
     display: grid;
-    grid-template-columns:
-      functions.to-rem(24px) minmax(0, 1fr)
-      functions.to-rem(10px);
+    grid-template-columns: functions.to-rem(24px) minmax(0, 1fr);
+    align-content: start;
     gap: var(--space-2) var(--space-3-5);
     inline-size: 100%;
+
+    --title-lines: calc(2 * var(--font-size-2) * var(--line-height-compact));
+    --facts-line: calc(var(--font-size-1) * var(--line-height-compact));
+    --row-text: calc(var(--title-lines) + var(--facts-line));
+
+    min-block-size: calc(2 * var(--space-3) + var(--space-2) + var(--row-text));
     padding-block: var(--space-3);
     padding-inline: var(--space-3-5);
     border: 0;
@@ -39,6 +44,10 @@
 
     @include mixins.focus-visible {
       outline-offset: -2px;
+    }
+
+    &:has(.threads) {
+      grid-template-columns: functions.to-rem(24px) minmax(0, 1fr) auto;
     }
 
     &[data-current] {
@@ -88,10 +97,12 @@
   }
 
   .facts {
-    display: flex;
-    flex-wrap: wrap;
+    flex: 1;
     min-inline-size: 0;
+    overflow: hidden;
     font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     > * + *::before {
       content: "\00B7";
@@ -106,14 +117,17 @@
     white-space: nowrap;
   }
 
-  .marker {
+  .threads {
+    display: flex;
     grid-column: 3;
     grid-row: 1;
-    align-self: center;
-    inline-size: 6px;
-    block-size: 6px;
-    border-radius: var(--radius-pill);
-    background: var(--color-accent);
+    gap: var(--space-2);
+    align-items: center;
+    align-self: start;
+    block-size: calc(var(--font-size-2) * var(--line-height-compact));
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
   }
 
   @media (prefers-reduced-motion: reduce) {

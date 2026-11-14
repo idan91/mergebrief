@@ -28,5 +28,8 @@ $notice-max: functions.to-rem(880px);
     background: var(--color-surface-1);
     color: var(--color-text-2);
     font-size: var(--font-size-2);
+    transition:
+      max-inline-size var(--sidebar-slide) var(--ease-out),
+      margin-inline var(--sidebar-slide) var(--ease-out);
   }
 }

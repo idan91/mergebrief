@@ -26,9 +26,10 @@ export interface MastheadProps {
 /**
  * The brief's opening: the summary over one group of folds on the story's
  * diff column, the stats card on its card column. The card reaches at least
- * the closed folds' bottom and keeps that height while a fold is open; a
- * card taller on its own runs past the folds, which stay under the summary. Where the story stacks there is no card: its sections lead
- * the column as one group of fact rows instead.
+ * the closed folds' bottom and keeps that height while a fold is open; under
+ * a card taller on its own the folds move down to end on its bottom edge.
+ * Where the story stacks there is no card: its sections lead the column as
+ * one group of fact rows instead.
  */
 export function Masthead({
   brief,
@@ -36,7 +37,7 @@ export function Masthead({
   repoConfig,
   children,
 }: MastheadProps) {
-  const { gridRef, summaryRef, stackRef } = useHeldCardHeight();
+  const { gridRef, summaryRef, cardRef, stackRef } = useHeldCardHeight();
   const gallery = useMediaGallery(brief);
   const shares = computeConcernShares(brief.concernView, model.unattributed);
   const showSplit = hasConcernSplit(shares);
@@ -50,6 +51,7 @@ export function Masthead({
         brief={brief}
         className={styles["card"]}
         model={model}
+        ref={cardRef}
         repoConfig={repoConfig}
         shares={shares}
       />

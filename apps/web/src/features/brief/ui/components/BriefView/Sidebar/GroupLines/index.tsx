@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Callout } from "@web/components/Callout";
+import { Icon } from "@web/components/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { GroupViewKinds } from "../../../../../model/utils/remainder";
 import { getCategoryLabel } from "../../../../../model/utils/view-model";
 import type { GroupView } from "../../../../../model/utils/view-model";
@@ -12,7 +14,7 @@ import styles from "./GroupLines.module.scss";
 export interface GroupLinesProps {
   groups: GroupView[];
   activeGroupId: string | null;
-  conversationGroupIds?: ReadonlySet<string> | undefined;
+  groupThreadCounts?: ReadonlyMap<string, number> | undefined;
   jumpToGroup: JumpFromSidebar;
 }
 
@@ -25,7 +27,7 @@ interface CalloutState {
 export function GroupLines({
   groups,
   activeGroupId,
-  conversationGroupIds,
+  groupThreadCounts,
   jumpToGroup,
 }: GroupLinesProps) {
   const { t } = useTranslation();
@@ -34,22 +36,27 @@ export function GroupLines({
   const calloutGroup = callout
     ? groups.find((group) => group.id === callout.groupId)
     : undefined;
+  const calloutThreadCount =
+    calloutGroup === undefined
+      ? 0
+      : (groupThreadCounts?.get(calloutGroup.id) ?? 0);
 
   return (
     <nav aria-label={t("brief.toc.ariaLabel")} className={styles["lines"]}>
       {groups.map((group) => {
-        const hasConversation = conversationGroupIds?.has(group.id) ?? false;
+        const threadCount = groupThreadCounts?.get(group.id) ?? 0;
         const current = group.id === activeGroupId;
-        const name = `${resolveGroupName(t, group)}${
-          hasConversation ? t("brief.toc.srHasConversation") : ""
-        }`;
+        const threadsNote =
+          threadCount > 0
+            ? t("brief.toc.srThreads", { count: threadCount })
+            : "";
+        const name = `${resolveGroupName(t, group)}${threadsNote}`;
         return (
           // oxlint-disable-next-line house/no-raw-button -- mini-map tick with a pseudo-element hit area
           <button
             aria-current={current ? "true" : undefined}
             aria-label={name}
             className={styles["line"]}
-            data-conversation={hasConversation ? "" : undefined}
             data-current={current ? "" : undefined}
             key={group.id}
             type="button"
@@ -61,7 +68,15 @@ export function GroupLines({
             onPointerEnter={(event) =>
               setCallout({ groupId: group.id, anchor: event.currentTarget })
             }
-          />
+          >
+            {threadCount > 0 ? (
+              <Icon
+                className={styles["threads"]}
+                name={IconNames.CHAT_FILL}
+                size={IconSizes.SM}
+              />
+            ) : null}
+          </button>
         );
       })}
       {callout && calloutGroup ? (
@@ -87,6 +102,11 @@ export function GroupLines({
           <Callout.Title clamp={2}>
             {resolveGroupName(t, calloutGroup)}
           </Callout.Title>
+          {calloutThreadCount > 0 ? (
+            <Callout.Context>
+              {t("brief.toc.threadCount", { count: calloutThreadCount })}
+            </Callout.Context>
+          ) : null}
         </Callout>
       ) : null}
     </nav>

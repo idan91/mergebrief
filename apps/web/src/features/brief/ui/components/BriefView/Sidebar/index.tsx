@@ -51,7 +51,7 @@ export interface SidebarProps {
    */
   jumpToChunk?: ((chunkId: string, focus: boolean) => void) | undefined;
   scrollToTop: () => void;
-  conversationGroupIds?: ReadonlySet<string> | undefined;
+  groupThreadCounts?: ReadonlyMap<string, number> | undefined;
   state: SidebarState;
   band: ViewportBand;
   /** A revision load is pending: the aside goes inert with the content. */
@@ -79,7 +79,7 @@ export function Sidebar({
   jumpToGroupHeading,
   jumpToChunk,
   scrollToTop,
-  conversationGroupIds,
+  groupThreadCounts,
   state,
   band,
   pending,
@@ -216,7 +216,6 @@ export function Sidebar({
     collapseToChevronInstantly();
   };
 
-  const motionOn = state.motionReady && state.slideMotion;
   const chevronLabel = expanded
     ? t("brief.sidebar.collapse")
     : t("brief.sidebar.expand");
@@ -240,7 +239,7 @@ export function Sidebar({
           <Sheet
             activeGroupId={activeGroupId}
             close={collapseToChevron}
-            conversationGroupIds={conversationGroupIds}
+            groupThreadCounts={groupThreadCounts}
             groups={groups}
             jumpToGroup={jumpFromSidebar}
             jumpToChunk={sheetChunkJump}
@@ -271,8 +270,6 @@ export function Sidebar({
     <aside
       aria-label={t("brief.sidebar.ariaLabel")}
       className={styles["sidebar"]}
-      data-motion={motionOn ? "on" : undefined}
-      data-sliding={state.sliding ? "" : undefined}
       data-state={expanded ? "expanded" : "collapsed"}
       data-testid="sidebar"
       data-variant="desktop"
@@ -301,7 +298,7 @@ export function Sidebar({
         </IconButton>
         <GroupLines
           activeGroupId={activeGroupId}
-          conversationGroupIds={conversationGroupIds}
+          groupThreadCounts={groupThreadCounts}
           groups={groups}
           jumpToGroup={jumpFromSidebar}
         />
@@ -365,7 +362,7 @@ export function Sidebar({
             <Tabs.Panel value={SidebarTabs.THIS_PR}>
               <ThisPr
                 activeGroupId={activeGroupId}
-                conversationGroupIds={conversationGroupIds}
+                groupThreadCounts={groupThreadCounts}
                 groups={groups}
                 jumpToGroup={jumpFromSidebar}
               />

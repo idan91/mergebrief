@@ -7,9 +7,12 @@ import {
   makeProductDiff,
 } from "../../../../test-utils/fixtures";
 import {
+  capitalizeCondition,
   describeProductDiff,
   getChangeItemKey,
+  hasOwnConnective,
   isProductDiffAvailable,
+  stripWhenLead,
 } from "./utils";
 
 /** Answers with the key and its count, so a test reads which line was picked. */
@@ -69,5 +72,60 @@ describe("getChangeItemKey", () => {
     const renamed = makeProductChange({ after: "the item is renamed" });
 
     expect(getChangeItemKey(restored)).not.toBe(getChangeItemKey(renamed));
+  });
+});
+
+describe("stripWhenLead", () => {
+  it("drops a leading when in either case", () => {
+    expect(stripWhenLead("when a user signs in")).toBe("a user signs in");
+    expect(stripWhenLead("When a user signs in")).toBe("a user signs in");
+  });
+
+  it("keeps a condition that only starts with those letters", () => {
+    expect(stripWhenLead("whenever a job retries")).toBe(
+      "whenever a job retries",
+    );
+    expect(stripWhenLead("a user signs in")).toBe("a user signs in");
+  });
+});
+
+describe("hasOwnConnective", () => {
+  it("is true for a flag-gated condition", () => {
+    expect(hasOwnConnective("with the `beta` flag on, a user signs in")).toBe(
+      true,
+    );
+    expect(hasOwnConnective("With the `beta` flag on, a user signs in")).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    "if a user has no session",
+    "after a retry fails",
+    "before the first sync",
+    "once the import ends",
+    "whenever a webhook arrives",
+    "while a job is running",
+    "unless the repo is archived",
+    "until the token expires",
+  ])("is true for a clause opening on its own conjunction: %s", (condition) => {
+    expect(hasOwnConnective(condition)).toBe(true);
+  });
+
+  it("is false for a plain clause, even one starting with those letters", () => {
+    expect(hasOwnConnective("a user signs in")).toBe(false);
+    expect(hasOwnConnective("withdrawals above the limit are sent")).toBe(
+      false,
+    );
+    expect(hasOwnConnective("iframes load before the page")).toBe(false);
+    expect(hasOwnConnective("onceover checks run")).toBe(false);
+  });
+});
+
+describe("capitalizeCondition", () => {
+  it("uppercases the first letter and leaves the rest", () => {
+    expect(capitalizeCondition("with the `beta` flag on")).toBe(
+      "With the `beta` flag on",
+    );
   });
 });

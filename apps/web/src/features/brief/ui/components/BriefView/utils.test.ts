@@ -10,13 +10,18 @@ import { describe, expect, it, vi } from "vitest";
 import { DiffViews } from "@web/components/DiffRows/types";
 
 import type { ConversationPlan } from "@web/features/conversation";
+import {
+  DigestRowKinds,
+  type DigestRow,
+  type DigestThreadRow,
+} from "@web/features/conversation/utils";
 import type { ProgressTotals } from "../../utils/progress";
 import type { BriefChunk, ComparisonMarks } from "../../../model/types";
 import { GroupViewKinds } from "../../../model/utils/remainder";
 import { stubLazyDiff } from "../../../test-utils/fixtures";
 import {
   buildRepoPolicyCaption,
-  conversationGroupIds,
+  countGroupThreads,
   countComparisonRuns,
   countIntentGaps,
   countIntentTensions,
@@ -701,23 +706,44 @@ describe("disabledComparisonQuery", () => {
   });
 });
 
-describe("conversationGroupIds", () => {
+describe("countGroupThreads", () => {
   const groups = [
     { id: "g1", chunks: [{ id: "c1" }, { id: "c2" }] },
     { id: "g2", chunks: [{ id: "c3" }] },
+    { id: "g3", chunks: [{ id: "c4" }] },
   ];
+  const threadRow = { kind: DigestRowKinds.THREAD } as DigestThreadRow;
+  const botGroupRow: DigestRow = {
+    kind: DigestRowKinds.BOT_GROUP,
+    author: "lint-bot",
+    threads: [threadRow, threadRow, threadRow],
+    openCount: 3,
+  };
 
-  it("returns the groups whose chunks carry conversation threads", () => {
-    const byChunk = new Map([["c3", []]]);
-    expect(conversationGroupIds(byChunk, groups)).toEqual(new Set(["g2"]));
+  it("sums the threads across a group's chunks", () => {
+    const byChunk = new Map([
+      ["c1", [threadRow]],
+      ["c2", [threadRow, threadRow]],
+    ]);
+    expect(countGroupThreads(byChunk, groups)).toEqual(new Map([["g1", 3]]));
+  });
+
+  it("counts every thread a bot's row folds together", () => {
+    const byChunk = new Map([["c3", [threadRow, botGroupRow]]]);
+    expect(countGroupThreads(byChunk, groups)).toEqual(new Map([["g2", 4]]));
+  });
+
+  it("leaves out a group whose chunks carry no thread", () => {
+    const byChunk = new Map([["c4", [threadRow]]]);
+    expect(countGroupThreads(byChunk, groups)?.has("g1")).toBe(false);
   });
 
   it("returns undefined without a conversation", () => {
-    expect(conversationGroupIds(undefined, groups)).toBeUndefined();
+    expect(countGroupThreads(undefined, groups)).toBeUndefined();
   });
 
-  it("returns undefined for an empty digest with no TocBar markers", () => {
-    expect(conversationGroupIds(new Map(), groups)).toBeUndefined();
+  it("returns undefined when no thread landed on a chunk", () => {
+    expect(countGroupThreads(new Map(), groups)).toBeUndefined();
   });
 });
 

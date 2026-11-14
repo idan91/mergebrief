@@ -27,6 +27,7 @@ import {
   briefSummaryFixture,
   mountBriefView,
 } from "@web/features/brief/test-utils";
+import { readCookieValue } from "../utils/preference-cookie";
 import { routeTree } from "../routeTree.gen";
 import { emptySessionPayload } from "../features/review/session";
 
@@ -407,9 +408,14 @@ describe("brief screen characterization", () => {
       ).toBeNull(),
     );
     expect(screen.getByRole("main").getAttribute("data-sidebar")).toBeNull();
-    expect(
-      JSON.parse(window.localStorage.getItem("mergebrief.sidebar") ?? ""),
-    ).toEqual({ expanded: true, tab: "this-pr" });
+    const storedSidebar = readCookieValue(
+      document.cookie,
+      "mergebrief.sidebar",
+    );
+    expect(JSON.parse(decodeURIComponent(storedSidebar ?? ""))).toEqual({
+      expanded: true,
+      tab: "this-pr",
+    });
 
     fireEvent.keyDown(window, { key: "z" });
 

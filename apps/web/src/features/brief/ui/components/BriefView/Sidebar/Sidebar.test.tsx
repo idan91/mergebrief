@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -23,7 +22,13 @@ import {
 import { Button } from "@web/components/Button";
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { Sidebar } from ".";
-import { SIDEBAR_STORAGE_KEY } from "./storage";
+import { clearPreferenceCookie } from "@web/utils/preference-cookie";
+import {
+  readSidebarPreference,
+  SIDEBAR_COOKIE,
+  SIDEBAR_OVERLAY_COOKIE,
+  writeSidebarPreference,
+} from "./storage";
 import { useSidebarState } from "./useSidebarState";
 import { CHUNK_ROW_SELECTOR } from "./Tabs/ThisPr/ChunkRows/consts";
 import type { RevisionTimelinePlan } from "../../../../model/types";
@@ -39,6 +44,8 @@ afterEach(() => {
   cleanup();
   resetMediaQueries();
   window.localStorage.clear();
+  clearPreferenceCookie(SIDEBAR_COOKIE);
+  clearPreferenceCookie(SIDEBAR_OVERLAY_COOKIE);
   document.body.style.overflow = "";
 });
 
@@ -48,7 +55,7 @@ interface HarnessProps {
   jumpToChunk?: (chunkId: string, focus: boolean) => void;
   toggleShortcuts?: () => void;
   scrollToTop?: () => void;
-  conversationGroupIds?: ReadonlySet<string>;
+  groupThreadCounts?: ReadonlyMap<string, number>;
   band?: ViewportBand;
   pending?: boolean;
   diffView?: DiffView;
@@ -69,7 +76,7 @@ function Harness({
   jumpToChunk,
   toggleShortcuts = noop,
   scrollToTop = noop,
-  conversationGroupIds,
+  groupThreadCounts,
   band = "desktop",
   pending = false,
   diffView = DiffViews.UNIFIED,
@@ -88,7 +95,7 @@ function Harness({
       <Sidebar
         key={sidebarKey}
         band={band}
-        conversationGroupIds={conversationGroupIds}
+        groupThreadCounts={groupThreadCounts}
         groups={model.groups}
         jumpToGroup={jumpToGroup}
         jumpToGroupHeading={jumpToGroupHeading}
@@ -212,9 +219,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("tablist", { name: "Sidebar tabs" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "This PR" })).toBeTruthy();
     expect(screen.getByRole("tabpanel")).toBeTruthy();
-    expect(
-      JSON.parse(window.localStorage.getItem(SIDEBAR_STORAGE_KEY) ?? ""),
-    ).toEqual({
+    expect(readSidebarPreference()).toEqual({
       expanded: true,
       tab: "this-pr",
     });
@@ -344,23 +349,6 @@ describe("Sidebar", () => {
     expect(scrollToTop).toHaveBeenCalledTimes(1);
     expect(toggleShortcuts).toHaveBeenCalledTimes(1);
   });
-
-  it("gates its motion on a frame after mount", async () => {
-    let frameCallback: FrameRequestCallback | null = null;
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      frameCallback = callback;
-      return 1;
-    });
-    renderSidebar();
-    const aside = screen.getByRole("complementary");
-    expect(aside.getAttribute("data-motion")).toBeNull();
-
-    await act(async () => {
-      frameCallback?.(0);
-    });
-
-    expect(aside.getAttribute("data-motion")).toBe("on");
-  });
 });
 
 describe("the Revisions tab", () => {
@@ -377,10 +365,7 @@ describe("the Revisions tab", () => {
   });
 
   it("remembers the tab, and falls back to This PR where none is offered", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "revisions" }),
-    );
+    writeSidebarPreference({ expanded: true, tab: "revisions" });
     renderSidebar({ revisions: makeRevisionPlan() });
     expect(
       screen

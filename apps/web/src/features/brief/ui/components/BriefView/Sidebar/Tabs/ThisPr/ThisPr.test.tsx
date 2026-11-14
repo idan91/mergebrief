@@ -160,18 +160,35 @@ describe("ThisPr", () => {
     expect(row.textContent).not.toContain("with-edits");
   });
 
-  it("marks the current row and the ones carrying conversation", () => {
+  it("marks the current row and counts the threads a group carries", () => {
     render(
       <ThisPr
         activeGroupId={first.id}
-        conversationGroupIds={new Set([first.id])}
+        groupThreadCounts={new Map([[first.id, 12]])}
         groups={model.groups}
         jumpToGroup={() => {}}
       />,
     );
     const row = screen.getByRole("button", { name: new RegExp(firstName) });
     expect(row.getAttribute("aria-current")).toBe("true");
-    expect(row.textContent).toContain("has conversation");
+    expect(row.getAttribute("aria-label")).toBeNull();
+    expect(row.textContent).toContain(", 12 threads");
+    expect(row.querySelector('[data-icon="chat-fill"]')).toBeTruthy();
+  });
+
+  it("draws the thread mark only on rows that carry threads", () => {
+    render(
+      <ThisPr
+        activeGroupId={null}
+        groupThreadCounts={new Map([[first.id, 1]])}
+        groups={model.groups}
+        jumpToGroup={() => {}}
+      />,
+    );
+    expect(document.querySelectorAll('[data-icon="chat-fill"]')).toHaveLength(
+      1,
+    );
+    expect(document.body.textContent).toContain(", 1 thread");
   });
 
   it("lists no chunk rows when no chunk jump is wired", () => {

@@ -73,7 +73,7 @@ describe("GroupCardHead", () => {
 
     const position = readTitleLine().lastElementChild;
     const visible = position?.querySelector('[aria-hidden="true"]');
-    expect(visible?.textContent).toBe("1 of 3");
+    expect(visible?.textContent).toBe("1/3");
     expect(position?.textContent).toContain("Group 1 of 3");
   });
 

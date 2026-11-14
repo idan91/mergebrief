@@ -8,6 +8,14 @@ export const SidebarTabs = {
 
 export type SidebarTab = ValueOf<typeof SidebarTabs>;
 
+/** Which way the panel is sliding; the page eases its reserve with it. */
+export const SidebarSlides = {
+  IN: "in",
+  OUT: "out",
+} as const;
+
+export type SidebarSlide = ValueOf<typeof SidebarSlides>;
+
 export interface SidebarPreference {
   expanded: boolean;
   tab: SidebarTab;

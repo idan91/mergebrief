@@ -38,6 +38,10 @@ import {
 } from "../../../model/comparison/runs";
 import type { ConversationPlan } from "@web/features/conversation";
 import { ReplyResultKinds } from "@web/features/conversation/types";
+import {
+  DigestRowKinds,
+  type DigestRow,
+} from "@web/features/conversation/utils";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import { type BriefChunk, type ComparisonMarks } from "../../../model/types";
@@ -174,24 +178,35 @@ export function countIntentTensions(
     : 0;
 }
 
+function countRowThreads(row: DigestRow): number {
+  return row.kind === DigestRowKinds.BOT_GROUP ? row.threads.length : 1;
+}
+
 /**
- * Which groups carry conversation threads, the TocBar's markers. Undefined
- * when there is no conversation (or none of it landed on a chunk).
+ * Threads shown in each group's chunks, by group id: the sidebar's marks. A
+ * group with none has no entry. Undefined when there is no conversation (or
+ * none of it landed on a chunk).
  */
-export function conversationGroupIds(
-  conversationByChunk: ReadonlyMap<string, unknown> | undefined,
+export function countGroupThreads(
+  conversationByChunk: ReadonlyMap<string, readonly DigestRow[]> | undefined,
   groups: readonly { id: string; chunks: readonly { id: string }[] }[],
-): Set<string> | undefined {
+): Map<string, number> | undefined {
   if (conversationByChunk === undefined || conversationByChunk.size === 0) {
     return undefined;
   }
-  const ids = new Set<string>();
+  const counts = new Map<string, number>();
   for (const group of groups) {
-    if (group.chunks.some((chunk) => conversationByChunk.has(chunk.id))) {
-      ids.add(group.id);
+    let threads = 0;
+    for (const chunk of group.chunks) {
+      for (const row of conversationByChunk.get(chunk.id) ?? []) {
+        threads += countRowThreads(row);
+      }
+    }
+    if (threads > 0) {
+      counts.set(group.id, threads);
     }
   }
-  return ids;
+  return counts;
 }
 
 /** Index where each group's first chunk lands in the flat reading order. */

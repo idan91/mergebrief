@@ -27,7 +27,7 @@ import {
   ATTACHMENT_ASSET_URL,
 } from "@web/test/attachments";
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
-import { setMediaQueryMatches } from "@web/test/setup";
+import { clearCookies, setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/model";
 import { routeTree } from "../../routeTree.gen";
 import {
@@ -513,6 +513,7 @@ describe("DB brief route revision timeline", () => {
     );
     cleanup();
     window.localStorage.clear();
+    clearCookies();
 
     // A BARE head resolves to the newest duplicate (backend at(-1) choice),
     // which is the current span → writable.

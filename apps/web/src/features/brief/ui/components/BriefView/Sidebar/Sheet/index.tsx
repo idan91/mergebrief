@@ -18,7 +18,7 @@ import { isSidebarTab } from "../utils";
 export interface SheetProps {
   groups: GroupView[];
   activeGroupId: string | null;
-  conversationGroupIds?: ReadonlySet<string> | undefined;
+  groupThreadCounts?: ReadonlyMap<string, number> | undefined;
   tab: SidebarTab;
   selectTab: (tab: SidebarTab) => void;
   jumpToGroup: JumpFromSidebar;
@@ -34,7 +34,7 @@ export interface SheetProps {
 export function Sheet({
   groups,
   activeGroupId,
-  conversationGroupIds,
+  groupThreadCounts,
   tab,
   selectTab,
   jumpToGroup,
@@ -75,7 +75,7 @@ export function Sheet({
         <Tabs.Panel value={SidebarTabs.THIS_PR}>
           <ThisPr
             activeGroupId={activeGroupId}
-            conversationGroupIds={conversationGroupIds}
+            groupThreadCounts={groupThreadCounts}
             groups={groups}
             jumpToChunk={jumpToChunk}
             jumpToGroup={jumpToGroup}

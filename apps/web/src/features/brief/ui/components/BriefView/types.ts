@@ -524,7 +524,7 @@ export interface UseConversationRowsValue {
 
 export interface ConversationWiring extends UseConversationRowsValue {
   conversationComposer: ThreadComposerWiring | undefined;
-  conversationGroupIds: Set<string> | undefined;
+  groupThreadCounts: Map<string, number> | undefined;
   invalidateConversation: (() => void) | undefined;
   jumpToChunkFromConversation: JumpToChunkFromConversation;
   jumpToConversation: () => void;

@@ -59,7 +59,7 @@ test("opens the Product diff and shows a change as before and after", async ({
 
   const bar = page.getByTestId("product-diff-bar");
   await expect(
-    bar.getByRole("heading", { name: "a link to the app is shared" }),
+    bar.getByRole("heading", { name: "When a link to the app is shared" }),
   ).toBeVisible();
   await expect(bar.getByText("Not shown in this diff")).toBeVisible();
   await expect(bar.getByText("Did not exist before this PR")).toBeVisible();

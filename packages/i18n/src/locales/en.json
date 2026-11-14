@@ -586,6 +586,7 @@
       "unavailable": "Not available: this PR was read in parts",
       "noneNote": "Nothing in this PR changes what a user, a caller or an operator gets for the same action.",
       "unavailableNote": "The model did not read this PR's whole diff in one pass, so it states no before and no after.",
+      "whenLead": "When",
       "before": "Before",
       "after": "After",
       "notShown": "Not shown in this diff",
@@ -637,7 +638,7 @@
       "ariaLabelGroupRiskSurface": "Risk surface of {{title}}",
       "noGroupFlags": "No risk-surface attributes on this group.",
       "groupOf": "Group {{index}} of {{total}}",
-      "position": "{{index}} of {{total}}",
+      "position": "{{index}}/{{total}}",
       "dominantKind": "Dominant:",
       "secondaryKind": "Secondary:",
       "uncertain": "Uncertain",
@@ -1067,7 +1068,10 @@
     },
     "toc": {
       "ariaLabel": "Change groups",
-      "srHasConversation": ", has conversation"
+      "srThreads_one": ", {{count}} thread",
+      "srThreads_other": ", {{count}} threads",
+      "threadCount_one": "{{count}} thread",
+      "threadCount_other": "{{count}} threads"
     },
     "sidebar": {
       "ariaLabel": "Sidebar",
@@ -1392,8 +1396,6 @@
     "heading": "Conversation",
     "refreshing": "Refreshing…",
     "refresh": "Refresh",
-    "afterBrief_one": "{{count}} new comment since this brief was generated",
-    "afterBrief_other": "{{count}} new comments since this brief was generated",
     "loading": "Loading the conversation…",
     "readFailed": "The conversation could not be read (unexpected response). Refresh to retry.",
     "unauthorized": "Your GitHub session expired. Sign in again to see the conversation.",
@@ -1468,6 +1470,8 @@
     "summaryReviews_other": "<0/> reviews",
     "summaryComments_one": "<0/> comment",
     "summaryComments_other": "<0/> comments",
+    "summaryAfterBrief_one": "<0/> new since this brief",
+    "summaryAfterBrief_other": "<0/> new since this brief",
     "summaryThreads_one": "{{count}} thread · {{open}} open",
     "summaryThreads_other": "{{count}} threads · {{open}} open",
     "summaryThreadsCounted_one": "<0/> thread · <1/> open",

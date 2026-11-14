@@ -6,7 +6,14 @@ import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { REDUCED_MOTION_QUERY } from "@web/utils/motion";
 import { SIDEBAR_OVERLAY_QUERY } from "./consts";
-import { SIDEBAR_STORAGE_KEY } from "./storage";
+import { clearPreferenceCookie } from "@web/utils/preference-cookie";
+import {
+  LEGACY_SIDEBAR_STORAGE_KEY,
+  readSidebarPreference,
+  SIDEBAR_COOKIE,
+  SIDEBAR_OVERLAY_COOKIE,
+  writeSidebarPreference,
+} from "./storage";
 import { useSidebarState } from "./useSidebarState";
 
 afterEach(() => {
@@ -14,21 +21,18 @@ afterEach(() => {
   // mounted past the file lets React flush scheduled work after the jsdom
   // window is gone, which surfaces as an unhandled `window is not defined`.
   cleanup();
+  clearPreferenceCookie(SIDEBAR_COOKIE);
+  clearPreferenceCookie(SIDEBAR_OVERLAY_COOKIE);
   window.localStorage.clear();
 });
 
 function stored(): unknown {
-  const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  return raw === null ? null : JSON.parse(raw);
+  return readSidebarPreference();
 }
 
 describe("useSidebarState at narrow width", () => {
   it("starts collapsed whatever is stored and never writes the sheet state", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
-    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    writeSidebarPreference({ expanded: true, tab: "this-pr" });
     const { result } = renderHook(() =>
       useSidebarState("narrow", true, "brief-a"),
     );
@@ -39,14 +43,11 @@ describe("useSidebarState at narrow width", () => {
 
     act(() => result.current.collapse());
     expect(result.current.expanded).toBe(false);
-    expect(setItem).not.toHaveBeenCalled();
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
   });
 
   it("writes the tab and keeps the stored expanded value", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
+    writeSidebarPreference({ expanded: true, tab: "this-pr" });
     const { result } = renderHook(() =>
       useSidebarState("narrow", true, "brief-a"),
     );
@@ -162,11 +163,8 @@ describe("useSidebarState while the sidebar is hidden", () => {
 
 describe("useSidebarState", () => {
   it("starts from the stored preference without writing", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
-    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    writeSidebarPreference({ expanded: true, tab: "this-pr" });
+    const writes = vi.spyOn(document, "cookie", "set");
 
     const { result } = renderHook(() =>
       useSidebarState("desktop", true, "brief-a"),
@@ -174,19 +172,39 @@ describe("useSidebarState", () => {
 
     expect(result.current.expanded).toBe(true);
     expect(result.current.tab).toBe("this-pr");
-    expect(setItem).not.toHaveBeenCalled();
+    const preferenceWrites = writes.mock.calls.filter(([cookie]) =>
+      cookie.startsWith(`${SIDEBAR_COOKIE}=`),
+    );
+    expect(preferenceWrites).toEqual([]);
   });
 
-  it("reads storage once, not on every render", () => {
-    const getItem = vi.spyOn(Storage.prototype, "getItem");
-    const { rerender } = renderHook(() =>
+  it("opens from the first render where the stored sidebar is open", () => {
+    writeSidebarPreference({ expanded: true, tab: "revisions" });
+    const renders: boolean[] = [];
+
+    renderHook(() => {
+      const state = useSidebarState("desktop", true, "brief-a");
+      renders.push(state.expanded);
+      return state;
+    });
+
+    expect(renders[0]).toBe(true);
+  });
+
+  it("adopts a preference stored before the cookie", () => {
+    window.localStorage.setItem(
+      LEGACY_SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "revisions" }),
+    );
+
+    const { result } = renderHook(() =>
       useSidebarState("desktop", true, "brief-a"),
     );
 
-    rerender();
-    rerender();
-
-    expect(getItem).toHaveBeenCalledTimes(1);
+    expect(result.current.expanded).toBe(true);
+    expect(result.current.tab).toBe("revisions");
+    expect(stored()).toEqual({ expanded: true, tab: "revisions" });
+    expect(window.localStorage.getItem(LEGACY_SIDEBAR_STORAGE_KEY)).toBeNull();
   });
 
   it("toggle flips expanded and writes", () => {
@@ -227,43 +245,41 @@ describe("useSidebarState", () => {
 
     expect(stored()).toEqual({ expanded: true, tab: "revisions" });
   });
-
-  it("keeps working when storage is denied", () => {
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("denied");
-    });
-    const { result } = renderHook(() =>
-      useSidebarState("desktop", true, "brief-a"),
-    );
-
-    act(() => result.current.toggle());
-
-    expect(result.current.expanded).toBe(true);
-  });
 });
 
 describe("useSidebarState on a load in the overlay range", () => {
   afterEach(resetMediaQueries);
 
   function storeOpen() {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
+    writeSidebarPreference({ expanded: true, tab: "this-pr" });
   }
 
   it("starts collapsed at 1440px though the stored sidebar is open", () => {
     storeOpen();
     setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, true);
-    const setItem = vi.spyOn(Storage.prototype, "setItem");
 
     const { result } = renderHook(() =>
       useSidebarState("desktop", true, "brief-a"),
     );
 
     expect(result.current.expanded).toBe(false);
-    expect(setItem).not.toHaveBeenCalled();
     expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+  });
+
+  it("renders closed from the first render once a load found the overlay", () => {
+    storeOpen();
+    setMediaQueryMatches(SIDEBAR_OVERLAY_QUERY, true);
+    const first = renderHook(() => useSidebarState("desktop", true, "brief-a"));
+    first.unmount();
+    const renders: boolean[] = [];
+
+    renderHook(() => {
+      const state = useSidebarState("desktop", true, "brief-a");
+      renders.push(state.expanded);
+      return state;
+    });
+
+    expect(renders).not.toContain(true);
   });
 
   it("starts open at 1700px where the stored sidebar is open", () => {
@@ -307,32 +323,39 @@ describe("useSidebarState on a load in the overlay range", () => {
 });
 
 describe("useSidebarState slide", () => {
+  function waitForFrame(): Promise<void> {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  // A slide is only named a frame after the stored preference is applied.
   async function renderReady() {
     const rendered = renderHook(() =>
       useSidebarState("desktop", true, "brief-a"),
     );
-    await waitFor(() => expect(rendered.result.current.motionReady).toBe(true));
+    await act(waitForFrame);
     return rendered;
   }
 
-  it("marks a slide only while one runs, so a remount never slides", async () => {
+  it("names the slide only while one runs, so a remount never slides", async () => {
     const { result } = await renderReady();
-    expect(result.current.sliding).toBe(false);
+    expect(result.current.slide).toBeUndefined();
 
     act(() => result.current.toggle());
-    expect(result.current.sliding).toBe(true);
+    expect(result.current.slide).toBe("in");
 
-    await waitFor(() => expect(result.current.sliding).toBe(false));
+    await waitFor(() => expect(result.current.slide).toBeUndefined());
   });
 
-  it("keeps the column's reserve until the panel has slid in", async () => {
+  it("opens the column with the panel, in the same render", async () => {
     const { result } = await renderReady();
 
     act(() => result.current.toggle());
 
     expect(result.current.expanded).toBe(true);
-    expect(result.current.columnExpanded).toBe(false);
-    await waitFor(() => expect(result.current.columnExpanded).toBe(true));
+    expect(result.current.panelShown).toBe(true);
+    expect(result.current.slide).toBe("in");
   });
 
   it("keeps the panel shown until it has slid out", async () => {
@@ -342,25 +365,38 @@ describe("useSidebarState slide", () => {
     act(() => result.current.toggle());
 
     expect(result.current.expanded).toBe(false);
+    expect(result.current.slide).toBe("out");
     expect(result.current.panelShown).toBe(true);
-    expect(result.current.columnExpanded).toBe(true);
     await waitFor(() => expect(result.current.panelShown).toBe(false));
-    expect(result.current.columnExpanded).toBe(false);
+    expect(result.current.slide).toBeUndefined();
   });
 
-  it("moves panel and column together on a keyboard toggle", async () => {
+  it("never slides on a keyboard toggle", async () => {
     const { result } = await renderReady();
 
     act(() => result.current.toggleInstantly());
 
-    expect(result.current.slideMotion).toBe(false);
-    expect(result.current.columnExpanded).toBe(true);
+    expect(result.current.slide).toBeUndefined();
+    expect(result.current.expanded).toBe(true);
     expect(result.current.panelShown).toBe(true);
 
     act(() => result.current.collapseInstantly());
 
-    expect(result.current.columnExpanded).toBe(false);
+    expect(result.current.slide).toBeUndefined();
     expect(result.current.panelShown).toBe(false);
+  });
+
+  it("does not slide before the first frame after mount", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+    const { result } = renderHook(() =>
+      useSidebarState("desktop", true, "brief-a"),
+    );
+
+    act(() => result.current.toggle());
+
+    expect(result.current.expanded).toBe(true);
+    expect(result.current.slide).toBeUndefined();
+    vi.restoreAllMocks();
   });
 
   it("does not slide under reduced motion", async () => {
@@ -369,7 +405,8 @@ describe("useSidebarState slide", () => {
 
     act(() => result.current.toggle());
 
-    expect(result.current.columnExpanded).toBe(true);
+    expect(result.current.expanded).toBe(true);
+    expect(result.current.slide).toBeUndefined();
     resetMediaQueries();
   });
 });

@@ -151,7 +151,7 @@ export type Catalog = typeof en & {
     group: (typeof en)["brief"]["group"] & {
       ariaLabelGroupRiskSurface: "Risk surface of {{title}}";
       groupOf: "Group {{index}} of {{total}}";
-      position: "{{index}} of {{total}}";
+      position: "{{index}}/{{total}}";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
       selectedFlags_one: "{{count}} selected flag";
       selectedFlags_other: "{{count}} selected flags";
@@ -255,6 +255,12 @@ export type Catalog = typeof en & {
       count_one: "{{count}} chunk";
       count_other: "{{count}} chunks";
     };
+    toc: (typeof en)["brief"]["toc"] & {
+      srThreads_one: ", {{count}} thread";
+      srThreads_other: ", {{count}} threads";
+      threadCount_one: "{{count}} thread";
+      threadCount_other: "{{count}} threads";
+    };
     sidebar: (typeof en)["brief"]["sidebar"] & {
       revisions: (typeof en)["brief"]["sidebar"]["revisions"] & {
         title: "Revision {{index}}";
@@ -327,8 +333,6 @@ export type Catalog = typeof en & {
     ariaLabelComment: "Comment by {{login}}";
     ariaLabelQuoteReply: "Quote reply to @{{login}}";
     replyTooLong: "This reply is longer than GitHub allows ({{max, number}} characters). Shorten it to post.";
-    afterBrief_one: "{{count}} new comment since this brief was generated";
-    afterBrief_other: "{{count}} new comments since this brief was generated";
     comments_one: "{{count}} comment";
     comments_other: "{{count}} comments";
     atRevision: "at {{label}}";

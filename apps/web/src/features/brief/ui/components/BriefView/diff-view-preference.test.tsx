@@ -3,10 +3,8 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import {
-  DIFF_VIEW_COOKIE,
-  readCookieValue,
-} from "./diff-view/diff-view-storage";
+import { readCookieValue } from "@web/utils/preference-cookie";
+import { DIFF_VIEW_COOKIE } from "./diff-view/diff-view-storage";
 import type { BriefSearchParams } from "../../../model/comparison/compare-state";
 import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
 import {

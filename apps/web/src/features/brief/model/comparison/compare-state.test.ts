@@ -7,6 +7,7 @@ import {
   lastReviewUnavailableReasonTitle,
   normalizeBriefSearch,
   parseBriefAddressSearch,
+  parseBriefSearchParams,
   parseCompareParam,
   parseViewParam,
   previousBriefUnavailableReasonTitle,
@@ -15,6 +16,7 @@ import {
   withCompare,
   withView,
   type CompareOptionFlags,
+  type BriefSearchParams,
 } from "./compare-state";
 
 const both: CompareOptionFlags = { previousBrief: true, lastReview: true };
@@ -44,6 +46,35 @@ describe("parseViewParam / parseCompareParam", () => {
     expect(parseCompareParam("last-review")).toBe("last-review");
     expect(parseCompareParam("off")).toBe("off");
     expect(parseCompareParam("delta")).toBeUndefined();
+  });
+});
+
+describe("parseBriefSearchParams", () => {
+  it("reads each key through its own vocabulary", () => {
+    expect(
+      parseBriefSearchParams({
+        view: "changes",
+        compare: "last-review",
+        diff: "split",
+        focus: "true",
+      }),
+    ).toEqual({
+      view: "changes",
+      compare: "last-review",
+      diff: "split",
+      focus: true,
+    });
+  });
+
+  it("omits a value the URL made up", () => {
+    expect(
+      parseBriefSearchParams({
+        view: "bogus",
+        compare: "bogus",
+        diff: "bogus",
+        focus: "bogus",
+      }),
+    ).toEqual({});
   });
 });
 
@@ -159,14 +190,14 @@ describe("normalizeBriefSearch", () => {
 });
 
 describe("resolveBriefSearch", () => {
-  it("a returning reviewer arrives on Changes Only and Your last review", () => {
+  it("a returning reviewer arrives on Full Brief and Off too", () => {
     expect(resolveBriefSearch({}, both)).toEqual({
-      view: "changes",
-      compare: "last-review",
+      view: "full",
+      compare: "off",
     });
     expect(resolveBriefSearch({}, onlyLastReview)).toEqual({
-      view: "changes",
-      compare: "last-review",
+      view: "full",
+      compare: "off",
     });
   });
 
@@ -236,68 +267,48 @@ describe("lastReviewUnavailableReasonTitle", () => {
 });
 
 describe("stripDefaultSearch", () => {
-  it("drops full but keeps off, a bare URL follows the last review", () => {
+  it("drops full and off, a bare URL reads the full Brief uncompared", () => {
     expect(
-      stripDefaultSearch({ view: "full", compare: "off" }, none, "unified"),
-    ).toEqual({ compare: "off" });
-    expect(
-      stripDefaultSearch({ view: "full", compare: "off" }, both, "unified"),
-    ).toEqual({ compare: "off" });
+      stripDefaultSearch({ view: "full", compare: "off" }, "unified"),
+    ).toEqual({});
   });
 
-  it("keeps the stripped URL meaning the same when last review lands", () => {
-    const stripped = stripDefaultSearch(
-      { view: "full", compare: "off" },
-      onlyPreviousBrief,
-      "unified",
-    );
+  it("resolves the stripped URL to what was written", () => {
+    const written: BriefSearchParams = { view: "full", compare: "off" };
+    const stripped = stripDefaultSearch(written, "unified");
+
     expect(resolveBriefSearch(stripped, onlyPreviousBrief)).toEqual(
-      resolveBriefSearch(stripped, both),
+      resolveBriefSearch(written, onlyPreviousBrief),
+    );
+    expect(resolveBriefSearch(stripped, both)).toEqual(
+      resolveBriefSearch(written, both),
     );
   });
 
-  it("keeps a chosen compare that absence would not resolve to", () => {
+  it("keeps a chosen compare beside the default view", () => {
     expect(
-      stripDefaultSearch(
-        { view: "full", compare: "last-review" },
-        both,
-        "unified",
-      ),
+      stripDefaultSearch({ view: "full", compare: "last-review" }, "unified"),
     ).toEqual({ compare: "last-review" });
   });
 
-  it("keeps a non-default view or compare", () => {
+  it("keeps a non-default view and compare", () => {
     expect(
       stripDefaultSearch(
         { view: "changes", compare: "previous-brief" },
-        onlyPreviousBrief,
         "unified",
       ),
     ).toEqual({ view: "changes", compare: "previous-brief" });
-    expect(
-      stripDefaultSearch(
-        { view: "full", compare: "previous-brief" },
-        onlyPreviousBrief,
-        "unified",
-      ),
-    ).toEqual({ compare: "previous-brief" });
   });
 
   it("drops diff only when it names the stored preference", () => {
-    expect(
-      stripDefaultSearch(
-        { view: "full", compare: "off", diff: "split" },
-        none,
-        "split",
-      ),
-    ).toEqual({ compare: "off" });
-    expect(
-      stripDefaultSearch(
-        { view: "full", compare: "off", diff: "split" },
-        none,
-        "unified",
-      ),
-    ).toEqual({ compare: "off", diff: "split" });
+    const written: BriefSearchParams = {
+      view: "full",
+      compare: "off",
+      diff: "split",
+    };
+
+    expect(stripDefaultSearch(written, "split")).toEqual({});
+    expect(stripDefaultSearch(written, "unified")).toEqual({ diff: "split" });
   });
 });
 

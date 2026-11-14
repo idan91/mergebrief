@@ -28,7 +28,7 @@ export function useViewLayout({
     band,
   });
   const sidebar = useSidebarState(band, regions.sidebar, briefId);
-  const sidebarLayout = resolveSidebarLayout(band, sidebar.columnExpanded);
+  const sidebarLayout = resolveSidebarLayout(band, sidebar.expanded);
   useSidebarFocusReturn(regions.sidebar);
 
   const inChangesScope = scope === "changes";

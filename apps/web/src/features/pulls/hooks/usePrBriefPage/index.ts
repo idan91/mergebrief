@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildBriefSearchParams } from "@web/features/brief/model";
+import { parseBriefSearchParams } from "@web/features/brief/model";
 import { isDemoBuild } from "@web/utils/demo-build";
 import { buildPrMetaQueryOptions } from "../../queries";
 import { readExplicitSpan, readRevisionRequest } from "../../search";
@@ -89,7 +89,7 @@ export function usePrBriefPage({
     [posture, t],
   );
   const searchParams = useMemo(
-    () => buildBriefSearchParams(view, compare, diff, focus),
+    () => parseBriefSearchParams({ view, compare, diff, focus }),
     [compare, diff, focus, view],
   );
 

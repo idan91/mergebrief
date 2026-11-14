@@ -29,6 +29,15 @@
       }
     }
 
+    // Set only while the panel slides, so a resize never eases.
+    &:has(.readingColumn[data-sidebar-slide="in"]) {
+      --sidebar-slide: var(--motion-slide);
+    }
+
+    &:has(.readingColumn[data-sidebar-slide="out"]) {
+      --sidebar-slide: var(--motion-base);
+    }
+
     &:has(.readingColumn[data-sidebar="bar"]) {
       --sidebar-reserve-bottom: var(--sidebar-bar-h);
     }
@@ -57,7 +66,9 @@
   }
 
   .readingColumn {
-    transition: opacity var(--motion-fast) ease;
+    transition:
+      opacity var(--motion-fast) ease,
+      padding-inline-end var(--sidebar-slide) var(--ease-out);
 
     &[data-pending] {
       opacity: 0.6;
@@ -83,6 +94,7 @@
     margin-inline-end: var(--sidebar-covered-w);
     padding-inline: max(var(--page-gutter), env(safe-area-inset-left))
       max(var(--page-gutter), env(safe-area-inset-right));
+    transition: margin-inline-end var(--sidebar-slide) var(--ease-out);
 
     > * {
       max-inline-size: functions.to-rem(880px);

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@web/components/Button";
 import type { DigestThreadRow } from "../../../utils/digest";
@@ -13,6 +13,7 @@ import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer";
 import { ThreadComment } from "./ThreadComment";
 import { ThreadResolveAction } from "./ThreadResolveAction";
+import { useResolveButtonFocus } from "./useResolveButtonFocus";
 import { useThreadResolution } from "./useThreadResolution";
 
 export interface ThreadDetailProps {
@@ -42,12 +43,19 @@ export function ThreadDetail({
     isResolved: thread.isResolved,
     resolution: composer.resolution,
   });
-  // The standalone control's node, handed to the composer as its focus rescue
-  // target. This detail is the only place that knows both controls exist.
-  const resolveButtonRef = useRef<HTMLButtonElement | null>(null);
-  const focusResolveAction = useCallback(() => {
-    resolveButtonRef.current?.focus();
-  }, []);
+  // The standalone control's node is the composer's focus rescue target.
+  // This detail is the only place that knows both controls exist.
+  const { exposeButton, focusResolveAction } = useResolveButtonFocus();
+  const resolveErrorId = `${useId()}-resolve-error`;
+  const resolveAction = resolution.available ? (
+    <ThreadResolveAction
+      errorId={resolution.error === null ? undefined : resolveErrorId}
+      exposeButton={exposeButton}
+      pending={resolution.pending}
+      resolved={thread.isResolved}
+      onToggle={resolution.toggle}
+    />
+  ) : null;
   // The button quotes the selection when one lives inside THIS detail, else
   // the whole comment; `R` requires a selection. Nonce-triggered so quoting
   // the same text twice appends twice.
@@ -194,9 +202,15 @@ export function ThreadDetail({
         ) : null}
       </div>
       {readOnly ? (
-        <p className={rowStyles["note"]}>{composer.readOnlyReason}</p>
+        <>
+          <p className={rowStyles["note"]}>{composer.readOnlyReason}</p>
+          {resolveAction === null ? null : (
+            <div className={rowStyles["detailActions"]}>{resolveAction}</div>
+          )}
+        </>
       ) : (
         <ReplyComposer
+          leadingAction={resolveAction}
           mentionSource={mentionSource}
           quote={quote}
           onPosted={composer.onPosted}
@@ -215,17 +229,11 @@ export function ThreadDetail({
           threadId={thread.rootCommentId}
         />
       )}
-      {resolution.available ? (
-        <ThreadResolveAction
-          error={resolution.error}
-          exposeButton={(element) => {
-            resolveButtonRef.current = element;
-          }}
-          pending={resolution.pending}
-          resolved={thread.isResolved}
-          onToggle={resolution.toggle}
-        />
-      ) : null}
+      {resolution.error === null ? null : (
+        <p className={rowStyles["error"]} id={resolveErrorId} role="alert">
+          {resolution.error}
+        </p>
+      )}
     </div>
   );
 }

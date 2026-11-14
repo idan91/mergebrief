@@ -27,19 +27,52 @@ describe("GroupLines", () => {
     expect(screen.getByRole("button", { name: firstName })).toBeTruthy();
   });
 
-  it("marks the current group and appends the conversation note", () => {
+  it("marks the current group and names its thread count", () => {
     render(
       <GroupLines
         activeGroupId={first.id}
-        conversationGroupIds={new Set([first.id])}
+        groupThreadCounts={new Map([[first.id, 2]])}
         groups={model.groups}
         jumpToGroup={() => {}}
       />,
     );
     const line = screen.getByRole("button", {
-      name: `${firstName}, has conversation`,
+      name: `${firstName}, 2 threads`,
     });
     expect(line.getAttribute("aria-current")).toBe("true");
+    expect(line.querySelector('[data-icon="chat-fill"]')).toBeTruthy();
+  });
+
+  it("draws no thread mark on a group without threads", () => {
+    render(
+      <GroupLines
+        activeGroupId={null}
+        groupThreadCounts={new Map([[first.id, 1]])}
+        groups={model.groups}
+        jumpToGroup={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: `${firstName}, 1 thread` }),
+    ).toBeTruthy();
+    expect(document.querySelectorAll('[data-icon="chat-fill"]')).toHaveLength(
+      1,
+    );
+  });
+
+  it("states the thread count in the hover callout", () => {
+    render(
+      <GroupLines
+        activeGroupId={null}
+        groupThreadCounts={new Map([[first.id, 2]])}
+        groups={model.groups}
+        jumpToGroup={() => {}}
+      />,
+    );
+    fireEvent.pointerEnter(
+      screen.getByRole("button", { name: `${firstName}, 2 threads` }),
+    );
+    expect(screen.getByRole("tooltip").textContent).toContain("2 threads");
   });
 
   it("names the group in a callout on hover and drops it on blur", () => {

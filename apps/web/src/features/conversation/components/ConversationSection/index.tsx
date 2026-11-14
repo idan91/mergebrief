@@ -382,7 +382,9 @@ export function ConversationSection({
   const verdicts = filtered?.reviews ?? [];
 
   const summaryParts =
-    conversation === undefined ? [] : listHeadSummaryParts(conversation);
+    conversation === undefined
+      ? []
+      : listHeadSummaryParts(conversation, afterBriefCount);
   const summary =
     summaryParts.length === 0 ? undefined : (
       <HeadSummary parts={summaryParts} />
@@ -400,18 +402,11 @@ export function ConversationSection({
         : t("conversation.refresh")}
     </Button>
   ) : undefined;
-  const afterBriefNote =
-    afterBriefCount > 0 ? (
-      <p className={styles["afterBriefNote"]}>
-        {t("conversation.afterBrief", { count: afterBriefCount })}
-      </p>
-    ) : undefined;
   return (
     <CollapsibleBar
       actions={refreshAction}
       data-conversation-section=""
       headingLevel={BarHeadingLevels.H2}
-      note={afterBriefNote}
       open={open}
       summary={summary}
       title={t("conversation.heading")}

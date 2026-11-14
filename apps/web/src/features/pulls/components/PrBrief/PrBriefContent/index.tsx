@@ -218,25 +218,15 @@ export function PrBriefContent({
   // the URL; the stored diff preference is read at write time, on the client.
   const navigateSearch = useCallback(
     (next: BriefSearch, options?: ScopeExitOptions) => {
-      const flags = {
-        previousBrief: previousBriefAvailable,
-        lastReview: lastReviewAvailable,
-      };
       navigateRouteSearch(
         stripDefaultSearch(
           buildBriefSearchParams(next.view, next.compare, searchDiff),
-          flags,
           readDiffView(),
         ),
         options,
       );
     },
-    [
-      lastReviewAvailable,
-      navigateRouteSearch,
-      previousBriefAvailable,
-      searchDiff,
-    ],
+    [navigateRouteSearch, searchDiff],
   );
   const openComparison = useCallback(() => {
     const flags = {

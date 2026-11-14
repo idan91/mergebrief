@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 
+import { Icon } from "@web/components/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 
@@ -17,19 +19,19 @@ import styles from "./GroupRow.module.scss";
 export interface GroupRowProps {
   group: GroupView;
   activeGroupId: string | null;
-  conversationGroupIds?: ReadonlySet<string> | undefined;
+  groupThreadCounts?: ReadonlyMap<string, number> | undefined;
   jumpToGroup: JumpFromSidebar;
 }
 
 export function GroupRow({
   group,
   activeGroupId,
-  conversationGroupIds,
+  groupThreadCounts,
   jumpToGroup,
 }: GroupRowProps) {
   const { t } = useTranslation();
   const current = group.id === activeGroupId;
-  const hasConversation = conversationGroupIds?.has(group.id) ?? false;
+  const threadCount = groupThreadCounts?.get(group.id) ?? 0;
   const attributed = group.kind === GroupViewKinds.ATTRIBUTED;
 
   const ordinal = group.index + 1;
@@ -77,10 +79,12 @@ export function GroupRow({
           </span>
         ) : null}
       </span>
-      {hasConversation ? (
-        <span className={styles["marker"]}>
+      {threadCount > 0 ? (
+        <span className={styles["threads"]}>
+          <Icon name={IconNames.CHAT_FILL} size={IconSizes.SM} />
+          <span aria-hidden="true">{threadCount}</span>
           <ScreenReaderOnly>
-            {t("brief.toc.srHasConversation")}
+            {t("brief.toc.srThreads", { count: threadCount })}
           </ScreenReaderOnly>
         </span>
       ) : null}

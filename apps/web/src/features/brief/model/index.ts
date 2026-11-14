@@ -7,6 +7,7 @@ export {
   lastReviewUnavailableReasonTitle,
   previousBriefUnavailableReasonTitle,
   parseBriefAddressSearch,
+  parseBriefSearchParams,
   resolveBriefSearch,
   stripDefaultSearch,
   withCompare,

@@ -978,10 +978,10 @@ describe("DB brief route, rev param", () => {
     await waitFor(() => expect(readSearch(router)).toEqual({ rev: 2 }));
   });
 
-  it("drops the default view but keeps off on a Compare write", async () => {
-    // `renderRoute` seeds no marks, so previous-brief resolves as available
-    // from the meta alone; the radio is live and Off is a real change.
-    const withComparison = meta({
+  // `renderRoute` seeds no marks, so previous-brief resolves as available
+  // from the meta alone; the radio is live and Off is a real change.
+  function buildComparableMeta() {
+    return meta({
       revisions: [
         revisions[0]!,
         {
@@ -997,9 +997,12 @@ describe("DB brief route, rev param", () => {
         },
       ],
     });
+  }
+
+  async function renderComparing(search: string) {
     const router = await renderRoute(
-      withComparison,
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&view=full&compare=previous-brief&l=c1`,
+      buildComparableMeta(),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2&compare=previous-brief${search}`,
     );
     await waitFor(() =>
       expect(
@@ -1009,9 +1012,24 @@ describe("DB brief route, rev param", () => {
         }),
       ).toBeTruthy(),
     );
+    return router;
+  }
+
+  it("drops the default view and off on a Compare write", async () => {
+    const router = await renderComparing("&view=full&l=c1");
+
     fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));
+
     await waitFor(() =>
-      expect(readSearch(router)).toEqual({ rev: 2, compare: "off", l: "c1" }),
+      expect(readSearch(router)).toEqual({ rev: 2, l: "c1" }),
     );
+  });
+
+  it("drops a diff value the URL made up on a Compare write", async () => {
+    const router = await renderComparing("&diff=bogus");
+
+    fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));
+
+    await waitFor(() => expect(readSearch(router)).toEqual({ rev: 2 }));
   });
 });

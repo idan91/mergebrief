@@ -368,6 +368,9 @@ function BriefViewContent(props: BriefViewProps) {
                       data-focus-panel={focusPanelAttr}
                       data-pending={pendingShown ? "" : undefined}
                       data-sidebar={regions.sidebar ? sidebarLayout : undefined}
+                      data-sidebar-slide={
+                        regions.sidebar ? sidebar.slide : undefined
+                      }
                       data-phone-bar={regions.phoneBar ? "" : undefined}
                       aria-busy={pendingShown || undefined}
                       inert={pendingShown || undefined}
@@ -509,9 +512,7 @@ function BriefViewContent(props: BriefViewProps) {
                       <Sidebar
                         key={`sidebar-${briefId}`}
                         band={band}
-                        conversationGroupIds={
-                          conversationWiring.conversationGroupIds
-                        }
+                        groupThreadCounts={conversationWiring.groupThreadCounts}
                         groups={model.groups}
                         jumpToGroup={session.jumpToGroup}
                         jumpToGroupHeading={session.jumpToGroupHeading}

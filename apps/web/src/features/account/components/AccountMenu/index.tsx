@@ -23,8 +23,9 @@ export interface AccountMenuProps {
  * The person-anchored menu at the end of a Header: who is signed in,
  * Settings, Language, Keyboard shortcuts, and Sign out, which confirms in a
  * modal. Signed out, the slot holds a Sign in button instead; while the
- * viewer loads it holds nothing, and a failed read keeps the menu behind a
- * generic trigger.
+ * viewer loads it holds the trigger's shape, hidden, so the header's other
+ * actions stay put when the avatar arrives. A failed read keeps the menu
+ * behind a generic trigger.
  */
 export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const { t } = useTranslation();
@@ -33,7 +34,27 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const presence = useVersionPresence();
 
   if (viewer.kind === ViewerStates.UNKNOWN && facade.viewerPending) {
-    return null;
+    return (
+      <span aria-hidden="true" className={styles["pendingSlot"]}>
+        <IconButton
+          autoWidth
+          className={styles["trigger"]}
+          label={t("shell.accountMenu.ariaLabelTrigger")}
+          size="md"
+          tabIndex={-1}
+          variant="ghost"
+        >
+          <span className={styles["presence"]}>
+            <Icon className={styles["person"]} name={IconNames.USER} />
+          </span>
+          <Icon
+            className={styles["caret"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
+        </IconButton>
+      </span>
+    );
   }
   if (viewer.kind === ViewerStates.SIGNED_OUT) {
     return (

@@ -15,7 +15,9 @@
     background: var(--color-surface-1);
     color: var(--color-text-2);
     font-size: var(--font-size-2);
-    transition: opacity var(--motion-base) ease;
+    transition:
+      opacity var(--motion-base) ease,
+      margin-inline-end var(--sidebar-slide) var(--ease-out);
 
     @starting-style {
       opacity: 0;

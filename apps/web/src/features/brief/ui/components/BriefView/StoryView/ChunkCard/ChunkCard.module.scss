@@ -178,7 +178,9 @@
     color: var(--color-text-3);
   }
 
-  .actions {
+  // Nested under .head to outrank IconButton's own display: at one class
+  // each, stylesheet load order decides.
+  .head .actions {
     display: none;
   }
 

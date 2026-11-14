@@ -390,6 +390,45 @@ describe("ThreadDetail, standalone resolve/unresolve", () => {
   );
 });
 
+describe("ThreadDetail, resolve focus across a writes flip", () => {
+  it("keeps focus on Resolve when writes switch off", () => {
+    const { composer, rerenderDetail } = renderDetail({ canResolve: true });
+    const replyRowButton = screen.getByTestId("thread-resolve");
+    replyRowButton.focus();
+
+    composer.readOnlyReason = "Writes are off on this instance.";
+    rerenderDetail();
+
+    const ownRowButton = screen.getByTestId("thread-resolve");
+    expect(ownRowButton).not.toBe(replyRowButton);
+    expect(document.activeElement).toBe(ownRowButton);
+  });
+
+  it("keeps focus on Resolve when writes switch back on", () => {
+    const { composer, rerenderDetail } = renderDetail({
+      canResolve: true,
+      readOnlyReason: "Writes are off on this instance.",
+    });
+    screen.getByTestId("thread-resolve").focus();
+
+    delete composer.readOnlyReason;
+    rerenderDetail();
+
+    expect(document.activeElement).toBe(screen.getByTestId("thread-resolve"));
+  });
+
+  it("leaves focus elsewhere alone across the flip", () => {
+    const { composer, rerenderDetail } = renderDetail({ canResolve: true });
+    const jumpLink = screen.getByRole("link", { name: /View on GitHub/ });
+    jumpLink.focus();
+
+    composer.readOnlyReason = "Writes are off on this instance.";
+    rerenderDetail();
+
+    expect(document.activeElement).toBe(jumpLink);
+  });
+});
+
 describe("ThreadDetail, Reply & resolve combo", () => {
   it("appears only once the composer has text", () => {
     renderDetail({ canResolve: true });
@@ -861,5 +900,28 @@ describe("ThreadDetail, reply composer", () => {
     const button = screen.getByRole("button", { name: "Reply" });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(button.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("keeps Resolve and the replies in one row, Reply last", () => {
+    renderDetail({ canResolve: true });
+    type("looks right");
+
+    const reply = screen.getByRole("button", { name: "Reply" });
+    const row = reply.parentElement;
+    const names = [...(row?.querySelectorAll("button") ?? [])].map(
+      (button) => button.textContent,
+    );
+    expect(names).toEqual(["Resolve", "Reply & resolve", "Reply"]);
+  });
+
+  it("ties a failed resolve's copy to the Resolve button", async () => {
+    renderDetail({ canResolve: true, resolve: { kind: "github-permission" } });
+    const resolve = screen.getByRole("button", RESOLVE_BUTTON);
+
+    fireEvent.click(resolve);
+
+    const alert = await screen.findByRole("alert");
+    expect(resolve.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(resolve.parentElement?.contains(alert)).toBe(false);
   });
 });

@@ -107,6 +107,8 @@ describe("hard-fail catalog gates", () => {
       "brief.masthead.descriptionWords_one": 1,
       "brief.masthead.descriptionWords_other": 1,
       "brief.reanchorBanner.hint": 3,
+      "conversation.summaryAfterBrief_one": 1,
+      "conversation.summaryAfterBrief_other": 1,
       "conversation.summaryComments_one": 1,
       "conversation.summaryComments_other": 1,
       "conversation.summaryReviews_one": 1,

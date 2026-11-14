@@ -1,103 +1,114 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { readCookieValue } from "@web/utils/preference-cookie";
 import {
-  STORY_CARD_TRACK_STORAGE_KEY,
+  LEGACY_STORY_CARD_TRACK_STORAGE_KEY,
+  STORY_CARD_TRACK_COOKIE,
   clearStoryCardTrack,
+  migrateLegacyStoryCardTrack,
+  parseStoryCardTrack,
   readStoryCardTrack,
   writeStoryCardTrack,
 } from "./story-card-track-storage";
 
+function readCookie(): string | undefined {
+  return readCookieValue(document.cookie, STORY_CARD_TRACK_COOKIE);
+}
+
 afterEach(() => {
-  vi.unstubAllGlobals();
+  clearStoryCardTrack();
   window.localStorage.clear();
+  vi.restoreAllMocks();
 });
 
-describe("readStoryCardTrack", () => {
+describe("parseStoryCardTrack", () => {
   it("reads nothing when nothing is stored", () => {
-    expect(readStoryCardTrack()).toBeUndefined();
+    expect(parseStoryCardTrack(undefined)).toBeUndefined();
   });
 
-  it("reads a stored positive integer", () => {
-    window.localStorage.setItem(STORY_CARD_TRACK_STORAGE_KEY, "512");
-    expect(readStoryCardTrack()).toBe(512);
+  it("reads a positive integer", () => {
+    expect(parseStoryCardTrack("512")).toBe(512);
   });
 
-  it("reads nothing on corrupt JSON", () => {
-    window.localStorage.setItem(STORY_CARD_TRACK_STORAGE_KEY, "{not json");
-    expect(readStoryCardTrack()).toBeUndefined();
+  it("reads nothing on an empty value", () => {
+    expect(parseStoryCardTrack("")).toBeUndefined();
+  });
+
+  it("reads nothing on text", () => {
+    expect(parseStoryCardTrack("wide")).toBeUndefined();
   });
 
   it("reads nothing on a negative number", () => {
-    window.localStorage.setItem(STORY_CARD_TRACK_STORAGE_KEY, "-40");
-    expect(readStoryCardTrack()).toBeUndefined();
+    expect(parseStoryCardTrack("-40")).toBeUndefined();
   });
 
   it("reads nothing on a fraction", () => {
-    window.localStorage.setItem(STORY_CARD_TRACK_STORAGE_KEY, "412.5");
+    expect(parseStoryCardTrack("412.5")).toBeUndefined();
+  });
+});
+
+describe("readStoryCardTrack", () => {
+  it("reads nothing without the cookie", () => {
     expect(readStoryCardTrack()).toBeUndefined();
   });
 
-  it("reads nothing on a string", () => {
-    window.localStorage.setItem(
-      STORY_CARD_TRACK_STORAGE_KEY,
-      JSON.stringify("512"),
-    );
-    expect(readStoryCardTrack()).toBeUndefined();
-  });
-
-  it("reads nothing when storage throws", () => {
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("denied");
-    });
-    expect(readStoryCardTrack()).toBeUndefined();
-  });
-
-  it("reads nothing on the server", () => {
-    vi.stubGlobal("window", undefined);
-    expect(readStoryCardTrack()).toBeUndefined();
+  it("reads the width from the document's cookie", () => {
+    writeStoryCardTrack(480);
+    expect(readStoryCardTrack()).toBe(480);
   });
 });
 
 describe("writeStoryCardTrack", () => {
-  it("stores the raw px number", () => {
+  it("stores the px count in the cookie", () => {
     writeStoryCardTrack(480);
-    expect(window.localStorage.getItem(STORY_CARD_TRACK_STORAGE_KEY)).toBe(
-      "480",
-    );
-  });
-
-  it("writes nothing on the server", () => {
-    vi.stubGlobal("window", undefined);
-    expect(() => writeStoryCardTrack(480)).not.toThrow();
-  });
-
-  it("swallows a write failure", () => {
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("quota");
-    });
-    expect(() => writeStoryCardTrack(480)).not.toThrow();
+    expect(readCookie()).toBe("480");
   });
 });
 
 describe("clearStoryCardTrack", () => {
-  it("removes the stored track", () => {
+  it("removes the stored width", () => {
     writeStoryCardTrack(480);
     clearStoryCardTrack();
-    expect(window.localStorage.getItem(STORY_CARD_TRACK_STORAGE_KEY)).toBe(
-      null,
+    expect(readCookie()).toBeUndefined();
+  });
+});
+
+describe("migrateLegacyStoryCardTrack", () => {
+  it("moves a width stored before the cookie into it, once", () => {
+    window.localStorage.setItem(LEGACY_STORY_CARD_TRACK_STORAGE_KEY, "600");
+
+    expect(migrateLegacyStoryCardTrack()).toBe(600);
+    expect(readCookie()).toBe("600");
+    expect(
+      window.localStorage.getItem(LEGACY_STORY_CARD_TRACK_STORAGE_KEY),
+    ).toBeNull();
+    expect(migrateLegacyStoryCardTrack()).toBeUndefined();
+  });
+
+  it("leaves a cookie already set alone", () => {
+    writeStoryCardTrack(480);
+    window.localStorage.setItem(LEGACY_STORY_CARD_TRACK_STORAGE_KEY, "600");
+
+    expect(migrateLegacyStoryCardTrack()).toBeUndefined();
+    expect(readCookie()).toBe("480");
+  });
+
+  it("drops a stored value that is not a width", () => {
+    window.localStorage.setItem(
+      LEGACY_STORY_CARD_TRACK_STORAGE_KEY,
+      "{not json",
     );
+
+    expect(migrateLegacyStoryCardTrack()).toBeUndefined();
+    expect(readCookie()).toBeUndefined();
   });
 
-  it("clears nothing on the server", () => {
-    vi.stubGlobal("window", undefined);
-    expect(() => clearStoryCardTrack()).not.toThrow();
-  });
-
-  it("swallows a removal failure", () => {
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+  it("migrates nothing when storage throws", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("denied");
     });
-    expect(() => clearStoryCardTrack()).not.toThrow();
+
+    expect(migrateLegacyStoryCardTrack()).toBeUndefined();
   });
 });

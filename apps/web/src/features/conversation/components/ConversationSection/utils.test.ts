@@ -76,14 +76,14 @@ function buildConversation(
 
 describe("listHeadSummaryParts", () => {
   it("returns no parts for an empty conversation", () => {
-    expect(listHeadSummaryParts(buildConversation())).toEqual([]);
+    expect(listHeadSummaryParts(buildConversation(), 0)).toEqual([]);
   });
 
   it("omits zero parts, a body-only review never reads 0 threads", () => {
     const conversation = buildConversation({
       reviews: [review(1, "COMMENTED", "LGTM")],
     });
-    expect(listHeadSummaryParts(conversation)).toEqual([
+    expect(listHeadSummaryParts(conversation, 0)).toEqual([
       { i18nKey: "conversation.summaryReviews", count: 1 },
     ]);
   });
@@ -93,7 +93,7 @@ describe("listHeadSummaryParts", () => {
       reviews: [review(1, "COMMENTED", "  ")],
       threads: [thread(11, true)],
     });
-    expect(listHeadSummaryParts(conversation)).toEqual([
+    expect(listHeadSummaryParts(conversation, 0)).toEqual([
       { i18nKey: "conversation.summaryThreadsCounted", count: 1, open: 0 },
     ]);
   });
@@ -104,10 +104,18 @@ describe("listHeadSummaryParts", () => {
       prComments: [prComment(21)],
       threads: [thread(11), thread(12, true)],
     });
-    expect(listHeadSummaryParts(conversation)).toEqual([
+    expect(listHeadSummaryParts(conversation, 0)).toEqual([
       { i18nKey: "conversation.summaryReviews", count: 2 },
       { i18nKey: "conversation.summaryComments", count: 1 },
       { i18nKey: "conversation.summaryThreadsCounted", count: 2, open: 1 },
+    ]);
+  });
+
+  it("ends with what is new since the brief, when anything is", () => {
+    const conversation = buildConversation({ threads: [thread(11)] });
+    expect(listHeadSummaryParts(conversation, 2)).toEqual([
+      { i18nKey: "conversation.summaryThreadsCounted", count: 1, open: 1 },
+      { i18nKey: "conversation.summaryAfterBrief", count: 2 },
     ]);
   });
 });

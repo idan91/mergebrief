@@ -3,11 +3,13 @@
 
 @layer components {
   .item {
-    --strip-inner-radius: #{functions.inner-radius(var(--radius-md), 1px)};
+    --frame-inner-radius: #{functions.inner-radius(var(--radius-md), 1px)};
 
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-card-sunken);
   }
 
   .head {
@@ -15,6 +17,8 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     column-gap: var(--space-4);
+    padding: var(--space-3-5) var(--space-4) var(--space-3-5) var(--space-5);
+    border-block-end: 1px solid var(--color-line);
   }
 
   .when {
@@ -24,6 +28,11 @@
     font-weight: 500;
     line-height: var(--line-height-compact);
     overflow-wrap: anywhere;
+  }
+
+  .lead {
+    color: var(--color-text-2);
+    font-weight: 400;
   }
 
   .area {
@@ -37,16 +46,14 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
     margin: 0;
-    border: 1px solid var(--color-line-strong);
-    border-radius: var(--radius-md);
   }
 
   .before,
   .after {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-3) var(--space-6);
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-6);
     font-size: var(--font-size-3);
     line-height: var(--line-height-body);
   }
@@ -58,9 +65,8 @@
 
   .after {
     position: relative;
-    border-inline-start: 1px solid var(--color-line-strong);
-    border-start-end-radius: var(--strip-inner-radius);
-    border-end-end-radius: var(--strip-inner-radius);
+    border-inline-start: 1px solid var(--color-line);
+    border-end-end-radius: var(--frame-inner-radius);
     background: var(--color-surface-2);
     color: var(--color-text-1);
   }
@@ -84,9 +90,9 @@
     place-items: center;
     inline-size: functions.to-rem(22px);
     block-size: functions.to-rem(22px);
-    border: 1px solid var(--color-line-strong);
+    border: 1px solid var(--color-line);
     border-radius: var(--radius-circle);
-    background: var(--color-card);
+    background: var(--color-card-sunken);
     color: var(--color-text-2);
     font-size: var(--font-size-1);
     line-height: var(--line-height-control);
@@ -114,10 +120,9 @@
     }
 
     .after {
-      border-block-start: 1px solid var(--color-line-strong);
+      border-block-start: 1px solid var(--color-line);
       border-inline-start: 0;
-      border-start-end-radius: 0;
-      border-end-start-radius: var(--strip-inner-radius);
+      border-end-start-radius: var(--frame-inner-radius);
     }
 
     .arrow {

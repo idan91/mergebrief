@@ -41,9 +41,9 @@ test("unrecognized params fall back to the product default", async ({
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
   // default applies: the page renders rather than 404ing or erroring.
-  await expect(page.getByRole("radio", { name: "Changes only" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Full brief" })).toBeChecked();
   await expect(
-    page.getByRole("radio", { name: "Previous brief", exact: true }),
+    page.getByRole("radio", { name: "Off", exact: true }),
   ).toBeChecked();
 });
 

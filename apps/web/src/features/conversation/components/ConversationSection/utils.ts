@@ -24,7 +24,8 @@ export interface HeadSummaryPart {
   i18nKey:
     | "conversation.summaryReviews"
     | "conversation.summaryComments"
-    | "conversation.summaryThreadsCounted";
+    | "conversation.summaryThreadsCounted"
+    | "conversation.summaryAfterBrief";
   count: number;
   open?: number;
 }
@@ -35,6 +36,7 @@ export interface HeadSummaryPart {
  */
 export function listHeadSummaryParts(
   conversation: PrConversation,
+  afterBriefCount: number,
 ): HeadSummaryPart[] {
   const reviews = conversation.reviews.filter(isStatedVerdict).length;
   const comments = conversation.prComments.length;
@@ -54,6 +56,12 @@ export function listHeadSummaryParts(
       i18nKey: "conversation.summaryThreadsCounted",
       count: threads,
       open,
+    });
+  }
+  if (afterBriefCount > 0) {
+    parts.push({
+      i18nKey: "conversation.summaryAfterBrief",
+      count: afterBriefCount,
     });
   }
   return parts;

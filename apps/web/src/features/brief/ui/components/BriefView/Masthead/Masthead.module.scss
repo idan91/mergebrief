@@ -5,6 +5,7 @@
 @layer components {
   .grid {
     --masthead-card-min: auto;
+    --masthead-stack-offset: 0px;
 
     display: grid;
     grid-template:
@@ -29,13 +30,16 @@
   }
 
   .card {
-    min-block-size: var(--masthead-card-min);
     grid-area: card;
-    align-self: start;
 
     @include layout.when-story-stacks {
       display: none;
     }
+  }
+
+  .grid[data-held] .card {
+    min-block-size: var(--masthead-card-min);
+    align-self: start;
   }
 
   .stack {
@@ -44,7 +48,17 @@
     gap: var(--space-3);
     min-inline-size: 0;
     grid-area: stack;
-    align-self: start;
+    align-self: end;
+  }
+
+  // The hook marks the grid held only while a fold is open; at rest the
+  // stretched card and the end-aligned stack are flush with no measurement.
+  .grid[data-held] .stack {
+    margin-block-start: var(--masthead-stack-offset);
+
+    @include layout.when-story-stacks {
+      margin-block-start: 0;
+    }
   }
 
   .facts {

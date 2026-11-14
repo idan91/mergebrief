@@ -9,6 +9,7 @@ export const IconNames = {
   ARROW_UP: "arrow-up",
   ARROW_UP_RIGHT: "arrow-up-right",
   CARET_DOWN: "caret-down",
+  CHAT_FILL: "chat-fill",
   CHAT_TEXT: "chat-text",
   CHECK: "check",
   CHECK_CIRCLE: "check-circle",

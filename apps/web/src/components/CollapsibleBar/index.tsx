@@ -94,7 +94,12 @@ export function CollapsibleBar({
         ) : null}
       </div>
       {note !== undefined ? <div className={styles["note"]}>{note}</div> : null}
-      <div className={styles["panel"]} hidden={!open} id={panelId}>
+      <div
+        className={styles["panel"]}
+        data-bar-panel=""
+        hidden={!open}
+        id={panelId}
+      >
         {children}
       </div>
     </section>

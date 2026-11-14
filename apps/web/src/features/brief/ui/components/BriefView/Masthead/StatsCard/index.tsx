@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
@@ -17,6 +18,7 @@ export interface StatsCardProps {
   repoConfig?: RepoConfigContext | null | undefined;
   shares: readonly ConcernShare[];
   className?: string | undefined;
+  ref?: Ref<HTMLDivElement> | undefined;
 }
 
 /** The masthead's card: how the brief was generated, then the concern Split. */
@@ -26,13 +28,14 @@ export function StatsCard({
   repoConfig,
   shares,
   className,
+  ref,
 }: StatsCardProps) {
   const { t } = useTranslation();
   const showSplit = hasConcernSplit(shares);
   const cardClassName = clsx(styles["card"], className);
 
   return (
-    <div className={cardClassName} data-testid="stats-card">
+    <div className={cardClassName} data-testid="stats-card" ref={ref}>
       <section className={styles["section"]}>
         <h2 className={styles["label"]}>{t("brief.masthead.generatedBy")}</h2>
         <Provenance

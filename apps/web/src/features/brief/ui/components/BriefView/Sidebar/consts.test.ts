@@ -10,6 +10,9 @@ const TOKEN_STYLESHEET = fileURLToPath(
 const SIDEBAR_STYLESHEET = fileURLToPath(
   new URL("./Sidebar.module.scss", import.meta.url),
 );
+const PAGE_STYLESHEET = fileURLToPath(
+  new URL("../BriefView.module.scss", import.meta.url),
+);
 
 function readTokenMs(tokens: string, name: string): number {
   const value = new RegExp(`${name}:\\s*(\\d+)ms;`).exec(tokens)?.[1];
@@ -18,22 +21,33 @@ function readTokenMs(tokens: string, name: string): number {
 }
 
 describe("Sidebar slide timers", () => {
-  it("end the slide on the motion tokens the panel transitions on", async () => {
+  it("end the slide on the motion tokens it runs on", async () => {
     const tokens = await readFile(TOKEN_STYLESHEET, "utf8");
 
-    expect(readTokenMs(tokens, "--motion-base")).toBe(SIDEBAR_SLIDE_IN_MS);
-    expect(readTokenMs(tokens, "--motion-fast")).toBe(SIDEBAR_SLIDE_OUT_MS);
+    expect(readTokenMs(tokens, "--motion-slide")).toBe(SIDEBAR_SLIDE_IN_MS);
+    expect(readTokenMs(tokens, "--motion-base")).toBe(SIDEBAR_SLIDE_OUT_MS);
   });
 
-  it("slide the panel in on --motion-base and out on --motion-fast", async () => {
+  it("slide in on --motion-slide and out on --motion-base", async () => {
+    const page = await readFile(PAGE_STYLESHEET, "utf8");
+
+    expect(page).toMatch(
+      /data-sidebar-slide="in"\]\) \{\s+--sidebar-slide: var\(--motion-slide\);/,
+    );
+    expect(page).toMatch(
+      /data-sidebar-slide="out"\]\) \{\s+--sidebar-slide: var\(--motion-base\);/,
+    );
+  });
+
+  it("move the sidebar and the page column on one duration and curve", async () => {
     const sidebar = await readFile(SIDEBAR_STYLESHEET, "utf8");
+    const page = await readFile(PAGE_STYLESHEET, "utf8");
 
     expect(sidebar).toContain(
-      "transition: transform var(--motion-fast) var(--ease-out);",
+      "transition: inline-size var(--sidebar-slide) var(--ease-out);",
     );
-    expect(sidebar).toContain("transition-duration: var(--motion-base);");
-    expect(sidebar).toContain(
-      "transition: inline-size 0s linear var(--motion-fast);",
+    expect(page).toContain(
+      "padding-inline-end var(--sidebar-slide) var(--ease-out);",
     );
   });
 });

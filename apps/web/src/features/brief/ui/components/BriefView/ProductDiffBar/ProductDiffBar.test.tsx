@@ -47,6 +47,18 @@ describe("ProductDiffBar", () => {
     expect(toggle.textContent).toContain("1 product change");
   });
 
+  it("leaves a flag-gated condition to lead itself", () => {
+    const change = makeProductChange({
+      when: "with the `beta` flag on, a user signs in",
+    });
+    mountBar(makeProductDiff({ changes: [change] }));
+
+    openBar();
+
+    const heading = screen.getByRole("heading", { level: 3 });
+    expect(heading.textContent).toBe("With the beta flag on, a user signs in");
+  });
+
   it("shows each change as its condition, a before and an after", () => {
     mountBar(makeProductDiff());
 
@@ -55,7 +67,7 @@ describe("ProductDiffBar", () => {
     const item = screen.getByRole("listitem");
     const heading = within(item).getByRole("heading", { level: 3 });
     expect(heading.textContent).toBe(
-      "a user creates an item whose name matches an archived one",
+      "When a user creates an item whose name matches an archived one",
     );
     const terms = within(item).getAllByRole("term");
     const definitions = within(item).getAllByRole("definition");

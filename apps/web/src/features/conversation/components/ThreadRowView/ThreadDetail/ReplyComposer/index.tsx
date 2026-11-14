@@ -1,7 +1,14 @@
 import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
@@ -84,6 +91,8 @@ export interface ReplyComposerProps {
    * the keyboard lands on the retry path instead of on `<body>`.
    */
   focusResolveAction?: (() => void) | undefined;
+  /** The thread's own action, first in the action row ahead of the replies. */
+  leadingAction?: ReactNode;
 }
 
 export function ReplyComposer({
@@ -94,6 +103,7 @@ export function ReplyComposer({
   quote,
   resolveAfterPost,
   focusResolveAction,
+  leadingAction,
 }: ReplyComposerProps) {
   const { t } = useTranslation();
   const { announce, announceQuietly } = useReviewActions();
@@ -300,20 +310,8 @@ export function ReplyComposer({
             : error}
         </p>
       ) : null}
-      <div className={rowStyles["detailActions"]}>
-        {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
-            to <body> the moment posting starts, and strand it there on
-            success. The click guard lives in submit(). */}
-        <Button
-          aria-busy={pendingAction === "reply" || undefined}
-          aria-disabled={blocked || undefined}
-          variant="quiet"
-          onClick={() => submit(false)}
-        >
-          {pendingAction === "reply"
-            ? t("conversation.posting")
-            : t("conversation.reply")}
-        </Button>
+      <div className={styles["actions"]}>
+        {leadingAction}
         {/* Only with text in the box: closing a thread you have nothing to say
             on is the standalone Resolve button's job. It stays mounted for its
             own run, a busy control that vanishes mid-request drops both the
@@ -333,6 +331,19 @@ export function ReplyComposer({
               : t("conversation.replyAndResolve")}
           </Button>
         ) : null}
+        {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
+            to <body> the moment posting starts, and strand it there on
+            success. The click guard lives in submit(). */}
+        <Button
+          aria-busy={pendingAction === "reply" || undefined}
+          aria-disabled={blocked || undefined}
+          variant="quiet"
+          onClick={() => submit(false)}
+        >
+          {pendingAction === "reply"
+            ? t("conversation.posting")
+            : t("conversation.reply")}
+        </Button>
       </div>
     </div>
   );

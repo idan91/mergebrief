@@ -319,7 +319,7 @@ describe("ConversationSection", () => {
   it("omits the count line without a cutoff and marks nothing", async () => {
     renderSection({ plan: plan([ready()]) });
     await screen.findByText("Changes requested");
-    expect(screen.queryByText(/since this brief was generated/)).toBeNull();
+    expect(screen.queryByText(/new since this brief/)).toBeNull();
     expect(screen.queryByText("New since this brief")).toBeNull();
   });
 
@@ -331,9 +331,10 @@ describe("ConversationSection", () => {
       },
     });
     // Both fixture comments postdate the cutoff.
-    expect(
-      await screen.findByText("2 new comments since this brief was generated"),
-    ).toBeDefined();
+    const head = await screen.findByRole("button", { name: /^Conversation/ });
+    await waitFor(() =>
+      expect(head.textContent).toContain("2 new since this brief"),
+    );
     // Expand alice's (human) thread row, its detail chips the comment.
     fireEvent.click(
       screen.getByRole("button", {
@@ -370,9 +371,10 @@ describe("ConversationSection", () => {
       submittedReviewIds: [500],
     });
     // Only the bot's comment is news; alice's thread is the reviewer's own.
-    expect(
-      await screen.findByText("1 new comment since this brief was generated"),
-    ).toBeDefined();
+    const head = await screen.findByRole("button", { name: /^Conversation/ });
+    await waitFor(() =>
+      expect(head.textContent).toContain("1 new since this brief"),
+    );
     fireEvent.click(
       screen.getByRole("button", {
         name: /This null check looks inverted/,

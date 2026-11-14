@@ -30,13 +30,19 @@ export type ConcernShare = AttributedConcernShare | UnattributedRemainderShare;
 export interface CardMinHeightInput {
   summaryHeight: number;
   rowGap: number;
-  /** The bar stack's height when every bar was last closed; undefined before. */
-  collapsedStackHeight: number | undefined;
+  /** The bar stack's height with every bar closed. */
+  collapsedStackHeight: number;
+}
+
+export interface StackOffsetInput extends CardMinHeightInput {
+  /** The card's rendered height, zero where the story stacks and hides it. */
+  cardHeight: number;
 }
 
 export interface HeldCardHeightRefs {
   gridRef: RefObject<HTMLDivElement | null>;
   summaryRef: RefObject<HTMLDivElement | null>;
+  cardRef: RefObject<HTMLDivElement | null>;
   stackRef: RefObject<HTMLDivElement | null>;
 }
 

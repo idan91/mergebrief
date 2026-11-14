@@ -60,6 +60,11 @@
       var(--color-surface-1) 80%,
       var(--color-ground)
     );
+    --color-card-sunken: color-mix(
+      in oklch,
+      var(--color-card) 50%,
+      var(--color-chrome)
+    );
 
     // ── Text ─────────────────────────────────────────────────────────────
     --color-text-1: var(--gray-100); // primary
@@ -276,7 +281,7 @@
     // loader's pass and its stagger, and the curves; keyboard movement never
     // animates.
     // SIDEBAR_SLIDE_IN_MS and SIDEBAR_SLIDE_OUT_MS in
-    // BriefView/Sidebar/consts.ts copy base and fast.
+    // BriefView/Sidebar/consts.ts copy slide and base.
     --motion-fast: 120ms;
     --motion-base: 180ms;
     --motion-slow: 320ms;
@@ -438,6 +443,10 @@
     // the reading column's state.
     --sidebar-w: 0px;
     --sidebar-covered-w: 0px;
+
+    // How long both widths take to change: 0s at rest, the panel's slide
+    // while it runs.
+    --sidebar-slide: 0s;
     --sidebar-reserve-bottom: 0px;
 
     // @property-registered in _layers.scss so JS reads the inset in px.

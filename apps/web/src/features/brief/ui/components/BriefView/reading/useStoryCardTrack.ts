@@ -1,7 +1,8 @@
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   clearStoryCardTrack,
+  migrateLegacyStoryCardTrack,
   readStoryCardTrack,
   writeStoryCardTrack,
 } from "./story-card-track-storage";
@@ -14,15 +15,20 @@ export interface StoryCardTrack {
 }
 
 /**
- * Storage is read on the client only, after hydration and before paint: SSR
- * renders the default track so a remembered width never arrives as a
- * hydration mismatch, and a navigation never flashes the default.
+ * The stored width seeds the first render on both sides from the cookie, so
+ * the server draws the column at the width the reader left it and hydration
+ * agrees with it.
  */
 export function useStoryCardTrack(): StoryCardTrack {
-  const [track, setTrackState] = useState<number | undefined>(undefined);
+  const [track, setTrackState] = useState<number | undefined>(
+    readStoryCardTrack,
+  );
 
-  useLayoutEffect(() => {
-    setTrackState(readStoryCardTrack());
+  useEffect(() => {
+    const migrated = migrateLegacyStoryCardTrack();
+    if (migrated !== undefined) {
+      setTrackState(migrated);
+    }
   }, []);
 
   const setTrack = useCallback((px: number) => {

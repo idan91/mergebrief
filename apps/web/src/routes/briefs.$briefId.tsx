@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -10,6 +10,7 @@ import {
 import { BriefError, BriefPage, useBriefAddress } from "@web/features/brief";
 import {
   parseBriefAddressSearch,
+  parseBriefSearchParams,
   resolveLegacyDeltaRedirect,
 } from "@web/features/brief/model";
 import {
@@ -98,7 +99,8 @@ export const Route = createFileRoute("/briefs/$briefId")({
 function BriefRoute() {
   useUnsavedComposerBlocker();
   const { briefId } = Route.useParams();
-  const searchParams = Route.useSearch();
+  const search = Route.useSearch();
+  const searchParams = useMemo(() => parseBriefSearchParams(search), [search]);
   const artifacts = useSuspenseQuery(buildLocalBriefsQueryOptions()).data;
   const navigate = Route.useNavigate();
   // Pending only while a navigation targeting another brief page runs its
@@ -109,7 +111,7 @@ function BriefRoute() {
       state.status === "pending" &&
       BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
-  const address = useBriefAddress(searchParams, navigate);
+  const address = useBriefAddress(search, navigate);
 
   // Keeps View and Compare for the new brief to re-normalise; drops only the
   // link, whose chunk id means nothing in another brief.

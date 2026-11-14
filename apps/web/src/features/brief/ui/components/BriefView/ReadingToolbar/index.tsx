@@ -97,6 +97,14 @@ export function ReadingToolbar({
       data-testid="reading-toolbar"
       ref={barRef}
     >
+      {rail.entries.length > 0 ? (
+        <RiskAttrsDisclosure
+          cycle={riskAttrCycle}
+          jumpToGroup={jumpToGroup}
+          rail={rail}
+          triggerVariant={ToolbarButtonVariants.GHOST}
+        />
+      ) : null}
       {filter !== undefined ? (
         <FilterDisclosure
           filter={filter.filter}
@@ -105,14 +113,6 @@ export function ReadingToolbar({
           triggerVariant={ToolbarButtonVariants.GHOST}
           verdicts={filter.verdicts}
           onChange={filter.onChange}
-        />
-      ) : null}
-      {rail.entries.length > 0 ? (
-        <RiskAttrsDisclosure
-          cycle={riskAttrCycle}
-          jumpToGroup={jumpToGroup}
-          rail={rail}
-          triggerVariant={ToolbarButtonVariants.GHOST}
         />
       ) : null}
       <div className={styles["navCluster"]}>

@@ -21,8 +21,8 @@ export interface BriefSearch {
 }
 
 /**
- * Absent or unrecognized URL values differ from explicit off/full selections.
- * Only absence triggers fresh-arrival defaults; selections persist for the session.
+ * Absent or unrecognized URL values read as the fresh-arrival default, the
+ * full Brief with no comparison; selections persist for the session.
  */
 export interface BriefSearchParams {
   view?: ViewParam;
@@ -157,6 +157,27 @@ export function parseCompareParam(value: unknown): CompareParam | undefined {
     : undefined;
 }
 
+/** The Brief's four search keys as a URL or a routed search hands them over. */
+export type RawBriefSearchParams = {
+  readonly [Key in keyof BriefSearchParams]?: unknown;
+};
+
+/**
+ * The four keys the Brief reads, each through its own vocabulary. A route
+ * hands back the URL's raw value for a key its validator omitted, so each
+ * route parses its routed search through here before the screen reads it.
+ */
+export function parseBriefSearchParams(
+  search: RawBriefSearchParams,
+): BriefSearchParams {
+  return buildBriefSearchParams(
+    parseViewParam(search.view),
+    parseCompareParam(search.compare),
+    parseDiffParam(search.diff),
+    parseFocusParam(search.focus),
+  );
+}
+
 /**
  * The screen's search vocabulary. Unrecognized or absent keys are omitted,
  * not defaulted, so the page can tell "nothing chosen yet" from a choice.
@@ -165,12 +186,7 @@ export function parseBriefAddressSearch(
   search: Record<string, unknown>,
 ): BriefAddressSearch {
   const link = search["l"];
-  const parsed: BriefAddressSearch = buildBriefSearchParams(
-    parseViewParam(search["view"]),
-    parseCompareParam(search["compare"]),
-    parseDiffParam(search["diff"]),
-    parseFocusParam(search["focus"]),
-  );
+  const parsed: BriefAddressSearch = parseBriefSearchParams(search);
 
   if (typeof link === "string" && link.length > 0) {
     parsed.l = link;
@@ -233,19 +249,14 @@ export function normalizeBriefSearch(
 }
 
 /**
- * Only a known personal baseline defaults returning reviewers to Changes Only.
- * Previous Brief remains selectable but never forces that fresh-arrival default.
- * Any explicit selection is normalized instead.
+ * A fresh arrival reads the full Brief with no comparison, whoever arrives
+ * and whatever baselines exist: a comparison is the reader's own pick. An
+ * explicit selection is normalized against what is available.
  */
 export function resolveBriefSearch(
   params: BriefSearchParams,
   availability: CompareOptionFlags,
 ): BriefSearch {
-  if (params.view === undefined && params.compare === undefined) {
-    return availability.lastReview
-      ? { view: "changes", compare: CompareParams.LAST_REVIEW }
-      : { view: "full", compare: CompareParams.OFF };
-  }
   return normalizeBriefSearch(
     {
       view: params.view ?? "full",
@@ -293,85 +304,25 @@ export function compareUnavailableTitle(
   );
 }
 
-const LAST_REVIEW_FLIPS: readonly boolean[] = [false, true];
-
-function resolvesLike(
-  candidate: BriefSearchParams,
-  params: BriefSearchParams,
-  availability: CompareOptionFlags,
-): boolean {
-  const resolved = resolveBriefSearch(candidate, availability);
-  const target = resolveBriefSearch(params, availability);
-  return resolved.view === target.view && resolved.compare === target.compare;
-}
-
-function resolvesStably(
-  candidate: BriefSearchParams,
-  params: BriefSearchParams,
-  availability: CompareOptionFlags,
-): boolean {
-  return LAST_REVIEW_FLIPS.every((lastReview) =>
-    resolvesLike(candidate, params, { ...availability, lastReview }),
-  );
-}
-
 /**
- * A default leaves a shared URL only when the rest still resolves to the
- * same state whether or not the last-review comparison is available: that
- * availability arrives on a poll and differs per revision. In practice
- * `view=full` leaves and `compare=off` stays, since a bare URL follows the
- * last review. `diff` leaves when it names the viewer's stored preference.
+ * A default leaves a written URL: a bare one reads the full Brief with no
+ * comparison. `diff` leaves when it names the viewer's stored preference.
  */
 export function stripDefaultSearch(
   params: BriefSearchParams,
-  availability: CompareOptionFlags,
   storedDiff: DiffView,
 ): BriefSearchParams {
-  const viewDroppable = params.view === "full";
-  const compareDroppable = params.compare === CompareParams.OFF;
   const kept: BriefSearchParams = {};
 
-  if (params.view !== undefined) {
+  if (params.view !== undefined && params.view !== "full") {
     kept.view = params.view;
   }
-  if (params.compare !== undefined) {
+  if (params.compare !== undefined && params.compare !== CompareParams.OFF) {
     kept.compare = params.compare;
   }
-
-  const candidates: BriefSearchParams[] = [];
-  if (viewDroppable && compareDroppable) {
-    candidates.push({});
-  }
-  if (viewDroppable) {
-    candidates.push(dropView(kept));
-  }
-  if (compareDroppable) {
-    candidates.push(dropCompare(kept));
-  }
-  const stripped =
-    candidates.find((candidate) =>
-      resolvesStably(candidate, params, availability),
-    ) ?? kept;
-
   if (params.diff !== undefined && params.diff !== storedDiff) {
-    stripped.diff = params.diff;
+    kept.diff = params.diff;
   }
 
-  return stripped;
-}
-
-function dropView(params: BriefSearchParams): BriefSearchParams {
-  const rest: BriefSearchParams = {};
-  if (params.compare !== undefined) {
-    rest.compare = params.compare;
-  }
-  return rest;
-}
-
-function dropCompare(params: BriefSearchParams): BriefSearchParams {
-  const rest: BriefSearchParams = {};
-  if (params.view !== undefined) {
-    rest.view = params.view;
-  }
-  return rest;
+  return kept;
 }

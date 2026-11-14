@@ -2,13 +2,19 @@ import type { TFunction } from "i18next";
 import { type Concern, Concerns, type ConcernRollup } from "brief-core/types";
 
 import { getConcernLabel } from "../../../../model/utils/view-model";
-import { CARD_MIN_PROPERTY, MIN_SPLIT_CONCERNS } from "./consts";
+import {
+  CARD_MIN_PROPERTY,
+  HELD_ATTRIBUTE,
+  MIN_SPLIT_CONCERNS,
+  STACK_OFFSET_PROPERTY,
+} from "./consts";
 import {
   SplitSegmentKinds,
   type CardMinHeightInput,
   type ConcernSegment,
   type ConcernShare,
   type SplitSegmentKind,
+  type StackOffsetInput,
 } from "./types";
 
 interface RemainderLines {
@@ -139,19 +145,15 @@ function buildWorkingShare(
 }
 
 /**
- * The card's held height: the summary, the row gap and the bar stack as it
- * last measured with every bar closed. Undefined until that measurement
- * exists, so the card keeps its natural height. An empty stack measures zero
- * and adds no gap, so the card ends with the summary.
+ * The card's held height: the summary, the row gap and the bar stack with
+ * every bar closed. An empty stack measures zero and adds no gap, so the
+ * card ends with the summary.
  */
 export function computeCardMinHeight({
   summaryHeight,
   rowGap,
   collapsedStackHeight,
-}: CardMinHeightInput): number | undefined {
-  if (collapsedStackHeight === undefined) {
-    return undefined;
-  }
+}: CardMinHeightInput): number {
   if (collapsedStackHeight === 0) {
     return summaryHeight;
   }
@@ -160,20 +162,48 @@ export function computeCardMinHeight({
   return heldHeight;
 }
 
-/** Writes the held height on change only, so a frame that measured the same costs nothing. */
-export function writeCardMinHeight(
-  grid: HTMLElement,
-  minHeight: number | undefined,
-): void {
-  if (minHeight === undefined) {
-    grid.style.removeProperty(CARD_MIN_PROPERTY);
-    return;
+/**
+ * How far a card taller than the summary and the closed stack runs past
+ * them: the stack moves down by it, so its last fold ends on the card's
+ * bottom edge. Zero for a shorter or hidden card and for an empty stack.
+ */
+export function computeStackOffset({
+  cardHeight,
+  summaryHeight,
+  rowGap,
+  collapsedStackHeight,
+}: StackOffsetInput): number {
+  if (collapsedStackHeight === 0) {
+    return 0;
   }
 
-  const next = `${String(minHeight)}px`;
-  if (grid.style.getPropertyValue(CARD_MIN_PROPERTY) !== next) {
-    grid.style.setProperty(CARD_MIN_PROPERTY, next);
+  const restingHeight = summaryHeight + rowGap + collapsedStackHeight;
+  return Math.max(0, cardHeight - restingHeight);
+}
+
+function writePixels(grid: HTMLElement, property: string, pixels: number) {
+  const next = `${String(pixels)}px`;
+  if (grid.style.getPropertyValue(property) !== next) {
+    grid.style.setProperty(property, next);
   }
+}
+
+/** Writes the held height on change only, so a frame that measured the same costs nothing. */
+export function writeCardMinHeight(grid: HTMLElement, minHeight: number): void {
+  writePixels(grid, CARD_MIN_PROPERTY, minHeight);
+}
+
+/** Writes the stack's offset on change only. */
+export function writeStackOffset(grid: HTMLElement, offset: number): void {
+  writePixels(grid, STACK_OFFSET_PROPERTY, offset);
+}
+
+/** Marks the grid held or at rest, on change only. */
+export function writeHeld(grid: HTMLElement, held: boolean): void {
+  if (grid.hasAttribute(HELD_ATTRIBUTE) === held) {
+    return;
+  }
+  grid.toggleAttribute(HELD_ATTRIBUTE, held);
 }
 
 /** A Split says something only across two concerns; the remainder does not count. */

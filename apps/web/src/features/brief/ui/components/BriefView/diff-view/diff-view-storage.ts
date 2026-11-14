@@ -3,6 +3,10 @@ import { getCookie } from "@tanstack/react-start/server";
 import { z } from "zod/v4";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import {
+  readCookieValue,
+  writePreferenceCookie,
+} from "@web/utils/preference-cookie";
 
 /** The cookie the preference lives in: the server renders with it. */
 export const DIFF_VIEW_COOKIE = "mergebrief.diffView";
@@ -10,31 +14,12 @@ export const DIFF_VIEW_COOKIE = "mergebrief.diffView";
 /** The preference's localStorage home before the cookie, read once to seed it. */
 export const LEGACY_DIFF_VIEW_STORAGE_KEY = "mergebrief.diffView";
 
-/** Chrome's ceiling on a cookie's lifetime. */
-const DIFF_VIEW_COOKIE_MAX_AGE_S = 400 * 24 * 60 * 60;
-
 // A view this build no longer ships must not strand the reader on a blank
 // preference; the catch lands them back on the default.
 const diffViewSchema = z.enum(DiffViews).catch(DiffViews.UNIFIED);
 
 export function parseDiffView(raw: string | undefined): DiffView {
   return diffViewSchema.parse(raw);
-}
-
-/** One cookie's value out of a `document.cookie` string, absent when unset. */
-export function readCookieValue(
-  cookies: string,
-  name: string,
-): string | undefined {
-  for (const pair of cookies.split(";")) {
-    const separator = pair.indexOf("=");
-    const namesCookie =
-      separator !== -1 && pair.slice(0, separator).trim() === name;
-    if (namesCookie) {
-      return pair.slice(separator + 1).trim();
-    }
-  }
-  return undefined;
 }
 
 /**
@@ -48,19 +33,8 @@ export const readDiffView = createIsomorphicFn()
       parseDiffView(readCookieValue(document.cookie, DIFF_VIEW_COOKIE)),
   );
 
-export function buildDiffViewCookie(view: DiffView, secure: boolean): string {
-  const cookie = `${DIFF_VIEW_COOKIE}=${view}; Path=/; Max-Age=${String(DIFF_VIEW_COOKIE_MAX_AGE_S)}; SameSite=Lax`;
-  return secure ? `${cookie}; Secure` : cookie;
-}
-
 export function writeDiffView(view: DiffView): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-  document.cookie = buildDiffViewCookie(
-    view,
-    window.location.protocol === "https:",
-  );
+  writePreferenceCookie(DIFF_VIEW_COOKIE, view);
 }
 
 /**

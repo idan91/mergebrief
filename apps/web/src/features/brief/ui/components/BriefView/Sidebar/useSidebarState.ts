@@ -17,34 +17,36 @@ import {
   SIDEBAR_SLIDE_OUT_MS,
 } from "./consts";
 import {
-  DEFAULT_SIDEBAR_PREFERENCE,
+  migrateLegacySidebarPreference,
+  readSidebarOverlayHint,
   readSidebarPreference,
+  resolveShownPreference,
+  writeSidebarOverlayHint,
   writeSidebarPreference,
 } from "./storage";
-import type { SidebarPreference, SidebarTab } from "./types";
+import {
+  SidebarSlides,
+  type SidebarPreference,
+  type SidebarSlide,
+  type SidebarTab,
+} from "./types";
 
 export interface SidebarState {
   expanded: boolean;
   tab: SidebarTab;
-  /**
-   * The width the reading column reserves: it lags `expanded` until the panel
-   * has finished sliding, so the column re-lays out once.
-   */
-  columnExpanded: boolean;
   /** The panel keeps its content while it slides out. */
   panelShown: boolean;
-  /** A slide is running. A panel a revision switch remounts never is, so it does not slide in again. */
-  sliding: boolean;
-  /** False when the last change came from the keyboard: that one never animates. */
-  slideMotion: boolean;
+  /**
+   * The slide that is running, absent at rest. A keyboard change, reduced
+   * motion and the first paint never slide.
+   */
+  slide: SidebarSlide | undefined;
   toggle: () => void;
   toggleInstantly: () => void;
   expand: () => void;
   collapse: () => void;
   collapseInstantly: () => void;
   selectTab: (tab: SidebarTab) => void;
-  /** False until a frame after the stored preference is applied, so the first paint never animates. */
-  motionReady: boolean;
   /** Marks a revision pick: the next brief's sidebar takes focus back. */
   requestRevisionRefocus: () => void;
   /** Answers the mark, or a brief change that closed the sheet, and clears it. */
@@ -66,23 +68,26 @@ export function useSidebarState(
   visible: boolean,
   briefId: string,
 ): SidebarState {
-  const [preference, setPreference] = useState<SidebarPreference>(
-    DEFAULT_SIDEBAR_PREFERENCE,
+  // Both first renders read the cookie, so the server draws the sidebar the
+  // way the reader left it and hydration agrees with it.
+  const [storedAtFirstRender] = useState<SidebarPreference>(
+    readSidebarPreference,
+  );
+  const [preference, setPreference] = useState<SidebarPreference>(() =>
+    resolveShownPreference(storedAtFirstRender, readSidebarOverlayHint()),
   );
   const latest = useRef(preference);
-  // What storage holds: it differs from `latest` only while a load in the
+  // What the cookie holds: it differs from `latest` only while a load in the
   // overlay range keeps a stored open sidebar collapsed.
-  const stored = useRef(preference);
+  const stored = useRef(storedAtFirstRender);
+  // False until a frame after the stored preference is applied, so the first
+  // paint never slides.
   const [motionReady, setMotionReady] = useState(false);
   // Tagged with the brief it opened on, so another brief reads it closed.
   const [sheetOpenFor, setSheetOpenFor] = useState<string | undefined>(
     undefined,
   );
-  const [slideMotion, setSlideMotion] = useState(true);
-  // The column's reserve while the panel slides; absent at rest.
-  const [slideColumn, setSlideColumn] = useState<boolean | undefined>(
-    undefined,
-  );
+  const [sliding, setSliding] = useState(false);
   const [lastBand, setLastBand] = useState(band);
   const [lastVisible, setLastVisible] = useState(visible);
   const [sheetClosedByBrief, setSheetClosedByBrief] = useState(false);
@@ -109,14 +114,21 @@ export function useSidebarState(
     setSheetClosedByBrief(true);
   }, [sheetLeftOnEarlierBrief]);
 
-  // Before paint, so a client-side navigation never flashes the default.
+  // Before paint: the real viewport corrects a first render that went by the
+  // last load's, and a preference from before the cookie is adopted.
   useLayoutEffect(() => {
-    const read = readSidebarPreference();
+    const read = migrateLegacySidebarPreference() ?? stored.current;
     const overlaysStory = window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches;
-    const shown = overlaysStory ? { ...read, expanded: false } : read;
+    writeSidebarOverlayHint(overlaysStory);
+    const shown = resolveShownPreference(read, overlaysStory);
+    const unchanged =
+      shown.expanded === latest.current.expanded &&
+      shown.tab === latest.current.tab;
     stored.current = read;
-    latest.current = shown;
-    setPreference(shown);
+    if (!unchanged) {
+      latest.current = shown;
+      setPreference(shown);
+    }
 
     const frame = window.requestAnimationFrame(() => setMotionReady(true));
     return () => window.cancelAnimationFrame(frame);
@@ -137,26 +149,20 @@ export function useSidebarState(
         return;
       }
 
-      const slides = motionReady && !instantly && !prefersReducedMotion();
-      const columnAtStart = latest.current.expanded;
-      setSlideMotion(!instantly);
-      setSlideColumn((current) =>
-        slides ? (current ?? columnAtStart) : undefined,
-      );
+      setSliding(motionReady && !instantly && !prefersReducedMotion());
       update({ expanded });
     },
     [briefId, motionReady, narrow, update],
   );
 
   const expanded = narrow ? sheetOpen : preference.expanded;
-  const sliding = slideColumn !== undefined;
 
   useEffect(() => {
     if (!sliding) {
       return;
     }
     const slideEnd = window.setTimeout(
-      () => setSlideColumn(undefined),
+      () => setSliding(false),
       expanded ? SIDEBAR_SLIDE_IN_MS : SIDEBAR_SLIDE_OUT_MS,
     );
     return () => window.clearTimeout(slideEnd);
@@ -195,14 +201,12 @@ export function useSidebarState(
     return due;
   }, [sheetClosedByBrief]);
 
-  const columnExpanded = slideColumn ?? expanded;
   const panelShown = expanded || sliding;
+  const slideDirection = expanded ? SidebarSlides.IN : SidebarSlides.OUT;
   return {
     expanded,
-    columnExpanded,
     panelShown,
-    sliding,
-    slideMotion,
+    slide: sliding ? slideDirection : undefined,
     tab: preference.tab,
     toggle,
     toggleInstantly,
@@ -210,7 +214,6 @@ export function useSidebarState(
     collapse,
     collapseInstantly,
     selectTab,
-    motionReady,
     requestRevisionRefocus,
     takeRevisionRefocus,
   };
