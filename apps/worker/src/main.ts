@@ -60,6 +60,8 @@ import {
   SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
 } from "./task/sweep-webhook-deliveries";
 import { loadEnvFiles } from "./env-file";
+import { scheduleFailureDumpSweep } from "./failure-dump-sweep";
+import { buildLinkFetchWarning } from "./link-fetch-warning";
 import { startWorker, type WorkerRunner } from "./runner";
 import { buildLargePoolTaskList, buildTaskList } from "./task-list";
 import { shapePlainHttpLogLine } from "./plain-http-warning";
@@ -156,6 +158,10 @@ async function main(): Promise<void> {
   const toolAccess = buildToolAccessWarning(config.value.generator.provider);
   if (toolAccess !== undefined) {
     logger.warn(toolAccess.message, toolAccess.fields);
+  }
+  const linkFetch = buildLinkFetchWarning(config.value.linkFetch.mode);
+  if (linkFetch !== undefined) {
+    logger.warn(linkFetch.message, linkFetch.fields);
   }
 
   // The tracker config's boot checks, awaited before the runner starts.
@@ -325,9 +331,14 @@ async function main(): Promise<void> {
   const prRetention = describeRetention(config.value.prRetentionDays);
   const slots = `${config.value.concurrency} + ${config.value.largeConcurrency} large`;
   logger.info(
-    `worker: listening for generate jobs; slots ${slots}; audit retention ${auditRetention}; pull request retention ${prRetention}`,
+    `worker: listening for generate jobs; slots ${slots}; audit retention ${auditRetention}; pull request retention ${prRetention}; link fetch ${config.value.linkFetch.mode}`,
   );
 
+  scheduleFailureDumpSweep({
+    dir: FAILURE_DUMP_DIR,
+    log: logger,
+    now: () => new Date(),
+  });
   installStopSignals(runner);
   try {
     // Runs until a signal stops it; graphile owns the graceful part (stop

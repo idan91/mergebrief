@@ -13,7 +13,7 @@ const LIBPQ_COMPAT_ENABLED = "true";
 /** Hosts whose traffic never leaves the machine: exact `localhost`, the
  * 127.0.0.0/8 block (plus its IPv6-mapped form), IPv6 `::1`, or a unix-socket
  * path. An empty host is NOT loopback: pg then dials `PGHOST` over TCP. */
-function isLoopbackHost(host: string | null | undefined): boolean {
+export function isLoopbackHost(host: string | null | undefined): boolean {
   if (host === null || host === undefined || host.length === 0) {
     return false;
   }

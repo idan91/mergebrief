@@ -257,6 +257,8 @@ async function runWithinBudget<T>(
     };
   } finally {
     clearTimeout(timer);
+    // Ends any request the provider left open past its answer.
+    controller.abort();
   }
 }
 

@@ -146,6 +146,20 @@ describe("runWithSchemaFloor", () => {
     ).toHaveLength(2);
   });
 
+  it("creates the dump folder open to its owner only", async () => {
+    const failureDir = join(dir, "out");
+    await expect(
+      runWithSchemaFloor({
+        schema: Schema,
+        label: "floor",
+        failureDir,
+        attempt: async () => ({ raw: "not json" }),
+      }),
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.SCHEMA_FLOOR });
+
+    expect(statSync(failureDir).mode & 0o777).toBe(0o700);
+  });
+
   it("dumps a failed attempt redacted and readable by its owner only", async () => {
     const leaked = "postgres://app:hunter2-database-pw@db:5432/app";
     await expect(

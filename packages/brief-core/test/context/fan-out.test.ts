@@ -56,6 +56,18 @@ describe("fetchContextSnippets", () => {
     ]);
   });
 
+  it("aborts a provider's signal once it answered", async () => {
+    const signals: AbortSignal[] = [];
+    const provider = stubProvider(async (_, deps) => {
+      signals.push(deps.signal);
+      return { ok: true, value: [makeSnippet("https://a.example/x")] };
+    });
+
+    await fetchContextSnippets(query, [provider]);
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([true]);
+  });
+
   it("fails open on a failed read, logging the reason and keeping the rest", async () => {
     const logs: string[] = [];
     const refused = stubProvider(async () => ({

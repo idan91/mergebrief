@@ -5,10 +5,11 @@
 // sweeps' own guard.
 // MERGEBRIEF_AUTO_MIGRATE=false is check-only, for a runtime role without DDL
 // (see db/migrate.ts). The minimization defaults encode the SELF-HOST posture.
+import { parse } from "pg-connection-string";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
-import { checkDsnTls } from "./tls";
+import { checkDsnTls, isLoopbackHost } from "./tls";
 
 // ---------------------------------------------------------------------------
 // Public config shape.
@@ -99,6 +100,29 @@ function isPostgresUrl(value: string): boolean {
   }
 }
 
+/** What `docker-compose.yml` sets when `POSTGRES_PASSWORD` is unset. */
+const SHIPPED_PASSWORD = "code_review";
+
+/**
+ * A warning, never a refusal: making the variable required would stop an
+ * instance on its own database, whose compose overlay still reads this file.
+ * Loopback is a checkout's development database.
+ */
+function warnOnShippedPassword(
+  databaseUrl: string,
+  onWarning: ResolveDsnOptions["onWarning"],
+): void {
+  // Read as the driver reads it, like the TLS gate that already accepted it.
+  const dsn = parse(databaseUrl);
+  const shipsOffTheHost =
+    dsn.password === SHIPPED_PASSWORD && !isLoopbackHost(dsn.host);
+  if (shipsOffTheHost) {
+    onWarning?.(
+      "the database password is the one docker-compose.yml ships; set POSTGRES_PASSWORD in .env and change the database user's password to match",
+    );
+  }
+}
+
 /** node-postgres's own default, kept when `DATABASE_POOL_MAX` is unset. */
 const DEFAULT_POOL_MAX = 10;
 
@@ -182,6 +206,8 @@ export function loadConfig(
       },
     };
   }
+
+  warnOnShippedPassword(parsed.data.DATABASE_URL, options.onWarning);
 
   return {
     ok: true,

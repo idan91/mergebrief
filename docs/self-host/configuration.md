@@ -175,7 +175,7 @@ under these names.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `code_review` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `code_review` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). `api` and `worker` warn at boot while a database on another host still has the `code_review` password. |
 | `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api). |
 | `WORKER_COUNT` | `1` | `worker` replicas. `docker compose up --scale worker=N` wins for that run. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
 | `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.yml:docker-compose.external-db.yml` for an external database, and append `:docker-compose.override.yml` once you have an override file, since setting it turns off the automatic load ([compose.md](./compose.md#external-postgres-managed-database)). |

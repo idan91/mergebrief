@@ -60,8 +60,10 @@ export function fetchText(
       (res) => {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
-          res.resume(); // drain & discard; covers 3xx (we do not follow)
+          // Covers a 3xx, which is never followed. Destroyed, not drained: a
+          // body that never ends would hold the socket for good.
           resolve({ error: `HTTP ${status}` });
+          req.destroy();
           return;
         }
         const unreadable = findUnreadableBodyReason(res.headers);

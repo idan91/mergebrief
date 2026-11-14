@@ -306,6 +306,61 @@ describe("config: TLS allowlist gate", () => {
     expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
   });
 
+  it("warns when a remote database keeps the password compose ships", () => {
+    const warnings: string[] = [];
+    const shipped =
+      "postgres://code_review:code_review@postgres:5432/code_review?sslmode=disable";
+    ok(
+      loadConfig(
+        { DATABASE_URL: shipped },
+        { onWarning: (message) => warnings.push(message) },
+      ),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("POSTGRES_PASSWORD");
+    expect(warnings[0]).not.toContain("postgres://");
+  });
+
+  it("warns when that password rides the query string", () => {
+    const warnings: string[] = [];
+    const shipped =
+      "postgres://code_review@postgres/code_review?password=code_review&sslmode=disable";
+    ok(
+      loadConfig(
+        { DATABASE_URL: shipped },
+        { onWarning: (message) => warnings.push(message) },
+      ),
+    );
+
+    expect(warnings).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      "that password on loopback",
+      "postgres://code_review:code_review@127.0.0.1:5432/code_review",
+    ],
+    [
+      "that password over a unix socket",
+      "postgres://code_review:code_review@ignored/code_review?host=/var/run/postgresql",
+    ],
+    [
+      "a password of the operator's own",
+      "postgres://code_review:their-own@postgres:5432/code_review?sslmode=disable",
+    ],
+  ])("stays quiet for %s", (_label, url) => {
+    const warnings: string[] = [];
+    ok(
+      loadConfig(
+        { DATABASE_URL: url },
+        { onWarning: (message) => warnings.push(message) },
+      ),
+    );
+
+    expect(warnings).toEqual([]);
+  });
+
   it("refuses a non-loopback host with no sslmode", () => {
     const error = err(loadConfig({ DATABASE_URL: REMOTE }));
     expect(error.code).toBe(ConfigErrorCodes.INVALID);

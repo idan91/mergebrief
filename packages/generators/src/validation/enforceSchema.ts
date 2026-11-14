@@ -82,11 +82,15 @@ export function schemaFeedbackMessage(error: string): string {
   );
 }
 
+/** What every failure dump's filename ends in; the worker's sweep finds its files by it. */
+export const FAILURE_DUMP_SUFFIX = ".failed.json";
+
 /** Disambiguates dump filenames within one process (Date.now can collide). */
 let dumpCounter = 0;
 
 /** A dump holds model output a PR may have steered: owner-readable only. */
 const DUMP_FILE_MODE = 0o600;
+const DUMP_DIR_MODE = 0o700;
 
 /**
  * Persist a failed attempt's raw output so a schema failure is debuggable
@@ -100,10 +104,10 @@ function dumpFailure(
   redact: (text: string) => string,
 ): string | null {
   try {
-    mkdirSync(failureDir, { recursive: true });
+    mkdirSync(failureDir, { recursive: true, mode: DUMP_DIR_MODE });
     const file = join(
       failureDir,
-      `${label.replace(/\W+/g, "-")}-${Date.now()}-${dumpCounter++}.failed.json`,
+      `${label.replace(/\W+/g, "-")}-${Date.now()}-${dumpCounter++}${FAILURE_DUMP_SUFFIX}`,
     );
     // Redact each field before serializing: JSON escaping would hide a
     // keyed secret's quotes from the redaction patterns.

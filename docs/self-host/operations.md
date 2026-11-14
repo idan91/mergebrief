@@ -517,6 +517,15 @@ audit has to outlive a review session, and no floor can guarantee that for you.
 Nothing on the web tier can trigger the sweep: it exists only inside the
 worker process.
 
+Failed generations leave one more thing behind, outside the database. When
+a model's answer fails the brief's schema, the worker saves that answer to
+`apps/worker/out/<label>-<time>-<n>.failed.json`, readable by the worker's user
+only, so the failure can be debugged. It is text about the pull request's
+code, with credential-shaped strings redacted. The folder is not a volume, so
+recreating the container empties it, and each worker process sweeps its own
+folder when it starts and once a day, deleting each file once it is seven
+days old. No setting changes that window.
+
 Sign-in credentials prune themselves, always on. Every hour the worker
 deletes expired sessions. It then deletes each GitHub authorization that no
 session and no live API token still uses, encrypted GitHub tokens included,

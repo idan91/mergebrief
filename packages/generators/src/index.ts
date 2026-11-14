@@ -147,6 +147,7 @@ export {
 
 // --- validation/: what every adapter's OUTPUT passes through ---------------
 export {
+  FAILURE_DUMP_SUFFIX,
   runWithSchemaFloor,
   schemaFeedbackMessage,
   type FloorAttempt,

@@ -776,6 +776,42 @@ describe("fetchText, the body reader", () => {
     }
   });
 
+  it("closes the connection of an answer it will not read", async () => {
+    const SOCKET_WAIT_MS = 1000;
+    const socketClosed = Promise.withResolvers<"closed">();
+    const server = createServer((request, reply) => {
+      reply.writeHead(404, { "content-type": "text/plain" });
+      const drip = setInterval(() => reply.write("x"), STREAM_GAP_MS);
+      request.socket.on("close", () => {
+        clearInterval(drip);
+        socketClosed.resolve("closed");
+      });
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const outcome = await fetchText(
+        `http://docs.example:${port}/missing`,
+        new AbortController().signal,
+        stubLoopbackLookup,
+      );
+      const stillOpen = new Promise<"open">((resolve) => {
+        setTimeout(resolve, SOCKET_WAIT_MS, "open");
+      });
+
+      expect(outcome).toEqual({ error: "HTTP 404" });
+      await expect(
+        Promise.race([socketClosed.promise, stillOpen]),
+      ).resolves.toBe("closed");
+    } finally {
+      server.closeAllConnections();
+      server.close();
+    }
+  });
+
   it("never splits a surrogate pair at the snippet cap", async () => {
     const lead = "a".repeat(MAX_SNIPPET_CHARS - 1);
     const outcome = await fetchStubbedResponse({
