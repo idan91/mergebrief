@@ -12,6 +12,7 @@ import {
   MERMAID_SEQUENCE_FENCE as SEQUENCE,
   OUTSIDE_IMAGE_URL as OUTSIDE_URL,
   requireAttachmentAssetId,
+  UNSERVED_GITHUB_IMAGE_URL as GITHUB_IMAGE_URL,
 } from "@web/test/attachments";
 import {
   buildStripEntries,
@@ -75,16 +76,33 @@ describe("buildStripEntries", () => {
     expect(entry).not.toHaveProperty("thumbnailSource");
   });
 
-  it("loads an outside-host image directly with no GitHub link", () => {
+  it("keeps an outside-host image out of the strip", () => {
+    const items = readItems(`![Shot](${OUTSIDE_URL})`);
+
+    expect(buildStripEntries(items, SCOPE, undefined)).toEqual([]);
+    expect(buildStripEntries(items, undefined, undefined)).toEqual([]);
+  });
+
+  it("loads an image on a GitHub host the proxy does not serve", () => {
     const [entry] = buildStripEntries(
-      readItems(`![Shot](${OUTSIDE_URL})`),
+      readItems(`![Shot](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
 
-    expect(entry).toMatchObject({ kind: "image", source: OUTSIDE_URL });
-    expect(entry).not.toHaveProperty("thumbnailSource");
-    expect(entry).not.toHaveProperty("githubLink");
+    expect(entry).toMatchObject({ kind: "image", source: GITHUB_IMAGE_URL });
+  });
+
+  it("keeps a served image and leaves out an outside-host one", () => {
+    const entries = buildStripEntries(
+      readItems(`![Login](${ASSET_URL})\n\n![Shot](${OUTSIDE_URL})`),
+      SCOPE,
+      undefined,
+    );
+
+    expect(entries).toEqual([
+      expect.objectContaining({ kind: "image", githubLink: ASSET_URL }),
+    ]);
   });
 
   it("loads the address directly outside a pull request page", () => {
@@ -127,7 +145,7 @@ describe("buildStripEntries", () => {
 
   it("keeps a diagram's code and type, in document order", () => {
     const entries = buildStripEntries(
-      readItems(`${SEQUENCE}\n\n![Shot](${OUTSIDE_URL})`),
+      readItems(`${SEQUENCE}\n\n![Shot](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
@@ -149,7 +167,7 @@ describe("describeStripCounts", () => {
   it("counts every kind present, in image, video, diagram order", () => {
     const entries = buildStripEntries(
       readItems(
-        `${SEQUENCE}\n\n![A](${OUTSIDE_URL})\n\n![B](${SVG_URL})\n\n${ASSET_URL}`,
+        `${SEQUENCE}\n\n![A](${GITHUB_IMAGE_URL})\n\n![B](${SVG_URL})\n\n${ASSET_URL}`,
       ),
       SCOPE,
       CONFIRMED_ASSET_IDS,
@@ -162,7 +180,7 @@ describe("describeStripCounts", () => {
 
   it("names only the kinds the description holds", () => {
     const entries = buildStripEntries(
-      readItems(`![A](${OUTSIDE_URL})`),
+      readItems(`![A](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
@@ -192,7 +210,7 @@ describe("readEntryLabel", () => {
 
   it("prefers the caption the extractor found", () => {
     const [entry] = buildStripEntries(
-      readItems(`![Login screen](${OUTSIDE_URL})`),
+      readItems(`![Login screen](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
@@ -214,7 +232,7 @@ describe("readOpenLabel", () => {
 
   it("names a captioned entry by its caption", () => {
     const [entry] = buildStripEntries(
-      readItems(`![Login screen](${OUTSIDE_URL})`),
+      readItems(`![Login screen](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
@@ -246,12 +264,14 @@ describe("readTileSource", () => {
 
   it("reads the original when there is no thumbnail", () => {
     const [entry] = buildStripEntries(
-      readItems(`![Shot](${OUTSIDE_URL})`),
+      readItems(`![Shot](${GITHUB_IMAGE_URL})`),
       SCOPE,
       undefined,
     );
 
-    expect(entry?.kind === "image" && readTileSource(entry)).toBe(OUTSIDE_URL);
+    expect(entry?.kind === "image" && readTileSource(entry)).toBe(
+      GITHUB_IMAGE_URL,
+    );
   });
 });
 

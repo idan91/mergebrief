@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { UNSERVED_GITHUB_IMAGE_URL } from "@web/test/attachments";
 import { OriginalDescription } from ".";
 
 describe("OriginalDescription", () => {
@@ -38,7 +39,9 @@ describe("OriginalDescription", () => {
 
   it("puts no description image in the page until opened", () => {
     const { container } = render(
-      <OriginalDescription description="![Shot](https://example.com/shot.png)" />,
+      <OriginalDescription
+        description={`![Shot](${UNSERVED_GITHUB_IMAGE_URL})`}
+      />,
     );
 
     expect(container.querySelector("img")).toBeNull();

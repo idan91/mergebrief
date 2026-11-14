@@ -27,6 +27,8 @@ import {
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
+  buildUnservedGitHubImageUrl,
+  OUTSIDE_IMAGE_URL,
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../model/types";
 import { briefFixture } from "../../../../../test-utils/fixtures";
@@ -50,21 +52,21 @@ const mermaid = vi.hoisted(() => ({
 
 vi.mock("mermaid", () => ({ default: mermaid }));
 
-const OUTSIDE_AFTER_URL = "https://example.com/after.png";
-const OUTSIDE_THIRD_URL = "https://example.com/third.png";
+const AFTER_URL = buildUnservedGitHubImageUrl("after.png");
+const THIRD_URL = buildUnservedGitHubImageUrl("third.png");
 const VIDEO_URL = "https://github.com/acme/widgets/raw/main/demo.mp4";
 const STALE_URL = "https://example.com/gone.png";
 const DIAGRAM_CODE = "sequenceDiagram\n  A->>B: hi\n";
 const DESCRIPTION = [
   `![Before](${ATTACHMENT_ASSET_URL})`,
-  `![After](${OUTSIDE_AFTER_URL})`,
-  `![Third](${OUTSIDE_THIRD_URL})`,
+  `![After](${AFTER_URL})`,
+  `![Third](${THIRD_URL})`,
   `<video src="${VIDEO_URL}"></video>`,
   `\`\`\`mermaid\n${DIAGRAM_CODE}\`\`\``,
 ].join("\n\n");
 const BEFORE = readAddressKey(ATTACHMENT_ASSET_URL);
-const AFTER = readAddressKey(OUTSIDE_AFTER_URL);
-const THIRD = readAddressKey(OUTSIDE_THIRD_URL);
+const AFTER = readAddressKey(AFTER_URL);
+const THIRD = readAddressKey(THIRD_URL);
 const VIDEO = readAddressKey(VIDEO_URL);
 const STALE = readAddressKey(STALE_URL);
 const DIAGRAM = buildMermaidMediaKey(DIAGRAM_CODE);
@@ -217,6 +219,23 @@ describe("Summary", () => {
         .getByRole("link", { name: /open on github/i })
         .getAttribute("href"),
     ).toBe(ATTACHMENT_ASSET_URL);
+  });
+
+  it("never shows an outside image the stored keys name", () => {
+    const outside = readAddressKey(OUTSIDE_IMAGE_URL);
+    const description = `${DESCRIPTION}\n\n![Chart](${OUTSIDE_IMAGE_URL})`;
+    const shown = [
+      { key: outside, position: SummaryMediaPositions.AFTER_LEDE },
+    ];
+
+    const { container } = renderSummary(
+      makeBrief(LEDE, { shown }, description),
+    );
+
+    expect(screen.queryByTestId("summary-media-after-lede")).toBeNull();
+    expect(
+      container.querySelector(`img[src="${OUTSIDE_IMAGE_URL}"]`),
+    ).toBeNull();
   });
 
   it("drops stored keys the strip lacks and a pointer left empty", () => {

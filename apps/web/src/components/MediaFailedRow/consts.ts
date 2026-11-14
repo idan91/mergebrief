@@ -10,6 +10,12 @@ export const FAILED_WORDING_KEYS: Readonly<
   [MediaFailedRowKinds.VIDEO]: "shell.media.videoFailed",
 };
 
+/** About two lines of the row at the reading column's width. */
+export const OUTSIDE_ALT_MAX_CHARS = 120;
+/** How far back the cut may move to end on a whole word. */
+export const OUTSIDE_ALT_WORD_SLACK = 20;
+export const ELLIPSIS = "…";
+
 export const FAILED_ICON_NAMES: Readonly<Record<MediaFailedRowKind, IconName>> =
   {
     [MediaFailedRowKinds.IMAGE]: IconNames.IMAGE,

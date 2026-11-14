@@ -5,6 +5,8 @@ import {
 } from "brief-core/media";
 import {
   buildCommittedFileUrl,
+  GITHUB_HOST,
+  RAW_CONTENT_HOST,
   type CommittedFileSource,
 } from "brief-core/media-address";
 import {
@@ -101,6 +103,67 @@ export function readImageReferrerPolicy(
 ): HTMLAttributeReferrerPolicy | undefined {
   const fetchedFromOtherHost = source?.startsWith(HTTPS_PREFIX) === true;
   return fetchedFromOtherHost ? NO_REFERRER : undefined;
+}
+
+/**
+ * The hosts GitHub serves its own stored files from, named one by one. Two
+ * of its hosts are left out on purpose: `camo.githubusercontent.com` relays
+ * an image from any host and can fetch it again on each view, and
+ * `github.io` pages are any user's own.
+ */
+const GITHUB_CONTENT_HOSTS: ReadonlySet<string> = new Set([
+  GITHUB_HOST,
+  RAW_CONTENT_HOST,
+  "user-images.githubusercontent.com",
+  "private-user-images.githubusercontent.com",
+  "avatars.githubusercontent.com",
+  "objects.githubusercontent.com",
+  "media.githubusercontent.com",
+  "repository-images.githubusercontent.com",
+  "gist.githubusercontent.com",
+  "cloud.githubusercontent.com",
+  "github.githubassets.com",
+  "opengraph.githubassets.com",
+]);
+
+/** GitHub counts each download of a release file where the repository's owner reads it. */
+const COUNTED_DOWNLOAD_PATH = /^\/+[^/]+\/+[^/]+\/+releases\//i;
+
+const PERCENT_ESCAPE = /%([0-9a-f]{2})/gi;
+const HEX_RADIX = 16;
+
+function readEscapedChar(_escape: string, hex: string): string {
+  const code = Number.parseInt(hex, HEX_RADIX);
+  return String.fromCodePoint(code);
+}
+
+/** A path with each percent escape read as its byte: enough to spell an escaped ASCII segment, and a stray `%` never throws. */
+function decodePath(pathname: string): string {
+  return pathname.replaceAll(PERCENT_ESCAPE, readEscapedChar);
+}
+
+/**
+ * The host of an image that neither this instance nor GitHub stores. A
+ * browser loading it would tell that host who opened the page and when, so
+ * such an image is named and linked, never loaded.
+ */
+export function readOutsideImageHost(
+  source: string | undefined,
+): string | undefined {
+  if (source?.startsWith(HTTPS_PREFIX) !== true) {
+    return undefined;
+  }
+  try {
+    const { hostname, pathname } = new URL(source);
+    const path = decodePath(pathname);
+    const countsDownloads =
+      hostname === GITHUB_HOST && COUNTED_DOWNLOAD_PATH.test(path);
+    const storedByGitHub =
+      GITHUB_CONTENT_HOSTS.has(hostname) && !countsDownloads;
+    return storedByGitHub ? undefined : hostname;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The proxy names a GitHub asset by its id and a branch file by its file name. */

@@ -55,4 +55,36 @@
       @include mixins.focus-ring;
     }
   }
+
+  .row[data-linked] .wording {
+    color: var(--color-text-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-strong);
+    text-underline-offset: 3px;
+  }
+
+  .row[data-state="outside"] {
+    display: inline-block;
+    margin-block: var(--space-1);
+    line-height: var(--line-height-compact);
+
+    .icon {
+      margin-inline-end: var(--space-3);
+      vertical-align: middle;
+    }
+
+    .wording {
+      display: inline;
+      margin-inline-end: var(--space-3);
+      vertical-align: middle;
+
+      &:last-child {
+        margin-inline-end: 0;
+      }
+    }
+
+    .link {
+      vertical-align: middle;
+    }
+  }
 }

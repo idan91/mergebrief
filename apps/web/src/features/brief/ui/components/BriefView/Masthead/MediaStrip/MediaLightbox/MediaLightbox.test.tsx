@@ -17,7 +17,9 @@ import {
 import {
   ATTACHMENT_ASSET_ID as ASSET_ID,
   ATTACHMENT_ASSET_URL as ASSET_URL,
+  OUTSIDE_IMAGE_URL as OUTSIDE_URL,
   requireAttachmentAssetId,
+  UNSERVED_GITHUB_IMAGE_URL as GITHUB_IMAGE_URL,
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../../model/types";
 import { buildBriefViewModel } from "../../../../../../model/utils/view-model";
@@ -38,15 +40,15 @@ vi.mock("mermaid", () => ({ default: mermaid }));
 const REPO_ID = "555";
 const PR_NUMBER = 7;
 const ASSET_READ = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/attachments/${ASSET_ID}`;
-const OUTSIDE_URL = "https://example.com/shot.png";
+const USER_IMAGES_URL = "https://user-images.githubusercontent.com/1/old.png";
 const DIAGRAM_CODE = "sequenceDiagram\n  A->>B: hi\n";
 const DESCRIPTION = [
   `![Before](${ASSET_URL})`,
-  `![Outside](${OUTSIDE_URL})`,
+  `![Chart](${GITHUB_IMAGE_URL})`,
   `\`\`\`mermaid\n${DIAGRAM_CODE}\`\`\``,
 ].join("\n\n");
 const NO_VIDEO_ASSETS: VideoAssets = { requestVideoAssets: () => {} };
-const VIDEO_DESCRIPTION = `Demo:\n\n${ASSET_URL}\n\n![Outside](${OUTSIDE_URL})`;
+const VIDEO_DESCRIPTION = `Demo:\n\n${ASSET_URL}\n\n![Chart](${GITHUB_IMAGE_URL})`;
 const CONFIRMED_VIDEO: VideoAssets = {
   requestVideoAssets: () => {},
   videoAssetIds: new Set([requireAttachmentAssetId(ASSET_ID)]),
@@ -72,7 +74,7 @@ function renderMasthead(
         <Masthead brief={brief} model={buildBriefViewModel(brief)}>
           {null}
         </Masthead>
-        <Markdown content={`![Outside](${OUTSIDE_URL})`} renderHtml />
+        <Markdown content={`![Chart](${GITHUB_IMAGE_URL})`} renderHtml />
       </VideoAssetsScope>
     </AttachmentScopeProvider>,
   );
@@ -133,13 +135,13 @@ describe("MediaLightbox", () => {
   it("opens from a tile at its place with caption and counter", () => {
     renderMasthead();
 
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
 
     const dialog = readDialog();
-    expect(within(dialog).getByRole("heading").textContent).toBe("Outside");
+    expect(within(dialog).getByRole("heading").textContent).toBe("Chart");
     expect(dialog.textContent).toContain("2 of 3");
     expect(within(dialog).getByRole("img").getAttribute("src")).toBe(
-      OUTSIDE_URL,
+      GITHUB_IMAGE_URL,
     );
   });
 
@@ -153,11 +155,14 @@ describe("MediaLightbox", () => {
     expect(document.body.textContent).not.toContain(ASSET_ID);
   });
 
-  it("links the original on GitHub only for a GitHub host", () => {
-    renderMasthead();
+  it("links the original on GitHub only for a GitHub link host", () => {
+    renderMasthead(`![Before](${ASSET_URL})\n\n![Old](${USER_IMAGES_URL})`);
 
-    openTile("Open image: Outside");
+    openTile("Open image: Old");
     expect(within(readDialog()).queryByRole("link")).toBeNull();
+    expect(within(readDialog()).getByRole("img").getAttribute("src")).toBe(
+      USER_IMAGES_URL,
+    );
 
     pressKey("ArrowLeft");
     const link = within(readDialog()).getByRole("link", {
@@ -168,6 +173,17 @@ describe("MediaLightbox", () => {
     expect(within(readDialog()).getByRole("img").getAttribute("src")).toBe(
       ASSET_READ,
     );
+  });
+
+  it("holds no item for an image on an outside host", () => {
+    renderMasthead(`![Before](${ASSET_URL})\n\n![Shot](${OUTSIDE_URL})`);
+
+    openTile("Open image: Before");
+
+    expect(readDialog().textContent).toContain("1 of 1");
+    expect(
+      screen.queryByRole("button", { name: "Open image: Shot" }),
+    ).toBeNull();
   });
 
   it("steps with the arrow keys and buttons, wrapping at either end", () => {
@@ -188,7 +204,7 @@ describe("MediaLightbox", () => {
 
   it("closes on Escape and returns focus to the tile that opened it", async () => {
     renderMasthead();
-    const tile = openTile("Open image: Outside");
+    const tile = openTile("Open image: Chart");
 
     pressKey("Escape");
     await Promise.resolve();
@@ -206,7 +222,7 @@ describe("MediaLightbox", () => {
     );
 
     const [descriptionImage] = screen.getAllByRole("button", {
-      name: "Enlarge Outside",
+      name: "Enlarge Chart",
     });
     if (descriptionImage === undefined) {
       throw new Error("no inline opener");
@@ -223,26 +239,26 @@ describe("MediaLightbox", () => {
     );
 
     expect(
-      screen.getAllByRole("button", { name: "Enlarge Outside" }),
+      screen.getAllByRole("button", { name: "Enlarge Chart" }),
     ).toHaveLength(1);
-    const images = screen.getAllByRole("img", { name: "Outside" });
+    const images = screen.getAllByRole("img", { name: "Chart" });
     const plain = images.filter((image) => image.closest("button") === null);
     expect(plain).toHaveLength(1);
   });
 
   it("keeps a linked copy of a strip image as the author's link", () => {
     renderMasthead(
-      `![Outside](${OUTSIDE_URL})\n\n[![Outside](${OUTSIDE_URL})](${OUTSIDE_URL})`,
+      `![Chart](${GITHUB_IMAGE_URL})\n\n[![Chart](${GITHUB_IMAGE_URL})](${GITHUB_IMAGE_URL})`,
     );
     fireEvent.click(
       screen.getByRole("button", { name: /original description/i }),
     );
 
-    const links = screen.getAllByRole("link", { name: "Outside" });
+    const links = screen.getAllByRole("link", { name: "Chart" });
     expect(links).toHaveLength(1);
     expect(links[0]?.querySelector("button")).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Enlarge Outside" }),
+      screen.getAllByRole("button", { name: "Enlarge Chart" }),
     ).toHaveLength(1);
   });
 
@@ -278,7 +294,7 @@ describe("MediaLightbox", () => {
   it("zooms an image past the stage to its natural pixels and back", () => {
     stubStageSize(1200, 800);
     renderMasthead();
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
 
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     expect(readZoomItem().style.inlineSize).toBe("1200px");
@@ -294,7 +310,7 @@ describe("MediaLightbox", () => {
     stubStageSize(1200, 800);
     vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(2);
     renderMasthead();
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
 
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
@@ -305,7 +321,7 @@ describe("MediaLightbox", () => {
   it("offers no zoom for an image that already fits", () => {
     stubStageSize(1200, 800);
     renderMasthead();
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
 
     loadImage(within(readDialog()).getByRole("img"), 800, 600);
 
@@ -319,7 +335,7 @@ describe("MediaLightbox", () => {
     stubStageSize(1200, 800);
     stubPointerCapture();
     renderMasthead();
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
     const viewport = readZoomViewport();
@@ -350,7 +366,7 @@ describe("MediaLightbox", () => {
     );
     Element.prototype.scrollBy = scrollBy;
     renderMasthead();
-    openTile("Open image: Outside");
+    openTile("Open image: Chart");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
 
@@ -369,7 +385,9 @@ describe("MediaLightbox", () => {
 
   it("opens the next item at fit after stepping from a zoomed one", () => {
     stubStageSize(1200, 800);
-    renderMasthead(`![One](${OUTSIDE_URL})\n\n![Two](${OUTSIDE_URL}?2)`);
+    renderMasthead(
+      `![One](${GITHUB_IMAGE_URL})\n\n![Two](${GITHUB_IMAGE_URL}?2)`,
+    );
     openTile("Open image: One");
     loadImage(within(readDialog()).getByRole("img"), 2880, 1800);
     clickZoom("Show actual size");
@@ -434,8 +452,8 @@ describe("MediaLightbox", () => {
   });
 
   it("shows no arrows when the strip holds one item", () => {
-    renderMasthead(`![Outside](${OUTSIDE_URL})`);
-    openTile("Open image: Outside");
+    renderMasthead(`![Chart](${GITHUB_IMAGE_URL})`);
+    openTile("Open image: Chart");
 
     expect(readDialog().textContent).toContain("1 of 1");
     expect(

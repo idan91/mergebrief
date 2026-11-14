@@ -14,6 +14,7 @@ import type { AttachmentScope } from "@web/components/Markdown/context";
 import {
   buildProxyPath,
   buildThumbnailPath,
+  readOutsideImageHost,
 } from "@web/components/Markdown/media";
 import { DIAGRAM_TITLE_KEYS } from "@web/components/MermaidDiagram/consts";
 import { buildGitHubOriginalLink } from "@web/components/MediaFailedRow/utils";
@@ -38,14 +39,22 @@ function readServedSource(
   return scope === undefined ? undefined : buildProxyPath(scope, address);
 }
 
+/** An image on an outside host stays a link in the text and out of the strip, as a video does. */
 function buildImageEntry(
   item: ImageMediaItem,
   scope: AttachmentScope | undefined,
-): ImageStripEntry {
+): ImageStripEntry | undefined {
+  const servedSource = readServedSource(scope, item.address);
+  const isOutside = readOutsideImageHost(item.address) !== undefined;
+  const staysOutOfStrip = servedSource === undefined && isOutside;
+  if (staysOutOfStrip) {
+    return undefined;
+  }
+
   const entry: Mutable<ImageStripEntry> = {
     kind: MediaKinds.IMAGE,
     key: item.key,
-    source: readServedSource(scope, item.address) ?? item.address,
+    source: servedSource ?? item.address,
   };
   const thumbnailSource =
     scope === undefined ? undefined : buildThumbnailPath(scope, item.address);
@@ -137,8 +146,8 @@ function buildStripEntry(
 
 /**
  * The strip's entries in document order. A pasted asset line joins only once
- * GitHub confirms it rendered a video, and a video the proxy cannot serve
- * never joins.
+ * GitHub confirms it rendered a video, and neither a video the proxy cannot
+ * serve nor an image on an outside host ever joins.
  */
 export function buildStripEntries(
   items: readonly MediaItem[],

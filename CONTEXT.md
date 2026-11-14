@@ -388,7 +388,7 @@ An image a reviewer pastes or drops into a **Comment**, one kind of **Media**, p
 _Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
 
 **Media**:
-An image, video or diagram inside text a person wrote on the pull request: its description or a comment. An **Attachment** is one kind. Shown on the viewer's own access: a GitHub-pasted asset and a file committed to the pull request's own repository come through the read gate; an image on any other host loads directly.
+An image, video or diagram inside text a person wrote on the pull request: its description or a comment. An **Attachment** is one kind. Shown on the viewer's own access: a GitHub-pasted asset and a file committed to the pull request's own repository come through the read gate; an image on another host GitHub serves its own stored files from loads directly; an image on any other host is named and linked, never loaded.
 _Avoid_: attachment (one kind of Media), asset (GitHub's own pasted store), embed
 
 **Summary Media**:

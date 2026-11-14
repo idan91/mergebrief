@@ -24,8 +24,15 @@ export const ATTACHMENT_SCOPE: AttachmentScope = {
 };
 export const ATTACHMENT_READ_PATH = "/api/repos/555/pulls/7";
 export const COMMITTED_IMAGE_PROXY_PATH = `${ATTACHMENT_READ_PATH}/committed-file?source=${encodeURIComponent(COMMITTED_IMAGE_NORMALISED_URL)}`;
-/** An image on a host the proxy never serves. */
+/** An image on an outside host: neither the proxy nor GitHub serves it, so it is never loaded. */
 export const OUTSIDE_IMAGE_URL = "https://example.com/shot.png";
+
+/** An image on a GitHub host, in a repository the proxy does not serve, so the browser loads it directly. */
+export function buildUnservedGitHubImageUrl(fileName: string): string {
+  return `https://raw.githubusercontent.com/other/repo/main/${fileName}`;
+}
+export const UNSERVED_GITHUB_IMAGE_URL =
+  buildUnservedGitHubImageUrl("shot.png");
 export const MERMAID_SEQUENCE_FENCE =
   "```mermaid\nsequenceDiagram\n  A->>B: hi\n```";
 

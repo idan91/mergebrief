@@ -376,6 +376,8 @@ export type Catalog = typeof en & {
       menuAvailable: "MergeBrief {{latest}} is available";
     };
     media: (typeof en)["shell"]["media"] & {
+      imageOutside: "Image on {{host}}, not loaded";
+      imageOutsideNamed: "{{alt}}: image on {{host}}, not loaded";
       enlargeNamedImage: "Enlarge {{alt}}";
       openDiagram: "Open diagram: {{type}}";
     };

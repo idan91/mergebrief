@@ -21,6 +21,7 @@ import {
   MERMAID_SEQUENCE_FENCE as SEQUENCE,
   OUTSIDE_IMAGE_URL as OUTSIDE_URL,
   requireAttachmentAssetId,
+  UNSERVED_GITHUB_IMAGE_URL as GITHUB_IMAGE_URL,
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../model/types";
 import { briefFixture } from "../../../../../test-utils/fixtures";
@@ -71,7 +72,7 @@ describe("MediaStrip", () => {
 
   it("brings a focused tile fully into the row, past the fade", () => {
     const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
-    renderStrip(`![Login screen](${OUTSIDE_URL})`);
+    renderStrip(`![Login screen](${GITHUB_IMAGE_URL})`);
 
     screen.getByRole("button", { name: "Open image: Login screen" }).focus();
 
@@ -89,7 +90,9 @@ describe("MediaStrip", () => {
   });
 
   it("names the strip and counts its kinds", () => {
-    renderStrip(`![A](${ASSET_URL})\n\n![B](${OUTSIDE_URL})\n\n${SEQUENCE}`);
+    renderStrip(
+      `![A](${ASSET_URL})\n\n![B](${GITHUB_IMAGE_URL})\n\n${SEQUENCE}`,
+    );
 
     const strip = screen.getByRole("region", { name: "Media" });
     expect(strip.textContent).toContain(
@@ -109,12 +112,30 @@ describe("MediaStrip", () => {
     );
   });
 
-  it("loads an outside-host image directly", () => {
-    renderStrip(`![Shot](${OUTSIDE_URL})`);
+  it("loads an image on a GitHub host the proxy skips directly", () => {
+    renderStrip(`![Shot](${GITHUB_IMAGE_URL})`);
 
     const image = readTiles()[0]?.querySelector("img");
-    expect(image?.getAttribute("src")).toBe(OUTSIDE_URL);
+    expect(image?.getAttribute("src")).toBe(GITHUB_IMAGE_URL);
     expect(image?.getAttribute("referrerpolicy")).toBe("no-referrer");
+  });
+
+  it("leaves an image on an outside host out of the strip", () => {
+    renderStrip(`![Shot](${OUTSIDE_URL})`);
+
+    expect(screen.queryByTestId("media-strip")).toBeNull();
+  });
+
+  it("shows a served image's tile and none for an outside-host one", () => {
+    renderStrip(`![Login screen](${ASSET_URL})\n\n![Shot](${OUTSIDE_URL})`);
+
+    const tiles = readTiles();
+    const image = tiles[0]?.querySelector("img");
+    expect(tiles).toHaveLength(1);
+    expect(image?.getAttribute("src")).toBe(`${ASSET_READ}?thumbnail=strip`);
+    expect(screen.getByRole("region", { name: "Media" }).textContent).toContain(
+      "1 image from the description",
+    );
   });
 
   it("shows the failed tile when the thumbnail fails, never the original", () => {

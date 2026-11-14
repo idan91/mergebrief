@@ -99,3 +99,49 @@ describe("MediaFailedRow link", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 });
+
+describe("MediaFailedRow for an image on an outside host", () => {
+  const ADDRESS = "https://i.imgur.com/shot.png";
+
+  it("says where the image is and that it was not loaded", () => {
+    render(
+      <MediaFailedRow
+        kind={MediaFailedRowKinds.IMAGE}
+        originalAddress={ADDRESS}
+        outsideHost="i.imgur.com"
+      />,
+    );
+
+    expect(screen.getByText("Image on i.imgur.com, not loaded")).toBeTruthy();
+  });
+
+  it("leads with the author's alt text when there is one", () => {
+    render(
+      <MediaFailedRow
+        alt="Checkout page after"
+        kind={MediaFailedRowKinds.IMAGE}
+        originalAddress={ADDRESS}
+        outsideHost="i.imgur.com"
+      />,
+    );
+
+    expect(
+      screen.getByText("Checkout page after: image on i.imgur.com, not loaded"),
+    ).toBeTruthy();
+  });
+
+  it("links the image's own address in a new tab, with no referrer", () => {
+    render(
+      <MediaFailedRow
+        kind={MediaFailedRowKinds.IMAGE}
+        originalAddress={ADDRESS}
+        outsideHost="i.imgur.com"
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /Open image/ });
+    expect(link.getAttribute("href")).toBe(ADDRESS);
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+});

@@ -5,8 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
+  buildUnservedGitHubImageUrl,
   COMMITTED_IMAGE_URL,
+  OUTSIDE_IMAGE_URL,
   requireAttachmentAssetId,
+  UNSERVED_GITHUB_IMAGE_URL,
 } from "@web/test/attachments";
 import { Markdown } from ".";
 import {
@@ -226,7 +229,7 @@ describe("Markdown brief prose", () => {
 
   it("keeps markdown images in text people wrote", () => {
     render(
-      <Markdown content={"![shot](https://example.com/a.png)"} renderHtml />,
+      <Markdown content={`![shot](${UNSERVED_GITHUB_IMAGE_URL})`} renderHtml />,
     );
 
     expect(screen.getByRole("img", { name: "shot" })).toBeTruthy();
@@ -302,7 +305,7 @@ describe("Markdown image that cannot load", () => {
         repoSlug="octo/hello"
       >
         <Markdown
-          content={`![Chart](https://example.com/a.png "Weekly chart")\n\n<img align="right" dir="rtl" lang="he" alt="Logo" src="${COMMITTED_IMAGE_URL}">`}
+          content={`![Chart](${UNSERVED_GITHUB_IMAGE_URL} "Weekly chart")\n\n<img align="right" dir="rtl" lang="he" alt="Logo" src="${COMMITTED_IMAGE_URL}">`}
           renderHtml
         />
       </AttachmentScopeProvider>,
@@ -317,19 +320,19 @@ describe("Markdown image that cannot load", () => {
     expect(logo.getAttribute("data-original-source")).toBeNull();
   });
 
-  it("sends no referrer to an image host outside this instance", () => {
+  it("sends no referrer to an image the browser loads from GitHub", () => {
     render(
       <AttachmentScopeProvider installed prNumber={7} repoId="555">
         <Markdown
-          content={`![Outside](https://example.com/shot.png)\n\n![Pasted](${ATTACHMENT_ASSET_URL})`}
+          content={`![Direct](${UNSERVED_GITHUB_IMAGE_URL})\n\n![Pasted](${ATTACHMENT_ASSET_URL})`}
           renderHtml
         />
       </AttachmentScopeProvider>,
     );
 
-    const outside = screen.getByRole("img", { name: "Outside" });
+    const direct = screen.getByRole("img", { name: "Direct" });
     const pasted = screen.getByRole("img", { name: "Pasted" });
-    expect(outside.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(direct.getAttribute("referrerpolicy")).toBe("no-referrer");
     expect(pasted.getAttribute("src")).toMatch(/^\/api\//);
     expect(pasted.hasAttribute("referrerpolicy")).toBe(false);
   });
@@ -353,8 +356,8 @@ describe("Markdown image that cannot load", () => {
   });
 
   it("shows a new image at the same place after a failed one", () => {
-    const failedAddress = "https://images.example.com/broken.png";
-    const nextAddress = "https://images.example.com/fixed.png";
+    const failedAddress = buildUnservedGitHubImageUrl("broken.png");
+    const nextAddress = buildUnservedGitHubImageUrl("fixed.png");
     const { rerender } = render(
       <Markdown content={`![Chart](${failedAddress})`} renderHtml />,
     );
@@ -388,9 +391,12 @@ describe("Markdown image that cannot load", () => {
     expect(link.getAttribute("href")).toBe(COMMITTED_IMAGE_URL);
   });
 
-  it("gives an outside-host image's row no link", () => {
+  it("gives a failed row no link for a host GitHub does not link", () => {
     render(
-      <Markdown content="![Chart](https://example.com/chart.png)" renderHtml />,
+      <Markdown
+        content="![Chart](https://user-images.githubusercontent.com/1/chart.png)"
+        renderHtml
+      />,
     );
 
     fireEvent.error(screen.getByRole("img", { name: "Chart" }));
@@ -402,14 +408,13 @@ describe("Markdown image that cannot load", () => {
   it("never takes the link address from the author's own attribute", () => {
     render(
       <Markdown
-        content={`<img alt="x" data-original-source="${ATTACHMENT_ASSET_URL}" src="https://example.com/x.png" />`}
+        content={`<img alt="x" data-original-source="${ATTACHMENT_ASSET_URL}" src="${OUTSIDE_IMAGE_URL}" />`}
         renderHtml
       />,
     );
 
-    fireEvent.error(screen.getByRole("img", { name: "x" }));
-
-    expect(screen.queryByRole("link")).toBeNull();
+    const link = screen.getByRole("link", { name: /Open image/ });
+    expect(link.getAttribute("href")).toBe(OUTSIDE_IMAGE_URL);
   });
 
   it("nests no second link in a failed image wrapped by a link", () => {
@@ -423,6 +428,41 @@ describe("Markdown image that cannot load", () => {
     fireEvent.error(screen.getByRole("img", { name: "Build" }));
 
     expect(screen.getByTestId("media-failed-row")).toBeTruthy();
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelector("a a")).toBeNull();
+  });
+});
+
+describe("Markdown image on an outside host", () => {
+  afterEach(cleanup);
+
+  it("shows a row naming the host and linking the original, not an img", () => {
+    const { container } = render(
+      <Markdown content={`![Chart](${OUTSIDE_IMAGE_URL})`} renderHtml />,
+    );
+
+    const row = screen.getByTestId("media-failed-row");
+    expect(container.querySelector("img")).toBeNull();
+    expect(row.getAttribute("data-state")).toBe("outside");
+    expect(row.textContent).toContain(
+      "Chart: image on example.com, not loaded",
+    );
+    const link = screen.getByRole("link", { name: /Open image/ });
+    expect(link.getAttribute("href")).toBe(OUTSIDE_IMAGE_URL);
+  });
+
+  it("nests no second link in an outside-host image the author linked", () => {
+    const { container } = render(
+      <Markdown
+        content={`[![Chart](${OUTSIDE_IMAGE_URL})](https://example.com/report)`}
+        renderHtml
+      />,
+    );
+
+    const row = screen.getByTestId("media-failed-row");
+    expect(container.querySelector("img")).toBeNull();
+    expect(row.getAttribute("data-state")).toBe("outside");
+    expect(row.getAttribute("data-linked")).toBe("true");
     expect(container.querySelectorAll("a")).toHaveLength(1);
     expect(container.querySelector("a a")).toBeNull();
   });

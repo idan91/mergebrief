@@ -15,6 +15,7 @@ import {
   buildProxyPath,
   buildThumbnailPath,
   readImageReferrerPolicy,
+  readOutsideImageHost,
   rehypeLinkUnservedVideos,
   rehypeNormalizeMedia,
   rehypeProxyAttachmentSources,
@@ -326,5 +327,47 @@ describe("readImageReferrerPolicy", () => {
 
     expect(readImageReferrerPolicy(proxied)).toBeUndefined();
     expect(readImageReferrerPolicy(undefined)).toBeUndefined();
+  });
+});
+
+describe("readOutsideImageHost", () => {
+  it("names the host of an image no GitHub host serves", () => {
+    expect(readOutsideImageHost("https://i.imgur.com/shot.png")).toBe(
+      "i.imgur.com",
+    );
+  });
+
+  it.each([
+    ASSET_URL,
+    "https://raw.githubusercontent.com/octo/hello/main/shot.png",
+    "https://user-images.githubusercontent.com/1/shot.png",
+    "https://github.githubassets.com/images/icons/emoji/tada.png",
+  ])("reads %s as GitHub's own", (address) => {
+    expect(readOutsideImageHost(address)).toBeUndefined();
+  });
+
+  it.each([
+    "https://githubusercontent.com.evil.example/shot.png",
+    "https://evilgithub.com/shot.png",
+    "https://octo.github.io/shot.png",
+    "https://camo.githubusercontent.com/0f3a/68747470733a2f2f6576696c",
+    "https://render.githubusercontent.com/view/shot.png",
+    "https://evil.githubassets.com/shot.png",
+    "https://github.com/octo/hello/releases/download/v1/shot.png",
+    "https://github.com/octo/hello/releases/latest/download/shot.png",
+    "https://github.com/octo/hello/Releases/download/v1/shot.png",
+    "https://github.com//octo/hello//releases/download/v1/shot.png",
+    "https://github.com/octo/hello/r%65leases/download/v1/shot.png",
+    "https://github.com/octo/hello/releases/download/v1/100%.png",
+    "https://github.com/octo/hello/r%65leases/download/v1/100%.png",
+  ])("never reads %s as GitHub's own", (address) => {
+    expect(readOutsideImageHost(address)).toBe(new URL(address).hostname);
+  });
+
+  it("reads the proxy's same-origin path as served here", () => {
+    const proxied = buildProxyPath(SCOPE, ASSET_URL);
+
+    expect(readOutsideImageHost(proxied)).toBeUndefined();
+    expect(readOutsideImageHost(undefined)).toBeUndefined();
   });
 });

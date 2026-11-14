@@ -9,7 +9,7 @@ interface StripEntryBase {
 }
 
 interface AddressedStripEntry extends StripEntryBase {
-  /** What the lightbox loads: the proxy's same-origin read, or the address itself on an outside host. */
+  /** What the lightbox loads: the proxy's same-origin read, or the address itself on a GitHub host. */
   readonly source: string;
   /** The author's address for "Open on GitHub"; absent off a GitHub host. */
   readonly githubLink?: string;

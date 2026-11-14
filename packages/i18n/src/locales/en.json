@@ -1590,6 +1590,9 @@
       "imageFailed": "Image could not load",
       "videoFailed": "Video could not load",
       "openOnGithub": "Open on GitHub",
+      "imageOutside": "Image on {{host}}, not loaded",
+      "imageOutsideNamed": "{{alt}}: image on {{host}}, not loaded",
+      "openOutside": "Open image",
       "diagramFailed": "Diagram could not render",
       "diagramSource": "Show source",
       "diagramTypes": {

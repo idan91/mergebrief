@@ -186,6 +186,25 @@ about your instance.
 
 
 The table covers the instance's own processes. A reviewer's browser also loads
-avatars from `github.com`, and the `mergebrief` CLI asks the npm registry for
+avatars from `github.com`. An image in a description or a comment loads
+through the API, or straight from one of the hosts GitHub serves its own
+stored files from (`github.com`, and named hosts under `githubusercontent.com`
+and `githubassets.com` such as `raw.` and `user-images.`). GitHub's image
+relay, `camo.githubusercontent.com`, is not one of them: it fetches an image
+from any host, and can fetch it again on each view. Nor is a release file on
+`github.com`: GitHub counts each download where the repository's owner can
+read it. An image on any other host is never loaded: the page names the host
+and links the address, so that host does not learn who opened the brief or
+when.
+
+Two limits remain. A file GitHub serves is still fetched from GitHub, and
+GitHub meters some of what it serves to the repository's owner: a file kept
+in Git LFS counts against the owner's bandwidth, so a pull request author who
+points an image at their own repository can see that it was fetched, though
+not by whom. The page cannot tell such a file from a committed one before it
+loads. A Mermaid diagram is the other: the diagram library can still fetch an
+image or a stylesheet address the diagram itself names.
+
+The `mergebrief` CLI asks the npm registry for
 its newest version unless `MERGEBRIEF_NO_VERSION_WARNING` is set
 ([cli.md](./cli.md#versions)).
