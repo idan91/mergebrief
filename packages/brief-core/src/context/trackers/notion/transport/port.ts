@@ -18,6 +18,8 @@ export interface NotionDataSource {
 export interface NotionPage {
   readonly id: string;
   readonly properties: Readonly<Record<string, unknown>>;
+  /** The database and data source the page sits in, 32 hex each; empty for a page outside any board. */
+  readonly parentIds: readonly string[];
 }
 
 export interface NotionBlock {

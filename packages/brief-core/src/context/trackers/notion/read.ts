@@ -20,6 +20,7 @@ import type {
   NotionSession,
   NotionTransport,
 } from "./transport";
+import { normalizeNotionId } from "./utils";
 
 /** Same cap as a linked URL: a huge page must not blow up token cost. */
 const MAX_TICKET_CHARS = 20_000;
@@ -80,10 +81,6 @@ interface NotionClient {
 
 function joinPlainText(richText: RichText): string {
   return richText.map((span) => span.plain_text).join("");
-}
-
-function normalizePageId(id: string): string {
-  return id.replace(/-/g, "").toLowerCase();
 }
 
 /** Split `PREFIX-N` into its board prefix and number. */
@@ -449,11 +446,37 @@ async function findPageByKey(
   return { ok: true, value: page };
 }
 
-function findPageById(
+/**
+ * A page URL names any page the integration can read, so the page counts
+ * only when it sits in a board the repo lists. A reference with no board
+ * fails before any request.
+ */
+async function findPageById(
   client: NotionClient,
   pageId: string,
+  databaseIds: readonly string[],
 ): Promise<ReadResult<NotionPage>> {
-  return client.transport.getPage(client.session, pageId);
+  if (databaseIds.length === 0) {
+    return failRead(
+      TicketUnreadReasons.NOT_FOUND,
+      "the repository lists no notion board for a page URL",
+    );
+  }
+  const page = await client.transport.getPage(client.session, pageId);
+  if (!page.ok) {
+    return page;
+  }
+
+  const sitsInListedBoard = page.value.parentIds.some((id) =>
+    databaseIds.includes(id),
+  );
+  if (!sitsInListedBoard) {
+    return failRead(
+      TicketUnreadReasons.NOT_FOUND,
+      "the page sits outside the repository's notion boards",
+    );
+  }
+  return page;
 }
 
 async function findPage(
@@ -461,7 +484,7 @@ async function findPage(
   reference: TicketReference,
 ): Promise<ReadResult<NotionPage>> {
   if (reference.pageId !== undefined) {
-    return findPageById(client, reference.pageId);
+    return findPageById(client, reference.pageId, reference.databaseIds ?? []);
   }
   if (reference.key !== "" && reference.databaseId !== undefined) {
     return findPageByKey(client, reference.databaseId, reference.key);
@@ -502,7 +525,7 @@ async function readNotionPrimary(
 
     const values = collectPropertyValues(page.value);
     const key = findKey(values);
-    const pageId = normalizePageId(page.value.id);
+    const pageId = normalizeNotionId(page.value.id);
     deps.log(
       `notion: read ${key === "" ? pageId : key} (${body.value.length} chars)`,
     );

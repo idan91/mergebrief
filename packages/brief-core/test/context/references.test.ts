@@ -209,13 +209,51 @@ describe("collectTicketReferences: shapes", () => {
     ],
   ])("notion URL %s → page id", (body, pageId) => {
     const refs = collectTicketReferences(
-      makeInput({ body, readable: ["github", "notion"] }),
+      makeInput({ body, readable: ["github", "notion"], trackers: [NOTION] }),
     );
     expect(refs[0]).toMatchObject({
       tracker: "notion",
       pageId,
       url: `https://www.notion.so/${pageId}`,
     });
+  });
+
+  it("a notion URL carries the boards the repo lists", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: "https://www.notion.so/3cf5e9400eeb81f9bed9e1474c2cb4d4",
+        readable: ["github", "notion"],
+        trackers: [NOTION],
+      }),
+    );
+
+    expect(refs[0]).toMatchObject({ databaseIds: [NOTION.databaseId] });
+  });
+
+  it("a notion URL carries a board id written in capitals in lower case", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: "https://www.notion.so/3cf5e9400eeb81f9bed9e1474c2cb4d4",
+        readable: ["github", "notion"],
+        trackers: [{ ...NOTION, databaseId: "ABCDEF".repeat(5) + "AB" }],
+      }),
+    );
+
+    expect(refs[0]).toMatchObject({
+      databaseIds: ["abcdef".repeat(5) + "ab"],
+    });
+  });
+
+  it("a notion URL is no reference for a repo that lists no notion board", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: "https://www.notion.so/3cf5e9400eeb81f9bed9e1474c2cb4d4",
+        readable: ["github", "notion"],
+        trackers: [GITHUB],
+      }),
+    );
+
+    expect(refs).toEqual([]);
   });
 
   it("notion URLs never match without a token", () => {
@@ -234,6 +272,7 @@ describe("collectTicketReferences: shapes", () => {
         makeInput({
           body: "https://www.notion.so/product",
           readable: ["github", "notion"],
+          trackers: [NOTION],
         }),
       ),
     ).toEqual([]);
@@ -343,7 +382,7 @@ describe("collectTicketReferences: standalone links", () => {
     ],
   ])("a Notion page URL %s is not a reference", (_where, body) => {
     const refs = collectTicketReferences(
-      makeInput({ body, readable: ["github", "notion"] }),
+      makeInput({ body, readable: ["github", "notion"], trackers: [NOTION] }),
     );
     expect(refs).toEqual([]);
   });
@@ -353,6 +392,7 @@ describe("collectTicketReferences: standalone links", () => {
       makeInput({
         body: `**${NOTION_PAGE_URL}**`,
         readable: ["github", "notion"],
+        trackers: [NOTION],
       }),
     );
     expect(refs.map((r) => r.url)).toEqual([NOTION_PAGE_URL]);
@@ -363,6 +403,7 @@ describe("collectTicketReferences: standalone links", () => {
       makeInput({
         body: `[spec](${NOTION_PAGE_URL})`,
         readable: ["github", "notion"],
+        trackers: [NOTION],
       }),
     );
     expect(refs.map((r) => r.url)).toEqual([NOTION_PAGE_URL]);

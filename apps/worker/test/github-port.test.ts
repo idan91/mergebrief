@@ -1,7 +1,7 @@
 // The port over github/testing's fake: which binding each job kind reads
 // through, and the url-box probe that may switch a job to the operator token.
 // The grant and crypto legs run real against PGlite.
-import type { IssueInfo } from "github";
+import { RepositoryVisibilities, type IssueInfo } from "github";
 import { isGrantRowId, parseTenantContext, type GrantRowId } from "persistence";
 import {
   CredentialKinds,
@@ -114,6 +114,26 @@ describe("createGitHubPort openPullRequestSource", () => {
     const open = await source.listOpenPullRequests();
 
     expect(open.ok && open.value.map((pull) => pull.number)).toEqual([7]);
+  });
+
+  it("reads another repository's visibility on the installation", async () => {
+    const github = makeGitHub(HEAD_1);
+    const tracker = { owner: "acme", repo: "tracker" };
+    github.setRepositoryVisibility(tracker, RepositoryVisibilities.PRIVATE);
+    const source = await openTestPort(github).openPullRequestSource(
+      installationId,
+      "acme/widget",
+      7,
+    );
+
+    const result = await source.fetchRepositoryVisibility("acme", "tracker");
+
+    expect(result).toEqual({ ok: true, value: RepositoryVisibilities.PRIVATE });
+    expect(github.calls.at(-1)).toEqual({
+      operation: "fetchRepositoryVisibility",
+      credential: { kind: CredentialKinds.INSTALLATION, installationId },
+      input: tracker,
+    });
   });
 });
 
@@ -249,6 +269,36 @@ describe("createGitHubPort openUrlBoxPullRequestSource", () => {
     expect(own.ok).toBe(true);
     expect(foreign.ok || foreign.error.code).toBe("not-found");
     expect(github.listCalls("fetchIssue")).toHaveLength(1);
+  });
+
+  it("reads no visibility outside the job's repository on the operator token", async () => {
+    const github = makeGitHub(HEAD_1);
+    github.failOn(
+      "fetchPullRequest",
+      FakeFailures.NOT_FOUND,
+      CredentialKinds.REVIEWER,
+    );
+    const grantId = await seedViewerGrant();
+    const source = await openTestPort(
+      github,
+      OWNED_OPERATOR,
+    ).openUrlBoxPullRequestSource(makeUrlBoxRequest(grantId));
+
+    const own = await source.fetchRepositoryVisibility("Acme", "Widget");
+    const foreign = await source.fetchRepositoryVisibility(
+      "other-org",
+      "secrets",
+    );
+
+    expect(own).toEqual({ ok: true, value: RepositoryVisibilities.PUBLIC });
+    expect(foreign.ok || foreign.error.code).toBe("not-found");
+    expect(github.listCalls("fetchRepositoryVisibility")).toEqual([
+      {
+        operation: "fetchRepositoryVisibility",
+        credential: AS_OPERATOR,
+        input: { owner: "Acme", repo: "Widget" },
+      },
+    ]);
   });
 
   it("an UNAUTHORIZED probe keeps the viewer binding, never the operator", async () => {

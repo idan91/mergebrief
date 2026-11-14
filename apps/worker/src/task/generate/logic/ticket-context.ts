@@ -35,31 +35,41 @@ interface TransportBinding {
  * stays inside the PR's repo and is offered no deployment credential, so
  * the repo's settings cannot borrow the operator's Notion integration or
  * Jira token. An installation job reads its repo and `issuesRepo`, every
- * repo the installation reaches only where the instance allows sibling repos.
+ * repo the installation reaches only where the instance allows sibling repos,
+ * and no issue from a repository less widely visible than the pull request's.
  */
 function bindTrackerTransports(
   binding: TransportBinding,
 ): TrackerRootDeps["transports"] {
   const issues = createInstallationIssueApi(binding.source);
+  const pullRequestRepo = binding.locator;
   if (binding.urlBox) {
-    const onlyRepos = [binding.locator];
+    const onlyRepos = [pullRequestRepo];
     return {
-      github: GitHubTransports.INSTALLATION.create(issues, { onlyRepos }),
+      github: GitHubTransports.INSTALLATION.create(issues, {
+        onlyRepos,
+        pullRequestRepo,
+      }),
     };
   }
 
   const notion = NotionTransports.HTTP.create();
   const { jira } = binding;
   if (binding.siblingRepos) {
-    const github = GitHubTransports.INSTALLATION.create(issues);
+    const github = GitHubTransports.INSTALLATION.create(issues, {
+      pullRequestRepo,
+    });
     return { github, notion, jira };
   }
-  const onlyRepos: RepoName[] = [binding.locator];
+  const onlyRepos: RepoName[] = [pullRequestRepo];
   const issuesRepo = findIssuesRepo(binding.trackers);
   if (issuesRepo !== undefined) {
     onlyRepos.push(issuesRepo);
   }
-  const github = GitHubTransports.INSTALLATION.create(issues, { onlyRepos });
+  const github = GitHubTransports.INSTALLATION.create(issues, {
+    onlyRepos,
+    pullRequestRepo,
+  });
   return { github, notion, jira };
 }
 

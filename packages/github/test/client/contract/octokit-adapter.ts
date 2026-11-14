@@ -144,6 +144,11 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
     milestone: null,
     body: "Details",
   }),
+  fetchRepositoryVisibility: answerOk({
+    full_name: "acme/tickets",
+    private: true,
+    visibility: "private",
+  }),
   listUserInstallations: answerOk({
     total_count: 1,
     installations: [{ id: 99, account: { login: "acme" } }],

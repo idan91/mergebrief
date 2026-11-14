@@ -27,10 +27,12 @@ Two halves of configuration:
 - **Every readable tracker is read.** The repo's `trackers:` list names the
   trackers whose references rank first, GitHub when there is none, and
   the deployment must be able to read them. Any other tracker the deployment
-  can read is read too, so a Notion repo whose PR says only `Fixes #12`
-  still reads the issue. A reference to a tracker the deployment cannot
-  read stays ordinary text. A Jira key or link counts only in a repo whose
-  list names its project.
+  can read is read too, so a Notion repo whose PR links a GitHub issue URL
+  still reads the issue. A bare `#12` or `owner/repo#12` counts only in a
+  repo whose list names GitHub or that lists no tracker. A reference to a
+  tracker the deployment cannot read stays ordinary text. A Jira key or link
+  counts only in a repo whose list names its project, and a Notion key or
+  page link only in a repo whose list names its board.
 - **One fetch per brief.** Only the primary is fetched; other references in
   the PR stay ordinary text. The primary's URL is dropped from the generic
   link chaser so it is never fetched twice.
@@ -95,8 +97,8 @@ body, capped at 20,000 characters.
 
 | Where | Credential | Reach |
 | --- | --- | --- |
-| Worker (App installation) | the installation token already minted for the job | the pull request's repository and its `issuesRepo`; every repository the installation covers with `siblingRepos: true` |
-| Worker (URL job) | the viewer's token, or `MERGEBRIEF_URL_FALLBACK_TOKEN` when the job's owner owns it | whatever that token can read |
+| Worker (App installation) | the installation token already minted for the job | the pull request's repository and its `issuesRepo`; every repository the installation covers with `siblingRepos: true`; never an issue from a repository less widely visible than the pull request's |
+| Worker (URL job) | the viewer's token, or `MERGEBRIEF_URL_FALLBACK_TOKEN` when the job's owner owns it | the pull request's own repository only, whatever else that token can read |
 | `categorize` and `delta` dev CLIs | `gh`: `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
 **The App needs `Issues: read`** ([github-app.md](github-app.md)). Without it
@@ -108,8 +110,24 @@ Installation reach, in practice:
 - By default an installation job reads issues only in the pull request's
   own repository and the `issuesRepo` its tracker list names. A ticket in
   any other **sibling repository** of the installation (`owner/repo#N` or an
-  issue URL) is `not-found`, unsent, so a PR author cannot make the brief
-  quote an issue from a repository they cannot see.
+  issue URL) is `not-found`, unsent. A PR author can still name any issue in
+  the `issuesRepo`, including one in a repository they cannot see.
+- An issue in **another repository** is read only when that repository is at
+  least as widely visible as the pull request's, under `issuesRepo` and
+  `siblingRepos` alike: everyone who can read a repository can read its
+  briefs. GitHub's three visibilities rank private, internal, public. A
+  private issue is never read for an internal or public pull request, and an
+  internal issue never for a public one; a private issue is read for a
+  private pull request, and a public issue for any. The worker asks GitHub
+  for the issue repository's visibility and, unless it is public, for the
+  pull request's. A refused ticket is `not-found`, unsent; when either
+  question fails, the ticket is unread with that failure's reason. The dev
+  CLIs do not apply this rule.
+- The rule compares visibility, not membership. Two private repositories
+  with different members still read each other's issues, and a private
+  repository with an outside collaborator still reads an internal one. Point
+  `issuesRepo` at a repository every reader of the pull request may see, and
+  leave `siblingRepos` off where members differ between repositories.
 - `issuesRepo` comes from the repo's `.mergebrief/settings.yaml` when that
   file names trackers, else from the instance's `trackers:` list. Whoever
   can write the repo's default branch can point it at any repository the
@@ -148,7 +166,7 @@ Installation reach, in practice:
 
 | Reason | GitHub said | CLI equivalent |
 | --- | --- | --- |
-| `not-found` | 404, a 301 for a transferred issue or a renamed repository, or the number is a pull request | `gh` reported `HTTP 404` |
+| `not-found` | 404, a 301 for a transferred issue or a renamed repository, or the number is a pull request; also an issue in a repository less widely visible than the pull request's | `gh` reported `HTTP 404` |
 | `no-credential` | 401, or a 403 that is not a rate limit | `gh` exit 4 (not logged in), or `HTTP 401` / `HTTP 403` |
 | `rate-limited` | 429, or a 403 carrying rate-limit headers | `gh` reported `HTTP 429`, or a 403 whose text says rate limit |
 | `timeout` | no answer inside the read's budget, or a 5xx | same, or `gh` exited for another reason |
@@ -184,9 +202,10 @@ only the one page the PR names.
 ### 2. Share the board with the integration
 
 Sharing a page grants its children, so share the board **database** once and
-every row is readable. Notion reach is whatever you share with the
-integration: any repo's PR can name a shared page and have it read. On the board: `•••` → **Connections** → add the
-integration. A ticket that links to a second database (a related board, a
+every row is readable. The integration reaches whatever you share with it,
+and each repository reads only the boards its effective `trackers:` list
+names (its own list, else the instance's), page URLs included. On the board:
+`•••` → **Connections** → add the integration. A ticket that links to a second database (a related board, a
 parent epic elsewhere) needs that database shared too.
 
 An unshared board and a mistyped id look the same to the API: both return
@@ -241,8 +260,10 @@ found and asks for the data source id instead.
 `keyPrefix` is the prefix of the board's **ID** property (the unique-id
 property Notion numbers rows with). A key like `ACME-12` matches only when
 the prefix equals a listed `keyPrefix`; without one keys never match. A
-Notion page URL in the PR needs no board: it resolves whenever a Notion token
-is configured.
+Notion page URL in the PR is read only when the page sits directly in a
+board the repository's effective `trackers:` list names; any other page, a
+sub-page nested under a row included, is `not-found`. A repository that
+lists no Notion board reads no Notion page link.
 
 ### What the model sees
 
@@ -416,7 +437,7 @@ The card and the CLI carry one of five codes. What each means for you:
 
 | Code | What happened | What to do |
 | --- | --- | --- |
-| `not-found` | The tracker answered "no such page". For Notion this also covers a board that is not shared with the integration. For Jira it covers an issue that does not exist, one the account cannot see and an unknown project, which Jira answers alike, and an issue moved to a project the repository does not list. | Check the key or URL; share the board (and any related database) with the integration. For Jira, check the key, the account's access to the project, and the `projectKeys` list. |
+| `not-found` | The tracker answered "no such page". For Notion this also covers a board that is not shared with the integration, and a page URL whose page sits outside the repository's boards. For Jira it covers an issue that does not exist, one the account cannot see and an unknown project, which Jira answers alike, and an issue moved to a project the repository does not list. | Check the key or URL; share the board (and any related database) with the integration. For Jira, check the key, the account's access to the project, and the `projectKeys` list. |
 | `no-credential` | The tracker refused the token (`401`), or the integration lacks the capability (`403`). For Jira, Atlassian refused the email and token (`401` or `403`), including an expired or revoked token and a token without the `read:jira-work` scope. | Rotate or fix the token in the worker's env; check the integration's **Read content** capability. For Jira, replace or fix the token, then restart the worker. |
 | `timeout` | No usable answer within the 10-second budget, including network errors and `5xx` answers. For Jira, also a site whose cloud id could not be looked up. | Nothing to configure; a later revision reads again. Sustained timeouts point at connectivity from the worker. |
 | `rate-limited` | The tracker answered `429`. | Nothing to configure; it clears on the next revision. If it persists, the integration or Jira token is shared with something else that spends its quota. |

@@ -13,6 +13,7 @@ import { ReviewEvents } from "../../../src/operations/review-submit";
 import { InstallationPresences } from "../../../src/operations/installation/types";
 import { CollaboratorPermissions } from "../../../src/operations/collaborator-permission/types";
 import { FAKE_APP_BOT_USER_ID } from "../../../src/testing";
+import { RepositoryVisibilities } from "../../../src/types";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import {
   ATTACHMENT_COMMIT_SHA,
@@ -192,6 +193,12 @@ export const ACCOUNT_READER_CASES: readonly ContractCase<GitHubReader>[] = [
       body: "Details",
       isPullRequest: false,
     },
+  }),
+  defineCase({
+    operation: "fetchRepositoryVisibility",
+    call: (client: GitHubReader) =>
+      client.fetchRepositoryVisibility({ owner: "acme", repo: "tickets" }),
+    expected: RepositoryVisibilities.PRIVATE,
   }),
 ];
 

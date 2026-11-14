@@ -72,6 +72,7 @@ import type {
   AddReviewThreadInput,
   ReviewThread,
 } from "../operations/review-thread";
+import type { RepositoryVisibility } from "../types";
 
 export const CredentialFailureCodes = {
   CREDENTIAL_UNREADABLE: "credential-unreadable",
@@ -319,6 +320,10 @@ export interface AccountReader {
   ): GitHubCall<LiveReadPage>;
   /** In any repository the credential sees, not only a bound one. */
   fetchIssue(ref: IssueRef): GitHubCall<IssueInfo>;
+  /** In any repository the credential sees, not only a bound one. */
+  fetchRepositoryVisibility(
+    repo: RepositoryRef,
+  ): GitHubCall<RepositoryVisibility>;
 }
 
 export interface GitHubReader extends AccountReader {

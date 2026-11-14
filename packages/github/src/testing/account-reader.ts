@@ -101,6 +101,13 @@ export function buildAccountReader(
         answer: () => answerFound(world.findIssue(ref), "fetch issue"),
       });
     },
+    fetchRepositoryVisibility(repo) {
+      return run({
+        operation: "fetchRepositoryVisibility",
+        input: repo,
+        answer: () => answerOk(world.findRepositoryVisibility(repo)),
+      });
+    },
   };
 }
 

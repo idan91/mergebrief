@@ -76,7 +76,9 @@ the other, never both.
 
 A pull request reads issues in its own repository and in `issuesRepo`, so
 whoever writes this file chooses that second repository. Reaching any other
-repository takes the instance's `siblingRepos`, which this file cannot set
+repository takes the instance's `siblingRepos`, which this file cannot set.
+Either way an issue in another repository is read only when that repository
+is at least as widely visible as the pull request's
 ([trackers.md](trackers.md#credential-and-reach)).
 
 An instance whose repos share boards lists them once in

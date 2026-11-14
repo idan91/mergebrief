@@ -23,6 +23,7 @@ import {
   type PullRequestInfo,
   type RepoFileResult,
   type RepoReader,
+  type RepositoryVisibility,
   type ReviewerBindingOptions,
   type ReviewerCredential,
   type ReviewerGitHub,
@@ -69,6 +70,15 @@ export interface PullRequestSource {
     repo: string,
     number: number,
   ): GitHubCall<IssueInfo>;
+  /**
+   * Who can see a repository the primary ticket may live in, so a private
+   * repository's issue stays out of a brief more people can read. On the
+   * operator token, the job's own repository only.
+   */
+  fetchRepositoryVisibility(
+    owner: string,
+    repo: string,
+  ): GitHubCall<RepositoryVisibility>;
   /** The whole-PR unified diff at the current head. */
   fetchDiff(): GitHubCall<string>;
   /**
@@ -192,6 +202,8 @@ function bindPullRequestReads(
     fetchPullRequestFiles: () => reader.fetchPullRequestFiles(prNumber),
     fetchIssue: (owner, repo, number) =>
       github.fetchIssue({ owner, repo, number }),
+    fetchRepositoryVisibility: (owner, repo) =>
+      github.fetchRepositoryVisibility({ owner, repo }),
     fetchDiff: () => reader.fetchDiff(prNumber),
     fetchCheckedCompareDiff: (base, head, expectedFileCount) =>
       reader.fetchCheckedCompareDiff(
@@ -329,6 +341,12 @@ const ISSUE_OUT_OF_REACH: GitHubApiError = {
   message: "issue outside the job's repository",
 };
 
+const REPOSITORY_OUT_OF_REACH: GitHubApiError = {
+  code: GitHubApiErrorCodes.NOT_FOUND,
+  status: HttpStatuses.NOT_FOUND,
+  message: "a repository other than the job's",
+};
+
 function isSameRepository(left: RepoParts, right: RepoParts): boolean {
   const sameOwner = left.owner.toLowerCase() === right.owner.toLowerCase();
   return sameOwner && left.repo.toLowerCase() === right.repo.toLowerCase();
@@ -336,8 +354,9 @@ function isSameRepository(left: RepoParts, right: RepoParts): boolean {
 
 /**
  * Url-box jobs read only, so the operator token is never a write path. A
- * ticket in another repository answers not-found unsent: the owner reaches
- * neither repository on a key of their own.
+ * ticket in another repository, and that repository's visibility, answer
+ * not-found unsent: the owner reaches neither repository on a key of their
+ * own.
  */
 function openOperatorSource(
   binders: GitHubBinders,
@@ -354,6 +373,12 @@ function openOperatorSource(
         return { ok: false, error: ISSUE_OUT_OF_REACH };
       }
       return reads.fetchIssue(owner, issueRepo, number);
+    },
+    fetchRepositoryVisibility: async (owner, otherRepo) => {
+      if (!isSameRepository(repo, { owner, repo: otherRepo })) {
+        return { ok: false, error: REPOSITORY_OUT_OF_REACH };
+      }
+      return reads.fetchRepositoryVisibility(owner, otherRepo);
     },
     listOpenPullRequests: listNoOpenPullRequests,
   };

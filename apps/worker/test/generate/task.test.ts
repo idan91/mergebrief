@@ -29,7 +29,11 @@ import {
   type SharedRootDeps,
 } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
-import type { AppClient, PullRequestInfo } from "github";
+import {
+  RepositoryVisibilities,
+  type AppClient,
+  type PullRequestInfo,
+} from "github";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import {
   BASE,
@@ -156,6 +160,7 @@ function stubNotionFetch(): { calls: string[]; restore: () => void } {
     [`/v1/pages/${NOTION_PAGE_ID}`]: {
       object: "page",
       id: NOTION_PAGE_ID,
+      parent: { type: "database_id", database_id: "a".repeat(32) },
       properties: {
         Name: { type: "title", title: [{ plain_text: "Secret roadmap" }] },
       },
@@ -237,6 +242,8 @@ function arrangeOpenPullRequest(
 setUpHarness();
 
 /** An issue in another repo of the installation, which the PR author may not see. */
+const PRIVATE_TRACKER = { owner: "acme", repo: "private-tracker" };
+
 const SIBLING_ISSUE = {
   title: "Secret roadmap",
   state: "open",
@@ -401,6 +408,81 @@ describe("generate task", () => {
     );
 
     await makeTask({ github, siblingRepos: true })(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { status: "read", title: "Secret roadmap" },
+      },
+    });
+  });
+
+  const { PRIVATE, INTERNAL } = RepositoryVisibilities;
+  it.each([
+    [PRIVATE, "issuesRepo", { issuesRepo: "acme/private-tracker" }, false],
+    [PRIVATE, "siblingRepos", {}, true],
+    [INTERNAL, "issuesRepo", { issuesRepo: "acme/private-tracker" }, false],
+  ])(
+    "reads no %s issue into a public repo's brief under %s",
+    async (visibility, _setting, entry, siblingRepos) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.updatePullRequest(PR_REF, {
+        body: "fixes acme/private-tracker#42",
+      });
+      github.addIssue(
+        { owner: "acme", repo: "private-tracker", number: 42 },
+        SIBLING_ISSUE,
+      );
+      github.setRepositoryVisibility(PRIVATE_TRACKER, visibility);
+      const trackerRoot: SharedRootDeps = {
+        env: {},
+        contextSources: [],
+        trackers: [{ kind: "github", ...entry }],
+      };
+
+      await makeTask({ github, trackerRoot, siblingRepos })(payload);
+
+      const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        BASE,
+        HEAD_1,
+      );
+      const body = brief?.body ?? "{}";
+      expect(JSON.parse(body)).toMatchObject({
+        intentCheck: {
+          primaryTicket: { status: "unread", reason: "not-found" },
+        },
+      });
+      expect(body).not.toContain("Secret roadmap");
+      expect(github.listCalls("fetchIssue")).toEqual([]);
+    },
+  );
+
+  it("reads a private issues repo for a private repo's brief", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes #42" });
+    github.addIssue(
+      { owner: "acme", repo: "private-tracker", number: 42 },
+      SIBLING_ISSUE,
+    );
+    github.setRepositoryVisibility(
+      PRIVATE_TRACKER,
+      RepositoryVisibilities.PRIVATE,
+    );
+    github.setRepositoryVisibility(REPO, RepositoryVisibilities.PRIVATE);
+    const trackerRoot: SharedRootDeps = {
+      env: {},
+      contextSources: [],
+      trackers: [{ kind: "github", issuesRepo: "acme/private-tracker" }],
+    };
+
+    await makeTask({ github, trackerRoot })(payload);
 
     const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,

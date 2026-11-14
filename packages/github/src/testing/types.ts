@@ -37,6 +37,7 @@ import type {
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review-pending";
+import type { RepositoryVisibility } from "../types";
 
 /** Every method a binding exposes, named as the interfaces name it. */
 export type GitHubOperation =
@@ -176,6 +177,11 @@ export interface FakeGitHubArrange {
     result: RepoFileResult,
   ): void;
   addIssue(ref: IssueRef, issue: IssueInfo): void;
+  /** A repository with none arranged reads public. */
+  setRepositoryVisibility(
+    repo: RepositoryRef,
+    visibility: RepositoryVisibility,
+  ): void;
   addInstallation(
     installation: UserInstallation,
     repositories: ReadonlyMap<RepoId, InstallationRepository>,

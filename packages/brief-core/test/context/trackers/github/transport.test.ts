@@ -197,21 +197,40 @@ const ISSUE: IssueRecord = {
   isPullRequest: false,
 };
 
-function stubApi(calls: unknown[] = []): InstallationIssueApi {
+function stubApi(
+  calls: unknown[] = [],
+  hiddenRepos: readonly string[] | Error = [],
+): InstallationIssueApi {
   return {
     async fetchIssue(locator) {
       calls.push(locator);
       return { ok: true, value: ISSUE };
+    },
+    async isVisibleToReadersOf(repo, pullRequestRepo) {
+      const asked = `${repo.owner}/${repo.repo}`;
+      calls.push(
+        `${asked} for ${pullRequestRepo.owner}/${pullRequestRepo.repo}`,
+      );
+      if (hiddenRepos instanceof Error) {
+        return {
+          ok: false,
+          error: { reason: TicketUnreadReasons.TIMEOUT, detail: "no answer" },
+        };
+      }
+      return { ok: true, value: !hiddenRepos.includes(asked) };
     },
   };
 }
 
 describe("GitHubTransports.INSTALLATION", () => {
   const signal = new AbortController().signal;
+  const pullRequestRepo = { owner: "acme", repo: "widget" };
 
   it("reads through the job's issue API, addressed by the locator", async () => {
     const calls: unknown[] = [];
-    const transport = createInstallationTransport(stubApi(calls));
+    const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo,
+    });
     await expect(transport.readIssue(LOCATOR, signal)).resolves.toEqual({
       ok: true,
       value: ISSUE,
@@ -222,6 +241,7 @@ describe("GitHubTransports.INSTALLATION", () => {
   it("is not-found outside the bound repos, without calling the API", async () => {
     const calls: unknown[] = [];
     const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo,
       onlyRepos: [
         { owner: "acme", repo: "other" },
         { owner: "acme", repo: "tracker" },
@@ -239,6 +259,7 @@ describe("GitHubTransports.INSTALLATION", () => {
   it("reads a bound repo named in different letter case", async () => {
     const calls: unknown[] = [];
     const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo,
       onlyRepos: [{ owner: "Acme", repo: "Widget" }],
     });
     await expect(transport.readIssue(LOCATOR, signal)).resolves.toEqual({
@@ -251,6 +272,7 @@ describe("GitHubTransports.INSTALLATION", () => {
   it("reads any one of several bound repos", async () => {
     const calls: unknown[] = [];
     const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo,
       onlyRepos: [
         { owner: "acme", repo: "tracker" },
         { owner: "acme", repo: "widget" },
@@ -258,5 +280,62 @@ describe("GitHubTransports.INSTALLATION", () => {
     });
     const result = await transport.readIssue(LOCATOR, signal);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("GitHubTransports.INSTALLATION across repositories", () => {
+  const signal = new AbortController().signal;
+  const pullRequestRepo = { owner: "acme", repo: "site" };
+
+  it("reads the pull request's own repository without asking who sees it", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo: { owner: "Acme", repo: "Widget" },
+    });
+
+    const result = await transport.readIssue(LOCATOR, signal);
+
+    expect(result.ok).toBe(true);
+    expect(calls).toEqual([LOCATOR]);
+  });
+
+  it("refuses an issue from a less widely visible repository", async () => {
+    const calls: unknown[] = [];
+    const api = stubApi(calls, ["acme/widget"]);
+    const transport = createInstallationTransport(api, { pullRequestRepo });
+
+    const result = await transport.readIssue(LOCATOR, signal);
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NOT_FOUND },
+    });
+    expect(calls).toEqual(["acme/widget for acme/site"]);
+  });
+
+  it("reads another repository's issue every reader can already see", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls), {
+      pullRequestRepo,
+    });
+
+    const result = await transport.readIssue(LOCATOR, signal);
+
+    expect(result.ok).toBe(true);
+    expect(calls).toEqual(["acme/widget for acme/site", LOCATOR]);
+  });
+
+  it("reads no issue when it cannot learn who sees the repository", async () => {
+    const calls: unknown[] = [];
+    const api = stubApi(calls, new Error("unreachable"));
+    const transport = createInstallationTransport(api, { pullRequestRepo });
+
+    const result = await transport.readIssue(LOCATOR, signal);
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { reason: TicketUnreadReasons.TIMEOUT },
+    });
+    expect(calls).toEqual(["acme/widget for acme/site"]);
   });
 });

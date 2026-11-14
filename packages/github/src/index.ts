@@ -7,9 +7,10 @@
 export { loadConfig, ConfigErrorCodes } from "./config";
 export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
-// GitHub's account `type` vocabulary, read by webhook parsing and REST reads.
-export { GitHubAccountTypes } from "./types";
-export type { GitHubAccountType } from "./types";
+// GitHub's account `type` and repository visibility vocabularies, read by
+// webhook parsing and REST reads.
+export { GitHubAccountTypes, RepositoryVisibilities } from "./types";
+export type { GitHubAccountType, RepositoryVisibility } from "./types";
 
 // Shared sanitized API-error shape: the single sanitization chokepoint.
 export { GitHubApiErrorCodes, buildRenewalUnavailableError } from "./errors";
@@ -200,6 +201,7 @@ export {
 export type { LiveReadPage, PullRequestFacts } from "./operations/live-read";
 export { fetchIssue } from "./operations/issue";
 export type { IssueInfo, IssueRef } from "./operations/issue";
+export { fetchRepositoryVisibility } from "./operations/repo-visibility";
 
 // Review-submit primitives, three GitHub objects: the pending review (REST,
 // pinned to the reviewed commit; a 422 carries a best-effort code), the

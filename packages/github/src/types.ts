@@ -7,3 +7,11 @@ export const GitHubAccountTypes = {
   ORGANIZATION: "Organization",
 } as const;
 export type GitHubAccountType = ValueOf<typeof GitHubAccountTypes>;
+
+/** GitHub's `repository.visibility`; `internal` is readable by the whole enterprise. */
+export const RepositoryVisibilities = {
+  PUBLIC: "public",
+  PRIVATE: "private",
+  INTERNAL: "internal",
+} as const;
+export type RepositoryVisibility = ValueOf<typeof RepositoryVisibilities>;

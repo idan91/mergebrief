@@ -27,10 +27,3 @@ export const TRUSTED_AUTHOR_ASSOCIATIONS: ReadonlySet<AuthorAssociation> =
     AuthorAssociations.MEMBER,
     AuthorAssociations.COLLABORATOR,
   ]);
-
-/** GitHub's `repository.visibility`; `internal` is readable by the whole enterprise. */
-export const RepositoryVisibilities = {
-  PUBLIC: "public",
-  PRIVATE: "private",
-  INTERNAL: "internal",
-} as const;

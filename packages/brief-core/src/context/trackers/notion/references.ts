@@ -8,6 +8,7 @@ import {
 } from "../../embedded-urls";
 import { collectTicketKeys } from "../ticket-keys";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
+import { normalizeNotionId } from "./utils";
 
 const NOTION_URL = new RegExp(
   String.raw`${LINK_START}https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site|com)\/[^\s<>()[\]"']*`,
@@ -66,8 +67,20 @@ function collectBoardKeys(
   }));
 }
 
-function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
-  if (!enabled) {
+/** The boards a page URL may resolve in; a repo that lists none reads no page URL. */
+function listBoardIds(trackers: readonly TrackerConfig[]): string[] {
+  return trackers.flatMap((tracker) =>
+    tracker.kind === TicketTrackers.NOTION
+      ? [normalizeNotionId(tracker.databaseId)]
+      : [],
+  );
+}
+
+function collectPageUrls(
+  text: string,
+  databaseIds: readonly string[],
+): ReferenceHit[] {
+  if (databaseIds.length === 0) {
     return [];
   }
   const hits: ReferenceHit[] = [];
@@ -87,6 +100,7 @@ function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
         tracker: TicketTrackers.NOTION,
         key: "",
         pageId,
+        databaseIds,
         url: buildNotionUrl(pageId),
       },
     });
@@ -94,7 +108,7 @@ function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
   return hits;
 }
 
-/** Keys match only the configured prefix; page URLs only when a Notion read is configured. */
+/** Keys match only the configured prefix; page URLs only when a Notion read is configured and the repo lists a Notion board. */
 export function collectNotionReferences(
   text: string,
   location: ReferenceLocation,
@@ -104,10 +118,10 @@ export function collectNotionReferences(
   if (location === ReferenceLocations.BRANCH) {
     return keys;
   }
-  return [
-    ...keys,
-    ...collectPageUrls(text, input.readable.includes(TicketTrackers.NOTION)),
-  ];
+  const databaseIds = input.readable.includes(TicketTrackers.NOTION)
+    ? listBoardIds(input.trackers)
+    : [];
+  return [...keys, ...collectPageUrls(text, databaseIds)];
 }
 
 export function canonicalizeNotionUrl(raw: string): string | undefined {

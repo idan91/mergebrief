@@ -20,6 +20,7 @@ import type {
 } from "../operations/repo";
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
+import { RepositoryVisibilities, type RepositoryVisibility } from "../types";
 import { FIRST_IDS } from "./consts";
 import type {
   CredentialKind,
@@ -59,6 +60,7 @@ export interface RepoState {
   /** Keyed by lowercased login. */
   readonly collaboratorPermissions: Map<string, CollaboratorPermission>;
   mentionableUsers: readonly MentionableUser[];
+  visibility: RepositoryVisibility;
 }
 
 export interface InstallationState {
@@ -74,6 +76,8 @@ export interface FakeWorld extends WorldArrange {
   findPullRequest(ref: PullRequestRef): PullRequestState | undefined;
   findRepository(repoId: RepoId): RepositoryInfo | undefined;
   findIssue(ref: IssueRef): IssueInfo | undefined;
+  /** Public when the repository was never arranged. */
+  findRepositoryVisibility(repo: RepositoryRef): RepositoryVisibility;
   findInstallation(id: InstallationId): InstallationState | undefined;
   /** The arranged list, else the repos `addInstallation` gave it, else empty. */
   findInstallationRepoIds(id: InstallationId): ReadonlySet<RepoId>;
@@ -134,6 +138,7 @@ function createRepoState(): RepoState {
     collaborators: { collaborators: [], hasMore: false },
     collaboratorPermissions: new Map(),
     mentionableUsers: [],
+    visibility: RepositoryVisibilities.PUBLIC,
   };
 }
 
@@ -216,6 +221,9 @@ function buildArrange(state: WorldState): WorldArrange {
     addIssue(ref, issue) {
       state.issues.set(getIssueKey(ref), issue);
     },
+    setRepositoryVisibility(repo, visibility) {
+      ensureRepo(state, repo).visibility = visibility;
+    },
     addInstallation(installation, repositories) {
       const { installationId } = installation;
       state.installations.set(installationId, { installation, repositories });
@@ -283,6 +291,10 @@ function buildLookups(state: WorldState): WorldLookups {
     },
     findIssue(ref) {
       return state.issues.get(getIssueKey(ref));
+    },
+    findRepositoryVisibility(repo) {
+      const arranged = state.repos.get(getRepoKey(repo))?.visibility;
+      return arranged ?? RepositoryVisibilities.PUBLIC;
     },
     findInstallation(id) {
       return state.installations.get(id);

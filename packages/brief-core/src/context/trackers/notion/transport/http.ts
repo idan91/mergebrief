@@ -8,6 +8,7 @@ import type {
   NotionSession,
   NotionTransport,
 } from "./port";
+import { normalizeNotionId } from "../utils";
 
 const NOTION_API_BASE = "https://api.notion.com";
 const NOTION_API_VERSION = "2025-09-03";
@@ -46,6 +47,12 @@ const dataSourceSchema = z.looseObject({
 const pageSchema = z.looseObject({
   id: z.string(),
   properties: z.record(z.string(), z.unknown()),
+  parent: z
+    .looseObject({
+      database_id: z.string().optional(),
+      data_source_id: z.string().optional(),
+    })
+    .optional(),
 });
 
 const pageListSchema = z.looseObject({ results: z.array(z.unknown()) });
@@ -122,7 +129,10 @@ function decode<Shape>(
 }
 
 function toPage(raw: z.infer<typeof pageSchema>): NotionPage {
-  return { id: raw.id, properties: raw.properties };
+  const parentIds = [raw.parent?.database_id, raw.parent?.data_source_id]
+    .filter((id) => id !== undefined)
+    .map(normalizeNotionId);
+  return { id: raw.id, properties: raw.properties, parentIds };
 }
 
 function toBlockPage(raw: z.infer<typeof blockListSchema>): NotionBlockPage {

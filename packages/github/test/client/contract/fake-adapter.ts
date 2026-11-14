@@ -9,6 +9,7 @@ import { CollaboratorPermissions } from "../../../src/operations/collaborator-pe
 import type { PrConversation } from "../../../src/operations/conversation";
 import type { ReviewCommentListing } from "../../../src/operations/review-comment-list";
 import { FAKE_APP_BOT_USER_ID, makeFakeGitHub } from "../../../src/testing";
+import { RepositoryVisibilities } from "../../../src/types";
 import {
   CredentialKinds,
   FakeFailures,
@@ -233,6 +234,10 @@ function arrangeAccount(github: FakeGitHub): void {
       body: "Details",
       isPullRequest: false,
     },
+  );
+  github.setRepositoryVisibility(
+    { owner: "acme", repo: "tickets" },
+    RepositoryVisibilities.PRIVATE,
   );
   github.addInstallation(
     { installationId: requireInstallationId(99n), accountLogin: "acme" },

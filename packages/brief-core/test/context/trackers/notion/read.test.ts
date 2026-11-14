@@ -1,12 +1,12 @@
 /**
  * Key path: databases → data source schema → query by unique_id number, page
  * prefix equal to the tracker's case-insensitively; a prefix miss, an empty
- * query and a 404 are all `not-found`. URL path: one page read, no board.
- * Body: one line per block, nested indented, pages of 100, capped at 20,000
- * chars. Header: title · Status · Type · Priority · assignees · key, empty
- * pieces omitted. 401/403 `no-credential`, 429 `rate-limited`, abort `timeout`.
- * Every request carries the bearer and API version; no detail or log line
- * carries the token, a body or a query; bad JSON or shape never throws.
+ * query and a 404 are all `not-found`. URL path: one page read, counted only
+ * when the page sits in a board the repo lists. Body: one line per block,
+ * nested indented, pages of 100, capped at 20,000 chars. Header: title, Status,
+ * Type, Priority, assignees, key. 401/403 `no-credential`, 429 `rate-limited`,
+ * abort `timeout`. Every request carries the bearer and API version; no detail
+ * or log line carries the token; bad JSON or shape never throws.
  */
 import { describe, expect, it } from "vitest";
 import { createNotionRead } from "../../../../src/context/trackers/notion";
@@ -30,6 +30,10 @@ const DATABASE_ID = "a".repeat(32);
 const DATA_SOURCE_ID = "d".repeat(32);
 const PAGE_ID = "3cf5e9400eeb81f9bed9e1474c2cb4d4";
 const PAGE_ID_DASHED = "3cf5e940-0eeb-81f9-bed9-e1474c2cb4d4";
+/** Notion answers ids with dashes; the tracker block stores them without. */
+const DATABASE_ID_DASHED = `${"a".repeat(8)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(12)}`;
+const DATA_SOURCE_ID_DASHED = `${"d".repeat(8)}-${"d".repeat(4)}-${"d".repeat(4)}-${"d".repeat(4)}-${"d".repeat(12)}`;
+const OTHER_BOARD_ID = "b".repeat(32);
 
 interface Recorded {
   readonly status: number;
@@ -122,6 +126,11 @@ const PAGE = {
   object: "page",
   id: PAGE_ID_DASHED,
   url: `https://www.notion.so/Build-the-Notion-provider-${PAGE_ID}`,
+  parent: {
+    type: "data_source_id",
+    data_source_id: DATA_SOURCE_ID_DASHED,
+    database_id: DATABASE_ID_DASHED,
+  },
   properties: {
     Name: {
       id: "title",
@@ -209,11 +218,14 @@ function makeKeyReference(key = "BRIEF-239"): TicketReference {
   };
 }
 
-function makeUrlReference(): TicketReference {
+function makeUrlReference(
+  databaseIds: readonly string[] = [DATABASE_ID],
+): TicketReference {
   return {
     tracker: "notion",
     key: "",
     pageId: PAGE_ID,
+    databaseIds,
     url: `https://www.notion.so/${PAGE_ID}`,
     foundIn: "title",
     closing: false,
@@ -531,7 +543,60 @@ describe("createNotionRead", () => {
     });
   });
 
-  it("reads a page URL with one page read and no board", async () => {
+  it("reads a page URL whose page sits in a data source the repo lists", async () => {
+    const { result } = await readThroughProvider(
+      URL_ROUTES,
+      makeUrlReference([DATA_SOURCE_ID]),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("is not-found for a page outside the repo's boards, unread", async () => {
+    const { result, calls } = await readThroughProvider(
+      URL_ROUTES,
+      makeUrlReference([OTHER_BOARD_ID]),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NOT_FOUND },
+    });
+    expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
+      `/v1/pages/${PAGE_ID}`,
+    ]);
+  });
+
+  it("is not-found for a page that sits in no board at all", async () => {
+    const loosePage = { ...PAGE, parent: { type: "page_id", page_id: "x" } };
+    const { result } = await readThroughProvider(
+      {
+        ...URL_ROUTES,
+        [`GET /v1/pages/${PAGE_ID}`]: { status: 200, body: loosePage },
+      },
+      makeUrlReference(),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NOT_FOUND },
+    });
+  });
+
+  it("asks Notion nothing for a page URL when the repo lists no board", async () => {
+    const { result, calls } = await readThroughProvider(
+      URL_ROUTES,
+      makeUrlReference([]),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NOT_FOUND },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("reads a page URL in a listed board with one page read", async () => {
     const { result, calls } = await readThroughProvider(
       URL_ROUTES,
       makeUrlReference(),

@@ -10,11 +10,14 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
-import { GitHubAccountTypes, type GitHubAccountType } from "../types";
+import {
+  GitHubAccountTypes,
+  RepositoryVisibilities,
+  type GitHubAccountType,
+} from "../types";
 import {
   AuthorAssociations,
   GitHubAppAuthorizationActions,
-  RepositoryVisibilities,
   type AuthorAssociation,
   type GitHubAppAuthorizationAction,
 } from "./types";
