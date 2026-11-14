@@ -997,7 +997,8 @@ describe("categorize, intent check validation", () => {
     // sourceUrl "" (title/description) keeps the item; the quote miss is warn-only.
     expect(brief.intentCheck?.accomplished).toHaveLength(1);
     const warnings = (brief.generationWarnings ?? []).join("\n");
-    expect(warnings).toContain("evil.example");
+    expect(warnings).toContain("a ticket URL the run never injected");
+    expect(warnings).not.toContain("evil.example");
     expect(warnings).toContain("quote");
   });
 

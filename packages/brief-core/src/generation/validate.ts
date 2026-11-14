@@ -229,7 +229,7 @@ function resolveTicketPairs(
         return true;
       }
       issues.push(
-        `intent check cites un-injected ticket URL "${pair.url}" — dropped`,
+        "intent check cites a ticket URL the run never injected — dropped",
       );
       return false;
     });
@@ -238,6 +238,21 @@ function resolveTicketPairs(
     ticketUrls: pairs.map((pair) => pair.url),
     ticketTitles: pairs.map((pair) => pair.title),
   };
+}
+
+/**
+ * Each distinct issue once, with how often it came up. An intent issue names
+ * the bucket and the defect only: an item's wording and the URLs it cites are
+ * the model's, and these lines go to the log and into the stored brief.
+ */
+function countRepeatedIssues(issues: readonly string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const issue of issues) {
+    counts.set(issue, (counts.get(issue) ?? 0) + 1);
+  }
+  return [...counts].map(([issue, count]) =>
+    count === 1 ? issue : `${issue} (${count} times)`,
+  );
 }
 
 /** What the alignment rules need to know about the primary ticket. */
@@ -350,7 +365,7 @@ export function validateIntentCheck(
         deviations: [],
         maskedFixes: [],
       },
-      issues,
+      issues: countRepeatedIssues(issues),
     };
   }
 
@@ -375,9 +390,7 @@ export function validateIntentCheck(
     if (allowedSources.has(item.sourceUrl)) {
       return true;
     }
-    issues.push(
-      `${bucket} item "${item.intent}" cites unknown source "${item.sourceUrl}" — dropped`,
-    );
+    issues.push(`${bucket} item cites an unknown source — dropped`);
     return false;
   }
 
@@ -389,33 +402,29 @@ export function validateIntentCheck(
     if (quote === "") {
       // Ticket-side buckets demand a verbatim citation; an empty quote is an
       // uncited stated ask. Warn-only, same posture as the substring check.
-      issues.push(
-        `${bucket} item "${item.intent}": empty quote — uncited stated ask`,
-      );
+      issues.push(`${bucket} item: empty quote — uncited stated ask`);
       return;
     }
     const source = contentByUrl.get(item.sourceUrl);
     if (source === undefined) {
       issues.push(
-        `${bucket} item "${item.intent}": no fetched content for source "${item.sourceUrl}" — quote unverified`,
+        `${bucket} item: no fetched content for its source — quote unverified`,
       );
       return;
     }
     if (!source.includes(quote)) {
       issues.push(
-        `${bucket} item "${item.intent}": quote not found in its source (whitespace-normalized) — possible fabrication`,
+        `${bucket} item: quote not found in its source (whitespace-normalized) — possible fabrication`,
       );
     }
   }
 
-  function pruneGroups(bucket: string, label: string, ids: string[]): string[] {
+  function pruneGroups(bucket: string, ids: string[]): string[] {
     return ids.filter((id) => {
       if (groupIds.has(id)) {
         return true;
       }
-      issues.push(
-        `${bucket} item "${label}" references unknown group "${id}" — pruned`,
-      );
+      issues.push(`${bucket} item references an unknown group — pruned`);
       return false;
     });
   }
@@ -431,7 +440,7 @@ export function validateIntentCheck(
       return item;
     }
     issues.push(
-      `${bucket} item "${item.intent}" carries acknowledged=true — forced false (meaningful only in deviations)`,
+      `${bucket} item carries acknowledged=true — forced false (meaningful only in deviations)`,
     );
     return { ...item, acknowledged: false };
   }
@@ -448,26 +457,26 @@ export function validateIntentCheck(
     const quote = normalizeQuoteText(item.quote);
     if (quote === "") {
       issues.push(
-        `${bucket} item "${item.intent}": empty quote — dropped (alarm buckets require verified grounding)`,
+        `${bucket} item: empty quote — dropped (alarm buckets require verified grounding)`,
       );
       return false;
     }
     if (quote.split(" ").length < ALARM_QUOTE_MIN_WORDS) {
       issues.push(
-        `${bucket} item "${item.intent}": quote too short to verify (< ${ALARM_QUOTE_MIN_WORDS} words) — dropped (a bare fragment matches almost any source)`,
+        `${bucket} item: quote too short to verify (< ${ALARM_QUOTE_MIN_WORDS} words) — dropped (a bare fragment matches almost any source)`,
       );
       return false;
     }
     const source = contentByUrl.get(item.sourceUrl);
     if (source === undefined) {
       issues.push(
-        `${bucket} item "${item.intent}": no fetched content for source "${item.sourceUrl}" — dropped (alarm quote unverifiable)`,
+        `${bucket} item: no fetched content for its source — dropped (alarm quote unverifiable)`,
       );
       return false;
     }
     if (!source.includes(quote)) {
       issues.push(
-        `${bucket} item "${item.intent}": quote not found in its source (whitespace-normalized) — dropped (possible fabrication)`,
+        `${bucket} item: quote not found in its source (whitespace-normalized) — dropped (possible fabrication)`,
       );
       return false;
     }
@@ -484,14 +493,14 @@ export function validateIntentCheck(
       .filter((item) => quoteVerifies(bucket, item))
       .map((item) => ({
         ...item,
-        groupIds: pruneGroups(bucket, item.intent, item.groupIds),
+        groupIds: pruneGroups(bucket, item.groupIds),
       }))
       .filter((item) => {
         if (item.groupIds.length > 0) {
           return true;
         }
         issues.push(
-          `${bucket} item "${item.intent}" has no valid group anchor — dropped (both-sides grounding required)`,
+          `${bucket} item has no valid group anchor — dropped (both-sides grounding required)`,
         );
         return false;
       });
@@ -501,12 +510,12 @@ export function validateIntentCheck(
     .filter((item) => keepSource("accomplished", item))
     .map((item) => {
       checkQuote("accomplished", item);
-      const prunedIds = pruneGroups("accomplished", item.intent, item.groupIds);
+      const prunedIds = pruneGroups("accomplished", item.groupIds);
       if (prunedIds.length === 0) {
         // Warn, never drop: stated-side grounding is the citation, but an
         // anchor-less row renders without jump-links, so the drift must show.
         issues.push(
-          `accomplished item "${item.intent}" has no valid group anchor — kept (stated-side grounding is the citation)`,
+          "accomplished item has no valid group anchor — kept (stated-side grounding is the citation)",
         );
       }
       return forceUnacknowledged("accomplished", {
@@ -521,7 +530,7 @@ export function validateIntentCheck(
       checkQuote("statedButMissing", item);
       if (item.groupIds.length > 0) {
         issues.push(
-          `statedButMissing item "${item.intent}" carries ${item.groupIds.length} groupId(s) — emptied (a missing ask has no diff anchor)`,
+          "statedButMissing item carries groupIds — emptied (a missing ask has no diff anchor)",
         );
       }
       return forceUnacknowledged("statedButMissing", { ...item, groupIds: [] });
@@ -531,14 +540,14 @@ export function validateIntentCheck(
     .map((item) => {
       if (item.quote !== "" || item.sourceUrl !== "") {
         issues.push(
-          `doneButUnstated item "${item.intent}" carries a quote/sourceUrl — emptied (no ticket side by definition)`,
+          "doneButUnstated item carries a quote/sourceUrl — emptied (no ticket side by definition)",
         );
       }
       return forceUnacknowledged("doneButUnstated", {
         ...item,
         quote: "",
         sourceUrl: "",
-        groupIds: pruneGroups("doneButUnstated", item.intent, item.groupIds),
+        groupIds: pruneGroups("doneButUnstated", item.groupIds),
       });
     })
     .filter((item) => {
@@ -546,7 +555,7 @@ export function validateIntentCheck(
         return true;
       }
       issues.push(
-        `doneButUnstated item "${item.intent}" has no valid group anchor — dropped (no grounding)`,
+        "doneButUnstated item has no valid group anchor — dropped (no grounding)",
       );
       return false;
     });
@@ -578,7 +587,7 @@ export function validateIntentCheck(
   if (alignment !== undefined) {
     verified.alignment = alignment;
   }
-  return { intentCheck: verified, issues };
+  return { intentCheck: verified, issues: countRepeatedIssues(issues) };
 }
 
 type ManifestFormat =

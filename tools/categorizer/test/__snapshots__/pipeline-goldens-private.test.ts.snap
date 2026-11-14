@@ -107,7 +107,7 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (docs/plans/brief-143-stability-implementation.md) both claim added line(s) 1-167 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ intent check issues:\\ndoneButUnstated item references an unknown group — pruned\\ndoneButUnstated item has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c1 (docs/plans/brief-143-stability-spec.md): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],

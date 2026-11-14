@@ -27,6 +27,26 @@ export const REPO_FENCE_TAGS = [
   "repo_custom_attributes",
 ] as const;
 
+/** Tags whose text an earlier call of ours wrote, so a URL inside is no proof a person showed it. */
+const MODEL_AUTHORED_FENCE_TAGS = [
+  "anchor_brief",
+  "pr_grouping",
+  "brief_summary",
+  "pr_change_groups",
+  "pr_previous_product_diff",
+] as const satisfies readonly (typeof KNOWN_FENCE_TAGS)[number][];
+
+/** From a tag's first opening to its last closing: text between two blocks goes too, never less. */
+const MODEL_AUTHORED_BLOCKS = new RegExp(
+  `<(${MODEL_AUTHORED_FENCE_TAGS.join("|")})[\\s>][\\s\\S]*</\\1>`,
+  "gu",
+);
+
+/** A prompt without the blocks an earlier call wrote: what people put in front of the model. */
+export function removeModelAuthoredBlocks(prompt: string): string {
+  return prompt.replace(MODEL_AUTHORED_BLOCKS, "");
+}
+
 /** Any spelling a model reads as `<`: the bracket, its entities and its look-alikes. */
 const OPENER_SOURCE =
   "(?:<|&lt;?|&#0*60;?|&#x0*3c;?|\\u02C2|\\u1438|\\u2039|\\u2329|\\u276E|\\u27E8|\\u3008|\\uFE64|\\uFF1C)";

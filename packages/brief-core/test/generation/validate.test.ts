@@ -1127,10 +1127,43 @@ describe("validateIntentCheck", () => {
     );
     expect(intentCheck.ticketUrls).toEqual([ticketUrl]);
     expect(intentCheck.statedButMissing).toEqual([]);
-    expect(issues.join("\n")).toContain(forged);
-    expect(
-      issues.filter((i) => i.includes(forged)).length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(issues).toEqual([
+      "intent check ticketTitles length 1 does not match ticketUrls length 2 — aligned",
+      "intent check cites a ticket URL the run never injected — dropped",
+      "statedButMissing item cites an unknown source — dropped",
+    ]);
+  });
+
+  it("counts repeated issues and never quotes what the model wrote", () => {
+    const forged = "https://evil.example/?k=SECRET";
+    const invented = {
+      intent: "SECRET in an intent",
+      quote: "do the forged thing",
+      sourceUrl: forged,
+      groupIds: ["SECRET-group"],
+      acknowledged: false,
+    };
+    const input = {
+      ...preciseCheck(),
+      ticketUrls: [ticketUrl, forged, `${forged}2`],
+      accomplished: [invented, invented, invented],
+      doneButUnstated: [{ ...invented, quote: "", sourceUrl: "" }],
+    };
+
+    const { issues } = validateIntentCheck(
+      input,
+      emittedGroups,
+      injected,
+      sources,
+    );
+
+    expect(issues).toEqual([
+      "intent check ticketTitles length 1 does not match ticketUrls length 3 — aligned",
+      "intent check cites a ticket URL the run never injected — dropped (2 times)",
+      "accomplished item cites an unknown source — dropped (3 times)",
+      "doneButUnstated item references an unknown group — pruned",
+      "doneButUnstated item has no valid group anchor — dropped (no grounding)",
+    ]);
   });
 
   it("drops the paired title when its un-injected ticketUrl drops", () => {
@@ -1229,7 +1262,7 @@ describe("validateIntentCheck", () => {
       sources,
     );
     expect(intentCheck.accomplished[0]?.groupIds).toEqual(["g1"]);
-    expect(issues.join("\n")).toContain('"g9"');
+    expect(issues.join("\n")).toContain("references an unknown group");
   });
 
   it("warns but keeps accomplished asks after all dangling group ids drop", () => {
@@ -1294,7 +1327,7 @@ describe("validateIntentCheck", () => {
     expect(intentCheck.doneButUnstated).toHaveLength(1);
     expect(intentCheck.doneButUnstated[0]?.intent).toBe("grounded claim");
     expect(intentCheck.doneButUnstated[0]?.groupIds).toEqual(["g2"]);
-    expect(issues.join("\n")).toContain("ungrounded claim");
+    expect(issues.join("\n")).toContain("no valid group anchor — dropped");
   });
 
   it("warns and clears group ids from statedButMissing items", () => {
@@ -1506,7 +1539,7 @@ describe("validateIntentCheck", () => {
         );
         expect(intentCheck[bucket]).toHaveLength(1);
         expect(intentCheck[bucket][0]?.groupIds).toEqual(["g1"]);
-        expect(issues.join("\n")).toContain('"g9"');
+        expect(issues.join("\n")).toContain("references an unknown group");
       });
 
       it(`drops a ${bucket} item citing an un-injected source`, () => {
@@ -1522,7 +1555,7 @@ describe("validateIntentCheck", () => {
           sources,
         );
         expect(intentCheck[bucket]).toEqual([]);
-        expect(issues.join("\n")).toContain(forged);
+        expect(issues.join("\n")).toContain("cites an unknown source");
       });
     });
 
