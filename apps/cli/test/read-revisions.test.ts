@@ -323,6 +323,7 @@ describe("--revision", () => {
     [["session", "7", "--base", "a", "--head", ""]],
     [["context", "7", "--revision", "x"]],
     [["groups", "7", "--revision", "x"]],
+    [["product-diff", "7", "--revision", "x"]],
     [["diff", "7", "--revision", "x"]],
     [["diff", "7", "--revision", "1", "--base", "a", "--head", "b"]],
   ])("%j exits 2 without a request", async (argv) => {
@@ -448,11 +449,12 @@ describe("session's own note on a move", () => {
   });
 });
 
-describe("groups, context and diff", () => {
+describe("groups, product-diff, context and diff", () => {
   const span = `base=${makeSha(0)}&head=${makeSha(3)}`;
 
   it.each([
     [["groups", "7"], `${PULL_PATH}/brief?${span}`],
+    [["product-diff", "7"], `${PULL_PATH}/brief?${span}`],
     [["context", "7"], `${PULL_PATH}/brief-context?${span}`],
     [["diff", "7"], `${PULL_PATH}/diff?${span}`],
   ])("%j serves the latest finished revision", async (argv, path) => {
@@ -477,6 +479,7 @@ describe("groups, context and diff", () => {
 
   it.each([
     [["groups", "7", "--revision", "2"], "brief"],
+    [["product-diff", "7", "--revision", "2"], "brief"],
     [["context", "7", "--revision", "2"], "brief-context"],
     [["diff", "7", "--revision", "2"], "diff"],
   ])("%j reads the named revision", async (argv, leaf) => {

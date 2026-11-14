@@ -141,3 +141,7 @@ version is the only skew signal (#8).
 ### 2026-11-04: `auth profiles`
 
 `auth profiles` is the fourth sanctioned CLI-synthesized shape: `{profiles: [{name, baseUrl, owners, isDefault, tokenConfigured}]}`, read from the local config with no request, additive-only. It leaves out tokens and `headers`, since a header can hold a client secret. An agent could not otherwise learn which instances exist, because the config file holds the tokens.
+
+### 2026-11-14: `product-diff`
+
+`product-diff` is the fifth sanctioned CLI-synthesized shape: `{productDiff}`, the `productDiff` value of the brief body `groups` relays, under its own key. The key is absent when the brief has none, which is data (exit 0). Under `--json` the value is the server's, never reshaped or validated, so the contract gains no second schema and a section newer than the binary passes through. The terminal view is non-contractual (#7): it reads the fields it prints through a loose local projection, as `generation` does, and prints a section it cannot read as escaped JSON. An agent that wants the Product diff alone otherwise reads the whole brief body.

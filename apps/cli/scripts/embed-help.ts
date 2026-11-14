@@ -25,6 +25,7 @@ const COMMANDS: readonly HelpArgv[] = [
   ["repos", "--help"],
   ["pr", "--help"],
   ["groups", "--help"],
+  ["product-diff", "--help"],
   ["conversation", "--help"],
   ["diff", "--help"],
   ["delta", "--help"],

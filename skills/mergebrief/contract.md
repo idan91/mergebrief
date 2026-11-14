@@ -13,10 +13,11 @@ none of them appear in `--help`.
   (EIO, ENOSPC), which exits 1 and may leave a partial write.
   Branch on the exit code, never on stderr text.
 - Reads and write receipts are the server's response bytes, verbatim.
-  Exactly four shapes are CLI-synthesized: the `delta` union, `auth status`,
+  Exactly five shapes are CLI-synthesized: the `delta` union, `auth status`,
   `auth profiles` (`{"profiles":[{name, baseUrl, owners, isDefault,
-  tokenConfigured}]}`, read from the local config with no request), and
-  `capabilities`.
+  tokenConfigured}]}`, read from the local config with no request),
+  `capabilities`, and `product-diff` (`{"productDiff":{…}}`, the brief's
+  Product diff alone).
 - Once released, output is additive within a major: fields are never
   removed, renamed, or retyped. Before the first release a field may still
   be removed, and each removal is listed in the API changelog. Ignore fields
@@ -149,6 +150,8 @@ A brief generated before the check existed has no `intentCheck`.
 and after it, written by a model call of its own after the brief. A brief
 generated before the section existed has no `productDiff`, and neither does
 one whose Product diff call failed or wrote no change that could be kept.
+`mergebrief product-diff <n> --json` prints the same value alone, as
+`{"productDiff":{…}}`, and `{}` for a brief with none.
 
 - `availability` is `available` or `unavailable`. `unavailable` means the
   brief was written in several calls, as a diff too large to read in one

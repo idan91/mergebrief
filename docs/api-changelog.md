@@ -13,6 +13,14 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-14)
+
+No server change; the CLI reads the same route.
+
+- **Added** `mergebrief product-diff <n>`: the `productDiff` of `read-brief`
+  alone, as `{"productDiff":{…}}`, and `{}` when the brief has none. It takes
+  `--revision <headIndex>` like `groups`.
+
 ## dev (2026-11-13)
 
 - **Added** `jira` to `intentCheck.primaryTicket.tracker` on `read-brief`: the

@@ -88,9 +88,9 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
   `diff mode: revision-span` or `diff mode: compare`, after the diff; a
   server that names neither prints none.
 - **Passthrough by default:** most commands emit the server response
-  verbatim: one canonical shape across web, API, and CLI. Exactly four
+  verbatim: one canonical shape across web, API, and CLI. Exactly five
   shapes are CLI-synthesized: the `delta` union, `auth status`,
-  `auth profiles`, and `capabilities`.
+  `auth profiles`, `capabilities`, and `product-diff`.
 - **Additive within a major, once released:** fields are never removed,
   renamed, or retyped within a major; new fields may appear any release;
   read tolerantly. Breaking changes ship expand/contract with a deprecation
@@ -149,6 +149,21 @@ while `generation.status` is `pending` or `running`, since an
 The Brief artifact body, verbatim: `changeGroups` (each with an `id`;
 `diff --group` takes it), `chunks` (per-file line ranges joining groups to
 the diff), risk-surface attributes.
+
+### `product-diff <n>`
+
+The brief's Product diff alone: how the product behaves before the PR and
+after it. One of the CLI-synthesized shapes: the `productDiff` value of the
+body `groups` relays, under its own key and never reshaped, so a script
+skips the rest of the brief.
+
+```json
+{"productDiff":{"availability":"available","changes":[{"when":"a signed-out visitor opens a brief link","before":"the page shows an error","after":"the page asks them to sign in","affects":"user-flow","beforeSource":"diff","groupIds":["grp-1"]}],"hasMore":false}}
+```
+
+A brief with no Product diff prints `{}`, exit 0: one generated before the
+section existed, or one whose Product diff call failed or wrote no change
+that could be kept. `--revision <n>` names the brief, as on `groups`.
 
 ### `diff <n>`
 
@@ -211,7 +226,7 @@ or `--base <sha> --head <sha>` together.
 
 The latest revision is the newest finished brief for the PR's current head, or
 the newest finished one when that head has none. `session`,
-`context`, `groups` and `diff` choose it the same way, and print on stderr, only
+`context`, `groups`, `product-diff` and `diff` choose it the same way, and print on stderr, only
 on success:
 
 - which revision they served;
@@ -463,6 +478,7 @@ Commands:
   pr [number]                                 your PRs (no argument), or one PR's metadata
   generation <number>                         the PR head's generation claims, last failure and takeover job
   groups [options] <number>                   the PR's brief: change groups (default: the latest revision)
+  product-diff [options] <number>             the brief's Product diff: behaviour before and after the PR (default: the latest revision)
   conversation <number>                       the PR's review conversation
   diff [options] <number>                     the PR's unified diff (its raw text IS the machine format)
   reply [options] <commentId>                 reply to a review comment (the viewer's own voice)
@@ -597,6 +613,24 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 Usage: mergebrief groups [options] <number>
 
 the PR's brief: change groups (default: the latest revision)
+
+Arguments:
+  number          PR number
+
+Options:
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
+  -h, --help      display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
+```
+
+### `mergebrief product-diff`
+
+```
+Usage: mergebrief product-diff [options] <number>
+
+the brief's Product diff: behaviour before and after the PR (default: the latest
+revision)
 
 Arguments:
   number          PR number

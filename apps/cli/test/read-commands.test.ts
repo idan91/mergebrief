@@ -162,6 +162,19 @@ const BRIEF_BODY = JSON.stringify({
       removedRanges: [],
     },
   ],
+  productDiff: {
+    availability: "available",
+    changes: [
+      {
+        when: "a reviewer opens the brief",
+        after: "the brief opens in full",
+        affects: "user-flow",
+        beforeSource: "not-shown",
+        groupIds: ["grp-1"],
+      },
+    ],
+    hasMore: false,
+  },
 });
 
 describe("read commands over the real api app", () => {
@@ -346,6 +359,32 @@ describe("read commands over the real api app", () => {
     const result = await run(["groups", "7", "--json"]);
     expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(BRIEF_BODY);
+  });
+
+  it("product-diff lifts and renders the stored brief's Product diff", async () => {
+    await seedBriefedPr(harness.handle);
+    await login();
+    const stored: { productDiff: unknown } = JSON.parse(BRIEF_BODY);
+
+    const result = await run(["product-diff", "7", "--json"]);
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(
+      `${JSON.stringify({ productDiff: stored.productDiff })}\n`,
+    );
+
+    const tty = await run(["product-diff", "7"]);
+    expect(tty.code).toBe(ExitCodes.OK);
+    expect(tty.out).toBe(
+      [
+        "PR 7 · Product diff · available · 1 change",
+        "user-flow\ta reviewer opens the brief",
+        "  before (not-shown)\t-",
+        "  after\tthe brief opens in full",
+        "  groups\tgrp-1",
+        "",
+      ].join("\n"),
+    );
   });
 
   it("conversation --json is verbatim passthrough", async () => {

@@ -144,8 +144,9 @@ submit-review`. Every operation the
     `broad` or `none` means the PR states no usable intent: say which once
     and judge on the code alone.
 11. The brief's `productDiff` lists what the change does to the product:
-    the same action or condition, a different outcome. Each entry is a
-    claim, weighed like an open flag. Read the groups in its
+    the same action or condition, a different outcome. Check it on every
+    review, whether or not the user asked for it. Each entry is a claim,
+    weighed like an open flag. Read the groups in its
     `groupIds` and check that the code does what `after` says; a `before`
     whose `beforeSource` is `pr-text` rests on the author's word, so compare
     it with the group's removed lines, and an absent one is new behaviour
@@ -169,7 +170,8 @@ the review body says so.
 
 The brief routes you; findings come from the code. Before you settle on the
 outcome, list the pull request's strongest claims, the intent check's
-`accomplished` items among them, and try to break each one against the code.
+`accomplished` items and each Product diff entry's `after` among them, and
+try to break each one against the code.
 
 ## Failure
 
@@ -189,6 +191,7 @@ new session, and re-target the new span.
 
 End every run with the session state: chunks read against the total, each
 held draft as file:line and a one-line gist, dispositions recorded, each
-open intent item the code confirmed or contradicted, the outcome set, open
-attention items left for the operator, and whether you submitted. When submit was not authorized, state exactly what
+open intent item the code confirmed or contradicted, each Product diff entry
+the same way, or that the brief had none or an `unavailable` one, the outcome
+set, open attention items left for the operator, and whether you submitted. When submit was not authorized, state exactly what
 `mergebrief submit` would publish, so the user can run it or grant it.

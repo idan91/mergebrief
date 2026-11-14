@@ -37,6 +37,7 @@ import {
   registerGenerationCommand,
   registerGroupsCommand,
   registerPrCommand,
+  registerProductDiffCommand,
 } from "./commands/read";
 import {
   registerGenerateCommand,
@@ -90,6 +91,7 @@ export function buildProgram(deps: CliDeps): Command {
   registerPrCommand(program, context);
   registerGenerationCommand(program, context);
   registerGroupsCommand(program, context);
+  registerProductDiffCommand(program, context);
   registerConversationCommand(program, context);
   registerDiffCommand(program, context);
   registerReplyCommand(program, context);

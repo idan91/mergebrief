@@ -107,6 +107,16 @@ function collectInvocationFlags(
   return flags;
 }
 
+/** One `## ` section of the skill, heading to the next heading. */
+function readSkillSection(heading: string): string {
+  const start = skillText.indexOf(`## ${heading}\n`);
+  if (start === -1) {
+    throw new Error(`the skill has no "${heading}" section`);
+  }
+  const next = skillText.indexOf("\n## ", start + 1);
+  return skillText.slice(start, next === -1 ? undefined : next);
+}
+
 describe("skill drift", () => {
   it("every flag a skill invocation spells is one its command takes", async () => {
     const flags = collectInvocationFlags(fullText);
@@ -150,6 +160,15 @@ describe("skill drift", () => {
     for (const id of new Set(mentioned)) {
       expect(expected.has(id), `prose names "${id}"`).toBe(true);
     }
+  });
+
+  it("the loop, the judgment and the handoff each cover the Product diff", () => {
+    // Whitespace collapsed, so a re-wrapped sentence still reads as one.
+    const loop = readSkillSection("The loop").replace(/\s+/g, " ");
+    expect(loop).toContain("`productDiff`");
+    expect(loop).toContain("Check it on every review");
+    expect(readSkillSection("Judgment")).toContain("Product diff");
+    expect(readSkillSection("Handoff")).toContain("Product diff");
   });
 
   it("the delta union names every reason the CLI emits, each with a move", () => {

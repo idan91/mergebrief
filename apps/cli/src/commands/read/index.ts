@@ -10,6 +10,7 @@ import {
   resolveRepoTarget,
 } from "../target";
 import { runGenerationClaims } from "./generation";
+import { runProductDiff } from "./product-diff";
 import {
   requireDeltaFlags,
   requireDiffFlags,
@@ -80,6 +81,31 @@ export function registerGroupsCommand(
       return undefined;
     });
   });
+}
+
+export function registerProductDiffCommand(
+  program: Command,
+  context: CommandContext,
+): void {
+  const productDiff = program
+    .command("product-diff")
+    .description(
+      "the brief's Product diff: behaviour before and after the PR (default: the latest revision)",
+    )
+    .argument("<number>", "PR number");
+  addRevisionOption(productDiff).action(
+    async (raw: string, options: SpanFlags) => {
+      const prNumber = parsePrNumber(raw);
+      const selection = parseSpanFlags(options);
+
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runSpanRead(target, prNumber, selection, async (span) => {
+        await runProductDiff(client, repoId, prNumber, span, io);
+        return undefined;
+      });
+    },
+  );
 }
 
 export function registerConversationCommand(
