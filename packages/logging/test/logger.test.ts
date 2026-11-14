@@ -3,7 +3,13 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { TracerProvider } from "@opentelemetry/sdk-trace";
 import { afterEach, describe, expect, it } from "vitest";
 import { createLogger, resolveLoggerConfig } from "../src/logger";
-import { captureDestination } from "./helpers";
+import {
+  captureDestination,
+  DRIVER_MESSAGE,
+  QUERY_PARAM,
+  QUERY_SQL,
+  StubQueryError,
+} from "./helpers";
 
 describe("resolveLoggerConfig", () => {
   it("defaults to level info, JSON format", () => {
@@ -159,6 +165,25 @@ describe("createLogger redaction", () => {
       "databaseUrl",
     ]) {
       expect(line).not.toHaveProperty(key);
+    }
+  });
+
+  it("removes api keys, passwords and auth values under any field", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.info("provider call", {
+      apiKey: "key-top",
+      password: "pw-top",
+      authorization: "Basic auth-top",
+      cookie: "session=cookie-top",
+      request: { apiKey: "key-deep", password: "pw-deep", status: 401 },
+      headers: { "x-api-key": "key-header", "set-cookie": "session=set" },
+    });
+    const line = destination.lines()[0];
+    const raw = destination.raw()[0];
+    expect(line?.["request"]).toEqual({ status: 401 });
+    for (const leaked of ["key-", "pw-", "auth-top", "session="]) {
+      expect(raw).not.toContain(leaked);
     }
   });
 
@@ -414,6 +439,24 @@ describe("createLogger URL scrubbing in msg", () => {
     expect(destination.raw()[0]).not.toContain("hunter2");
   });
 
+  it("redacts the password of a keyword connection string in msg", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("connect failed: host=db.internal user=app password=hunter2");
+    expect(destination.lines()[0]?.["msg"]).toBe(
+      "connect failed: host=db.internal user=app password=[redacted-token]",
+    );
+  });
+
+  it("redacts a quoted keyword password whole", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("connect failed: password='hunter 2' host=db.internal");
+    expect(destination.lines()[0]?.["msg"]).toBe(
+      "connect failed: password=[redacted-token] host=db.internal",
+    );
+  });
+
   it("scrubs msg on child loggers too", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
@@ -458,5 +501,75 @@ describe("createLogger trace fields", () => {
       span_id: ids.spanId,
       prId: "p1",
     });
+  });
+});
+
+/** Past the depth the query-param walk copies to. */
+const CAUSE_CHAIN_DEPTH = 12;
+
+describe("createLogger query errors", () => {
+  it("drops a query error's bound params and keeps its cause", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", { err: new StubQueryError(new Error(DRIVER_MESSAGE)) });
+    const err = serializedErr(destination);
+    expect(destination.raw()[0]).not.toContain(QUERY_PARAM);
+    expect(err["message"]).toBe(
+      `Failed query: ${QUERY_SQL}: ${DRIVER_MESSAGE}`,
+    );
+    expect(err["type"]).toBe("StubQueryError");
+    expect(err).not.toHaveProperty("params");
+  });
+
+  it("drops the params of a query error riding a cause chain", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const cause = new StubQueryError(new Error(DRIVER_MESSAGE));
+    log.error("boom", { err: new Error("store write failed", { cause }) });
+    const err = serializedErr(destination);
+    expect(destination.raw()[0]).not.toContain(QUERY_PARAM);
+    expect(err["message"]).toBe(
+      `store write failed: Failed query: ${QUERY_SQL}: ${DRIVER_MESSAGE}`,
+    );
+  });
+
+  it("cuts the params from a query message copied into msg", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const copied = new StubQueryError(new Error(DRIVER_MESSAGE)).message;
+    log.error(`generate failed: ${copied}`);
+    expect(destination.lines()[0]?.["msg"]).toBe(
+      `generate failed: Failed query: ${QUERY_SQL}\nparams: [redacted-params]`,
+    );
+  });
+
+  it("cuts the params from a query message copied into another error", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const copied = new StubQueryError(new Error(DRIVER_MESSAGE)).message;
+    log.error("boom", { err: new Error(`part write failed: ${copied}`) });
+    expect(destination.raw()[0]).not.toContain(QUERY_PARAM);
+  });
+
+  it("logs no bound value of a query error under a long cause chain", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    let err: Error = new StubQueryError(new Error(DRIVER_MESSAGE));
+    for (let depth = 0; depth < CAUSE_CHAIN_DEPTH; depth += 1) {
+      err = new Error(`layer ${depth}`, { cause: err });
+    }
+
+    log.error("boom", { err });
+
+    expect(destination.raw()[0]).not.toContain(QUERY_PARAM);
+  });
+
+  it("leaves the caller's query error as it was", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const err = new StubQueryError(new Error(DRIVER_MESSAGE));
+    log.error("boom", { err });
+    expect(err.params).toEqual([QUERY_PARAM]);
+    expect(err.message).toContain(QUERY_PARAM);
   });
 });

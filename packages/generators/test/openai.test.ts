@@ -705,7 +705,7 @@ describe("OpenAiCompatibleCore error classification", () => {
       (error: unknown) => error,
     );
     expect(caught).toBeInstanceOf(GeneratorError);
-    expect(caught).toMatchObject({ kind });
+    expect(caught).toMatchObject({ kind, cause: { status } });
   });
 });
 

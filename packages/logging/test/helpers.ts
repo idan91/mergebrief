@@ -34,3 +34,17 @@ export function captureDestination(): CaptureDestination {
     },
   };
 }
+
+export const QUERY_SQL = 'insert into "brief" ("body") values ($1)';
+export const QUERY_PARAM = "PRIVATE-BRIEF-BODY";
+export const DRIVER_MESSAGE = "duplicate key value violates unique constraint";
+
+/** The shape drizzle throws: bound params ride the message and a prop. */
+export class StubQueryError extends Error {
+  readonly query = QUERY_SQL;
+  readonly params = [QUERY_PARAM];
+
+  constructor(cause: Error) {
+    super(`Failed query: ${QUERY_SQL}\nparams: ${QUERY_PARAM}`, { cause });
+  }
+}

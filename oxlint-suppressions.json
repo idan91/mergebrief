@@ -97,17 +97,7 @@
       "count": 1
     }
   },
-  "packages/logging/src/graphile.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "packages/logging/src/sanitize.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "packages/logging/src/scrub.ts": {
     "house/no-em-dash": {
       "count": 2
     }

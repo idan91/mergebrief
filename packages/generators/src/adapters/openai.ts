@@ -3,6 +3,7 @@ import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 import { OpenAiCompatibleCore, type OpenAiChatTransport } from "./openaiCore";
+import { SDK_LOG_LEVEL } from "./utils";
 
 /**
  * The model preflight checks credentials and model existence in one call.
@@ -46,6 +47,7 @@ export async function createOpenAiCore(
 ): Promise<Result<OpenAiCompatibleCore, ConfigError>> {
   const clientOptions: ClientOptions = {
     apiKey: options.apiKey,
+    logLevel: SDK_LOG_LEVEL,
     baseURL: options.baseUrl ?? DEFAULT_OPENAI_BASE_URL,
     // Explicit values keep the SDK from reading OPENAI_BASE_URL, OPENAI_ORG_ID,
     // OPENAI_PROJECT_ID and OPENAI_ADMIN_KEY.

@@ -5,7 +5,11 @@ import Anthropic, {
   type ClientOptions,
 } from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
+import {
+  GeneratorError,
+  GeneratorErrorKinds,
+  type GeneratorErrorKind,
+} from "../contract/errors";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import {
   runWithSchemaFloor,
@@ -14,7 +18,13 @@ import {
 } from "../validation/enforceSchema";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
-import { CLAUDE_OUTPUT_MAX_TOKENS, readClaudeOutputCeiling } from "./utils";
+import {
+  CLAUDE_OUTPUT_MAX_TOKENS,
+  readClaudeOutputCeiling,
+  redactProviderMessage,
+  sanitizeProviderCause,
+  SDK_LOG_LEVEL,
+} from "./utils";
 
 // Keep the real SDK assignable while tests fake this narrow slice with satisfies.
 
@@ -125,6 +135,7 @@ export function createAnthropicClient(
   const clientOptions: ClientOptions = {
     apiKey: options.apiKey,
     authToken: null,
+    logLevel: SDK_LOG_LEVEL,
     baseURL: options.baseUrl ?? DEFAULT_ANTHROPIC_BASE_URL,
   };
 
@@ -393,8 +404,8 @@ function classifySdkError(error: unknown): unknown {
   if (error instanceof APIConnectionError || error instanceof RetryableError) {
     return new GeneratorError(
       GeneratorErrorKinds.PROVIDER_TRANSIENT,
-      error.message,
-      { cause: error },
+      redactProviderMessage(error.message),
+      { cause: sanitizeProviderCause(error) },
     );
   }
   if (typeof error !== "object" || error === null) {
@@ -407,40 +418,30 @@ function classifySdkError(error: unknown): unknown {
   if (typeof status !== "number") {
     return wrapStatuslessSdkError(error);
   }
-  // SDK Error messages are provider-authored status descriptions (never
-  // credential-bearing); a non-Error value gets a fixed message instead
-  // of echoing arbitrary object contents.
+  // The SDK builds its message from the response body, and the error keeps
+  // that body and the response headers: neither rides on.
   const message =
     error instanceof Error
-      ? error.message
+      ? redactProviderMessage(error.message)
       : `transport error (status ${status})`;
+  const options = { cause: sanitizeProviderCause(error, status) };
+  return new GeneratorError(classifySdkStatus(status, error), message, options);
+}
+
+function classifySdkStatus(status: number, error: object): GeneratorErrorKind {
   if (status === 401 || status === 403) {
-    return new GeneratorError(GeneratorErrorKinds.AUTH, message, {
-      cause: error,
-    });
+    return GeneratorErrorKinds.AUTH;
   }
   if (isSpendLimitError(status, error)) {
-    return new GeneratorError(
-      GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
-      message,
-      {
-        cause: error,
-      },
-    );
+    return GeneratorErrorKinds.PROVIDER_SPEND_LIMIT;
   }
   if (status === 400 || status === 404) {
-    return new GeneratorError(GeneratorErrorKinds.CONFIG, message, {
-      cause: error,
-    });
+    return GeneratorErrorKinds.CONFIG;
   }
   if (status === 408 || status === 429 || status >= 500) {
-    return new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, message, {
-      cause: error,
-    });
+    return GeneratorErrorKinds.PROVIDER_TRANSIENT;
   }
-  return new GeneratorError(GeneratorErrorKinds.OPAQUE, message, {
-    cause: error,
-  });
+  return GeneratorErrorKinds.OPAQUE;
 }
 
 /**
@@ -467,13 +468,15 @@ function isSpendLimitError(status: number, error: object): boolean {
 
 /**
  * Statusless SDK failures that aren't aborts (e.g. "stream ended without a
- * message") still belong to the taxonomy, opaque, original as cause.
+ * message") still belong to the taxonomy, opaque, under a sanitized cause.
  */
 function wrapStatuslessSdkError(error: unknown): unknown {
   if (error instanceof AnthropicError) {
-    return new GeneratorError(GeneratorErrorKinds.OPAQUE, error.message, {
-      cause: error,
-    });
+    return new GeneratorError(
+      GeneratorErrorKinds.OPAQUE,
+      redactProviderMessage(error.message),
+      { cause: sanitizeProviderCause(error) },
+    );
   }
   return error;
 }

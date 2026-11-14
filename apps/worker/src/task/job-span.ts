@@ -1,5 +1,5 @@
 import type { Task } from "graphile-worker";
-import { runInJobSpan } from "logging";
+import { removeQueryParams, runInJobSpan } from "logging";
 import type { QueueTask } from "types/jobs";
 import { readPayloadTraceparent } from "./payload";
 import type { SWEEP_AUDIT_TASK } from "./sweep-audit";
@@ -41,6 +41,14 @@ export function traceJob(taskId: WorkerTaskId, task: Task): Task {
         },
       },
       // The task's own result passes through: a batch job reports per item.
-      async () => task(payload, helpers),
+      // graphile stores a failure's message on the job row, so a query error
+      // leaves without the values it bound.
+      async () => {
+        try {
+          return await task(payload, helpers);
+        } catch (error) {
+          throw removeQueryParams(error);
+        }
+      },
     );
 }

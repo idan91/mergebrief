@@ -32,6 +32,9 @@ export {
 // Boundary sanitizer for error detail leaving the process (wire, DB).
 export { sanitizeErrorDetail } from "./sanitize";
 
+// An error whose message, stack and causes hold no bound query values.
+export { removeQueryParams } from "./query-params";
+
 // graphile-worker adapter (worker startup wiring).
 export {
   createGraphileLogFactory,

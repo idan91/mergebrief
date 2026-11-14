@@ -10,7 +10,6 @@ import {
   schemaFeedbackMessage,
   type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
-import { redactSecrets } from "../harness/redact";
 import type {
   GenerateRequest,
   Generator,
@@ -23,7 +22,11 @@ import {
   withAllRequired,
 } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/generation";
-import { joinUserText } from "./utils";
+import {
+  joinUserText,
+  redactProviderMessage,
+  sanitizeProviderCause,
+} from "./utils";
 
 /**
  * Every response passes the shared schema floor; native strict schema is an extra layer.
@@ -517,10 +520,10 @@ export function classifyOpenAiError(error: unknown): unknown {
   if (error instanceof APIConnectionError) {
     return new GeneratorError(
       GeneratorErrorKinds.PROVIDER_TRANSIENT,
-      safeProviderMessage(error.message),
+      redactProviderMessage(error.message),
       // Sanitized like the HTTP branches: the wrapped fetch rejection can
       // carry credential-bearing URLs/headers in its nested chain.
-      { cause: sanitizedStatuslessCause(error) },
+      { cause: sanitizeProviderCause(error) },
     );
   }
   // Body-read connection failures surface from fetch as a statusless
@@ -531,7 +534,7 @@ export function classifyOpenAiError(error: unknown): unknown {
     return new GeneratorError(
       GeneratorErrorKinds.PROVIDER_TRANSIENT,
       "network failure while reading the provider response",
-      { cause: sanitizedStatuslessCause(error) },
+      { cause: sanitizeProviderCause(error) },
     );
   }
   if (typeof error !== "object" || error === null) {
@@ -545,8 +548,8 @@ export function classifyOpenAiError(error: unknown): unknown {
     if (error instanceof OpenAIError) {
       return new GeneratorError(
         GeneratorErrorKinds.OPAQUE,
-        safeProviderMessage(error.message),
-        { cause: sanitizedStatuslessCause(error) },
+        redactProviderMessage(error.message),
+        { cause: sanitizeProviderCause(error) },
       );
     }
     return error;
@@ -554,12 +557,12 @@ export function classifyOpenAiError(error: unknown): unknown {
   // Provider error text may echo credentials or request contents. Redact before logging.
   // Attach only a sanitized cause summary; recursive cause logging would expose raw SDK fields.
   const detail = providerErrorDetail(error);
-  const message = safeProviderMessage(
+  const message = redactProviderMessage(
     (error instanceof Error
       ? error.message
       : `transport error (status ${status})`) + detail,
   );
-  const cause = sanitizedCause(error, status);
+  const cause = sanitizeProviderCause(error, status);
   if (status === 401 || status === 403) {
     return new GeneratorError(GeneratorErrorKinds.AUTH, message, { cause });
   }
@@ -577,7 +580,7 @@ export function classifyOpenAiError(error: unknown): unknown {
 /**
  * OpenRouter may hide its real provider rejection in APIError.error.metadata.raw.
  * Optional fields degrade to empty text. All extracted provider text is untrusted
- * and may enter messages only through safeProviderMessage.
+ * and may enter messages only through redactProviderMessage.
  */
 function extractedProviderRaw(
   error: unknown,
@@ -612,28 +615,4 @@ function providerErrorDetail(error: unknown): string {
     return "";
   }
   return ` — ${extracted.providerName ?? "upstream provider"}: ${extracted.raw}`;
-}
-
-/** Redact-then-bound provider message text before it enters app errors. */
-function safeProviderMessage(message: string): string {
-  // 800 not 300: Azure's strict-schema 400 puts the decisive detail (which
-  // property broke the rule) past the 300-char mark.
-  return redactSecrets(message).slice(0, 800);
-}
-
-/** Status + redacted text only, the raw body is exactly what can leak. */
-function sanitizedCause(error: unknown, status: number): Error {
-  const name =
-    error instanceof Error ? error.constructor.name : "TransportError";
-  const message = error instanceof Error ? error.message : "";
-  return new Error(
-    `${name} (status ${status}): ${safeProviderMessage(message)}`,
-  );
-}
-
-/** Same, for statusless failures, the nested chain is dropped entirely. */
-function sanitizedStatuslessCause(error: Error): Error {
-  return new Error(
-    `${error.constructor.name}: ${safeProviderMessage(error.message)}`,
-  );
 }

@@ -17,10 +17,16 @@ backend ([Tracing](#tracing)).
 - `level`: string label: `error`, `warn`, `info`, `debug`.
 - `msg`: human-readable message. Secrets never ride here (or anywhere:
   sensitive fields are removed at the logger, not masked; a redacted key
-  is simply absent). One exception is masked in place: URL-shaped
-  substrings inside `msg` or a serialized `err`/`error` field are replaced
-  with the greppable marker `[redacted-url]` (`file://` stack frames are
-  exempt).
+  is simply absent). Three things are masked in place inside `msg` or a
+  serialized `err`/`error` field, each with a greppable marker. A
+  URL-shaped substring becomes `[redacted-url]` (`file://` stack frames
+  are exempt). A credential-shaped token, or the value after `password=`,
+  becomes `[redacted-token]`. The values a failed database query bound
+  are cut and the statement stays: a query error loses them outright, and
+  a message that only quotes one shows `[redacted-params]`. A failed job's line
+  carries the first line of its error message and of each cause under it, so
+  a failed query reads as its statement and then the database's reason,
+  never the error itself.
 - `evt`: present only on the first-class events below. Everything else
   (boot/shutdown, graphile lifecycle, progress lines) is plain leveled
   logging with no `evt`; grep and alert on `evt` and levels, not on `msg`

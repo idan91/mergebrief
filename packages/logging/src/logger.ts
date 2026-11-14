@@ -3,6 +3,7 @@
 import { isSpanContextValid, trace } from "@opentelemetry/api";
 import { pino, stdSerializers, type LoggerOptions } from "pino";
 import type { ValueOf } from "types/utils";
+import { removeQueryParams } from "./query-params";
 import { scrubSecrets, URL_SHAPED_LOG } from "./scrub";
 
 /** Structured fields riding a log line. Secrets go HERE, never in `msg`. */
@@ -70,11 +71,17 @@ const SECRET_KEYS = [
   "clientSecret",
   "connectionString",
   "databaseUrl",
+  "apiKey",
+  "password",
+  "authorization",
+  "cookie",
 ] as const;
 
 const REDACT_PATHS = [
   "headers.authorization",
   "headers.cookie",
+  'headers["set-cookie"]',
+  'headers["x-api-key"]',
   'headers["x-hub-signature-256"]',
   ...SECRET_KEYS,
   ...SECRET_KEYS.map((key) => `*.${key}`),
@@ -134,10 +141,11 @@ function isErrorLike(value: unknown): value is Error {
 // Non-error input (a thrown string, a number) is deep-scrubbed as-is, so the
 // scrub holds regardless of input shape.
 function scrubbedErrSerializer(value: unknown): unknown {
-  let serialized = value;
-  if (isErrorLike(value)) {
+  const safe = removeQueryParams(value);
+  let serialized = safe;
+  if (isErrorLike(safe)) {
     try {
-      serialized = stdSerializers.err(value);
+      serialized = stdSerializers.err(safe);
     } catch {
       // A frozen error-like makes pino's cycle-tag write throw, and pino calls
       // serializers with no try/catch, a logger must never crash its call

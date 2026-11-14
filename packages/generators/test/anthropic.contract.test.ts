@@ -188,6 +188,10 @@ function makeAnthropicHarness(): GeneratorContractHarness {
 
 describeGeneratorContract("anthropic", makeAnthropicHarness);
 
+function readCause(error: unknown): unknown {
+  return error instanceof Error ? error.cause : undefined;
+}
+
 describe("AnthropicGenerator SDK error classification", () => {
   let dir: string;
   beforeEach(() => {
@@ -227,7 +231,28 @@ describe("AnthropicGenerator SDK error classification", () => {
     const sdkError = Object.assign(new Error(`http ${status}`), { status });
     const error = await rejectionFor(sdkError);
     expect(error).toBeInstanceOf(GeneratorError);
-    expect(error).toMatchObject({ kind, cause: sdkError });
+    expect(error).toMatchObject({ kind, cause: { status } });
+  });
+
+  it("redacts and bounds a response body the SDK put in its message", async () => {
+    const echoed = `400 {"error":{"message":"invalid x-api-key: sk-ant-api03-LeAkEd_KeY-0123456789 ${"x".repeat(2000)}"}}`;
+    const sdkError = Object.assign(new Error(echoed), {
+      status: 400,
+      error: { echoedPrompt: "PRIVATE-PR-DIFF" },
+      headers: { "x-api-key": "sk-ant-api03-LeAkEd_KeY-0123456789" },
+    });
+    const error = await rejectionFor(sdkError);
+
+    if (!(error instanceof GeneratorError)) {
+      throw new Error("expected a GeneratorError");
+    }
+    expect(error.message).not.toContain("LeAkEd");
+    expect(error.message.length).toBeLessThanOrEqual(800);
+    expect(error.cause).not.toBe(sdkError);
+    expect(error.cause).toMatchObject({ status: 400 });
+    expect(error.cause).not.toHaveProperty("error");
+    expect(error.cause).not.toHaveProperty("headers");
+    expect(String(error.cause)).not.toContain("LeAkEd");
   });
 
   /** A 429 as the SDK raises it: `error` holds the whole response body. */
@@ -255,7 +280,7 @@ describe("AnthropicGenerator SDK error classification", () => {
 
     expect(error).toMatchObject({
       kind: GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
-      cause: sdkError,
+      cause: { status: 429 },
     });
   });
 
@@ -313,7 +338,7 @@ describe("AnthropicGenerator SDK error classification", () => {
 
       expect(error).toMatchObject({
         kind: GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
-        cause: sdkError,
+        cause: { status: 400 },
       });
     },
   );
@@ -333,8 +358,9 @@ describe("AnthropicGenerator SDK error classification", () => {
     const error = await rejectionFor(connectionError);
     expect(error).toMatchObject({
       kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
-      cause: connectionError,
     });
+    expect(readCause(error)).not.toBe(connectionError);
+    expect(readCause(error)).not.toHaveProperty("cause");
   });
 
   it("maps a statusless RetryableError to provider-transient", async () => {
@@ -342,8 +368,8 @@ describe("AnthropicGenerator SDK error classification", () => {
     const error = await rejectionFor(retryable);
     expect(error).toMatchObject({
       kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
-      cause: retryable,
     });
+    expect(readCause(error)).not.toBe(retryable);
   });
 
   it("wraps a statusless non-abort AnthropicError as opaque", async () => {
@@ -352,8 +378,8 @@ describe("AnthropicGenerator SDK error classification", () => {
     expect(error).toBeInstanceOf(GeneratorError);
     expect(error).toMatchObject({
       kind: GeneratorErrorKinds.OPAQUE,
-      cause: statusless,
     });
+    expect(readCause(error)).not.toBe(statusless);
   });
 
   it("classifies an unrepresentable schema as config before any attempt", async () => {

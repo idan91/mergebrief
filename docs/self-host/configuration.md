@@ -208,7 +208,7 @@ parse them. The `OPENAI_*` pair applies to both the `openai` and
 | Variable | Read by | Default | What it does |
 | --- | --- | --- | --- |
 | `ANTHROPIC_CUSTOM_HEADERS`, `OPENAI_CUSTOM_HEADERS` | worker | unset | `Name: value` lines, one per line, added to every request on the configured host. A line overrides the header of the same name, the API key or organization header included. Whoever sets the worker's environment owns them ([generators.md](./generators.md#the-six-providers)). |
-| `ANTHROPIC_LOG`, `OPENAI_LOG` | worker | `warn` | The SDK's own log level: `off`, `error`, `warn`, `info` or `debug`, written to the worker's console outside the structured log. An unknown value logs one warning and keeps `warn`. |
+| `ANTHROPIC_LOG`, `OPENAI_LOG` | worker | ignored | The provider SDKs' own log level. The worker pins it to `warn` and ignores both variables: at `debug` an SDK prints each request body in full, the pull request's code included, to the console and outside the structured log. |
 | `OTEL_EXPORTER_OTLP_CERTIFICATE`, `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` | api, worker, web | unset | Path to a PEM root certificate the exporter trusts, for an `https` collector behind a private CA. The `TRACES_` form wins. |
 | `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, `OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE` | api, worker, web | unset | Path to a PEM client certificate chain, for a collector that requires mutual TLS. The `TRACES_` form wins. |
 | `OTEL_EXPORTER_OTLP_CLIENT_KEY`, `OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY` | api, worker, web | unset | Path to the PEM private key for that client certificate. The `TRACES_` form wins. |

@@ -47,6 +47,12 @@ describe("sanitizeErrorDetail", () => {
     ).toBe("401 invalid x-api-key [redacted-token]");
   });
 
+  it("redacts the password of a keyword connection string", () => {
+    expect(
+      sanitizeErrorDetail("connect failed: host=db user=app password=hunter2"),
+    ).toBe("connect failed: host=db user=app password=[redacted-token]");
+  });
+
   it("redacts every issuer shape the log boundary knows", () => {
     for (const token of [
       "sk-proj-AbCdEfGhIjKlMnOpQrSt",

@@ -16,6 +16,7 @@ import { stubAmbientOpenAiEnv, stubCapturingFetch } from "./helpers";
  */
 
 interface ResolvedClientFields {
+  logLevel: string | undefined;
   baseURL: string;
   adminAPIKey: string | null;
   organization: string | null;
@@ -25,6 +26,7 @@ interface ResolvedClientFields {
 const constructedClients = vi.hoisted((): ResolvedClientFields[] => []);
 
 interface ResolvedAnthropicFields {
+  logLevel: string | undefined;
   baseURL: string;
   authToken: string | null;
 }
@@ -76,6 +78,8 @@ beforeEach(() => {
   stubAmbientOpenAiEnv();
   vi.stubEnv("ANTHROPIC_BASE_URL", "https://redirect.invalid");
   vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "canary-auth-token");
+  vi.stubEnv("ANTHROPIC_LOG", "debug");
+  vi.stubEnv("OPENAI_LOG", "debug");
 });
 
 afterEach(() => {
@@ -153,5 +157,39 @@ describe("anthropic registry entry host", () => {
         authToken: null,
       }),
     ]);
+  });
+});
+
+describe("SDK clients log at warn whatever the env asks", () => {
+  it("pins the openai client's log level", async () => {
+    await createOpenAiCore({
+      apiKey: "test-key",
+      model: "gpt-test-1",
+      failureDir: makeTempDir("log-openai-"),
+      provider: "openai",
+      fetch: stubRejectingFetch(),
+    });
+
+    expect(constructedClients[0]?.logLevel).toBe("warn");
+  });
+
+  it("pins the openrouter client's log level", async () => {
+    await createOpenRouterCore({
+      apiKey: "test-key",
+      model: "test-lab/test-model-1",
+      failureDir: makeTempDir("log-openrouter-"),
+      fetch: stubRejectingFetch(),
+    });
+
+    expect(constructedClients[0]?.logLevel).toBe("warn");
+  });
+
+  it("pins the anthropic client's log level", async () => {
+    await createGenerator(
+      { provider: Providers.ANTHROPIC },
+      { env: { ANTHROPIC_API_KEY: "test-key" }, failureDir: "out" },
+    );
+
+    expect(constructedAnthropicClients[0]?.logLevel).toBe("warn");
   });
 });

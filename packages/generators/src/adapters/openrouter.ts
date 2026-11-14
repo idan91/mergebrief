@@ -10,6 +10,7 @@ import {
   type OpenAiStreamChunk,
   type StreamChatOptions,
 } from "./openaiCore";
+import { SDK_LOG_LEVEL } from "./utils";
 
 /**
  * Preflight requires the model and structured_outputs so strict routing can succeed.
@@ -62,6 +63,7 @@ export async function createOpenRouterCore(
 
   const clientOptions: ClientOptions = {
     apiKey: options.apiKey,
+    logLevel: SDK_LOG_LEVEL,
     baseURL: options.baseUrl ?? OPENROUTER_BASE_URL,
     defaultHeaders,
     // Explicit nulls keep the SDK from reading OPENAI_ORG_ID,

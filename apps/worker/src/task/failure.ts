@@ -89,8 +89,8 @@ export function classifyFailure(error: unknown): GenerationFailure {
       case GeneratorErrorKinds.AUTH:
         return { code: GenerationFailureCodes.PROVIDER_AUTH };
       case GeneratorErrorKinds.PROVIDER_TRANSIENT:
-        // Adapters fold 408/429/5xx into one kind but keep the SDK error as
-        // cause, so recover the rate-limit/timeout distinction from it.
+        // Adapters fold 408/429/5xx into one kind and keep the status on a
+        // sanitized cause, so recover the rate-limit/timeout distinction.
         return transientFailure(unwrapped.cause);
       case GeneratorErrorKinds.TIMEOUT:
         return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };

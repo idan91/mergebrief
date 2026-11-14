@@ -52,4 +52,23 @@ describe("traceJob", () => {
     await expect(run).rejects.toThrow("transient");
     expect(tracing.readFinishedSpans()[0]?.failed).toBe(true);
   });
+
+  it("hands graphile a query failure without its bound values", async () => {
+    const sql = 'insert into "brief" ("body") values ($1)';
+    const queryError = Object.assign(
+      new Error(`Failed query: ${sql}\nparams: PRIVATE-BRIEF-BODY`),
+      { query: sql, params: ["PRIVATE-BRIEF-BODY"] },
+    );
+    const task = traceJob("generate", () => {
+      throw queryError;
+    });
+
+    const run = task({}, stubHelpers());
+
+    await expect(run).rejects.toBeInstanceOf(Error);
+    await expect(run).rejects.toMatchObject({
+      message: `Failed query: ${sql}`,
+    });
+    await expect(run).rejects.not.toHaveProperty("params");
+  });
 });
