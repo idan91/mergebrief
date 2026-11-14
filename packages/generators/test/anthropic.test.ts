@@ -54,4 +54,16 @@ describe("createAnthropicClient", () => {
       "https://gateway.example/v1/models/claude-test",
     );
   });
+
+  it("refuses a redirect, which would carry the key to another host", async () => {
+    const capturing = stubModelsFetch();
+    const client = createAnthropicClient({
+      apiKey: "test-key",
+      fetch: capturing.fetch,
+    });
+
+    await client.models.retrieve("claude-test");
+
+    expect(capturing.requests[0]?.redirect).toBe("error");
+  });
 });

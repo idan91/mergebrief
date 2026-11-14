@@ -62,6 +62,7 @@ import {
 import { loadEnvFiles } from "./env-file";
 import { startWorker, type WorkerRunner } from "./runner";
 import { buildLargePoolTaskList, buildTaskList } from "./task-list";
+import { shapePlainHttpLogLine } from "./plain-http-warning";
 import { buildToolAccessWarning } from "./tool-access";
 import { checkTrackerBoot } from "./tracker-boot";
 import {
@@ -137,6 +138,10 @@ async function main(): Promise<void> {
     // warn, not info: everything the registry surfaces here is
     // degraded/suspicious and should be alertable.
     log: (message) => logger.warn(message),
+    onPlainHttp: (warning) => {
+      const line = shapePlainHttpLogLine(warning);
+      logger.warn(line.message, line.fields);
+    },
   });
   if (!generator.ok) {
     const message = `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`;

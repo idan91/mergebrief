@@ -4,13 +4,18 @@ import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 import { GeneratorWarningKinds } from "../contract/types";
 import {
+  isRefusedRedirect,
+  NO_REDIRECT_FETCH_OPTIONS,
+  REFUSED_REDIRECT_MESSAGE,
+  SDK_LOG_LEVEL,
+} from "./utils";
+import {
   OpenAiCompatibleCore,
   type OpenAiChatRequest,
   type OpenAiChatTransport,
   type OpenAiStreamChunk,
   type StreamChatOptions,
 } from "./openaiCore";
-import { SDK_LOG_LEVEL } from "./utils";
 
 /**
  * Preflight requires the model and structured_outputs so strict routing can succeed.
@@ -20,6 +25,13 @@ import { SDK_LOG_LEVEL } from "./utils";
  */
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+/**
+ * OpenRouter's own default is "allow", which routes to upstreams that keep
+ * request data and may train on it. "deny" can leave a model no upstream,
+ * and that request then fails.
+ */
+const DEFAULT_DATA_COLLECTION = "deny";
 
 /** OpenRouter slug grammar (author/model with dots, dashes, colons). */
 const MODEL_SLUG = /^[\w.:-]+\/[\w.:-]+$/;
@@ -71,6 +83,7 @@ export async function createOpenRouterCore(
     organization: null,
     project: null,
     adminAPIKey: null,
+    fetchOptions: NO_REDIRECT_FETCH_OPTIONS,
   };
 
   if (options.fetch) {
@@ -156,6 +169,8 @@ function openRouterTransport(
       const wireBody: OpenRouterWireBody = {
         ...rest,
         provider: {
+          // FIRST, so the operator's own routing can still name a policy.
+          data_collection: DEFAULT_DATA_COLLECTION,
           ...config.providerRouting,
           // Forced LAST: routing options can never disable it.
           require_parameters: true,
@@ -211,6 +226,9 @@ async function modelListing(
       return configError([
         "OpenRouter rejected the API key (401/403) — check the configured apiKeyEnv variable's value",
       ]);
+    }
+    if (isRefusedRedirect(error)) {
+      return configError([REFUSED_REDIRECT_MESSAGE]);
     }
     // Non-auth statuses and network unreachability may clear on their own,
     // tagged transient so restart self-heal keeps applying.

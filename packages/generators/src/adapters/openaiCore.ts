@@ -23,8 +23,10 @@ import {
 } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/generation";
 import {
+  isRefusedRedirect,
   joinUserText,
   redactProviderMessage,
+  REFUSED_REDIRECT_MESSAGE,
   sanitizeProviderCause,
 } from "./utils";
 
@@ -516,6 +518,13 @@ function isParameterRejection(error: unknown, marker: string): boolean {
 export function classifyOpenAiError(error: unknown): unknown {
   if (error instanceof APIUserAbortError) {
     return error;
+  }
+  if (isRefusedRedirect(error)) {
+    return new GeneratorError(
+      GeneratorErrorKinds.CONFIG,
+      REFUSED_REDIRECT_MESSAGE,
+      { cause: sanitizeProviderCause(error) },
+    );
   }
   if (error instanceof APIConnectionError) {
     return new GeneratorError(

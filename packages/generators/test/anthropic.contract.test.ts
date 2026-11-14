@@ -363,6 +363,32 @@ describe("AnthropicGenerator SDK error classification", () => {
     expect(readCause(error)).not.toHaveProperty("cause");
   });
 
+  it("names a refused redirect as a config failure no retry clears", async () => {
+    const refused = new TypeError("fetch failed", {
+      cause: new Error("unexpected redirect"),
+    });
+    const error = await rejectionFor(
+      new APIConnectionError({ cause: refused }),
+    );
+
+    expect(error).toMatchObject({
+      kind: GeneratorErrorKinds.CONFIG,
+      message: expect.stringContaining("answered with a redirect"),
+    });
+  });
+
+  it("keeps an answered error that only quotes a redirect by its status", async () => {
+    const quoting = Object.assign(new Error("upstream: unexpected redirect"), {
+      status: 503,
+    });
+
+    const error = await rejectionFor(quoting);
+
+    expect(error).toMatchObject({
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+    });
+  });
+
   it("maps a statusless RetryableError to provider-transient", async () => {
     const retryable = new RetryableError("middleware retries exhausted");
     const error = await rejectionFor(retryable);

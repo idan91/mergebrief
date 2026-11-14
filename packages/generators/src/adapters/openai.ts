@@ -3,7 +3,12 @@ import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 import { OpenAiCompatibleCore, type OpenAiChatTransport } from "./openaiCore";
-import { SDK_LOG_LEVEL } from "./utils";
+import {
+  isRefusedRedirect,
+  NO_REDIRECT_FETCH_OPTIONS,
+  REFUSED_REDIRECT_MESSAGE,
+  SDK_LOG_LEVEL,
+} from "./utils";
 
 /**
  * The model preflight checks credentials and model existence in one call.
@@ -54,6 +59,7 @@ export async function createOpenAiCore(
     organization: null,
     project: null,
     adminAPIKey: null,
+    fetchOptions: NO_REDIRECT_FETCH_OPTIONS,
   };
 
   if (options.defaultHeaders) {
@@ -132,6 +138,9 @@ async function modelPreflight(
         [`model preflight failed with status ${status} for "${model}"`],
         { transient: true },
       );
+    }
+    if (isRefusedRedirect(error)) {
+      return configError([REFUSED_REDIRECT_MESSAGE]);
     }
     return configError(
       [`model preflight could not reach the provider (network/config error)`],

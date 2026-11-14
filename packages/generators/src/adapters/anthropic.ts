@@ -20,10 +20,13 @@ import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 import {
   CLAUDE_OUTPUT_MAX_TOKENS,
+  NO_REDIRECT_FETCH_OPTIONS,
   readClaudeOutputCeiling,
   redactProviderMessage,
+  REFUSED_REDIRECT_MESSAGE,
   sanitizeProviderCause,
   SDK_LOG_LEVEL,
+  isRefusedRedirect,
 } from "./utils";
 
 // Keep the real SDK assignable while tests fake this narrow slice with satisfies.
@@ -137,6 +140,7 @@ export function createAnthropicClient(
     authToken: null,
     logLevel: SDK_LOG_LEVEL,
     baseURL: options.baseUrl ?? DEFAULT_ANTHROPIC_BASE_URL,
+    fetchOptions: NO_REDIRECT_FETCH_OPTIONS,
   };
 
   if (options.fetch) {
@@ -399,6 +403,13 @@ export class AnthropicGenerator implements Generator {
  * Unknown failures, aborts and custom rejections must propagate unchanged.
  */
 function classifySdkError(error: unknown): unknown {
+  if (isRefusedRedirect(error)) {
+    return new GeneratorError(
+      GeneratorErrorKinds.CONFIG,
+      REFUSED_REDIRECT_MESSAGE,
+      { cause: sanitizeProviderCause(error) },
+    );
+  }
   // Statusless-but-retryable SDK failures (connection errors, middleware
   // RetryableError surfacing after retry exhaustion) are provider-transient.
   if (error instanceof APIConnectionError || error instanceof RetryableError) {

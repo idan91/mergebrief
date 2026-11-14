@@ -48,6 +48,7 @@ export {
   Providers,
   validateGeneratorConfig,
   type CreateGeneratorDeps,
+  type PlainHttpWarning,
   type FullRegeneration,
   type GeneratorConfig,
   type Provider,

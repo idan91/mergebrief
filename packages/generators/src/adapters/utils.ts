@@ -2,16 +2,12 @@ import type { GenerateRequest } from "../contract/generator";
 import { redactSecrets } from "../harness/redact";
 import type { z } from "zod/v4";
 
-/**
- * 800 not 300: Azure's strict-schema 400 puts the decisive detail (which
- * property broke the rule) past the 300-char mark.
- */
+// 800 not 300: Azure's strict-schema 400 names the broken property past 300.
 const PROVIDER_MESSAGE_MAX_CHARS = 800;
 
 /** Every SDK client's log level, whatever its env asks: at `debug` an SDK prints request bodies to the console. */
 export const SDK_LOG_LEVEL = "warn";
 
-/** Provider message text as it may enter an app error: redacted, then bounded. */
 export function redactProviderMessage(message: string): string {
   return redactSecrets(message).slice(0, PROVIDER_MESSAGE_MAX_CHARS);
 }
@@ -56,4 +52,43 @@ export function readClaudeOutputCeiling(model: string): number {
   return WIDE_OUTPUT_CLAUDE_MODEL.test(model)
     ? WIDE_OUTPUT_MAX_TOKENS
     : CLAUDE_OUTPUT_MAX_TOKENS;
+}
+
+// fetch replays the body, the pull request's code, to a redirect's host and
+// keeps `x-api-key` on a cross-origin hop.
+export const NO_REDIRECT_FETCH_OPTIONS = { redirect: "error" } as const;
+
+/** undici's words for a 3xx a `redirect: "error"` fetch refused. */
+const REFUSED_REDIRECT = "unexpected redirect";
+/** An SDK connection error wraps fetch's `TypeError`, which wraps undici's. */
+const CAUSE_CHAIN_MAX_DEPTH = 4;
+
+export const REFUSED_REDIRECT_MESSAGE =
+  "the provider answered with a redirect, which is never followed: set baseUrl to the address it redirects to";
+
+/**
+ * Whether `error`, or a cause under it, is a redirect the client refused. No
+ * retry clears one. An error with a status is the provider's own answer,
+ * whose body may only quote those words.
+ */
+export function isRefusedRedirect(error: unknown): boolean {
+  const answered =
+    typeof error === "object" &&
+    error !== null &&
+    typeof Reflect.get(error, "status") === "number";
+  if (answered) {
+    return false;
+  }
+
+  let current = error;
+  for (let depth = 0; depth < CAUSE_CHAIN_MAX_DEPTH; depth += 1) {
+    if (!(current instanceof Error)) {
+      return false;
+    }
+    if (current.message.includes(REFUSED_REDIRECT)) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
 }

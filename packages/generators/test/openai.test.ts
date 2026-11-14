@@ -165,6 +165,17 @@ function stubSseFinishing(content: string, finishReason: string): Response {
 }
 
 describe("OpenAiCompatibleCore request construction", () => {
+  it("refuses a redirect on the preflight and the chat call", async () => {
+    const capturing = stubOpenAiFetch();
+    const generator = await mustCore(capturing.fetch);
+    await generator.generate(request());
+
+    expect(capturing.requests.length).toBeGreaterThan(1);
+    for (const sent of capturing.requests) {
+      expect(sent.redirect).toBe("error");
+    }
+  });
+
   it("sends no output cap, even when the request names one", async () => {
     const { generator, recorded } = await coreWith(() =>
       stubSse('{"ok":true}'),
@@ -367,6 +378,47 @@ describe("OpenAiCompatibleCore usage-option discovery", () => {
       kind: GeneratorErrorKinds.CONFIG,
     });
     expect(recorded.bodies).toHaveLength(1);
+  });
+});
+
+describe("OpenAiCompatibleCore on a redirect the client refused", () => {
+  it("names it as a config failure no retry clears", async () => {
+    const refused = new Error("unexpected redirect");
+    const fixtureFetch: typeof fetch = async (input) => {
+      const models = modelsOk(getRequestUrl(input));
+      if (models) {
+        return models;
+      }
+      throw new TypeError("fetch failed", { cause: refused });
+    };
+    const generator = await mustCore(fixtureFetch);
+
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.CONFIG,
+      message: expect.stringContaining("answered with a redirect"),
+    });
+  });
+
+  it("refuses boot on it without the transient tag", async () => {
+    const booted = await createOpenAiCore({
+      apiKey: "test-key",
+      model: "gpt-test-1",
+      failureDir: tempDir("openai-redirect-"),
+      provider: "openai",
+      fetch: fetchWith(() => {
+        throw new TypeError("fetch failed", {
+          cause: new Error("unexpected redirect"),
+        });
+      }),
+    });
+
+    expect(booted).toMatchObject({
+      ok: false,
+      error: {
+        issues: [expect.stringContaining("answered with a redirect")],
+      },
+    });
+    expect(booted.ok ? undefined : booted.error.transient).toBeUndefined();
   });
 });
 

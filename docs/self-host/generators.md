@@ -393,6 +393,12 @@ redirect generations to another host. `ANTHROPIC_CUSTOM_HEADERS` and
 headers, a key or organization header included, on that same host. Whoever
 sets the worker's environment owns them.
 
+The worker never follows a redirect from a provider, since the request
+carries the key and the pull request's code. A `baseUrl` that answers with
+one, such as an `http://` address a gateway upgrades to `https://`, fails
+the generation as a config error that names the redirect, with no retry.
+Set `baseUrl` to the address it redirects to.
+
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
 assume the default (anthropic at `medium`); running an instance at a
 non-default effort is a deliberate divergence from them, same as running a
@@ -454,6 +460,24 @@ generator:
 
 A wrong slug **refuses boot**: the `/models` preflight needs the slug to exist
 and to list `structured_outputs`.
+
+OpenRouter forwards each request to an upstream provider that serves the
+model, and its own default lets it pick one that keeps request data and may
+train on it. Every request from the worker therefore names
+`data_collection: deny`, which limits routing to upstreams that keep none. A
+model with no such upstream fails its request with OpenRouter's own error. To
+choose differently, name the policy yourself:
+
+```yaml
+generator:
+  provider: openrouter
+  model: anthropic/claude-sonnet-5.5
+  providerRouting:
+    data_collection: allow   # or keep deny and add zdr: true
+```
+
+`zdr: true` goes further and asks for zero-data-retention endpoints only
+([OpenRouter's routing options](https://openrouter.ai/docs/features/provider-routing)).
 
 #### `claude-code`
 

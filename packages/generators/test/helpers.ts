@@ -29,6 +29,8 @@ export function getRequestUrl(input: string | URL | Request): string {
 export interface CapturedRequest {
   url: string;
   headers: Headers;
+  /** How the request asked a 3xx answer to be handled. */
+  redirect: RequestInit["redirect"];
 }
 
 export interface CapturingFetch {
@@ -46,7 +48,11 @@ export function stubCapturingFetch(
   const requests: CapturedRequest[] = [];
   const fixture: typeof fetch = async (input, init) => {
     const url = getRequestUrl(input);
-    requests.push({ url, headers: new Headers(init?.headers) });
+    requests.push({
+      url,
+      headers: new Headers(init?.headers),
+      redirect: init?.redirect,
+    });
     return respond(url, init);
   };
   return { requests, fetch: fixture };

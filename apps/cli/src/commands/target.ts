@@ -1,3 +1,4 @@
+import { formatDisplayText } from "brief-core/hidden-chars";
 import { CLI_VERSION, createApiClient, type ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import {
@@ -36,10 +37,29 @@ export function resolveCliVersion(deps: CliDeps): string {
   return deps.cliVersion ?? CLI_VERSION;
 }
 
+const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
+
+/**
+ * A warning, never a refusal: a private network is the operator's call. A
+ * success-only line, since a failed run owes its reader one stderr line.
+ */
+function warnOnPlainHttp(deps: CliDeps, resolved: ResolvedProfile): void {
+  const url = new URL(resolved.profile.baseUrl);
+  const leavesTheHost =
+    url.protocol === "http:" && !LOOPBACK_HOSTS.includes(url.hostname);
+  if (leavesTheHost && resolved.token !== undefined) {
+    const notify = deps.successNotice ?? deps.stderr;
+    notify(
+      `warning: profile ${formatDisplayText(resolved.name)} sends its token over plain http to ${url.hostname}`,
+    );
+  }
+}
+
 export function createClient(
   deps: CliDeps,
   resolved: ResolvedProfile,
 ): ApiClient {
+  warnOnPlainHttp(deps, resolved);
   return createApiClient({
     fetch: deps.fetch,
     baseUrl: resolved.profile.baseUrl,

@@ -311,8 +311,8 @@ ignores the rest of the file and needs no provider key. Every block rejects keys
 | `revisionNarrative` | all | `true` | `false` skips the revision narrative against the previous brief. |
 | `hugeSpanRatio` | all | `0.65` | A number above 0 and at most 1: the share of a pull request's changed lines at which an incremental span falls back to the full brief ([the 300-file span limit](./generators.md#the-300-file-span-limit)). |
 | `apiKeyEnv` | `anthropic`, `openai`, `openrouter` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` | The NAME of the variable holding the key. A value that is not an uppercase variable name refuses boot. |
-| `baseUrl` | `anthropic`, `openai` | the provider's own host | A URL. `anthropic` takes the gateway's host root; a path ending in `/v1` refuses boot. `openai` takes the `/v1` root of a gateway or compatible server, and turns the `/models` check at boot into a warning. |
-| `providerRouting` | `openrouter` | none | A mapping passed to OpenRouter under `provider`; `require_parameters: true` is always forced. |
+| `baseUrl` | `anthropic`, `openai` | the provider's own host | A URL. `anthropic` takes the gateway's host root; a path ending in `/v1` refuses boot. `openai` takes the `/v1` root of a gateway or compatible server, and turns the `/models` check at boot into a warning. A plain `http://` URL to any host but the worker's own logs one warning at boot, because the key and the pull request's code then travel unencrypted. |
+| `providerRouting` | `openrouter` | none | A mapping passed to OpenRouter under `provider`; `require_parameters: true` is always forced. `data_collection: deny` is sent unless the mapping names its own value ([generators.md](./generators.md#openrouter)). |
 | `referer`, `title` | `openrouter` | none | Non-empty strings sent as attribution headers. |
 | `command` | `claude-code`, `codex`, `cursor` | `claude`, `codex`, `cursor-agent` | The CLI binary, a path or a name on `PATH`. |
 | `timeouts.hardMs` | `claude-code`, `codex`, `cursor` | `900000` (15 minutes) | Positive whole milliseconds: the wall-clock cap on one run. |
@@ -451,7 +451,7 @@ shape, fails every command that reads it.
 | Key | Default | What it holds |
 | --- | --- | --- |
 | `defaultProfile` | the first profile logged into | The profile used when nothing else picks one. With no default and exactly one profile, that one is used. |
-| `profiles.<name>.baseUrl` | | The deployment's URL. Required. |
+| `profiles.<name>.baseUrl` | | The deployment's URL. Required. When the profile holds a token, a plain `http://` URL to any host but this machine prints a warning after each successful command, because the token then travels unencrypted. |
 | `profiles.<name>.token` | | The API token, stored in plain text. `MERGEBRIEF_TOKEN` overrides it. |
 | `profiles.<name>.owners` | | GitHub owners whose clones pick this profile, matched on the `origin` remote. |
 | `profiles.<name>.headers` | | Extra headers sent on every request, for a proxy in front of the API ([cli.md](./cli.md#idp--sso-proxies-exempt-api)). |

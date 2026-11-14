@@ -53,6 +53,13 @@ export interface CreateGeneratorDeps {
   /** Where failed-generation raw outputs are dumped (ephemeral). */
   failureDir: string;
   log?: Logger;
+  /** A root that tags the plain-http warning takes it here; without one it goes to `log`. */
+  onPlainHttp?: (warning: PlainHttpWarning) => void;
+}
+
+export interface PlainHttpWarning {
+  message: string;
+  host: string;
 }
 
 interface RegistryEntry<O extends z.ZodType> {
@@ -68,6 +75,34 @@ function defineEntry<O extends z.ZodType>(
   entry: RegistryEntry<O>,
 ): RegistryEntry<O> {
   return entry;
+}
+
+const LOOPBACK_HOSTS: readonly string[] = ["localhost", "127.0.0.1", "[::1]"];
+
+/** A warning, never a refusal: a gateway on a private network is a fair setup. */
+function warnOnPlainHttp(
+  baseUrl: string | undefined,
+  deps: CreateGeneratorDeps,
+): void {
+  if (baseUrl === undefined) {
+    return;
+  }
+  const url = new URL(baseUrl);
+  const leavesTheHost =
+    url.protocol === "http:" && !LOOPBACK_HOSTS.includes(url.hostname);
+  if (!leavesTheHost) {
+    return;
+  }
+
+  const warning: PlainHttpWarning = {
+    message: `generator.baseUrl uses plain http to ${url.hostname}: the API key and the pull request's code travel unencrypted`,
+    host: url.hostname,
+  };
+  if (deps.onPlainHttp !== undefined) {
+    deps.onPlainHttp(warning);
+    return;
+  }
+  deps.log?.(warning.message);
 }
 
 /** Reads `apiKeyEnv` (or the adapter default) from the injected env by NAME. */
@@ -321,6 +356,7 @@ export const GENERATOR_REGISTRY = {
       if (!key.ok) {
         return key;
       }
+      warnOnPlainHttp(options.baseUrl, deps);
       return {
         ok: true,
         value: new AnthropicGenerator(
@@ -457,6 +493,7 @@ export const GENERATOR_REGISTRY = {
       if (!key.ok) {
         return key;
       }
+      warnOnPlainHttp(options.baseUrl, deps);
       return createOpenAiCore({
         apiKey: key.value,
         model: options.model,

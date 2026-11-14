@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { COMPOSE_WORKER_RUNTIME } from "../src/config/consts";
 import { RUNTIME_MARKER_VAR } from "../src/config/instancePolicy";
 import {
@@ -20,6 +20,76 @@ import { Efforts } from "../src/contract/generation";
 
 const env = { ANTHROPIC_API_KEY: "sk-test-not-a-real-key" };
 const deps = { env, failureDir: "out" };
+
+describe("createGenerator plain http base URL", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function collectWarnings(baseUrl: string): Promise<string[]> {
+    const warnings: string[] = [];
+    const result = await createGenerator(
+      { provider: Providers.ANTHROPIC, baseUrl },
+      { ...deps, log: (message) => warnings.push(message) },
+    );
+    expect(result.ok).toBe(true);
+    return warnings;
+  }
+
+  it("warns that the key and the code travel unencrypted", async () => {
+    const warnings = await collectWarnings("http://gateway.internal:4000");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("gateway.internal");
+    expect(warnings[0]).toContain("unencrypted");
+  });
+
+  it("warns for an openai base URL too", async () => {
+    const warnings: string[] = [];
+    vi.stubGlobal("fetch", async () => new Response("{}", { status: 401 }));
+    await createGenerator(
+      {
+        provider: Providers.OPENAI,
+        model: "gpt-test",
+        baseUrl: "http://gateway.internal:4000/v1",
+      },
+      {
+        env: { OPENAI_API_KEY: "sk-test-not-a-real-key" },
+        failureDir: "out",
+        log: (message) => warnings.push(message),
+      },
+    );
+
+    const aboutPlainHttp = warnings.filter((message) =>
+      message.includes("unencrypted"),
+    );
+    expect(aboutPlainHttp).toHaveLength(1);
+  });
+
+  it("hands the warning to a root that tags it, and logs none", async () => {
+    const logged: string[] = [];
+    const hosts: string[] = [];
+    await createGenerator(
+      { provider: Providers.ANTHROPIC, baseUrl: "http://gateway.internal" },
+      {
+        ...deps,
+        log: (message) => logged.push(message),
+        onPlainHttp: (warning) => hosts.push(warning.host),
+      },
+    );
+
+    expect(hosts).toEqual(["gateway.internal"]);
+    expect(logged).toEqual([]);
+  });
+
+  it.each([
+    "https://gateway.example",
+    "http://localhost:4000",
+    "http://127.0.0.1:4000",
+    "http://[::1]:4000",
+  ])("stays quiet for %s", async (baseUrl) => {
+    expect(await collectWarnings(baseUrl)).toEqual([]);
+  });
+});
 
 describe("createGenerator", () => {
   it("builds the zero-config default: anthropic, ANTHROPIC_API_KEY, Opus 5.5", async () => {

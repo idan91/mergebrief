@@ -161,6 +161,7 @@ describe("OpenRouter request translation", () => {
     }
     // Forced last, the configured false must lose.
     expect(body["provider"]).toEqual({
+      data_collection: "deny",
       order: ["some-lab"],
       require_parameters: true,
     });
@@ -190,6 +191,39 @@ describe("OpenRouter request translation", () => {
   });
 });
 
+describe("OpenRouter data policy", () => {
+  function stubOkStream(): Response {
+    return new Response(sse('{"ok":true}'), {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  }
+
+  it("denies upstream data collection when routing names no policy", async () => {
+    const scripted = scriptedFetch(stubOkStream);
+    const generator = await mustCore(scripted);
+    await generator.generate(request());
+
+    expect(scripted.bodies[0]?.["provider"]).toEqual({
+      data_collection: "deny",
+      require_parameters: true,
+    });
+  });
+
+  it("keeps the data policy an operator's routing names", async () => {
+    const scripted = scriptedFetch(stubOkStream);
+    const generator = await mustCore(scripted, {
+      providerRouting: { data_collection: "allow" },
+    });
+    await generator.generate(request());
+
+    expect(scripted.bodies[0]?.["provider"]).toEqual({
+      data_collection: "allow",
+      require_parameters: true,
+    });
+  });
+});
+
 describe("OpenRouter client ignores ambient provider env", () => {
   beforeEach(() => {
     stubAmbientOpenAiEnv();
@@ -215,6 +249,7 @@ describe("OpenRouter client ignores ambient provider env", () => {
     ]);
     for (const sent of capturing.requests) {
       expectNoAmbientAccountHeaders(sent.headers);
+      expect(sent.redirect).toBe("error");
     }
   });
 });
@@ -550,6 +585,27 @@ describe("OpenRouter preflight", () => {
       return;
     }
     expect(onNetwork.error.transient).toBe(true);
+  });
+
+  it("refuses boot on a redirect it will not follow, without a restart", async () => {
+    const onRedirect = await createOpenRouterCore({
+      apiKey: "test-key",
+      model: SLUG,
+      failureDir: tempDir("openrouter-redirect-"),
+      fetch: async () => {
+        throw new TypeError("fetch failed", {
+          cause: new Error("unexpected redirect"),
+        });
+      },
+    });
+
+    expect(onRedirect).toMatchObject({
+      ok: false,
+      error: { issues: [expect.stringContaining("answered with a redirect")] },
+    });
+    expect(
+      onRedirect.ok ? undefined : onRedirect.error.transient,
+    ).toBeUndefined();
   });
 
   it("sends attribution headers on requests", async () => {
