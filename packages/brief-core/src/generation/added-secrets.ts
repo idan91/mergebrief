@@ -6,6 +6,7 @@ import {
   type UnattributedFile,
 } from "../types";
 import { redactDiffSecrets } from "./redaction";
+import { SecretKinds, type SecretHit } from "./redaction/types";
 
 const ADDS_SECRET = RiskSurfaceAttributes.ADDS_SECRET;
 
@@ -20,6 +21,11 @@ export interface AddedSecretFlags<Chunk extends RangedChunk> {
   readonly unattributed: UnattributedFile[];
 }
 
+/** A name-shaped value under a secret-named key is hidden from the model and is nothing to rotate. */
+function isCredentialHit(hit: SecretHit): boolean {
+  return hit.kind !== SecretKinds.KEYED_NAME;
+}
+
 /** New-side line numbers of added lines that hold a credential, by file. */
 function findAddedSecretLines(
   fileDiffs: readonly Pick<FileDiff, "file" | "patch">[],
@@ -27,7 +33,8 @@ function findAddedSecretLines(
   const byFile = new Map<string, Set<number>>();
   for (const { file, patch } of fileDiffs) {
     const { hits } = redactDiffSecrets(patch);
-    const hitLines = new Set(hits.map((hit) => hit.line));
+    const credentials = hits.filter(isCredentialHit);
+    const hitLines = new Set(credentials.map((hit) => hit.line));
     const added = parsePatchRows(patch).filter(
       (row) => isAddedRow(row) && hitLines.has(row.patchLine),
     );

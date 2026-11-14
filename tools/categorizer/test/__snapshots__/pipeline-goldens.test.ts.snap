@@ -17464,8 +17464,8 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
 
 exports[`brief goldens > next-60530 produces the recorded brief 1`] = `
 "{
-  "bytes": 3822748,
-  "sha256": "54f6fa648cf5279ec165a20153daea8866fc14437bcd0530784f9b794ec78d3e"
+  "bytes": 3822831,
+  "sha256": "991f5a9969b20fb8574daa3fab425e09c6bca4d4108c710a0074878277d19fca"
 }"
 `;
 
@@ -33107,8 +33107,8 @@ exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
       "sha256": "ef8c1e102a91f46618d990f6e09ad61887450859007420806bd823352f45bbe1"
     },
     "user": {
-      "bytes": 1099460,
-      "sha256": "e6737aff77dc9f290fe481564e083ff535bca50e63efedce8a1eec9778584fbb"
+      "bytes": 1099448,
+      "sha256": "9da04013c46023486c199f76fe06e8c7e38b1bdff4b7abcaec2ed4e2f5fdcb24"
     }
   },
   {
@@ -33730,8 +33730,8 @@ exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
       "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
     },
     "user": {
-      "bytes": 49076,
-      "sha256": "a7dfa0ca429e35a44a8eab92918dee6a316026acb560d4ae5e1aa651b9506a3f"
+      "bytes": 49058,
+      "sha256": "815b1ec61ccd344a7ed4cabb7e9d5660f997738182443fd93633571011013d21"
     },
     "userPrefix": {
       "bytes": 224367,
@@ -34167,8 +34167,8 @@ exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
       "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
     },
     "user": {
-      "bytes": 57344,
-      "sha256": "8ad71b623c64f0a146db25b904cdb79da95b678f44430612df4a246ba1533c06"
+      "bytes": 57286,
+      "sha256": "64945117d4ebf96862111596251022514ede5bf6338460574ef8297ac845ff08"
     },
     "userPrefix": {
       "bytes": 224367,

@@ -66,6 +66,116 @@ export const PLACEHOLDER_TEMPLATE =
   /^(?:\$[A-Z_][A-Z0-9_]*|\$\{[A-Za-z_][A-Za-z0-9_]*\}|<[^<>]*>|\{\{[^{}]*\}\}|\*+)$/;
 export const PLACEHOLDER_WORD = /^(?:pass|password|secret|changeme|example)$/i;
 
+/** How a secret-named key ends: `password`, `apiKey`, `client_secret`, `AUTH_TOKEN`, `x-api-key`. */
+const SECRET_NAME_END =
+  "(?:pass(?:word|wd|phrase)|secret|token|(?:api|secret|access|private)[_-]?key)";
+/** The same ending as an env file writes it. */
+const SHOUT_NAME_END = SECRET_NAME_END.toUpperCase();
+const NAME_CHARS = "A-Za-z0-9_.-";
+/** The bound keeps a run of nested assignments linear; a longer value is a blob, which the formats above judge. */
+const KEYED_VALUE_LENGTH = "{8,256}";
+
+/** A bracketed argument list with no bracket inside it: `[str]`, `<string, string>`. */
+const TYPE_INNER_LIST = String.raw`[<\[][A-Za-z0-9_.,&*? ]{0,40}[>\]]`;
+
+/**
+ * One type name, with at most one bracketed argument list, which may nest
+ * one level and hold a `|`: `string`, `&str`, `string[]`, `Optional[str]`,
+ * `Map<string, string>`, `Final[str | None]`, `ClassVar[Optional[str]]`. A
+ * comma or a space counts only inside the brackets, so a name can never run
+ * on into the next key of a line. Inside a list a bracket only ever opens an
+ * inner list, so each character has one reading and the scan stays linear.
+ */
+const TYPE_NAME = String.raw`[A-Za-z_&*][A-Za-z0-9_&*?.]{0,40}(?:[<\[](?:[A-Za-z0-9_.,&*? |]|${TYPE_INNER_LIST}){0,40}[>\]]\??)?`;
+
+/** One to four type names joined by `|`, then the `=` a typed declaration always assigns through. */
+const TYPE_AND_EQUALS = String.raw`${TYPE_NAME}(?:[ \t]*\|[ \t]*${TYPE_NAME}){0,3}[ \t]*:?=`;
+
+/**
+ * A type after a colon: `apiKey: string =`, `token: string | undefined =`.
+ * Never a bare `:`, which after a type would be the next key's
+ * (`{ apiKey: key, model: "..." }`).
+ */
+const COLON_TYPED_SEPARATOR = String.raw`[ \t]*:[ \t]*${TYPE_AND_EQUALS}`;
+
+/**
+ * A type after a space, as Go declares one: `password string =`. Only where
+ * the key opens a statement, alone or after `var` or `const`, since prose
+ * puts a word between a secret's name and `=` the same way (`the token type
+ * =`) and so does markup (`type=password name=`). The lookahead keeps the
+ * lookbehind off every secret word inside one long name.
+ */
+const SPACE_TYPED_SEPARATOR = String.raw`(?=[ \t])(?<=(?:^|@@ |[{;(])[ \t]*(?:(?:var|const)[ \t]+)?[${NAME_CHARS}]+)[ \t]+${TYPE_AND_EQUALS}`;
+
+const PLAIN_SEPARATOR = String.raw`[ \t]*(?:=>|:=|[:=])`;
+
+/**
+ * What may follow a key before its value. A bare key, optional or not, takes
+ * a colon-typed or a plain separator, or the space-typed one. A key closed
+ * by a quote or a subscript takes a plain one only: a typed declaration
+ * never quotes its name, and a quoted word followed by a name and `=` is an
+ * attribute's value before the next attribute (`type="password" name="..."`).
+ */
+const KEY_SEPARATOR = String.raw`(?:\??(?:${COLON_TYPED_SEPARATOR}|${PLAIN_SEPARATOR})|${SPACE_TYPED_SEPARATOR}|(?:["']\]?|\])\??${PLAIN_SEPARATOR})`;
+
+/**
+ * A secret-named key up to the opening quote of its value: the key, then its
+ * separator. A name that only starts with the word (`tokenCount`) is no key.
+ */
+const KEYED_QUOTED_HEAD = String.raw`(?<![${NAME_CHARS}])(?<head>(?<key>[${NAME_CHARS}]*${SECRET_NAME_END})${KEY_SEPARATOR}[ \t]*(?<quote>["'\x60]))`;
+
+/** One character of a quoted literal: an escape, or anything but white space and the quote that opened it. */
+const QUOTED_CHAR = String.raw`(?:\\.|(?!\k<quote>)[^\s\\])`;
+
+/** A secret-named key, a separator and a quoted literal with no white space. */
+export const KEYED_QUOTED_VALUE = new RegExp(
+  String.raw`${KEYED_QUOTED_HEAD}(?<value>${QUOTED_CHAR}${KEYED_VALUE_LENGTH})\k<quote>`,
+  "gi",
+);
+
+/** The same literal where git cut a hunk header before its closing quote: what is left runs to the end. */
+export const TRUNCATED_KEYED_VALUE = new RegExp(
+  String.raw`${KEYED_QUOTED_HEAD}(?<value>${QUOTED_CHAR}{4,})$`,
+  "i",
+);
+
+/**
+ * An env file's `NAME=value`, unquoted: only under a SHOUT_CASE name, since
+ * code assigns identifiers and calls the same way. The value is read whole
+ * or not at all, so one that runs into `(` or `$` is never cut to fit.
+ */
+export const KEYED_BARE_VALUE = new RegExp(
+  String.raw`(?<![${NAME_CHARS}])(?<head>(?<key>[A-Z0-9_]*${SHOUT_NAME_END})=)(?=(?<value>[^\s"'\x60()$]${KEYED_VALUE_LENGTH}))\k<value>(?=[\s"'\x60]|$)`,
+  "g",
+);
+
+/**
+ * A value that reads as a name: lowercase words and short numbers behind
+ * separators, as a design token (`--font-size-2`, `gray-200`), a resource
+ * name (`db-secret-v2`) or a storage key (`app.session.v2`) is written. A
+ * weak password has the same shape, so under a password key it is one.
+ */
+export const NAME_SHAPED_VALUE =
+  /^-{0,2}(?:[a-z]+|v?\d{1,4})(?:[-._:/](?:[a-z]+|v?\d{1,4}))+$/;
+
+/** A key that ends as a password's does, where even a name-shaped value is one. */
+export const PASSWORD_KEY = /pass(?:word|wd|phrase)$/i;
+
+/** How a stand-in starts where a cut left no end to judge it by. */
+export const PLACEHOLDER_START = /^[$<{*]/;
+
+/** A literal built at run time, which holds no secret of its own. */
+export const INTERPOLATION = /\$\{|#\{|\{\{/;
+
+/** A regular expression's source: a group, a class or a shorthand. */
+export const PATTERN_SOURCE = /\(\?[:=!]|\[\^|\[(?:a-z|A-Z|0-9)|\\{1,2}[dwsb]/;
+
+/** A key that ends in `token`, the word a lexer also names its patterns by. */
+export const TOKEN_KEY = /token$/i;
+
+/** Longer than any word a pattern spells out, so a value holding one is a credential whatever else it holds. */
+export const LONG_ALPHANUMERIC_RUN = /[A-Za-z0-9]{16,}/;
+
 /**
  * Git cuts a hunk header's function context at 80 bytes, which can end a
  * token short of its pattern's length: a known prefix running to the end of

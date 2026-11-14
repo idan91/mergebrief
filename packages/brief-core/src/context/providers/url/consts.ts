@@ -35,3 +35,6 @@ export const DEFAULT_PORT_BY_PROTOCOL: Readonly<Record<string, number>> = {
 /** `text/*`, JSON and XML, with or without a structured-syntax suffix. */
 export const TEXT_MEDIA_TYPE =
   /^(?:text\/[a-z0-9.+-]+|application\/(?:json|xml|[a-z0-9.-]+\+(?:json|xml)))$/;
+
+/** A page a browser would render, whose markup holds more than its text. */
+export const HTML_MEDIA_TYPE = /^(?:text\/html|application\/xhtml\+xml)$/;

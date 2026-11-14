@@ -52,6 +52,33 @@ describe("flagAddedSecrets", () => {
     ]);
   });
 
+  it("flags a value added under a secret-named key", () => {
+    const value = FAKE_SECRETS[SecretKinds.KEYED_SECRET];
+    const patch = ["@@ -0,0 +1,1 @@", `+DB_PASSWORD=${value}`].join("\n");
+
+    const flagged = flagAddedSecrets(
+      [makeChunk("deploy.env", 1, 1)],
+      [],
+      [{ file: "deploy.env", patch }],
+    );
+
+    expect(flagged.chunks[0]?.riskSurface).toEqual([ADDS_SECRET]);
+  });
+
+  it("does not flag a name-shaped value added under a token name", () => {
+    const patch = ["@@ -0,0 +1,1 @@", '+const BORDER_TOKEN = "gray-200";'].join(
+      "\n",
+    );
+
+    const flagged = flagAddedSecrets(
+      [makeChunk("tokens.ts", 1, 1)],
+      [],
+      [{ file: "tokens.ts", patch }],
+    );
+
+    expect(flagged.chunks[0]?.riskSurface).toEqual([]);
+  });
+
   it("does not flag a credential that sits only on a removed line", () => {
     const patch = ["@@ -1,1 +1,1 @@", `-a = "${TOKEN}"`, "+a = env.A"].join(
       "\n",

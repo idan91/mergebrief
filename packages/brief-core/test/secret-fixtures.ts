@@ -83,6 +83,8 @@ export const FAKE_SECRETS: Readonly<Record<SecretKind, string>> = {
     "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
   ].join("."),
   [SecretKinds.URL_PASSWORD]: joinParts("s3cr3t", "-Pa55word"),
+  [SecretKinds.KEYED_SECRET]: joinParts("hunter2", "-prod-", "Xy9"),
+  [SecretKinds.KEYED_NAME]: joinParts("db-", "secret-", "v2"),
 };
 
 /** A second spelling for kinds with more than one format. */

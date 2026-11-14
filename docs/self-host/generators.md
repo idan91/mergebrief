@@ -744,9 +744,44 @@ keys, JWTs and the password in a URL. Each becomes a marker such as
 `[redacted:github-token]` on the same line, so the brief's line references still
 match the diff you review, which is never redacted.
 
+It also redacts a value by the name it is assigned to, as
+`[redacted:keyed-secret]`: a quoted literal under a key that ends in `password`,
+`passwd`, `passphrase`, `secret`, `token`, or `api`, `secret`, `access` or
+`private` then `key` (`client_secret: "..."`, `apiKey = '...'`), and an unquoted
+`NAME=value` under such a name in capitals, as an env file writes it. The value
+has to be 8 to 256 characters with no white space and hold both a letter and a
+digit. An identifier, a function call, a `$NAME` or `{{ slot }}` stand-in and an
+interpolated string are left as written. So is a regular expression's source
+under a name ending in `token`, which is how a lexer names its patterns,
+unless it holds 16 letters and digits in a row, and
+the value after a secret word that is itself a value: in
+`type="password" name="..."` the `name` is no secret. A chunk that adds a
+redacted value carries the `adds-secret` flag, like any other credential.
+
+A value that reads as a name is hidden too, as `[redacted:keyed-name]`, and
+raises no flag: lowercase words and short numbers behind separators, as a
+design token (`--font-size-2`, `gray-200`) or a resource name (`db-secret-v2`)
+is written. Under a key that holds a password it counts as a credential like
+any other: `password: "winter-2024"` is flagged and `token: "winter-2024"` is
+only hidden.
+
+Not covered:
+
+- a value with no quotes outside that env-file form, such as a YAML
+  `password: value` or a `--password=value` flag, and a bare value that holds
+  `$` or a parenthesis
+- a secret passed as a call argument beside its name
+  (`define('DB_PASSWORD', '...')`, `os.Setenv("API_KEY", "...")`)
+- a string with a prefix or a type the rule does not read (`b"..."`, `f"..."`,
+  a C `api_key[] = "..."`, a Rust `&'static str`)
+- JSON escaped inside another string
+- a Go declaration that names several variables
+  (`var user, password string = "...", "..."`)
+
 This is best effort, not data-loss prevention. A secret with no recognizable
-format, such as a `password=` assignment, reaches your model provider as
-written. Treat a credential committed to a pull request as leaked and rotate it.
+format and no telling name, or a password of letters only, reaches your model
+provider as written. Treat a credential committed to a pull request as leaked
+and rotate it.
 
 A pull request [briefed in parts](#the-large-pool) shortens lockfiles and marked
 files. A pnpm, npm or yarn lockfile reaches the model as its package changes, or

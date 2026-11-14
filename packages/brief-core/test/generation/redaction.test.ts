@@ -21,12 +21,16 @@ import {
 } from "../secret-fixtures";
 import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
+/** Kinds a value shows by its own shape; the rest take a URL, a fence or a key name around it. */
+const CONTEXT_KINDS: readonly SecretKind[] = [
+  SecretKinds.URL_PASSWORD,
+  SecretKinds.PRIVATE_KEY,
+  SecretKinds.KEYED_SECRET,
+  SecretKinds.KEYED_NAME,
+];
 const WHOLE_VALUE_KINDS: readonly SecretKind[] = Object.values(
   SecretKinds,
-).filter(
-  (kind) =>
-    kind !== SecretKinds.URL_PASSWORD && kind !== SecretKinds.PRIVATE_KEY,
-);
+).filter((kind) => !CONTEXT_KINDS.includes(kind));
 /** Far past every bounded quantifier, so a lost bound shows as quadratic growth. */
 const BASE_SCAN_CHARS = 64_000;
 
@@ -692,6 +696,364 @@ describe("redactProseSecrets on URL passwords", () => {
   });
 });
 
+describe("redaction of a value assigned to a secret-named key", () => {
+  const value = FAKE_SECRETS[SecretKinds.KEYED_SECRET];
+  const marker = stubMarker(SecretKinds.KEYED_SECRET);
+  const nameMarker = stubMarker(SecretKinds.KEYED_NAME);
+
+  it.each([
+    ["a quoted assignment", `password = "${value}"`, `password = "${marker}"`],
+    [
+      "a password that reads as a name",
+      'db_password = "winter-2024"',
+      `db_password = "${marker}"`,
+    ],
+    [
+      "a name-shaped start with a random end",
+      'token: "live_app_a1b2c3d4e5f6"',
+      `token: "${marker}"`,
+    ],
+    [
+      "a single-quoted entry",
+      `  API_KEY: '${value}'`,
+      `  API_KEY: '${marker}'`,
+    ],
+    [
+      "a JSON entry",
+      `  "client_secret": "${value}",`,
+      `  "client_secret": "${marker}",`,
+    ],
+    [
+      "a header name",
+      `  "x-api-key": "${value}",`,
+      `  "x-api-key": "${marker}",`,
+    ],
+    [
+      "a camel-case name",
+      `const accessToken = "${value}";`,
+      `const accessToken = "${marker}";`,
+    ],
+    [
+      "a hash rocket",
+      `  'db_password' => '${value}',`,
+      `  'db_password' => '${marker}',`,
+    ],
+    [
+      "a typed declaration",
+      `const apiKey: string = "${value}";`,
+      `const apiKey: string = "${marker}";`,
+    ],
+    [
+      "a declaration with the type after the name",
+      `var password string = "${value}"`,
+      `var password string = "${marker}"`,
+    ],
+    ["a sigil variable", `$password = '${value}';`, `$password = '${marker}';`],
+    [
+      "a flag's literal after an equals sign",
+      `--from-literal=password='${value}'`,
+      `--from-literal=password='${marker}'`,
+    ],
+    [
+      "a dotted key after an equals sign",
+      `--set=auth.password="${value}"`,
+      `--set=auth.password="${marker}"`,
+    ],
+    [
+      "a Go variable inside a one-line function",
+      `func f() { var password string = "${value}" }`,
+      `func f() { var password string = "${marker}" }`,
+    ],
+    [
+      "a token with a pattern fragment beside a long run",
+      'token: "a1B2c3D4e5F6g7H8i9J0[a-z]"',
+      `token: "${marker}"`,
+    ],
+    [
+      "a password holding pattern characters",
+      'db_password = "Sup3r[a-z]Pw"',
+      `db_password = "${marker}"`,
+    ],
+    [
+      "a Go variable inside a block",
+      `\tapiKey string = "${value}"`,
+      `\tapiKey string = "${marker}"`,
+    ],
+    ["a symbol key", `:password => "${value}"`, `:password => "${marker}"`],
+    [
+      "a subscript",
+      `os.environ['API_KEY'] = '${value}'`,
+      `os.environ['API_KEY'] = '${marker}'`,
+    ],
+    [
+      "a value holding the other quote",
+      `password = "it's-${value}"`,
+      `password = "${marker}"`,
+    ],
+    [
+      "a value holding an escaped quote",
+      `password = "a\\"${value}"`,
+      `password = "${marker}"`,
+    ],
+    [
+      "an optional typed property",
+      `  apiKey?: string = "${value}";`,
+      `  apiKey?: string = "${marker}";`,
+    ],
+    [
+      "a union-typed declaration",
+      `let token: string | undefined = "${value}";`,
+      `let token: string | undefined = "${marker}";`,
+    ],
+    [
+      "a type with a bracketed argument list",
+      `api_key: Union[str, None] = "${value}"`,
+      `api_key: Union[str, None] = "${marker}"`,
+    ],
+    [
+      "a union with an array member",
+      `let token: string | string[] = "${value}";`,
+      `let token: string | string[] = "${marker}";`,
+    ],
+    [
+      "a union with a digit in a member",
+      `const apiKey: string | Uint8Array = "${value}";`,
+      `const apiKey: string | Uint8Array = "${marker}";`,
+    ],
+    [
+      "a generic type",
+      `val secret: Map<String, String> = "${value}"`,
+      `val secret: Map<String, String> = "${marker}"`,
+    ],
+    [
+      "a union inside a type's brackets",
+      `API_TOKEN: Final[str | None] = "${value}"`,
+      `API_TOKEN: Final[str | None] = "${marker}"`,
+    ],
+    [
+      "a type nested one level",
+      `password: ClassVar[Optional[str]] = "${value}"`,
+      `password: ClassVar[Optional[str]] = "${marker}"`,
+    ],
+    [
+      "a union inside a generic",
+      `const token: NonNullable<string | undefined> = "${value}";`,
+      `const token: NonNullable<string | undefined> = "${marker}";`,
+    ],
+    ["an env file line", `DB_PASSWORD=${value}`, `DB_PASSWORD=${marker}`],
+    ["an env name that is only the word", `TOKEN=${value}`, `TOKEN=${marker}`],
+    ["a two-word env name", `API_KEY=${value}`, `API_KEY=${marker}`],
+    [
+      "an exported one-word name",
+      `export PASSWORD=${value}`,
+      `export PASSWORD=${marker}`,
+    ],
+    [
+      "an exported variable",
+      `export AUTH_TOKEN=${value}`,
+      `export AUTH_TOKEN=${marker}`,
+    ],
+    [
+      "a compose environment entry",
+      `      - AWS_SECRET_ACCESS_KEY=${value}`,
+      `      - AWS_SECRET_ACCESS_KEY=${marker}`,
+    ],
+  ])("replaces the value of %s", (_label, text, expected) => {
+    expect(redactProseSecrets(text).text).toBe(expected);
+    expect(redactDiffSecrets(`+${text}`).text).toBe(`+${expected}`);
+  });
+
+  it.each([
+    [
+      "the next key after a secret-named one",
+      'new S3Client({ secretAccessKey: secret, region: "eu-west-1" })',
+    ],
+    [
+      "a model id beside an api key",
+      'new Client({ apiKey: key, model: "claude-opus-4" })',
+    ],
+    [
+      "a base URL beside a token",
+      'createClient({ token: env.TOKEN, baseUrl: "https://api.v2.example.com" })',
+    ],
+    [
+      "a default beside a typed secret parameter",
+      'function sign(accessToken: string, scope = "repo:read1") {}',
+    ],
+    [
+      "a literal type beside a typed secret parameter",
+      'function sign(accessToken: string, scope: "repo:read1") {}',
+    ],
+    [
+      "the attribute after a password field's type",
+      '<input type="password" name="password2" id="id_password2">',
+    ],
+    [
+      "the attribute after an unquoted password type",
+      '<input type=password name="password2">',
+    ],
+    [
+      "the attribute after a token-named one",
+      '<meta name="csrf-token" content="abc123def456">',
+    ],
+    [
+      "a struct tag after a password tag",
+      'Password string `json:"password" db:"password_hash1"`',
+    ],
+    [
+      "a comparison after a quoted token",
+      "WHERE kind = 'token' AND name = 'abc12345'",
+    ],
+    [
+      "a keyword beside a quoted password",
+      '{:type "password" :name "password2"}',
+    ],
+    ["prose with a word before the equals", '// the token type = "bearer1234"'],
+    [
+      "a lexer pattern under a token name",
+      'const IDENT_TOKEN = "[a-zA-Z_][a-zA-Z0-9_]*";',
+    ],
+    [
+      "a pattern with a group under a token name",
+      String.raw`const escToken = '\(?:[^\r\n\f\da-f]|[\da-f]{1,6})';`,
+    ],
+    ["an identifier", "password = userPassword2"],
+    ["a member read", "const token = config.auth.token2;"],
+    ["a function call", 'password = readSecret("primary1")'],
+    ["an env reference", "API_KEY=$UPSTREAM_KEY_V2"],
+    ["a braced env reference", 'API_KEY="${UPSTREAM_KEY_V2}"'],
+    ["a command substitution", "TOKEN=$(vault read secret/app1)"],
+    ["a template slot", 'password: "{{ .Values.db2 }}"'],
+    ["an interpolated literal", "token: `${prefix}-abc12345`"],
+    ["a docs stand-in", 'api_key: "<your-api-key-1>"'],
+    ["a value with no digit", 'password = "correct-horse"'],
+    ["a value with no letter", 'token = "1234567890"'],
+    ["a short value", 'token = "abc123"'],
+    ["a sentence", 'password: "must hold 8 characters"'],
+    ["a name that only starts with the word", 'tokenCount = "12345678ab"'],
+    ["a name with a later part", 'password_hint = "use8chars"'],
+    ["a plural name", "MAX_TOKENS=4096abcd"],
+    ["a lowercase unquoted pair", "token=abcdef123456"],
+  ])("keeps %s untouched", (_label, text) => {
+    expect(redactProseSecrets(text).text).toBe(text);
+    expect(redactDiffSecrets(`+${text}`).text).toBe(`+${text}`);
+  });
+
+  it.each([
+    [
+      "a CSS custom property under a token name",
+      'export const FONT_SIZE_TOKEN: DesignToken = "--font-size-2";',
+      `export const FONT_SIZE_TOKEN: DesignToken = "${nameMarker}";`,
+    ],
+    [
+      "a design token",
+      'colorToken: "blue-500",',
+      `colorToken: "${nameMarker}",`,
+    ],
+    [
+      "a storage key under a token name",
+      'STORAGE_TOKEN = "mb.session.v2"',
+      `STORAGE_TOKEN = "${nameMarker}"`,
+    ],
+    [
+      "the name of a stored secret",
+      'existingSecret: "db-secret-v2"',
+      `existingSecret: "${nameMarker}"`,
+    ],
+    [
+      "a name under a reset token's key",
+      'passwordResetToken: "reset-link-v2"',
+      `passwordResetToken: "${nameMarker}"`,
+    ],
+    [
+      "a name under an env token",
+      "SESSION_TOKEN=app-session-v2",
+      `SESSION_TOKEN=${nameMarker}`,
+    ],
+  ])("hides %s under the name marker", (_label, text, expected) => {
+    expect(redactProseSecrets(text).text).toBe(expected);
+    expect(redactDiffSecrets(`+${text}`).text).toBe(`+${expected}`);
+  });
+
+  it("replaces a whole value a known format covers only the start of", () => {
+    const start = FAKE_SECRETS[SecretKinds.AWS_ACCESS_KEY_ID];
+
+    const redaction = redactProseSecrets(
+      `client_secret = "${start}/rest-of-it-Qw7"`,
+    );
+
+    expect(redaction.text).toBe(`client_secret = "${marker}"`);
+  });
+
+  it("names the format when the value is a known token", () => {
+    const token = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
+
+    const redaction = redactProseSecrets(`const token = "${token}";`);
+
+    expect(redaction.text).toBe(
+      `const token = "${stubMarker(SecretKinds.GITHUB_TOKEN)}";`,
+    );
+    expect(redaction.hits).toEqual([
+      { kind: SecretKinds.GITHUB_TOKEN, line: 0 },
+    ]);
+  });
+
+  it("keeps every line and reports the value's line", () => {
+    const diff = ["@@ -1,2 +1,3 @@", " a = 1", `+password = "${value}"`, " b"];
+
+    const redaction = redactDiffSecrets(diff.join("\n"));
+
+    expect(redaction.text.split("\n")).toHaveLength(diff.length);
+    expect(redaction.hits).toEqual([
+      { kind: SecretKinds.KEYED_SECRET, line: 2 },
+    ]);
+  });
+
+  it("replaces what a hunk header kept of a value git cut short", () => {
+    const header = `@@ -40,6 +40,7 @@ DATABASE_PASSWORD = "Xy9-${value}-and-then-the-cut`;
+
+    const redaction = redactDiffSecrets(`${header}\n context`);
+
+    expect(redaction.text).toBe(
+      `@@ -40,6 +40,7 @@ DATABASE_PASSWORD = "${marker}\n context`,
+    );
+  });
+
+  it("leaves a hunk header's cut stand-in as written", () => {
+    const header = '@@ -40,6 +40,7 @@ password = "{{ .Values.database';
+
+    expect(redactDiffSecrets(header).text).toBe(header);
+  });
+
+  it("finds a value a hidden char splits", () => {
+    const split = `${value.slice(0, 4)}\u200B${value.slice(4)}`;
+
+    const redaction = redactProseSecrets(`password = "${split}"`);
+
+    expect(redaction.text).not.toContain(value.slice(4));
+  });
+});
+
+describe("hunk header cost", () => {
+  it.each([
+    [
+      "secret names beside other keys",
+      (chars: number) => 'token: t, x="ab '.repeat(chars / 16),
+    ],
+    [
+      "cut values that open the next",
+      (chars: number) => 'password="a'.repeat(chars / 11),
+    ],
+  ])("scans a long header of %s in linear time", (_label, makeContext) => {
+    const ratio = measureGrowthRatio((scale) => {
+      const header = `@@ -2 +2 @@ ${makeContext(BASE_SCAN_CHARS * scale)}`;
+      return () => redactDiffSecrets(header);
+    });
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
+  });
+});
+
 describe("the negative set", () => {
   it.each([
     ["a UUID", "id = 3f2b8c1e-9a4d-4e6f-b2c7-1d0e5a9b8c7f"],
@@ -821,6 +1183,55 @@ describe("pattern cost", () => {
     [
       "hidden chars inside a run",
       (chars: number) => "\u200Bsk-a".repeat(chars / 5),
+    ],
+    [
+      "secret names with no value",
+      (chars: number) => "token_".repeat(chars / 6),
+    ],
+    [
+      "bare assignments ending in a call",
+      (chars: number) => `${"TOKEN=".repeat(chars / 6)}(`,
+    ],
+    [
+      "keyed literals amid URL passwords",
+      (chars: number) => 'a://b:c@d password="a1b2c3d4" '.repeat(chars / 31),
+    ],
+    [
+      "bracketed types that never assign",
+      (chars: number) => "token: Map<a, b> | Map<a, b> ".repeat(chars / 29),
+    ],
+    [
+      "nested type lists that never close",
+      (chars: number) => `token:a<${"b<c>|".repeat(chars / 5)}`,
+    ],
+    [
+      "unions in brackets that never close",
+      (chars: number) => `token:a<${">|a<".repeat(chars / 4)}`,
+    ],
+    [
+      "secret names before type-like words",
+      (chars: number) => "token string of words ".repeat(chars / 22),
+    ],
+    [
+      "one indented name of repeats",
+      (chars: number) =>
+        `${" ".repeat(chars / 2)}${"token_".repeat(chars / 12)}`,
+    ],
+    [
+      "dotted secret words in one name",
+      (chars: number) => "token.".repeat(chars / 6),
+    ],
+    [
+      "quoted secret words by attributes",
+      (chars: number) => 'a="password" b="x1" '.repeat(chars / 20),
+    ],
+    [
+      "name-shaped values under a token",
+      (chars: number) => 'token="a-b-c-d-e-f-g-1" '.repeat(chars / 24),
+    ],
+    [
+      "quoted assignments that never close",
+      (chars: number) => 'password="a1 '.repeat(chars / 13),
     ],
   ])("scans a long run of %s in linear time", (_label, makeText) => {
     const ratio = measureGrowthRatio((scale) => {

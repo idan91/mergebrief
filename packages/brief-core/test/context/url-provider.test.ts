@@ -30,7 +30,11 @@ import {
   isPublicUrl,
   queryAllAddresses,
 } from "../../src/context/providers/url/guard";
-import { fetchText } from "../../src/context/providers/url/fetch-text";
+import {
+  fetchText,
+  MAX_PAGE_CHARS,
+} from "../../src/context/providers/url/fetch-text";
+import { removeUnshownElements } from "../../src/context/providers/url/page-text";
 import type {
   AddressResolver,
   DnsRecordResolver,
@@ -42,6 +46,7 @@ import {
   type ContextQuery,
   type ProviderSnippet,
 } from "../../src/context/types";
+import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 import { JIRA_ISSUE_URL, JIRA_SITE, JIRA_TRACKER } from "./helpers";
 
 // The real reader by default; the guard refuses every loopback test server.
@@ -828,6 +833,131 @@ describe("fetchText, the body reader", () => {
       body: gzipSync("compressed"),
     });
     expect(outcome).toEqual({ error: "encoded body" });
+  });
+});
+
+describe("fetchText on an HTML page", () => {
+  const HTML = { "content-type": "text/html; charset=utf-8" };
+
+  it("drops what a reader never sees before it cuts at the snippet cap", async () => {
+    const state = "x".repeat(MAX_SNIPPET_CHARS);
+    const page = [
+      "<!doctype html><html>",
+      `<head><title>T</title><script>var s="${state}";</script></head>`,
+      "<body><style>.a{color:red}</style><p>Shown</p>",
+      '<script type="application/json">{"k":"v"}</script>',
+      "<noscript>turn it on</noscript><template><b>slot</b></template>",
+      "<p>More</p></body></html>",
+    ].join("");
+
+    const outcome = await fetchStubbedResponse({ headers: HTML, body: page });
+
+    expect(outcome).toEqual({
+      text: "<!doctype html><html> <body> <p>Shown</p>   <p>More</p></body></html>",
+    });
+  });
+
+  it.each([
+    ["upper case", "<SCRIPT>a()</SCRIPT>"],
+    ["attributes", '<script src="/a.js" defer></script>'],
+    ["a spaced closing tag", "<style>.a{}</style >"],
+    ["an XHTML content type", "<script>a()</script>"],
+  ])("drops an element written with %s", async (label, element) => {
+    const xhtml = { "content-type": "application/xhtml+xml" };
+    const headers = label === "an XHTML content type" ? xhtml : HTML;
+
+    const outcome = await fetchStubbedResponse({
+      headers,
+      body: `<p>a</p>${element}<p>b</p>`,
+    });
+
+    expect(outcome).toEqual({ text: "<p>a</p> <p>b</p>" });
+  });
+
+  it("drops the rest of the page after an element that never closes", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: HTML,
+      body: "<p>Shown</p><script>never closed <p>hidden</p>",
+    });
+
+    expect(outcome).toEqual({ text: "<p>Shown</p> " });
+  });
+
+  it("ends a head with no closing tag where the body starts", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: HTML,
+      body: "<html><head><title>T</title><script>a()</script><body><p>Shown</p>",
+    });
+
+    expect(outcome).toEqual({ text: "<html> <body><p>Shown</p>" });
+  });
+
+  it("drops only the tag of a head that neither closes nor meets a body", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: HTML,
+      body: "<head><title>T</title><p>Shown</p>",
+    });
+
+    expect(outcome).toEqual({ text: " <title>T</title><p>Shown</p>" });
+  });
+
+  it("drops a comment whole, so a tag named inside it opens nothing", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: HTML,
+      body: "<p>a</p><!-- <script> --><p>b</p>",
+    });
+
+    expect(outcome).toEqual({ text: "<p>a</p> <p>b</p>" });
+  });
+
+  it("keeps an element whose name only starts like a dropped one", async () => {
+    const page = "<header>Top</header><p>Shown</p>";
+
+    const outcome = await fetchStubbedResponse({ headers: HTML, body: page });
+
+    expect(outcome).toEqual({ text: page });
+  });
+
+  it("leaves a body that is not HTML as it is", async () => {
+    const body = "<script>kept()</script>";
+
+    const outcome = await fetchStubbedResponse({
+      headers: { "content-type": "text/plain" },
+      body,
+    });
+
+    expect(outcome).toEqual({ text: body });
+  });
+
+  it("stops reading a page at the page cap", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: HTML,
+      body: `<script>${"s".repeat(MAX_PAGE_CHARS)}</script><p>past the cap</p>`,
+    });
+
+    expect(outcome).toEqual({ text: " " });
+  });
+});
+
+describe("removeUnshownElements cost", () => {
+  it.each([
+    ["heads that never close", (chars: number) => "<head>".repeat(chars / 6)],
+    ["head tags that never end", (chars: number) => "<head ".repeat(chars / 6)],
+    [
+      "heads that each meet a body",
+      (chars: number) => "<head><body>".repeat(chars / 12),
+    ],
+    [
+      "scripts that open inside comments",
+      (chars: number) => "<!--<script>-->".repeat(chars / 15),
+    ],
+  ])("strips a page of %s in linear time", (_label, makePage) => {
+    const ratio = measureGrowthRatio((scale) => {
+      const page = makePage(MAX_PAGE_CHARS * scale);
+      return () => removeUnshownElements(page);
+    });
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 });
 

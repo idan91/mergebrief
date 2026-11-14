@@ -699,7 +699,7 @@
       "newDependency": "A new direct dependency entered a manifest. Check it earns its place: the standard library or an existing dependency may already cover it.",
       "newAbstraction": "A new named abstraction was introduced; check whether an existing pattern or utility already covers it.",
       "commentContradictsCode": "A comment and its adjacent code appear to disagree; read both and resolve which side is right.",
-      "addsSecret": "Added lines hold a credential in a recognizable format. It was redacted before the model saw it; treat it as leaked, rotate it, and keep it out of the repository.",
+      "addsSecret": "Added lines hold a credential in a known format, or a value under a key named like a secret. It was redacted before the model saw it; if it is real, treat it as leaked, rotate it, and keep it out of the repository.",
       "changesPackageSource": "Where packages install from may have moved: a lockfile changed a package's source, added a package from a new host, or could not be read, or a registry config file changed. In a lockfile, check each changed package against the manifest change you expect and that resolved URLs still point at the registry. In a config file, check the registry change itself.",
       "externalIo": "Chunk reaches outside the process; verify timeout, retry, idempotency, and outage behavior.",
       "crossService": "Chunk touches a contract consumed outside this app; check compatibility and migration expectations.",

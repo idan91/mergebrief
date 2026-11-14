@@ -59,7 +59,10 @@ Two halves of configuration:
 
 Beside the primary ticket, the worker fetches up to five other http(s) links
 from the visible PR description as context. A longer page is cut at 20,000 characters,
-and all of them together at `linkFetch.maxTotalChars` (40,000 by default). It skips
+and all of them together at `linkFetch.maxTotalChars` (40,000 by default). An HTML
+page first loses its comments and its `head`, `script`, `style`, `template` and `noscript` elements,
+which hold no text a reader sees, and the worker reads up to 200,000 characters of
+it to find the text. It skips
 a link with credentials in it, a port other than 80 or 443, a `localhost` or
 `.local` host, and any private, link-local, reserved, multicast, documentation
 or cloud-metadata address. A host name resolves through the DNS servers

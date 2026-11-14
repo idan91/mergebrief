@@ -14,6 +14,10 @@ export const SecretKinds = {
   GOOGLE_API_KEY: "google-api-key",
   JWT: "jwt",
   URL_PASSWORD: "url-password",
+  /** A literal assigned to a key named for a secret, whatever its format. */
+  KEYED_SECRET: "keyed-secret",
+  /** Such a literal that reads as a name: hidden like one, never counted as an added credential. */
+  KEYED_NAME: "keyed-name",
 } as const;
 export type SecretKind = ValueOf<typeof SecretKinds>;
 

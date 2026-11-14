@@ -2,6 +2,9 @@ import type { FetchedPr } from "../../github/types";
 import { HIDDEN_CHARS } from "../../hidden-chars";
 import {
   HUNK_HEADER_RANGES,
+  INTERPOLATION,
+  KEYED_BARE_VALUE,
+  KEYED_QUOTED_VALUE,
   KEY_ARMOR_LINE,
   KEY_BEGIN,
   KEY_BODY_LINE,
@@ -9,6 +12,12 @@ import {
   KEY_HEADER_LINE,
   KEY_LINE_RUN,
   KEY_MATERIAL,
+  LONG_ALPHANUMERIC_RUN,
+  NAME_SHAPED_VALUE,
+  PASSWORD_KEY,
+  PATTERN_SOURCE,
+  TOKEN_KEY,
+  PLACEHOLDER_START,
   PLACEHOLDER_TEMPLATE,
   ARMOR_CHECKSUM,
   PPK_PRIVATE_LINES,
@@ -17,6 +26,7 @@ import {
   TOKEN_PATTERNS,
   TOKEN_PREFIX,
   TRUNCATED_HEADER_TOKEN,
+  TRUNCATED_KEYED_VALUE,
   TRUNCATED_TOKEN_KINDS,
   TRUNCATED_URL_PASSWORD,
   URL_PASSWORD,
@@ -206,6 +216,99 @@ function isPlaceholderPassword(password: string): boolean {
   return PLACEHOLDER_TEMPLATE.test(password) || PLACEHOLDER_WORD.test(password);
 }
 
+/**
+ * A value worth hiding under a secret-named key: letters and digits both,
+ * which a word, a sentence, a port and most identifiers are not, and no
+ * stand-in or run-time interpolation. Under a key ending in `token` a
+ * pattern's source is no literal either: a lexer names its patterns that
+ * way, and no issued token holds a group or a class; a long run of
+ * letters and digits still makes it one.
+ */
+function isKeyedLiteral(value: string, key: string): boolean {
+  const mixesLettersAndDigits = /[A-Za-z]/.test(value) && /\d/.test(value);
+  const standsIn = isPlaceholderPassword(value) || INTERPOLATION.test(value);
+  const readsAsPattern =
+    PATTERN_SOURCE.test(value) && !LONG_ALPHANUMERIC_RUN.test(value);
+  const isLexerPattern = TOKEN_KEY.test(key) && readsAsPattern;
+  const literal = mixesLettersAndDigits && !standsIn && !isLexerPattern;
+  return literal;
+}
+
+/** A name-shaped value is hidden under any key, and is a credential only under a password's. */
+function readKeyedKind(value: string, key: string): SecretKind {
+  const namesSomething =
+    NAME_SHAPED_VALUE.test(value) && !PASSWORD_KEY.test(key);
+  return namesSomething ? SecretKinds.KEYED_NAME : SecretKinds.KEYED_SECRET;
+}
+
+/** Whether one of `taken` holds the whole span, for spans asked in increasing order of start. */
+function createCoverCheck(
+  taken: readonly SecretSpan[],
+): (start: number, end: number) => boolean {
+  let next = 0;
+  return (start, end) => {
+    let candidate = taken[next];
+    while (candidate !== undefined && candidate.end <= start) {
+      next += 1;
+      candidate = taken[next];
+    }
+    const coversWhole =
+      candidate !== undefined &&
+      candidate.start <= start &&
+      end <= candidate.end;
+    return coversWhole;
+  };
+}
+
+/**
+ * Values under secret-named keys. A format in `found` that covers a whole
+ * value keeps its own marker; one that covers a part does not stand in for
+ * the rest, so the value goes whole. A pattern's matches come in order, so
+ * each walks the merged spans once: a line that mixes many of both stays
+ * linear.
+ */
+function findKeyedSpans(
+  text: string,
+  offset: number,
+  found: readonly SecretSpan[],
+): SecretSpan[] {
+  const taken = mergeSpans(found);
+  const spans: SecretSpan[] = [];
+  for (const pattern of [KEYED_QUOTED_VALUE, KEYED_BARE_VALUE]) {
+    const isCovered = createCoverCheck(taken);
+    for (const match of text.matchAll(pattern)) {
+      const { head = "", key = "", value = "" } = match.groups ?? {};
+      const start = offset + match.index + head.length;
+      const end = start + value.length;
+      const covered = isCovered(start, end);
+      const literal = isKeyedLiteral(value, key);
+      if (literal && !covered) {
+        spans.push({ start, end, kind: readKeyedKind(value, key) });
+      }
+    }
+  }
+  return spans;
+}
+
+/**
+ * A keyed literal a hunk header holds without its closing quote. The cut can
+ * take the digit the full rule asks for, so anything that does not start as
+ * a stand-in goes.
+ */
+function findTruncatedKeyedValue(
+  context: string,
+  offset: number,
+): SecretSpan | undefined {
+  const match = TRUNCATED_KEYED_VALUE.exec(context);
+  const { head = "", value = "" } = match?.groups ?? {};
+  const standsIn = PLACEHOLDER_START.test(value) || INTERPOLATION.test(value);
+  if (match === null || standsIn) {
+    return undefined;
+  }
+  const start = offset + match.index + head.length;
+  return { start, end: start + value.length, kind: SecretKinds.KEYED_SECRET };
+}
+
 function findTokenSpans(text: string, offset: number): SecretSpan[] {
   const spans: SecretSpan[] = [];
   for (const { kind, pattern, accepts } of TOKEN_PATTERNS) {
@@ -228,7 +331,7 @@ function findTokenSpans(text: string, offset: number): SecretSpan[] {
       });
     }
   }
-  return spans;
+  return [...spans, ...findKeyedSpans(text, offset, spans)];
 }
 
 /** A hunk header's cut-short token, which no full-length pattern can match. */
@@ -313,6 +416,10 @@ function scanHunkHeader(run: ScanRun, header: string, index: number): void {
   const password = findTruncatedUrlPassword(context, contextStart);
   if (password !== undefined) {
     addSpans(run, index, [password]);
+  }
+  const keyed = findTruncatedKeyedValue(context, contextStart);
+  if (keyed !== undefined) {
+    addSpans(run, index, [keyed]);
   }
   const inline = findInlineKeySpans(context, contextStart);
   addSpans(run, index, inline.spans);
@@ -640,7 +747,7 @@ function redactLines(
   return { text: rendered.join("\n"), hits };
 }
 
-/** High-confidence credential formats in a unified diff, one marker per value; line count and every prefix stay. */
+/** Known credential formats and literals under secret-named keys in a unified diff, one marker per value; line count and every prefix stay. */
 export function redactDiffSecrets(
   diff: string,
   renderText: (text: string) => string = keepText,

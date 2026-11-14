@@ -117,9 +117,9 @@ A comment or docstring in the diff appears to disagree with what the adjacent co
 
 ### `adds-secret`
 **Floor: yes**. Cannot be de-emphasized by repo policy.
-An added line in the chunk holds a credential in a recognizable format: a private key block, a fixed-prefix provider token, a JWT, or a password inside a URL.
+An added line in the chunk holds a credential in a recognizable format (a private key block, a fixed-prefix provider token, a JWT, or a password inside a URL) or a literal under a key named like a secret (`password`, `client_secret`, `apiKey`). The second is matched by its name, so it can be a value that is no credential; one that reads as a name, such as a design token, is hidden from the model and never sets the attribute, unless its key holds a password.
 - **Detect:** code-set, never model-observed. After validation the pipeline runs the same patterns that redact the prompt over the raw diff and sets the attribute on every chunk whose added lines hold a match. The model never sees the value, so it is never offered this attribute and cannot emit or drop it. A credential on a removed line does not fire it (removing it is the fix). The Unattributed remainder can carry it, because the pipeline needs no reading of intent to set it.
-- **Reviewer implication:** treat the credential as leaked: rotate it, then ask for it to come out of the repository and its history. Merging only spreads it further.
+- **Reviewer implication:** unless the value is plainly no credential, treat it as leaked: rotate it, then ask for it to come out of the repository and its history. Merging only spreads it further.
 
 ### `changes-package-source`
 **Floor: yes**. Cannot be de-emphasized by repo policy.
