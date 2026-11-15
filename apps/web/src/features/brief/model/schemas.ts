@@ -6,7 +6,7 @@ import {
   CRITERIA_MAX_CHARS,
   IMPLICATION_MAX_CHARS,
   RepoConfigOutcomes,
-} from "repo-config";
+} from "repo-config/constants";
 import { ComparisonBaselineLabels, type Result } from "types";
 import { z } from "zod/v4";
 

@@ -4,7 +4,7 @@
 // A lockstep test still pins the mirrored floor list.
 import type { TFunction } from "i18next";
 import { matchesGlob } from "brief-core/path-matching";
-import type { RepoConfigOutcome } from "repo-config";
+import type { RepoConfigOutcome } from "repo-config/constants";
 
 export interface RepoConfigFileOutcome {
   path: string;

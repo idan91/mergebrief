@@ -8,7 +8,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 - `validateRepoConfig(input)` (`validate.ts`) is the consumer-facing contract.
 - `schemas.ts` is `.strict()` everywhere; its attribute-name charset is a security control (names later extend a model json_schema enum). The `tracker:` block takes its schemas from `generators/trackers`, the only part of `generators` this package may import.
-- Budget caps in `constants.ts` are schema constants, versioned with the schema.
+- Budget caps in `constants.ts` are schema constants, versioned with the schema. It is also the `repo-config/constants` subpath, the only part of this package a browser bundle imports: it reaches the `types` package and nothing else, and `web-source-reaches-no-yaml-reader` fails if apps/web reaches the YAML reader through the entry.
 
 ## Invariants (enforced, don't weaken)
 

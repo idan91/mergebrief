@@ -1,7 +1,9 @@
 /**
- * ENTRY POINT, the repo-config package's ONLY export (`package.json`
- * `exports["."]`). Everything importable from `"repo-config"` is re-exported
- * here, grouped by the module it lives in. Map + invariants: `AGENTS.md`.
+ * ENTRY POINT (`package.json` `exports["."]`). Everything importable from
+ * `"repo-config"` is re-exported here, grouped by the module it lives in.
+ * The one subpath, `repo-config/constants`, is what a browser bundle imports:
+ * this entry holds the validator and its YAML reader. Map + invariants:
+ * `AGENTS.md`.
  *
  * The package: the `.mergebrief/` repo-local config surface. Zod schemas +
  * budget caps + the pure, source-agnostic `validateRepoConfig` (reject-whole,

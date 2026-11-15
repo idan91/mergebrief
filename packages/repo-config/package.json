@@ -5,7 +5,8 @@
   "type": "module",
   "description": "The .mergebrief/ repo-local config surface: Zod schemas for settings.yaml/policy.yaml, budget caps, and the pure source-agnostic validateRepoConfig — reject-whole, collision resolution, outcome model.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./constants": "./src/constants.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

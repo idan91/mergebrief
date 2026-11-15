@@ -461,6 +461,17 @@ module.exports = {
       to: { path: "^apps/web/src/features/pulls/" },
     },
     {
+      name: "web-source-reaches-no-yaml-reader",
+      comment:
+        "The browser bundle ships no YAML reader, type-only imports included: web takes repo-config's caps from `repo-config/constants`, never the barrel that holds the validator.",
+      severity: "error",
+      from: {
+        path: "^apps/web/src/",
+        pathNot: ["\\.test\\.tsx?$", "(^|/)test-utils(/|\\.tsx?$)"],
+      },
+      to: { reachable: true, path: "node_modules/yaml/" },
+    },
+    {
       name: "web-test-utils-only-in-tests",
       comment:
         "Test-utils modules hold test helpers and fixtures: only a test file or another test-utils module imports one, so none reaches a bundle.",

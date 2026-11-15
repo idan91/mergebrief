@@ -6,7 +6,7 @@ import {
   FLOOR_ATTRIBUTES as SOURCE_FLOOR_ATTRIBUTES,
   RepoConfigOutcomes,
   RepoConfigPaths,
-} from "repo-config";
+} from "repo-config/constants";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   attributeDisplayMeta,
