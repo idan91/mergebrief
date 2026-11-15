@@ -1,4 +1,4 @@
-const MAIN_CONTENT_ID = "main-content";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 /** The band leaves on dismiss; focus lands on the content it sat above. */
 export function focusMainContent(): void {

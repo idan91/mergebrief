@@ -1,4 +1,4 @@
-const MAIN_CONTENT_ID = "main-content";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 /**
  * The ref callback for a control a poll or its own click can unmount. React

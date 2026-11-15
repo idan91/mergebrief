@@ -6,6 +6,7 @@ import {
   useMobileViewport,
 } from "@web/hooks/useMobileViewport";
 import { focusRescueTarget } from "../focus-rescue";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 type ButtonRef = RefObject<HTMLButtonElement | null>;
 
@@ -172,7 +173,7 @@ export function usePhoneChrome(briefId: string): PhoneChrome {
  */
 function isFocusStranded(): boolean {
   const active = document.activeElement;
-  const main = document.getElementById("main-content");
+  const main = document.getElementById(MAIN_CONTENT_ID);
   const stranded = active === document.body || active === main;
   return stranded;
 }

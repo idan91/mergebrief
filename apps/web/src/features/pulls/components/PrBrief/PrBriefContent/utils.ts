@@ -6,6 +6,7 @@ import type {
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils";
 import type { PrSummary } from "../../../types";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 export interface PrReviewInput {
   submitReview: SubmitReviewAction;
@@ -48,9 +49,6 @@ export function buildPrReview(input: PrReviewInput): ReviewCapability {
 
   return review;
 }
-
-/** The brief page's reading region, the skip link's and the route's focus target. */
-const MAIN_CONTENT_ID = "main-content";
 
 /** Where focus lands when the brief's rows arrive after a timed-out read. */
 export function findMainContent(): HTMLElement | null {

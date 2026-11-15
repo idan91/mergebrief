@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 import { Button } from "@web/components/Button";
 import { PageError } from "@web/components/PageError";
 import { NavigationProgress } from "@web/components/NavigationProgress";
+import { RouteArrival } from "@web/components/RouteArrival";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import {
   buildShareImageUrl,
@@ -105,6 +107,7 @@ function RootComponent() {
   return (
     <I18nProvider>
       <NavigationProgress />
+      <RouteArrival />
       <Outlet />
     </I18nProvider>
   );
@@ -127,6 +130,8 @@ function RootNotFound() {
   );
 }
 
+const SKIP_LINK_HREF = `#${MAIN_CONTENT_ID}`;
+
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useTranslation();
 
@@ -136,7 +141,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <a className="skip-link" href="#main-content">
+        <a className="skip-link" href={SKIP_LINK_HREF}>
           {t("shell.skipToContent")}
         </a>
         {children}

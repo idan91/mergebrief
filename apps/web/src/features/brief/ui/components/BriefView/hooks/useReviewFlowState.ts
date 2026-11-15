@@ -27,6 +27,7 @@ import {
   deriveConversationReadOnly,
   deriveWritesDisabledReason,
 } from "../utils";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 export function useReviewFlowState({
   t,
@@ -125,7 +126,7 @@ function useReanchor(
   // sat above rather than dropping to the body.
   const cancelReanchorFromBanner = () => {
     flowActions.cancelReanchor();
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   };
 
   return {

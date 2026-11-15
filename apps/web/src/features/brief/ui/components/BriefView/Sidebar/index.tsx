@@ -5,6 +5,7 @@ import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { IconButton } from "@web/components/IconButton";
 import { Tabs } from "@web/components/Tabs";
 import { useMobileViewport } from "@web/hooks/useMobileViewport";
+import { isFocusLost } from "@web/utils/main-content";
 import {
   ViewportBands,
   type ViewportBand,
@@ -115,8 +116,7 @@ export function Sidebar({
       return;
     }
 
-    const active = document.activeElement;
-    if (active === null || active === document.body || !active.isConnected) {
+    if (isFocusLost(document.activeElement)) {
       triggerRef.current?.focus();
     }
   }, [expanded, triggerRef]);

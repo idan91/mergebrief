@@ -10,6 +10,7 @@ import { useSidebarState } from "../Sidebar/useSidebarState";
 import type { BriefViewStore } from "../store";
 import type { UseViewLayoutInput, ViewLayout } from "../types";
 import { resolveSidebarLayout } from "../utils";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 export function useViewLayout({
   viewStore,
@@ -69,7 +70,7 @@ function useSidebarFocusReturn(sidebarShown: boolean): void {
       return;
     }
 
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   }, [sidebarShown]);
 }
 

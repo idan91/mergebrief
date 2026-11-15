@@ -27,6 +27,7 @@ import {
   type LineReadOutcome,
   LineReadOutcomes,
 } from "../types";
+import { MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 export interface UseLineLinkScrollInput {
   briefId: string;
@@ -59,8 +60,6 @@ type RowTargetPlan = Extract<
   LineLinkPlan,
   { kind: typeof LineLinkPlanKinds.ROW }
 >;
-
-const MAIN_CONTENT_ID = "main-content";
 
 function buildSelection(
   plan: RowTargetPlan,

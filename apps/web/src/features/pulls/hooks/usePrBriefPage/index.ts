@@ -21,6 +21,7 @@ import {
   deriveRevisionPosture,
   deriveSelectedSpanKey,
 } from "./utils";
+import { isFocusLost, MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 /**
  * Re-anchors onto the brief only when focus was left nowhere. A pick from
@@ -32,15 +33,10 @@ function useRescueLostFocus(
   spanKey: string | undefined,
 ) {
   useEffect(() => {
-    const active = document.activeElement;
-    const focusSurvived =
-      active instanceof HTMLElement &&
-      active !== document.body &&
-      active.isConnected;
-    if (focusSurvived) {
+    if (!isFocusLost(document.activeElement)) {
       return;
     }
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   }, [stateKind, spanKey]);
 }
 

@@ -25,6 +25,7 @@ import {
   type ReviewSessionActions,
   type SessionSnapshot,
 } from "@web/features/review/session";
+import { isFocusLost, MAIN_CONTENT_ID } from "@web/utils/main-content";
 
 const receiptArtifactI18n = createI18n();
 import {
@@ -399,15 +400,10 @@ export function useReadingSession(
   // Only anchor when nothing else holds focus: a reviewer who switched brief
   // from a live control must keep it. Never scrolls.
   useEffect(() => {
-    const active = document.activeElement;
-    if (
-      active instanceof HTMLElement &&
-      active !== document.body &&
-      active.isConnected
-    ) {
+    if (!isFocusLost(document.activeElement)) {
       return;
     }
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
   }, [briefId]);
 
   // Entering focus mode unmounts the phone bar and toolbar, leaving it
@@ -419,7 +415,7 @@ export function useReadingSession(
     wasFocusModeRef.current = focusMode;
     const focusOrphaned = document.activeElement === document.body;
     if (focusModeChanged && focusOrphaned) {
-      document.getElementById("main-content")?.focus({ preventScroll: true });
+      document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
     }
   }, [focusMode]);
 
@@ -550,7 +546,7 @@ export function useReadingSession(
   // stable callbacks above). closeShortcuts is the one exception below.
   const jumpToChunkFromShortcut = (chunkId: string) => {
     const focusActive =
-      document.getElementById("main-content")?.dataset["zen"] === "on";
+      document.getElementById(MAIN_CONTENT_ID)?.dataset["zen"] === "on";
     const placement = focusActive
       ? ScrollPlacements.UNDER_STACK
       : ScrollPlacements.VIEWPORT_TOP;
