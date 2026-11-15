@@ -1,4 +1,11 @@
-import { createContext, useContext, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  type ReactNode,
+  type RefCallback,
+} from "react";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
@@ -110,6 +117,34 @@ export function useReadingPosition<T>(
     throw new Error("ReadingPositionProvider is missing");
   }
   return useStore(store, selector);
+}
+
+const CURRENT_CHUNK_ATTRIBUTE = "data-current";
+
+/**
+ * A ref that marks its element `data-current` while the reader is on
+ * `chunkId`. The store writes the attribute straight to the DOM, so a
+ * scroll-spy tick renders no card: a card's subtree is its whole diff table.
+ */
+export function useCurrentChunkMark(chunkId: string): RefCallback<HTMLElement> {
+  const store = useContext(ReadingPositionContext);
+  if (!store) {
+    throw new Error("ReadingPositionProvider is missing");
+  }
+  return useCallback(
+    (element: HTMLElement | null) => {
+      if (element === null) {
+        return undefined;
+      }
+      const syncMark = () => {
+        const current = store.getState().activeChunkId === chunkId;
+        element.toggleAttribute(CURRENT_CHUNK_ATTRIBUTE, current);
+      };
+      syncMark();
+      return store.subscribe(syncMark);
+    },
+    [chunkId, store],
+  );
 }
 
 const DETACHED_STORE = createReadingPositionStore();

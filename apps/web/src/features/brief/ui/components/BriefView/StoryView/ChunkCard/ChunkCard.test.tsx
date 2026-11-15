@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { act, useState } from "react";
+import { act, Profiler, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { intersectionObservers } from "@web/test/setup";
@@ -105,7 +105,10 @@ function Harness(props: HarnessProps) {
   );
 }
 
-function renderCard(overrides: Partial<HarnessProps> = {}) {
+function renderCard(
+  overrides: Partial<HarnessProps> = {},
+  positionStore = createReadingPositionStore(),
+) {
   const toggleChunk = vi.fn();
   const flowStore = createReviewFlowStore(
     {
@@ -126,7 +129,7 @@ function renderCard(overrides: Partial<HarnessProps> = {}) {
     markReviewed: vi.fn(),
     ...overrides,
   };
-  const positionStore = createReadingPositionStore();
+  const onCardRender = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider
@@ -137,7 +140,9 @@ function renderCard(overrides: Partial<HarnessProps> = {}) {
           <ExpansionProvider store={createExpansionStore()}>
             <ReviewPostureProvider posture={makeReviewPosture()}>
               <ReadingPositionProvider store={positionStore}>
-                <Harness {...props} />
+                <Profiler id="card" onRender={onCardRender}>
+                  <Harness {...props} />
+                </Profiler>
               </ReadingPositionProvider>
             </ReviewPostureProvider>
           </ExpansionProvider>
@@ -145,7 +150,7 @@ function renderCard(overrides: Partial<HarnessProps> = {}) {
       </ReviewSessionProvider>
     </QueryClientProvider>,
   );
-  return { toggleChunk, positionStore };
+  return { toggleChunk, positionStore, onCardRender };
 }
 
 function selectFilePath(toggle: HTMLElement) {
@@ -509,6 +514,34 @@ describe("ChunkCard reading position", () => {
       positionStore.getState().actions.setActive("other-chunk", "g1");
     });
     expect(card.getAttribute("data-current")).toBeNull();
+  });
+
+  it("takes and loses the mark without rendering again", () => {
+    const { positionStore, onCardRender } = renderCard({ open: true });
+    const card = screen.getByTestId("brief-chunk");
+    const rendersBefore = onCardRender.mock.calls.length;
+
+    act(() => {
+      positionStore.getState().actions.setActive(chunk.id, "g1");
+    });
+    const markedWhileCurrent = card.hasAttribute("data-current");
+    act(() => {
+      positionStore.getState().actions.setActive("other-chunk", "g1");
+    });
+
+    expect(markedWhileCurrent).toBe(true);
+    expect(card.hasAttribute("data-current")).toBe(false);
+    expect(onCardRender.mock.calls.length).toBe(rendersBefore);
+  });
+
+  it("is marked on mount when the reader is already on it", () => {
+    const positionStore = createReadingPositionStore();
+    positionStore.getState().actions.setActive(chunk.id, "g1");
+
+    renderCard({}, positionStore);
+
+    const card = screen.getByTestId("brief-chunk");
+    expect(card.hasAttribute("data-current")).toBe(true);
   });
 });
 

@@ -58,7 +58,7 @@ import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare, GithubHeadRef } from "../../types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
-import { useReadingPosition } from "../../reading/reading-position";
+import { useCurrentChunkMark } from "../../reading/reading-position";
 import {
   countChangedLines,
   isLargeChunk,
@@ -165,11 +165,7 @@ export const ChunkCard = memo(function ChunkCard({
   const reviewed = useReviewSession((state) =>
     state.reviewedChunks.has(chunk.id),
   );
-  // Store-subscribed, not a prop: a reading-position tick re-renders the two
-  // affected cards, never the parent list (which would break the memo win).
-  const active = useReadingPosition(
-    (state) => state.activeChunkId === chunk.id,
-  );
+  const currentMarkRef = useCurrentChunkMark(chunk.id);
   // Selection identity when the toggle gesture started. Only a selection
   // CHANGED by this gesture suppresses the click. A stale selection that
   // survives the mousedown untouched (Firefox/Safari keep selections
@@ -286,12 +282,12 @@ export const ChunkCard = memo(function ChunkCard({
   return (
     <article
       className={styles["chunk"]}
-      data-current={active ? "" : undefined}
       data-large={large ? "" : undefined}
       data-reviewed={reviewed ? "" : undefined}
       data-state={open ? "open" : "collapsed"}
       data-testid="brief-chunk"
       id={chunk.id}
+      ref={currentMarkRef}
       // Programmatic focus target for the conversation jump: move focus with
       // the scroll, never leave it behind.
       tabIndex={-1}
