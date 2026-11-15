@@ -6,30 +6,142 @@ import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import { gotoBrief, shortcutsDialog, waitForFirstLoad } from "../support/page";
 
-test("the picker front door is clean", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  // The rows fade up on first load; axe reads contrast through opacity.
-  await waitForFirstLoad(page);
-  await expectNoSeriousAxeViolations(page, testInfo, "picker");
-});
+/** One page state the sweep reaches, named once for every width it runs at. */
+interface SweptState {
+  /** How the state reads in a test title. */
+  title: string;
+  /** Keys the advisory attachment; a width prefix keeps it unique. */
+  key: string;
+  /** Lands on the state and resolves once everything axe reads is drawn. */
+  reach: (page: Page) => Promise<void>;
+}
 
-test("the full brief is clean", async ({ page }, testInfo) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await expectNoSeriousAxeViolations(page, testInfo, "full-brief");
-});
+const FOCUS_ROUTE = `${FIXTURE_ROUTE_REV2}&focus=true`;
 
-test("the first revision is clean", async ({ page }, testInfo) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV1);
-  await expectNoSeriousAxeViolations(page, testInfo, "first-revision");
-});
+const PICKER: SweptState = {
+  title: "the picker front door",
+  key: "picker",
+  reach: async (page) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // The rows fade up on first load; axe reads contrast through opacity.
+    await waitForFirstLoad(page);
+  },
+};
 
-test("the Changes Only span is clean", async ({ page }, testInfo) => {
-  await gotoBrief(
-    page,
-    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
-  );
-  await expectNoSeriousAxeViolations(page, testInfo, "changes-only");
+const FULL_BRIEF: SweptState = {
+  title: "the full brief",
+  key: "full-brief",
+  reach: (page) => gotoBrief(page, FIXTURE_ROUTE_REV2),
+};
+
+const FIRST_REVISION: SweptState = {
+  title: "the first revision",
+  key: "first-revision",
+  reach: (page) => gotoBrief(page, FIXTURE_ROUTE_REV1),
+};
+
+const CHANGES_ONLY: SweptState = {
+  title: "the Changes Only span",
+  key: "changes-only",
+  reach: (page) =>
+    gotoBrief(
+      page,
+      `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
+    ),
+};
+
+const FOCUS_MODE: SweptState = {
+  title: "focus mode",
+  key: "focus-mode",
+  reach: (page) => gotoBrief(page, FOCUS_ROUTE),
+};
+
+const SETTINGS: SweptState = {
+  title: "Settings",
+  key: "settings",
+  reach: async (page) => {
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // The token list is a client-only read with no busy mark: the heading
+    // arrives with the server render, the list or its empty line only after.
+    const tokens = page.getByRole("region", { name: "API tokens" });
+    await expect(
+      tokens.getByRole("heading", { level: 2, name: "API tokens" }),
+    ).toBeAttached();
+    await expect(
+      tokens.getByRole("list").first().or(tokens.getByText("No tokens yet.")),
+    ).toBeVisible();
+  },
+};
+
+const NOT_FOUND: SweptState = {
+  title: "an unknown address",
+  key: "not-found",
+  reach: async (page) => {
+    await page.goto("/no-such-page");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await waitForAccountSlot(page);
+  },
+};
+
+/** The account slot is a hidden placeholder until the viewer read lands; phone widths hide it. */
+async function waitForAccountSlot(page: Page) {
+  await expect(
+    page
+      .getByRole("button", { name: /^Account menu/ })
+      .or(page.getByRole("link", { name: "Sign in with GitHub" })),
+  ).toBeVisible();
+}
+
+/** The same state at desktop width, where the brief header draws the account slot. */
+function addAccountSlotWait(state: SweptState): SweptState {
+  return {
+    ...state,
+    reach: async (page) => {
+      await state.reach(page);
+      await waitForAccountSlot(page);
+    },
+  };
+}
+
+const DESKTOP_BRIEF_STATES = [
+  FULL_BRIEF,
+  FIRST_REVISION,
+  CHANGES_ONLY,
+  FOCUS_MODE,
+].map(addAccountSlotWait);
+const DESKTOP_SWEEP = [PICKER, ...DESKTOP_BRIEF_STATES, SETTINGS, NOT_FOUND];
+const PHONE_SWEEP = [PICKER, FULL_BRIEF, FOCUS_MODE, SETTINGS];
+const SIDEWAYS_SWEEP = [FULL_BRIEF, FOCUS_MODE];
+
+const UPRIGHT_PHONE = { width: 390, height: 844 };
+const SIDEWAYS_PHONES = [
+  { width: 750, height: 342 },
+  { width: 844, height: 390 },
+  { width: 932, height: 430 },
+];
+
+for (const state of DESKTOP_SWEEP) {
+  test(`${state.title} is clean`, async ({ page }, testInfo) => {
+    await state.reach(page);
+    await expectNoSeriousAxeViolations(page, testInfo, state.key);
+  });
+}
+
+test.describe("at phone width", () => {
+  test.use({
+    viewport: UPRIGHT_PHONE,
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  for (const state of PHONE_SWEEP) {
+    test(`${state.title} is clean`, async ({ page }, testInfo) => {
+      await state.reach(page);
+      await expectNoSeriousAxeViolations(page, testInfo, `phone-${state.key}`);
+    });
+  }
 });
 
 test("the brief never scrolls sideways at 320px", async ({ page }) => {
@@ -52,12 +164,6 @@ test("the brief never scrolls sideways at 320px", async ({ page }) => {
   expect(overflowing).toBe(0);
 });
 
-const SIDEWAYS_PHONES = [
-  { width: 750, height: 342 },
-  { width: 844, height: 390 },
-  { width: 932, height: 430 },
-];
-
 /** The side inset a Dynamic Island iPhone reports when held sideways. */
 const NOTCH_INSET_PX = 59;
 const HOME_INDICATOR_INSET_PX = 21;
@@ -69,13 +175,23 @@ const NOTCH_INSETS = [
 const HEAD_END_TOLERANCE_PX = 2;
 /** One scroll step while looking for the first mounted chunk card. */
 const CHUNK_SEEK_STEP_PX = 300;
-const FOCUS_ROUTE = `${FIXTURE_ROUTE_REV2}&focus=true`;
 const LINE_LINK_MISS_ROUTE = `${FIXTURE_ROUTE_REV1}&l=c9.R1`;
 const LINE_LINK_SETTLE_MS = 15_000;
 
 for (const viewport of SIDEWAYS_PHONES) {
   test.describe(`a phone held sideways at ${viewport.width}px`, () => {
     test.use({ viewport, hasTouch: true, isMobile: true });
+
+    for (const state of SIDEWAYS_SWEEP) {
+      test(`${state.title} is clean`, async ({ page }, testInfo) => {
+        await state.reach(page);
+        await expectNoSeriousAxeViolations(
+          page,
+          testInfo,
+          `sideways-${String(viewport.width)}-${state.key}`,
+        );
+      });
+    }
 
     test("keeps one bar under 50px stuck and never scrolls sideways", async ({
       page,
