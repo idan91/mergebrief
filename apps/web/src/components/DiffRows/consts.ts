@@ -1,5 +1,11 @@
 import { DiffRowOrigins } from "@web/utils/diffTokens/types";
-import type { PairedEmphasis } from "./types";
+import {
+  type LineStop,
+  LineStops,
+  type PairedEmphasis,
+  type SplitSide,
+  SplitSides,
+} from "./types";
 import { type DiffSide, DiffSides } from "types/comments";
 
 /** Past this many tokens on a side the whole line is the change; no emphasis. */
@@ -31,3 +37,38 @@ export const LINE_ATTRIBUTES: Record<DiffSide, string> = {
   [DiffSides.OLD]: "data-line-old",
   [DiffSides.NEW]: "data-line-new",
 };
+
+/**
+ * A line the reader can focus, valued by `LineStops`; `useLineStops` reads it
+ * back to hold one Tab stop per table and to step within one column.
+ */
+export const LINE_STOP_ATTRIBUTE = "data-line-stop";
+export const LINE_STOP_SELECTOR = `[${LINE_STOP_ATTRIBUTE}]`;
+/** The column each line stop steps within; a unified table is one column. */
+export const LINE_STOP_COLUMNS: Record<LineStop, SplitSide | undefined> = {
+  [LineStops.ROW]: undefined,
+  [LineStops.LEFT]: SplitSides.LEFT,
+  [LineStops.RIGHT]: SplitSides.RIGHT,
+  [LineStops.LEFT_ARROW]: SplitSides.LEFT,
+  [LineStops.RIGHT_ARROW]: SplitSides.RIGHT,
+};
+/** A split cell's line stop on each side when Tab may enter on it. */
+export const SPLIT_TAB_STOPS: Record<SplitSide, LineStop> = {
+  [SplitSides.LEFT]: LineStops.LEFT,
+  [SplitSides.RIGHT]: LineStops.RIGHT,
+};
+/** A split cell's line stop on each side when only the arrows reach it. */
+export const SPLIT_ARROW_STOPS: Record<SplitSide, LineStop> = {
+  [SplitSides.LEFT]: LineStops.LEFT_ARROW,
+  [SplitSides.RIGHT]: LineStops.RIGHT_ARROW,
+};
+/** The line stops Tab may enter a table on. */
+export const TAB_ENTRY_STOPS: ReadonlySet<string> = new Set<LineStop>([
+  LineStops.ROW,
+  LineStops.LEFT,
+  LineStops.RIGHT,
+]);
+/** The tab index of the one line stop `useLineStops` keeps in a table's Tab order. */
+export const IN_TAB_ORDER = 0;
+/** The tab index every other line stop renders with. */
+export const OFF_TAB_ORDER = -1;

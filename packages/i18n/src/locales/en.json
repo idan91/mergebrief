@@ -501,7 +501,11 @@
       "sectionGeneral": "General",
       "sectionFocusMode": "Focus mode",
       "toggleDiffView": "Switch between unified and split diff view",
-      "sectionMarks": "Marks"
+      "sectionMarks": "Marks",
+      "sectionDiffLines": "Diff lines",
+      "nextLine": "Next line of the focused diff",
+      "previousLine": "Previous line of the focused diff",
+      "commentLine": "Comment on the focused line"
     },
     "intent": {
       "title": "Intent check",

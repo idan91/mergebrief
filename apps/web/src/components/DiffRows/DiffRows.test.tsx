@@ -513,3 +513,147 @@ describe("DiffRows", () => {
     expect(css).toMatch(SPLIT_HANG);
   });
 });
+
+describe("DiffRows line stops", () => {
+  function stubFocusableAttributes() {
+    return { focusable: true };
+  }
+
+  /** The kinds of the lines in the Tab order. */
+  function listTabStops(container: HTMLElement): (string | null)[] {
+    const stops = container.querySelectorAll<HTMLElement>('[tabindex="0"]');
+    return [...stops].map((stop) => stop.getAttribute("data-line-kind"));
+  }
+
+  function findLine(container: HTMLElement, kind: string): HTMLElement {
+    const line = container.querySelector<HTMLElement>(
+      `[data-line-stop][data-line-kind="${kind}"]`,
+    );
+    if (line === null) {
+      throw new Error(`no ${kind} line`);
+    }
+    return line;
+  }
+
+  function readFocusedKind(): string | null | undefined {
+    return document.activeElement?.getAttribute("data-line-kind");
+  }
+
+  it("puts one line of a table in the Tab order, the first", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+
+    expect(listTabStops(view.container)).toEqual(["ctx"]);
+    cleanup();
+  });
+
+  it("moves focus a line at a time on the arrow keys", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "ArrowDown" });
+    const afterDown = readFocusedKind();
+    fireEvent.keyDown(findLine(view.container, "del"), { key: "ArrowUp" });
+
+    expect(afterDown).toBe("del");
+    expect(document.activeElement).toBe(first);
+    cleanup();
+  });
+
+  it("jumps to the table's ends on Home and End", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "End" });
+    const afterEnd = readFocusedKind();
+    fireEvent.keyDown(findLine(view.container, "add"), { key: "Home" });
+
+    expect(afterEnd).toBe("add");
+    expect(document.activeElement).toBe(first);
+    cleanup();
+  });
+
+  it("makes the focused line the table's one Tab stop", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+
+    findLine(view.container, "add").focus();
+
+    expect(listTabStops(view.container)).toEqual(["add"]);
+    cleanup();
+  });
+
+  it("keeps the Tab stop across a render", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    findLine(view.container, "add").focus();
+
+    view.rerender(
+      <table>
+        <DiffRows rows={stubRows()} rowAttributes={stubFocusableAttributes} />
+      </table>,
+    );
+
+    expect(listTabStops(view.container)).toEqual(["add"]);
+    cleanup();
+  });
+
+  it("leaves a modified arrow to the browser", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    first.focus();
+
+    const untouched = fireEvent.keyDown(first, {
+      key: "ArrowDown",
+      shiftKey: true,
+    });
+
+    expect(untouched).toBe(true);
+    expect(document.activeElement).toBe(first);
+    cleanup();
+  });
+
+  it("lets go of the unified body once the table turns split", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const unifiedBody = view.container.querySelector("tbody");
+    if (unifiedBody === null) {
+      throw new Error("no unified body");
+    }
+    const queryAll = vi.spyOn(unifiedBody, "querySelectorAll");
+
+    view.rerender(
+      <table>
+        <DiffRows
+          rows={stubRows()}
+          rowAttributes={stubFocusableAttributes}
+          view={DiffViews.SPLIT}
+        />
+      </table>,
+    );
+
+    expect(queryAll).not.toHaveBeenCalled();
+    expect(view.container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    cleanup();
+  });
+
+  it("stays on its side of a split table on the arrow keys", () => {
+    const view = renderRows({
+      rowAttributes: stubFocusableAttributes,
+      view: "split",
+    });
+    const rightCells = view.container.querySelectorAll<HTMLElement>(
+      '[data-line-stop="right"]',
+    );
+    const [first, second] = [...rightCells];
+    if (first === undefined || second === undefined) {
+      throw new Error("expected two right-side lines");
+    }
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "ArrowDown" });
+
+    expect(document.activeElement).toBe(second);
+    expect(view.container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    expect(second.tabIndex).toBe(0);
+    cleanup();
+  });
+});

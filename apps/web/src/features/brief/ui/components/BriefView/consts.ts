@@ -55,6 +55,15 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
       { keys: ["Esc"], descriptionKey: "brief.shortcuts.exitFocusMode" },
     ],
   },
+  {
+    id: "diff-lines",
+    headingKey: "brief.shortcuts.sectionDiffLines",
+    shortcuts: [
+      { keys: ["↓"], descriptionKey: "brief.shortcuts.nextLine" },
+      { keys: ["↑"], descriptionKey: "brief.shortcuts.previousLine" },
+      { keys: ["Enter"], descriptionKey: "brief.shortcuts.commentLine" },
+    ],
+  },
 ];
 
 /** A chunk with more changed lines than this starts closed, like GitHub's large diffs. */

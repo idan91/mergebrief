@@ -1,8 +1,10 @@
 import { Fragment, type KeyboardEvent, type ReactNode } from "react";
 
 import { type DiffLine, type RowTokenMap } from "@web/utils/diffTokens/types";
+import { OFF_TAB_ORDER, SPLIT_ARROW_STOPS, SPLIT_TAB_STOPS } from "../consts";
 import { DiffCodeText } from "../DiffCodeText";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { findRowStop, readLineStopColumn } from "../line-stops";
 import { pairSplitRows } from "../pairSplitRows";
 import { buildCodeIndentStyle } from "../utils";
 import {
@@ -20,6 +22,7 @@ import {
   type SplitSide,
   SplitSides,
 } from "../types";
+import { useLineStops } from "../useLineStops";
 import rowStyles from "../DiffRows.module.scss";
 import styles from "./SplitRows.module.scss";
 import { type DiffSide, DiffSides } from "types/comments";
@@ -49,8 +52,6 @@ export const SPLIT_SIDE_COLUMNS = 2;
 const GUTTER_COLUMNS = 1;
 // A zero-width space keeps an empty side a real cell in the table's tree.
 const EMPTY_SIDE = "\u200B";
-/** Off the Tab order, reachable by the arrow hop from the other side. */
-const ARROW_ONLY_STOP = -1;
 const NO_ATTRIBUTES: DiffRowAttributes = {};
 const NO_LINE_NUMBER_ATTRIBUTES: Record<string, string> = {};
 
@@ -78,6 +79,7 @@ export function SplitRows({
   beforeRow,
   trailingRow,
 }: SplitRowsProps) {
+  const lineStopsRef = useLineStops();
   const pairs = givenPairs ?? pairSplitRows(rows);
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
   const seamColumns = seamCell === undefined ? 0 : GUTTER_COLUMNS;
@@ -90,6 +92,7 @@ export function SplitRows({
     <tbody
       data-tokens={tokensPending ? "pending" : undefined}
       data-view="split"
+      ref={lineStopsRef}
     >
       {pairs.map((pair) => {
         if (pair.full !== undefined) {
@@ -249,7 +252,9 @@ function SideCells({
   const numberContent = lineNumberContent?.(line, index, lineSide);
   const selected = attributes.selected ? "" : undefined;
   const commentable = attributes.commentable ? "" : undefined;
-  const focusable = attributes.focusable;
+  const lineStop = attributes.focusable
+    ? SPLIT_TAB_STOPS[side]
+    : SPLIT_ARROW_STOPS[side];
   const codeStyle = buildCodeIndentStyle(line.content);
 
   return (
@@ -283,6 +288,7 @@ function SideCells({
         data-commentable={commentable}
         data-line-kind={line.kind}
         data-line-origin={line.origin}
+        data-line-stop={lineStop}
         data-pick={attributes.pick}
         data-rev={attributes.revision}
         data-selected={selected}
@@ -295,7 +301,7 @@ function SideCells({
         onMouseEnter={attributes.onMouseEnter}
         onMouseUp={attributes.onMouseUp}
         style={codeStyle}
-        tabIndex={focusable ? 0 : ARROW_ONLY_STOP}
+        tabIndex={OFF_TAB_ORDER}
       >
         <span className={rowStyles["sign"]} {...anchorAttributes}>
           {DIFF_LINE_SIGNS[line.kind]}
@@ -328,15 +334,13 @@ function hopAcrossSides(event: KeyboardEvent<HTMLTableCellElement>): void {
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
     return;
   }
-  if (event.currentTarget.dataset["side"] === target) {
+  const from = event.currentTarget;
+  if (readLineStopColumn(from) === target) {
     return;
   }
 
-  const row = event.currentTarget.closest("tr");
-  const cell = row?.querySelector<HTMLElement>(
-    `td[data-side="${target}"][tabindex]`,
-  );
-  if (cell === null || cell === undefined) {
+  const cell = findRowStop(from, target);
+  if (cell === undefined) {
     return;
   }
 

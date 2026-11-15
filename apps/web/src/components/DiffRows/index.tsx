@@ -1,9 +1,16 @@
 import clsx from "clsx";
 import { Fragment } from "react";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { OFF_TAB_ORDER } from "./consts";
 import { DiffCodeText } from "./DiffCodeText";
 import { SplitRows } from "./SplitRows";
-import { type DiffRowsProps, DiffViews, NumberCellStates } from "./types";
+import {
+  type DiffRowsProps,
+  DiffViews,
+  LineStops,
+  NumberCellStates,
+} from "./types";
+import { useLineStops } from "./useLineStops";
 import {
   buildCodeIndentStyle,
   buildDiffRowKeys,
@@ -40,6 +47,7 @@ export function DiffRows({
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
   const numberColumns = lineNumbers ? LINE_NUMBER_COLUMNS : 0;
   const columnCount = CODE_COLUMNS + gutterColumns + numberColumns;
+  const lineStopsRef = useLineStops();
 
   if (view === DiffViews.SPLIT) {
     return (
@@ -67,7 +75,10 @@ export function DiffRows({
   const keys = buildDiffRowKeys(rows);
 
   return (
-    <tbody data-tokens={tokensPending ? "pending" : undefined}>
+    <tbody
+      data-tokens={tokensPending ? "pending" : undefined}
+      ref={lineStopsRef}
+    >
       {rows.map((row, index) => {
         const key = keys[index] ?? String(index);
         if (isFullWidthDiffRow(row)) {
@@ -98,6 +109,7 @@ export function DiffRows({
               data-commentable={attributes.commentable ? "" : undefined}
               data-line-kind={row.kind}
               data-line-origin={row.origin}
+              data-line-stop={attributes.focusable ? LineStops.ROW : undefined}
               data-pick={attributes.pick}
               data-rev={attributes.revision}
               data-selected={attributes.selected ? "" : undefined}
@@ -105,7 +117,7 @@ export function DiffRows({
               onMouseDown={attributes.onMouseDown}
               onMouseEnter={attributes.onMouseEnter}
               onMouseUp={attributes.onMouseUp}
-              tabIndex={attributes.focusable ? 0 : undefined}
+              tabIndex={attributes.focusable ? OFF_TAB_ORDER : undefined}
             >
               {gutterCell?.(row, index)}
               {lineNumbers ? (

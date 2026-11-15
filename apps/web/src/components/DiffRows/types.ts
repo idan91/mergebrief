@@ -47,6 +47,20 @@ export interface SplitRow {
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
 
+/**
+ * A line the reader can focus, named for the column the arrow keys step it
+ * within: a unified `row`, or a split side. Tab enters a table on any stop
+ * but an `-arrow` one, which is reached from another stop only.
+ */
+export const LineStops = {
+  ROW: "row",
+  LEFT: "left",
+  RIGHT: "right",
+  LEFT_ARROW: "left-arrow",
+  RIGHT_ARROW: "right-arrow",
+} as const;
+export type LineStop = ValueOf<typeof LineStops>;
+
 /** A number cell whose slot content stands in for the digits it covers. */
 export const NumberCellStates = {
   COVERED: "covered",

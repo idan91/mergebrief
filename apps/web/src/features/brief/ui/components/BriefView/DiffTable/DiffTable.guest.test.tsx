@@ -429,7 +429,7 @@ describe("DiffTable guest rows", () => {
 
     expect(row.getAttribute("aria-disabled")).toBe("true");
     expect(row.hasAttribute("data-commentable")).toBe(false);
-    expect(row.getAttribute("tabindex")).toBe("0");
+    expect(row.getAttribute("data-line-stop")).toBe("row");
     fireEvent.keyDown(row, { key: "Enter" });
     fireEvent.mouseDown(row);
     fireEvent.mouseUp(row);

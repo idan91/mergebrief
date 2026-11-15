@@ -234,3 +234,28 @@ test("a strip jump lands the chunk below the stack and keeps its mark", async ({
     .toBeGreaterThanOrEqual(0);
   await expect(marks.nth(1)).toHaveAttribute("aria-current", "true");
 });
+
+test("a diff table is one Tab stop and the arrows step its lines", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const table = page.locator("article#c1 table").first();
+  const lines = table.locator("[data-line-stop]");
+  await expect(table.locator('[tabindex="0"][data-line-stop]')).toHaveCount(1);
+
+  await lines.first().focus();
+  await page.keyboard.press("ArrowDown");
+
+  await expect(lines.nth(1)).toBeFocused();
+  await expect(table.locator('[tabindex="0"][data-line-stop]')).toHaveCount(1);
+  await expect(lines.nth(1)).toHaveAttribute("tabindex", "0");
+
+  await page.keyboard.press("Tab");
+
+  // Tab moves on to the next control, in the table or past it, never to
+  // another line.
+  const focusIsOnALine = await page.evaluate(
+    () => document.activeElement?.hasAttribute("data-line-stop") ?? false,
+  );
+  expect(focusIsOnALine).toBe(false);
+});

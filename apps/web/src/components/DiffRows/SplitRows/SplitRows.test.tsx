@@ -117,9 +117,7 @@ describe("SplitRows", () => {
     expect(
       pair?.querySelectorAll('td[data-side="right"][data-selected]'),
     ).toHaveLength(0);
-    expect(
-      pair?.querySelectorAll('td[data-side="right"][tabindex="0"]'),
-    ).toHaveLength(1);
+    expect(pair?.querySelectorAll('[data-line-stop="right"]')).toHaveLength(1);
   });
 
   it("renders the seam cell between the halves and counts its column", () => {
