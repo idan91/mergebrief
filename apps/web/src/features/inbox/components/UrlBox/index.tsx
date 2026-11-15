@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -27,6 +28,8 @@ export function UrlBox({
 }: UrlBoxProps) {
   const { t } = useTranslation();
   const facade = useUrlBoxFacade();
+  const errorId = useId();
+  const refused = facade.error !== null;
   const state = facade.submitting ? UrlBoxStates.PROGRESS : UrlBoxStates.IDLE;
 
   return (
@@ -41,6 +44,8 @@ export function UrlBox({
         <Icon className={styles["icon"]} name={IconNames.LINK} />
         <input
           aria-busy={facade.submitting}
+          aria-describedby={refused ? errorId : undefined}
+          aria-invalid={refused || undefined}
           aria-label={t("home.urlBox.ariaLabel")}
           autoComplete="off"
           className={styles["input"]}
@@ -67,7 +72,7 @@ export function UrlBox({
         </Button>
       </form>
       {facade.error === null ? null : (
-        <p className={styles["error"]} role="alert">
+        <p className={styles["error"]} id={errorId} role="alert">
           {facade.error}
         </p>
       )}

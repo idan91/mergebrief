@@ -80,6 +80,58 @@ describe("UrlBox", () => {
     expect(document.activeElement).toBe(field);
   });
 
+  it("ties a refusal to the field it is about", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "invalid-url" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await renderInRouter(<UrlBox />);
+    const field = screen.getByRole("textbox", { name: "Pull request URL" });
+    expect(field.getAttribute("aria-invalid")).toBeNull();
+    expect(field.getAttribute("aria-describedby")).toBeNull();
+
+    fireEvent.change(field, { target: { value: "https://example.com/x" } });
+    await act(async () => {
+      fireEvent.submit(field.closest("form")!);
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(field.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(alert.id).not.toBe("");
+  });
+
+  it("drops the refusal's tie to the field once a new submit starts", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "invalid-url" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockReturnValueOnce(new Promise<Response>(() => {}));
+    await renderInRouter(<UrlBox />);
+    const field = screen.getByRole("textbox", { name: "Pull request URL" });
+    fireEvent.change(field, { target: { value: "https://example.com/x" } });
+    await act(async () => {
+      fireEvent.submit(field.closest("form")!);
+    });
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+
+    fireEvent.change(field, {
+      target: { value: "https://github.com/o/r/pull/7" },
+    });
+    await act(async () => {
+      fireEvent.submit(field.closest("form")!);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(field.getAttribute("aria-invalid")).toBeNull();
+    expect(field.getAttribute("aria-describedby")).toBeNull();
+  });
+
   it("refuses a URL past the server's bound before sending it", async () => {
     await renderInRouter(<UrlBox />);
     const field = screen.getByRole("textbox", { name: "Pull request URL" });
