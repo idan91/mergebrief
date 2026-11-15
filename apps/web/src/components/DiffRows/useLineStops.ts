@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, type RefCallback } from "react";
 
-import { findLineStep, readLineStop, syncTabStop } from "./line-stops";
+import {
+  findLineStep,
+  readLineStop,
+  revealLineStop,
+  syncTabStop,
+} from "./line-stops";
 
 /**
  * One Tab stop per diff table, bound through the table body's ref. The tab
@@ -22,10 +27,26 @@ export function useLineStops(): RefCallback<HTMLTableSectionElement> {
   return useCallback((element: HTMLTableSectionElement) => {
     body.current = element;
 
+    // A Tab press moves focus in its own task, before any timer; a focus a
+    // script moves on its own never follows one, so it keeps its scroll.
+    let tabPressed = false;
+    const noteTabPress = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      tabPressed = true;
+      setTimeout(() => {
+        tabPressed = false;
+      }, 0);
+    };
     const holdFocusedStop = (event: FocusEvent) => {
       const stop = readLineStop(event.target);
-      if (stop !== undefined) {
-        tabStop.current = syncTabStop(element, stop);
+      if (stop === undefined) {
+        return;
+      }
+      tabStop.current = syncTabStop(element, stop);
+      if (tabPressed) {
+        revealLineStop(stop);
       }
     };
     const stepBetweenStops = (event: KeyboardEvent) => {
@@ -40,13 +61,17 @@ export function useLineStops(): RefCallback<HTMLTableSectionElement> {
       const next = findLineStep(element, stop, event.key);
       if (next !== undefined) {
         event.preventDefault();
-        next.focus();
+        next.focus({ preventScroll: true });
+        revealLineStop(next);
       }
     };
 
+    const page = element.ownerDocument;
+    page.addEventListener("keydown", noteTabPress, { capture: true });
     element.addEventListener("focusin", holdFocusedStop);
     element.addEventListener("keydown", stepBetweenStops);
     return () => {
+      page.removeEventListener("keydown", noteTabPress, { capture: true });
       element.removeEventListener("focusin", holdFocusedStop);
       element.removeEventListener("keydown", stepBetweenStops);
       body.current = null;

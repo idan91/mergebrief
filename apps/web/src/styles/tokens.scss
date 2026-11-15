@@ -175,6 +175,7 @@
     --diff-number-w: #{functions.to-rem(42px)};
     --diff-unified-number-w: calc(2 * var(--diff-number-w));
     --diff-line-box: calc(var(--font-size-2) * var(--line-height-reading));
+    --diff-line-cover: 0px;
 
     // A selected diff row: 14% is the strongest wash every syntax colour
     // keeps at 4.5:1 over; the number cells paint 24% opaque over the well

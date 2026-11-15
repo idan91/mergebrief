@@ -610,16 +610,17 @@ export function groupEdgesByRow(
 }
 
 /**
- * The focusable cell of the expanded row showing this head-file line. The
- * NEW-side number is the one to match, an old number can equal it.
+ * Focuses the focusable cell of the expanded row showing this head-file
+ * line and returns it. The NEW-side number is the one to match, an old
+ * number can equal it.
  */
 export function focusExpandedLine(
   table: HTMLTableElement | null,
   line: number,
   options: FocusOptions,
-): void {
+): HTMLElement | undefined {
   if (table === null) {
-    return;
+    return undefined;
   }
   const wanted = String(line);
   const unified = table.querySelectorAll(EXPANDED_ROW_SELECTOR);
@@ -628,10 +629,11 @@ export function focusExpandedLine(
     if (numbers[1]?.textContent !== wanted) {
       continue;
     }
-    if (row instanceof HTMLElement) {
-      row.focus(options);
+    if (!(row instanceof HTMLElement)) {
+      return undefined;
     }
-    return;
+    row.focus(options);
+    return row;
   }
   const cells = table.querySelectorAll(EXPANDED_RIGHT_NUMBER_SELECTOR);
   for (const cell of cells) {
@@ -639,11 +641,13 @@ export function focusExpandedLine(
       continue;
     }
     const target = cell.nextElementSibling;
-    if (target instanceof HTMLElement && target.matches("[tabindex]")) {
-      target.focus(options);
+    if (!(target instanceof HTMLElement) || !target.matches("[tabindex]")) {
+      return undefined;
     }
-    return;
+    target.focus(options);
+    return target;
   }
+  return undefined;
 }
 
 export function collectThreadLines(rows: readonly DigestThreadRow[]): number[] {

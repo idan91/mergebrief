@@ -66,6 +66,31 @@ describe("ChunkCard stylesheet", () => {
     ).toEqual(menus.map(() => "inherit"));
   });
 
+  it("sizes the head and the diff line cover from one head height", () => {
+    const sized = rules.filter(
+      (rule) =>
+        rule.selectors.includes(".head") &&
+        (rule.declarations.has("block-size") ||
+          rule.declarations.has("min-block-size")),
+    );
+    const sizes = sized.map(
+      (rule) =>
+        rule.declarations.get("block-size") ??
+        rule.declarations.get("min-block-size"),
+    );
+    const heights = rules.filter(
+      (rule) =>
+        rule.selectors.includes(".chunk") &&
+        rule.declarations.has("--chunk-head-h"),
+    );
+
+    expect(sizes).toEqual(sized.map(() => "var(--chunk-head-h)"));
+    expect(heights.length).toBe(sized.length);
+    expect(readDeclarations(rules, ".chunk").get("--diff-line-cover")).toBe(
+      "calc(var(--chunk-head-h) + var(--space-4))",
+    );
+  });
+
   it("leaves the menu's press and hover transitions to IconButton", () => {
     const restyled = rules.filter((rule) =>
       rule.selectors.some((selector) => selector.endsWith(".actions")),

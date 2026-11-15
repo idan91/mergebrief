@@ -10,6 +10,14 @@ $unified-hang: min(var(--code-indent, 0) * 1ch, 16ch);
 $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
 @layer components {
+  .line[data-line-stop][data-state="stepping"],
+  .code[data-line-stop][data-state="stepping"] {
+    scroll-margin-block: calc(
+        var(--sticky-stack-h) + var(--diff-line-cover) + var(--ring-room)
+      )
+      calc(var(--sidebar-reserve-bottom) + var(--space-6));
+  }
+
   .line {
     font-family: var(--font-mono);
     font-size: var(--font-size-2);

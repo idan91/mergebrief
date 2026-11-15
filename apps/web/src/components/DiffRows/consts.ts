@@ -68,6 +68,15 @@ export const TAB_ENTRY_STOPS: ReadonlySet<string> = new Set<LineStop>([
   LineStops.LEFT,
   LineStops.RIGHT,
 ]);
+/** A line stop's `data-state` only while `revealLineStop` scrolls to it: a scroll to target never takes its margin. */
+export const LINE_STEPPING_STATE = "stepping";
+/** Input that hands the scroll back to the reader, ending a reveal's repeats. */
+export const READER_INPUT_EVENTS = [
+  "wheel",
+  "touchstart",
+  "keydown",
+  "pointerdown",
+] as const;
 /** The tab index of the one line stop `useLineStops` keeps in a table's Tab order. */
 export const IN_TAB_ORDER = 0;
 /** The tab index every other line stop renders with. */

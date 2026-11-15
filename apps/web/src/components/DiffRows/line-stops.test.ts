@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   findLineStep,
   findRowStop,
   readLineStop,
+  REVEAL_FRAME_BUDGET,
+  revealLineStop,
   syncTabStop,
 } from "./line-stops";
 
@@ -161,5 +163,147 @@ describe("readLineStop", () => {
     expect(readLineStop(line)?.tagName).toBe("TR");
     expect(readLineStop(body.querySelector("button"))).toBeUndefined();
     expect(readLineStop(null)).toBeUndefined();
+  });
+});
+
+describe("revealLineStop", () => {
+  const MORE_FRAMES_THAN_THE_BUDGET = REVEAL_FRAME_BUDGET * 3;
+
+  function mountStops() {
+    const body = mountBody(
+      '<tr id="a" data-line-stop="row" tabindex="0"></tr>' +
+        '<tr id="b" data-line-stop="row" tabindex="-1"></tr>',
+    );
+    document.body.append(body.parentElement ?? body);
+    const [first, second] = body.querySelectorAll<HTMLElement>("tr");
+    if (first === undefined || second === undefined) {
+      throw new Error("no line stops");
+    }
+    const firstScroll = vi.fn();
+    const secondScroll = vi.fn();
+    first.scrollIntoView = firstScroll;
+    second.scrollIntoView = secondScroll;
+    return { first, second, firstScroll, secondScroll };
+  }
+
+  function runFrames(count: number): void {
+    for (let frame = 0; frame < count; frame += 1) {
+      vi.advanceTimersToNextFrame();
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+    });
+  });
+
+  afterEach(() => {
+    // A reveal still repeating belongs to the test that started it.
+    window.dispatchEvent(new Event("wheel"));
+    vi.useRealTimers();
+    document.body.replaceChildren();
+  });
+
+  it("scrolls a focused line again on the next frame", () => {
+    const { first, firstScroll } = mountStops();
+    first.focus();
+
+    revealLineStop(first);
+    expect(firstScroll).toHaveBeenCalledTimes(1);
+    runFrames(1);
+
+    expect(firstScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops repeating once its frames are spent", () => {
+    const { first, firstScroll } = mountStops();
+    first.focus();
+
+    revealLineStop(first);
+    runFrames(MORE_FRAMES_THAN_THE_BUDGET);
+
+    expect(firstScroll).toHaveBeenCalledTimes(1 + REVEAL_FRAME_BUDGET);
+  });
+
+  it("stops repeating once focus has left the line", () => {
+    const { first, second, firstScroll } = mountStops();
+    first.focus();
+
+    revealLineStop(first);
+    second.focus();
+    runFrames(MORE_FRAMES_THAN_THE_BUDGET);
+
+    expect(firstScroll).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the frames to a newer reveal", () => {
+    const { first, second, firstScroll, secondScroll } = mountStops();
+    first.focus();
+    revealLineStop(first);
+    second.focus();
+
+    revealLineStop(second);
+    runFrames(1);
+
+    expect(firstScroll).toHaveBeenCalledTimes(1);
+    expect(secondScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["wheel", "touchstart", "keydown", "pointerdown"])(
+    "stops repeating once the reader sends a %s",
+    (type) => {
+      const { first, firstScroll } = mountStops();
+      first.focus();
+
+      revealLineStop(first);
+      runFrames(1);
+      window.dispatchEvent(new Event(type));
+      runFrames(MORE_FRAMES_THAN_THE_BUDGET);
+
+      expect(firstScroll).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("repeats again for a step taken after the reader's input", () => {
+    const { first, firstScroll } = mountStops();
+    first.focus();
+    revealLineStop(first);
+    window.dispatchEvent(new Event("wheel"));
+
+    revealLineStop(first);
+    runFrames(1);
+
+    expect(firstScroll).toHaveBeenCalledTimes(3);
+  });
+
+  it("removes each input listener as it was added once its frames are spent", () => {
+    const { first } = mountStops();
+    first.focus();
+    const addListener = vi.spyOn(window, "addEventListener");
+    const removeListener = vi.spyOn(window, "removeEventListener");
+
+    revealLineStop(first);
+    runFrames(MORE_FRAMES_THAN_THE_BUDGET);
+
+    expect(addListener.mock.calls.length).toBeGreaterThan(0);
+    expect(removeListener.mock.calls).toEqual(addListener.mock.calls);
+    addListener.mockRestore();
+    removeListener.mockRestore();
+  });
+
+  it("carries the stepping mark only while it scrolls", () => {
+    const { first, firstScroll } = mountStops();
+    first.focus();
+    const marks: (string | undefined)[] = [];
+    firstScroll.mockImplementation(() => {
+      marks.push(first.dataset["state"]);
+    });
+
+    revealLineStop(first);
+    runFrames(1);
+
+    expect(marks).toEqual(["stepping", "stepping"]);
+    expect(first.dataset["state"]).toBeUndefined();
   });
 });

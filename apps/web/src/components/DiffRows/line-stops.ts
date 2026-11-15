@@ -2,8 +2,10 @@ import {
   IN_TAB_ORDER,
   LINE_STOP_ATTRIBUTE,
   LINE_STOP_COLUMNS,
+  LINE_STEPPING_STATE,
   LINE_STOP_SELECTOR,
   OFF_TAB_ORDER,
+  READER_INPUT_EVENTS,
   TAB_ENTRY_STOPS,
 } from "./consts";
 import { type LineStop, LineStops, type SplitSide } from "./types";
@@ -12,6 +14,24 @@ type LineStep = (
   column: readonly HTMLElement[],
   position: number,
 ) => HTMLElement | undefined;
+
+/** Instant: a held arrow key restarts a smooth scroll on every repeat. */
+const REVEALED_LINE_SCROLL: ScrollIntoViewOptions = {
+  block: "nearest",
+  inline: "nearest",
+  behavior: "instant",
+};
+
+/**
+ * Frames a reveal is repeated for. A step that scrolls new cards in makes the
+ * card list measure them a frame or two later, and its own scroll correction
+ * then lands over the step's, from an offset older than the step.
+ */
+export const REVEAL_FRAME_BUDGET = 6;
+
+let cancelPendingReveal: (() => void) | undefined;
+
+const READER_INPUT_LISTENER = { capture: true, passive: true } as const;
 
 /** Where each key steps to within one column of a table's line stops. */
 const LINE_STEPS: Record<string, LineStep> = {
@@ -99,4 +119,54 @@ export function findLineStep(
     (stop) => readLineStopColumn(stop) === fromColumn,
   );
   return step(column, column.indexOf(from));
+}
+
+function scrollStopClear(stop: HTMLElement): void {
+  stop.dataset["state"] = LINE_STEPPING_STATE;
+  stop.scrollIntoView(REVEALED_LINE_SCROLL);
+  delete stop.dataset["state"];
+}
+
+/**
+ * Scrolls a focused line clear of the pinned bars. The browser scrolls a
+ * focused line only once it leaves the viewport, and a bar hides it long
+ * before that; the mark carries the margin for these scrolls only, so a
+ * scroll to target never takes it. Repeated while the line keeps focus: a
+ * line already clear does not move. The reader's next input ends the
+ * repeats, so a wheel or a key right after a step is never scrolled back.
+ */
+export function revealLineStop(stop: HTMLElement): void {
+  cancelPendingReveal?.();
+  scrollStopClear(stop);
+
+  let framesLeft = REVEAL_FRAME_BUDGET;
+  let frame = 0;
+  const endReveal = () => {
+    cancelAnimationFrame(frame);
+    for (const type of READER_INPUT_EVENTS) {
+      window.removeEventListener(type, endReveal, READER_INPUT_LISTENER);
+    }
+    cancelPendingReveal = undefined;
+  };
+  const repeatReveal = () => {
+    const holdsFocus = stop.ownerDocument.activeElement === stop;
+    if (!holdsFocus) {
+      endReveal();
+      return;
+    }
+    scrollStopClear(stop);
+    framesLeft -= 1;
+    if (framesLeft > 0) {
+      frame = requestAnimationFrame(repeatReveal);
+    } else {
+      endReveal();
+    }
+  };
+
+  // Capture: the key press that made this step has already passed the window.
+  for (const type of READER_INPUT_EVENTS) {
+    window.addEventListener(type, endReveal, READER_INPUT_LISTENER);
+  }
+  frame = requestAnimationFrame(repeatReveal);
+  cancelPendingReveal = endReveal;
 }

@@ -17,6 +17,7 @@ import {
   EXPANDED_RIGHT_NUMBER_SELECTOR,
   EXPANDED_ROW_SELECTOR,
 } from "@web/components/DiffRows/consts";
+import { LINE_STEPPING_STATE } from "@web/components/DiffRows/consts";
 import type { DiffView } from "@web/components/DiffRows/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import {
@@ -1195,6 +1196,33 @@ describe("DiffTable expansion click", () => {
     );
   });
 
+  it("reveals the first new line under the stepping mark", async () => {
+    const { view, queryClient } = renderHarness({
+      chunk: stubShortChunk(),
+      view: "unified",
+    });
+    seedRange(queryClient, 1, 4, 80);
+    const revealed: (string | undefined)[] = [];
+    const scrollIntoView = vi
+      .spyOn(HTMLTableRowElement.prototype, "scrollIntoView")
+      .mockImplementation(function (this: HTMLTableRowElement) {
+        revealed.push(this.dataset["state"]);
+      });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show all 4 hidden lines above" }),
+    );
+
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(4));
+    // The reveal repeats for a few frames; each one carries the mark.
+    const unmarked = revealed.filter((state) => state !== LINE_STEPPING_STATE);
+    expect(revealed.length).toBeGreaterThan(0);
+    expect(unmarked).toEqual([]);
+    expect(expandedRows(view.container)[0]?.hasAttribute("data-state")).toBe(
+      false,
+    );
+    scrollIntoView.mockRestore();
+  });
+
   it("keeps the control's row where it was when rows land above it", async () => {
     const { view, queryClient } = renderHarness({
       chunk: stubChunk(),
@@ -1202,6 +1230,10 @@ describe("DiffTable expansion click", () => {
     });
     seedRange(queryClient, 33, 52, 80);
     const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    const scrollIntoView = vi.spyOn(
+      HTMLTableRowElement.prototype,
+      "scrollIntoView",
+    );
     // The click measures once; the landing measures once more.
     const tops = [100, 540];
     const rect = vi
@@ -1217,8 +1249,10 @@ describe("DiffTable expansion click", () => {
       expect(expandedRows(view.container)).toHaveLength(20);
       expect(scrollBy).toHaveBeenCalledWith({ top: 440, behavior: "instant" });
     });
+    expect(scrollIntoView).not.toHaveBeenCalled();
     rect.mockRestore();
     scrollBy.mockRestore();
+    scrollIntoView.mockRestore();
   });
 
   it("focuses the first new line when a spent arrow leaves its row standing", async () => {

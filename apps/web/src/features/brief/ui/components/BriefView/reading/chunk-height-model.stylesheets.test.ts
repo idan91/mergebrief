@@ -316,8 +316,32 @@ describe("sideways head stylesheet length", () => {
       "block-size",
       isUnderLandscapeQuery,
     );
-    const desktopPx = readLengthPx(desktop, "min-block-size", phoneTokens);
-    const sidewaysPx = readLengthPx(sideways, "block-size", phoneTokens);
+    const desktopChunk = findRule(
+      chunkCardRules,
+      ".chunk",
+      "--chunk-head-h",
+      isOutsideMedia,
+    );
+    const sidewaysChunk = findRule(
+      chunkCardRules,
+      ".chunk",
+      "--chunk-head-h",
+      isUnderLandscapeQuery,
+    );
+    const desktopProperties = new Map([
+      ...phoneTokens,
+      ...collectCustomProperties([desktopChunk]),
+    ]);
+    const sidewaysProperties = new Map([
+      ...desktopProperties,
+      ...collectCustomProperties([sidewaysChunk]),
+    ]);
+    const desktopPx = readLengthPx(
+      desktop,
+      "min-block-size",
+      desktopProperties,
+    );
+    const sidewaysPx = readLengthPx(sideways, "block-size", sidewaysProperties);
 
     expect(desktopPx - sidewaysPx).toBe(LANDSCAPE_HEAD_SHORTFALL_PX);
     expect(readValue(sideways, "min-block-size")).toBe("0");

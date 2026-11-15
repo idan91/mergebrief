@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { SYNTAX_PALETTE } from "@web/utils/diffTokens/palette";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { DiffRows } from ".";
+import { LINE_STEPPING_STATE } from "./consts";
+import { REVEAL_FRAME_BUDGET } from "./line-stops";
 import tokenStyles from "./DiffCodeText/DiffCodeText.module.scss";
 import styles from "./DiffRows.module.scss";
 import { DiffViews } from "./types";
@@ -69,6 +71,11 @@ const ROW_STYLESHEET = join(TEST_DIRECTORY, "DiffRows.module.scss");
 const STYLES_DIRECTORY = join(TEST_DIRECTORY, "../../styles");
 const UNIFIED_HANG =
   /\.line > \.code \{[^}]*padding-inline-start: calc\(1\.5rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\)\)/;
+/** Every rule of the row stylesheet that sets a scroll margin. */
+const SCROLL_MARGIN_RULE = /[^{}]+\{[^{}]*scroll-margin[^{}]*\}/g;
+const STEPPING_SELECTORS = new RegExp(
+  `^\\s*\\.line\\[data-line-stop\\]\\[data-state="?${LINE_STEPPING_STATE}"?\\],\\s*\\.code\\[data-line-stop\\]\\[data-state="?${LINE_STEPPING_STATE}"?\\]`,
+);
 const SPLIT_HANG =
   /\.line > \.code\[data-side\] \{[^}]*padding-inline-start: calc\(1\.5rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\)\)/;
 const TOKEN_STYLESHEET = join(
@@ -506,6 +513,14 @@ describe("DiffRows", () => {
     ).toEqual(indents);
   });
 
+  it("gives a line stop a scroll margin only while it is stepped to", () => {
+    const { css } = compile(ROW_STYLESHEET, { loadPaths: [STYLES_DIRECTORY] });
+    const marginRules = css.match(SCROLL_MARGIN_RULE) ?? [];
+
+    expect(marginRules).toHaveLength(1);
+    expect(marginRules[0]).toMatch(STEPPING_SELECTORS);
+  });
+
   it("hangs a phone line's wrap under its indent in both views", () => {
     const { css } = compile(ROW_STYLESHEET, { loadPaths: [STYLES_DIRECTORY] });
 
@@ -557,6 +572,109 @@ describe("DiffRows line stops", () => {
 
     expect(afterDown).toBe("del");
     expect(document.activeElement).toBe(first);
+    cleanup();
+  });
+
+  it("scrolls the line it steps to into view at once", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    const next = findLine(view.container, "del");
+    const scrollIntoView = vi.spyOn(next, "scrollIntoView");
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "ArrowDown" });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "instant",
+    });
+    cleanup();
+  });
+
+  it("keeps revealing a stepped line after the step's own key press", () => {
+    vi.useFakeTimers({
+      toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+    });
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    const next = findLine(view.container, "del");
+    const scrollIntoView = vi.spyOn(next, "scrollIntoView");
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "ArrowDown" });
+    for (let frame = 0; frame < REVEAL_FRAME_BUDGET * 2; frame += 1) {
+      vi.advanceTimersToNextFrame();
+    }
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1 + REVEAL_FRAME_BUDGET);
+    vi.useRealTimers();
+    cleanup();
+  });
+
+  it("marks the stepped line only while it scrolls into view", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const first = findLine(view.container, "ctx");
+    const next = findLine(view.container, "del");
+    const statesDuringScroll: (string | undefined)[] = [];
+    vi.spyOn(next, "scrollIntoView").mockImplementation(() => {
+      statesDuringScroll.push(next.dataset["state"]);
+    });
+    first.focus();
+
+    fireEvent.keyDown(first, { key: "ArrowDown" });
+
+    expect(statesDuringScroll).toEqual([LINE_STEPPING_STATE]);
+    expect(next.hasAttribute("data-state")).toBe(false);
+    cleanup();
+  });
+
+  it("marks and reveals a line that a Tab key press focuses", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const line = findLine(view.container, "ctx");
+    const statesDuringScroll: (string | undefined)[] = [];
+    const scrollIntoView = vi
+      .spyOn(line, "scrollIntoView")
+      .mockImplementation(() => {
+        statesDuringScroll.push(line.dataset["state"]);
+      });
+
+    fireEvent.keyDown(document.body, { key: "Tab", shiftKey: true });
+    line.focus();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "instant",
+    });
+    expect(statesDuringScroll).toEqual([LINE_STEPPING_STATE]);
+    expect(line.hasAttribute("data-state")).toBe(false);
+    cleanup();
+  });
+
+  it("leaves a scripted focus with no Tab before it to its caller", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const line = findLine(view.container, "ctx");
+    const scrollIntoView = vi.spyOn(line, "scrollIntoView");
+
+    line.focus();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("forgets a Tab key press once its task has run", async () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const line = findLine(view.container, "ctx");
+    const scrollIntoView = vi.spyOn(line, "scrollIntoView");
+
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    line.focus();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
     cleanup();
   });
 

@@ -4,6 +4,12 @@
 
 @layer components {
   .chunk {
+    --chunk-head-h: #{functions.to-rem(48px)};
+
+    // What the pinned head hides of the card's diff: DiffRows keeps a
+    // focused line clear of it, so this tracks the head's own height.
+    --diff-line-cover: calc(var(--chunk-head-h) + var(--space-4));
+
     margin-block-end: functions.to-rem(layout.$chunk-card-gap);
     border-radius: var(--radius-lg);
     background: var(--color-surface-1);
@@ -53,7 +59,7 @@
     inline-size: 100%;
     align-items: center;
     gap: var(--space-4);
-    min-block-size: functions.to-rem(48px);
+    min-block-size: var(--chunk-head-h);
     padding-block: var(--space-3);
     padding-inline: var(--space-5)
       calc(var(--space-5) + var(--chunk-head-reserve));
@@ -240,6 +246,10 @@
   }
 
   @include mixins.for-breakpoint("mobile", max) {
+    .chunk {
+      --chunk-head-h: #{functions.to-rem(56px)};
+    }
+
     .head {
       // The twist's width plus the toggle gap, so the counts align under the path.
       --twist-lane: #{functions.to-rem(22px)};
@@ -248,7 +258,7 @@
       grid-template-columns: minmax(0, 1fr) auto functions.to-rem(44px);
       grid-template-rows: 1fr 1fr;
       align-items: stretch;
-      block-size: functions.to-rem(56px);
+      block-size: var(--chunk-head-h);
       gap: 0 var(--space-3);
       padding: 0;
       padding-inline-start: var(--space-4);
@@ -301,6 +311,10 @@
   }
 
   @include mixins.for-landscape-phone {
+    .chunk {
+      --chunk-head-h: #{functions.to-rem(44px)};
+    }
+
     :root:has([data-landscape-row]) .head {
       position: static;
     }
@@ -308,7 +322,7 @@
     .head {
       display: flex;
       align-items: center;
-      block-size: functions.to-rem(44px);
+      block-size: var(--chunk-head-h);
       min-block-size: 0;
       gap: var(--space-3-5);
       padding: 0;

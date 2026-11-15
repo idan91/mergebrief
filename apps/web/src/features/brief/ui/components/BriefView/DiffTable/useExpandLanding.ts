@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { type RefObject, useLayoutEffect, useRef } from "react";
 
+import { revealLineStop } from "@web/components/DiffRows/line-stops";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { ExpandedEvent } from "./ExpandControl";
 import { focusExpandedLine } from "./utils";
@@ -48,9 +49,12 @@ export function useExpandLanding({
     // anchored row keeps its viewport: the focus must not scroll again.
     const kept = row?.contains(document.activeElement) === true;
     if (!kept) {
-      focusExpandedLine(tableRef.current, landing.range.start, {
-        preventScroll: anchored,
+      const line = focusExpandedLine(tableRef.current, landing.range.start, {
+        preventScroll: true,
       });
+      if (!anchored && line !== undefined) {
+        revealLineStop(line);
+      }
     }
     if (count > 0) {
       announce(t("brief.diff.expandShown", { count }));

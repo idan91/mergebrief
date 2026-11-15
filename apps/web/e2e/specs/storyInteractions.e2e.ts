@@ -1,7 +1,7 @@
 // The story surface's interactive affordances: disclosure and jump
 // behaviours that only exist once the page is hydrated, and that jsdom cannot
 // judge because they turn on layout and real focus.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
@@ -258,4 +258,151 @@ test("a diff table is one Tab stop and the arrows step its lines", async ({
     () => document.activeElement?.hasAttribute("data-line-stop") ?? false,
   );
   expect(focusIsOnALine).toBe(false);
+});
+
+/** Lines the keyboard steps over a sticky edge in the line-stop tests. */
+const LINE_STEPS = 4;
+/** How far below the stack's bottom the covered line starts: under the card's pinned head. */
+const COVERED_INSET_PX = 4;
+/** How far above the bottom bar the start line ends, so the next line starts under it. */
+const ABOVE_BAR_PX = 2;
+/** An upright phone, where a card's pinned head is its two-line phone height. */
+const UPRIGHT_PHONE_VIEWPORT = { width: 390, height: 844 };
+/** Wide enough for the page, narrow enough that the sidebar is the bottom bar. */
+const BOTTOM_BAR_VIEWPORT = { width: 1000, height: 800 };
+
+/** A line's top minus its card's pinned head's bottom: negative while covered. */
+function readHeadClearance(line: Locator): Promise<number> {
+  return line.evaluate((element) => {
+    const head = element.closest("article")?.firstElementChild;
+    if (head === null || head === undefined) {
+      throw new Error("the line has no card head");
+    }
+    return (
+      element.getBoundingClientRect().top - head.getBoundingClientRect().bottom
+    );
+  });
+}
+
+/**
+ * A focused line's top, less how far its focus ring reaches above it, minus
+ * its card's pinned head's bottom: negative while the ring is covered.
+ */
+function readRingClearance(line: Locator): Promise<number> {
+  return line.evaluate((element) => {
+    const head = element.closest("article")?.firstElementChild;
+    if (head === null || head === undefined) {
+      throw new Error("the line has no card head");
+    }
+    const style = getComputedStyle(element);
+    const ringReach = Math.max(
+      0,
+      Number.parseFloat(style.outlineWidth) +
+        Number.parseFloat(style.outlineOffset),
+    );
+    const ringTop = element.getBoundingClientRect().top - ringReach;
+    return ringTop - head.getBoundingClientRect().bottom;
+  });
+}
+
+/** Highlighting lands after first paint and can move a line already placed. */
+async function waitForHighlightedDiffs(page: Page): Promise<void> {
+  await expect(page.locator('tbody[data-tokens="pending"]')).toHaveCount(0);
+}
+
+/**
+ * Focuses the last line of `#c2` and scrolls the line `LINE_STEPS` above it
+ * under the card's pinned head; returns that covered line.
+ */
+async function coverLineUnderHead(page: Page): Promise<Locator> {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await waitForHighlightedDiffs(page);
+  const lines = page.locator("article#c2 table [data-line-stop]");
+  const lineCount = await lines.count();
+  const target = lines.nth(lineCount - 1 - LINE_STEPS);
+  await lines.last().focus();
+  await target.evaluate((line, insetPx) => {
+    const stackHeight = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--sticky-stack-h",
+      ),
+    );
+    const top = line.getBoundingClientRect().top - (stackHeight + insetPx);
+    window.scrollBy({ top, behavior: "instant" });
+  }, COVERED_INSET_PX);
+  expect(await readHeadClearance(target)).toBeLessThan(0);
+  return target;
+}
+
+test("a line stepped to under the sticky bars comes out from under them", async ({
+  page,
+}) => {
+  const target = await coverLineUnderHead(page);
+
+  for (let step = 0; step < LINE_STEPS; step += 1) {
+    await page.keyboard.press("ArrowUp");
+  }
+
+  await expect(target).toBeFocused();
+  await expect.poll(() => readHeadClearance(target)).toBeGreaterThanOrEqual(0);
+});
+
+test.describe("an upright phone", () => {
+  test.use({
+    viewport: UPRIGHT_PHONE_VIEWPORT,
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("a line stepped to under the card head clears it with its ring", async ({
+    page,
+  }) => {
+    const target = await coverLineUnderHead(page);
+
+    for (let step = 0; step < LINE_STEPS; step += 1) {
+      await page.keyboard.press("ArrowUp");
+    }
+
+    await expect(target).toBeFocused();
+    await expect
+      .poll(() => readRingClearance(target))
+      .toBeGreaterThanOrEqual(0);
+  });
+});
+
+test("a line stepped to over the bottom bar comes out above it", async ({
+  page,
+}) => {
+  await page.setViewportSize(BOTTOM_BAR_VIEWPORT);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await waitForHighlightedDiffs(page);
+  const bar = page.getByTestId("sidebar-bar");
+  await expect(bar).toBeVisible();
+  const lines = page.locator("article#c2 table [data-line-stop]");
+  const lineCount = await lines.count();
+  const start = lines.nth(lineCount - 1 - LINE_STEPS);
+  const target = lines.last();
+  await start.focus();
+  const barTop = await bar.evaluate(
+    (element) => element.getBoundingClientRect().top,
+  );
+  await start.evaluate((line, bottom) => {
+    const top = line.getBoundingClientRect().bottom - bottom;
+    window.scrollBy({ top, behavior: "instant" });
+  }, barTop - ABOVE_BAR_PX);
+  const readBarOverlap = (line: Locator) =>
+    line.evaluate(
+      (element, top) => element.getBoundingClientRect().bottom - top,
+      barTop,
+    );
+  expect(
+    await readBarOverlap(lines.nth(lineCount - LINE_STEPS)),
+  ).toBeGreaterThan(0);
+
+  for (let step = 0; step < LINE_STEPS; step += 1) {
+    await page.keyboard.press("ArrowDown");
+  }
+
+  await expect(target).toBeFocused();
+  await expect.poll(() => readBarOverlap(target)).toBeLessThanOrEqual(0);
 });
