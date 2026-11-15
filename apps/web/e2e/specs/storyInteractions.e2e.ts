@@ -260,6 +260,22 @@ test("a diff table is one Tab stop and the arrows step its lines", async ({
   expect(focusIsOnALine).toBe(false);
 });
 
+test("a focused diff line keeps focus across the D view switch", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  // c1 changes one line, so it pairs a deletion with its addition in split.
+  const card = page.locator("article#c1");
+  const table = card.locator("table").first();
+  await expect(table).toHaveAttribute("data-view", "unified");
+  await table.locator("[data-line-stop]").first().focus();
+
+  await page.keyboard.press("d");
+
+  await expect(table).toHaveAttribute("data-view", "split");
+  await expect(card.locator("[data-line-stop]:focus")).toHaveCount(1);
+});
+
 /** Lines the keyboard steps over a sticky edge in the line-stop tests. */
 const LINE_STEPS = 4;
 /** How far below the stack's bottom the covered line starts: under the card's pinned head. */

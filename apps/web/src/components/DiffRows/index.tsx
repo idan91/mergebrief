@@ -53,6 +53,7 @@ export function DiffRows({
     return (
       <SplitRows
         anchorAttributes={anchorAttributes}
+        bodyRef={lineStopsRef}
         lineNumberAttributes={lineNumberAttributes}
         codeTrailer={codeTrailer}
         lineNumberContent={lineNumberContent}

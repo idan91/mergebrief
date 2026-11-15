@@ -1,5 +1,6 @@
 import {
   IN_TAB_ORDER,
+  LINE_ATTRIBUTES,
   LINE_STOP_ATTRIBUTE,
   LINE_STOP_COLUMNS,
   LINE_STEPPING_STATE,
@@ -8,7 +9,14 @@ import {
   READER_INPUT_EVENTS,
   TAB_ENTRY_STOPS,
 } from "./consts";
-import { type LineStop, LineStops, type SplitSide } from "./types";
+import {
+  type LineOnSide,
+  type LineStop,
+  LineStops,
+  type SplitSide,
+} from "./types";
+import { findRowByLine } from "./utils";
+import { type DiffSide, DiffSides } from "types/comments";
 
 type LineStep = (
   column: readonly HTMLElement[],
@@ -32,6 +40,9 @@ export const REVEAL_FRAME_BUDGET = 6;
 let cancelPendingReveal: (() => void) | undefined;
 
 const READER_INPUT_LISTENER = { capture: true, passive: true } as const;
+
+/** The order a focused line looks for itself in the other view: the new side first. */
+const SIDES_BY_PREFERENCE: readonly DiffSide[] = [DiffSides.NEW, DiffSides.OLD];
 
 /** Where each key steps to within one column of a table's line stops. */
 const LINE_STEPS: Record<string, LineStep> = {
@@ -169,4 +180,67 @@ export function revealLineStop(stop: HTMLElement): void {
   }
   frame = requestAnimationFrame(repeatReveal);
   cancelPendingReveal = endReveal;
+}
+
+/** A unified row holds both number cells; a split code cell follows its one. */
+function listNumberCells(stop: HTMLElement): Element[] {
+  if (stop instanceof HTMLTableRowElement) {
+    return [...stop.cells];
+  }
+  const numberCell = stop.previousElementSibling;
+  return numberCell === null ? [] : [numberCell];
+}
+
+/** The lines a stop shows, new side first, read off its number cells. */
+function readStopLines(stop: HTMLElement): LineOnSide[] {
+  const cells = listNumberCells(stop);
+  const lines: LineOnSide[] = [];
+  for (const side of SIDES_BY_PREFERENCE) {
+    for (const cell of cells) {
+      const value = cell.getAttribute(LINE_ATTRIBUTES[side]);
+      if (value !== null) {
+        lines.push({ side, line: Number(value) });
+      }
+    }
+  }
+  return lines;
+}
+
+/** The stop in `body` showing the first of `lines` the body holds. */
+function findStopShowing(
+  body: HTMLElement,
+  lines: readonly LineOnSide[],
+): HTMLElement | undefined {
+  for (const { side, line } of lines) {
+    const stop = readLineStop(findRowByLine(body, side, line));
+    if (stop !== undefined) {
+      return stop;
+    }
+  }
+  return undefined;
+}
+
+/** The lines the focused stop shows, while focus sits on a stop in `body`. */
+export function readFocusedLines(body: HTMLElement): LineOnSide[] | undefined {
+  const focused = readLineStop(body.ownerDocument.activeElement);
+  if (focused === undefined || !body.contains(focused)) {
+    return undefined;
+  }
+  return readStopLines(focused);
+}
+
+/**
+ * Focuses the stop in `body` showing `lines`, only while focus has fallen
+ * to the page itself: anything focused since keeps it.
+ */
+export function focusCarriedLine(
+  body: HTMLElement,
+  lines: readonly LineOnSide[],
+): void {
+  const page = body.ownerDocument;
+  const active = page.activeElement;
+  if (active !== null && active !== page.body) {
+    return;
+  }
+  findStopShowing(body, lines)?.focus({ preventScroll: true });
 }

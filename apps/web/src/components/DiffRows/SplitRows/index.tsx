@@ -1,4 +1,9 @@
-import { Fragment, type KeyboardEvent, type ReactNode } from "react";
+import {
+  Fragment,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefCallback,
+} from "react";
 
 import { type DiffLine, type RowTokenMap } from "@web/utils/diffTokens/types";
 import { OFF_TAB_ORDER, SPLIT_ARROW_STOPS, SPLIT_TAB_STOPS } from "../consts";
@@ -22,13 +27,14 @@ import {
   type SplitSide,
   SplitSides,
 } from "../types";
-import { useLineStops } from "../useLineStops";
 import rowStyles from "../DiffRows.module.scss";
 import styles from "./SplitRows.module.scss";
 import { type DiffSide, DiffSides } from "types/comments";
 
 export interface SplitRowsProps {
   rows: DiffLine[];
+  /** The table's `useLineStops` ref, shared with the unified body. */
+  bodyRef: RefCallback<HTMLTableSectionElement>;
   /** Pairs built by the caller once per diff; computed here when absent. */
   pairs?: SplitRow[] | undefined;
   tokensByRow?: RowTokenMap | undefined;
@@ -63,6 +69,7 @@ const NO_LINE_NUMBER_ATTRIBUTES: Record<string, string> = {};
  */
 export function SplitRows({
   rows,
+  bodyRef,
   pairs: givenPairs,
   tokensByRow,
   emphasisByRow,
@@ -79,7 +86,6 @@ export function SplitRows({
   beforeRow,
   trailingRow,
 }: SplitRowsProps) {
-  const lineStopsRef = useLineStops();
   const pairs = givenPairs ?? pairSplitRows(rows);
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
   const seamColumns = seamCell === undefined ? 0 : GUTTER_COLUMNS;
@@ -92,7 +98,7 @@ export function SplitRows({
     <tbody
       data-tokens={tokensPending ? "pending" : undefined}
       data-view="split"
-      ref={lineStopsRef}
+      ref={bodyRef}
     >
       {pairs.map((pair) => {
         if (pair.full !== undefined) {

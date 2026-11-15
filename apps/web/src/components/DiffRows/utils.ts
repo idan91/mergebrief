@@ -1,7 +1,7 @@
 import { DiffLineKinds, type DiffSide } from "types";
 import { type DiffLine } from "@web/utils/diffTokens/types";
 
-import { LINE_ATTRIBUTES } from "./consts";
+import { LINE_ATTRIBUTES, LINE_STOP_ATTRIBUTE } from "./consts";
 import type { CodeIndentStyle } from "./types";
 
 /** CSS's initial `tab-size`; the code cell sets none. */
@@ -63,8 +63,10 @@ export function buildLineCellSelector(side: DiffSide, line: number): string {
 /**
  * The focus target showing a line: the unified row whose number cell on
  * that side matches, or in split view the code cell beside the matching
- * number cell, since a pair's row carries two lines. Only the outermost
- * table counts: a suggestion preview inside a comment renders rows too.
+ * number cell, since a pair's row carries two lines. A split code cell is
+ * a line stop and a unified number cell's neighbour never is. Only the
+ * outermost table counts: a suggestion preview inside a comment renders
+ * rows too.
  */
 export function findRowByLine(
   root: ParentNode,
@@ -75,9 +77,11 @@ export function findRowByLine(
     if (isNested(cell)) {
       continue;
     }
-    if (cell.hasAttribute("data-side")) {
-      const target = cell.nextElementSibling;
-      return target instanceof HTMLElement ? target : null;
+    const beside = cell.nextElementSibling;
+    const isSplitStop =
+      beside instanceof HTMLElement && beside.hasAttribute(LINE_STOP_ATTRIBUTE);
+    if (isSplitStop) {
+      return beside;
     }
     const row = cell.closest("tr");
     return row instanceof HTMLElement ? row : null;

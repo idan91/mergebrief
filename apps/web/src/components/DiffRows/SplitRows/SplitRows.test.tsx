@@ -15,10 +15,17 @@ function stubRows(): DiffLine[] {
   ];
 }
 
+function ignoreBody(): void {}
+
 function renderSplit(props: Partial<Parameters<typeof SplitRows>[0]> = {}) {
   return render(
     <table>
-      <SplitRows anchorAttributes={{}} rows={stubRows()} {...props} />
+      <SplitRows
+        anchorAttributes={{}}
+        bodyRef={ignoreBody}
+        rows={stubRows()}
+        {...props}
+      />
     </table>,
   );
 }

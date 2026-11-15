@@ -47,6 +47,12 @@ export interface SplitRow {
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
 
+/** One line number on one side of the diff, as a number cell shows it. */
+export interface LineOnSide {
+  side: DiffSide;
+  line: number;
+}
+
 /**
  * A line the reader can focus, named for the column the arrow keys step it
  * within: a unified `row`, or a split side. Tab enters a table on any stop

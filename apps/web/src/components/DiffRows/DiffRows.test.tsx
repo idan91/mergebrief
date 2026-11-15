@@ -11,7 +11,7 @@ import { LINE_STEPPING_STATE } from "./consts";
 import { REVEAL_FRAME_BUDGET } from "./line-stops";
 import tokenStyles from "./DiffCodeText/DiffCodeText.module.scss";
 import styles from "./DiffRows.module.scss";
-import { DiffViews } from "./types";
+import { type DiffView, DiffViews } from "./types";
 import { isFullWidthDiffRow } from "./utils";
 
 function stubRows(): DiffLine[] {
@@ -750,6 +750,87 @@ describe("DiffRows line stops", () => {
 
     expect(queryAll).not.toHaveBeenCalled();
     expect(view.container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    cleanup();
+  });
+
+  /** The split code cell beside the number cell showing `line` on a side. */
+  function findSplitCell(
+    container: HTMLElement,
+    side: "old" | "new",
+    line: number,
+  ): Element | null | undefined {
+    return container.querySelector(`td[data-line-${side}="${String(line)}"]`)
+      ?.nextElementSibling;
+  }
+
+  function rerenderView(
+    view: ReturnType<typeof renderRows>,
+    diffView: DiffView,
+  ): void {
+    view.rerender(
+      <table>
+        <DiffRows
+          rows={stubRows()}
+          rowAttributes={stubFocusableAttributes}
+          view={diffView}
+        />
+      </table>,
+    );
+  }
+
+  it("keeps focus on a context line's new side when it turns split", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    findLine(view.container, "ctx").focus();
+
+    rerenderView(view, DiffViews.SPLIT);
+
+    expect(document.activeElement).toBe(
+      findSplitCell(view.container, "new", 1),
+    );
+    expect(listTabStops(view.container)).toEqual(["ctx"]);
+    cleanup();
+  });
+
+  it("keeps focus on a deleted line's old side when it turns split", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    findLine(view.container, "del").focus();
+
+    rerenderView(view, DiffViews.SPLIT);
+
+    expect(document.activeElement).toBe(
+      findSplitCell(view.container, "old", 2),
+    );
+    cleanup();
+  });
+
+  it("keeps focus on the same line when it turns unified again", () => {
+    const view = renderRows({
+      rowAttributes: stubFocusableAttributes,
+      view: DiffViews.SPLIT,
+    });
+    const deleted = findSplitCell(view.container, "old", 2);
+    if (!(deleted instanceof HTMLElement)) {
+      throw new Error("no deleted cell");
+    }
+    deleted.focus();
+
+    rerenderView(view, DiffViews.UNIFIED);
+
+    expect(document.activeElement).toBe(findLine(view.container, "del"));
+    cleanup();
+  });
+
+  it("takes no focus on a switch when focus was outside the table", () => {
+    const view = renderRows({ rowAttributes: stubFocusableAttributes });
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    outside.focus();
+
+    rerenderView(view, DiffViews.SPLIT);
+    rerenderView(view, DiffViews.UNIFIED);
+
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
     cleanup();
   });
 

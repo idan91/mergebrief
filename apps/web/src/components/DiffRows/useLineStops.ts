@@ -2,19 +2,24 @@ import { useCallback, useEffect, useRef, type RefCallback } from "react";
 
 import {
   findLineStep,
+  focusCarriedLine,
+  readFocusedLines,
   readLineStop,
   revealLineStop,
   syncTabStop,
 } from "./line-stops";
+import type { LineOnSide } from "./types";
 
 /**
- * One Tab stop per diff table, bound through the table body's ref. The tab
+ * One Tab stop per diff table, bound through the table body's ref; the
+ * unified and split bodies share one, so focus survives a switch. The tab
  * index and the listeners live on the DOM, not in the render: moving the
  * stop then renders no row, and a table is hundreds.
  */
 export function useLineStops(): RefCallback<HTMLTableSectionElement> {
   const body = useRef<HTMLTableSectionElement | null>(null);
   const tabStop = useRef<HTMLElement | undefined>(undefined);
+  const carriedLines = useRef<LineOnSide[] | undefined>(undefined);
 
   // Every render: rows mount, leave and trade places on any of them, and a
   // new row arrives off the Tab order.
@@ -70,7 +75,19 @@ export function useLineStops(): RefCallback<HTMLTableSectionElement> {
     page.addEventListener("keydown", noteTabPress, { capture: true });
     element.addEventListener("focusin", holdFocusedStop);
     element.addEventListener("keydown", stepBetweenStops);
+
+    // Switching between unified and split swaps this body for the other in
+    // one commit; the line focus sat on carries over to its new stop.
+    const carried = carriedLines.current;
+    carriedLines.current = undefined;
+    if (carried !== undefined) {
+      focusCarriedLine(element, carried);
+    }
+
     return () => {
+      // React detaches the ref before it removes the body, so focus still
+      // sits on its line here.
+      carriedLines.current = readFocusedLines(element);
       page.removeEventListener("keydown", noteTabPress, { capture: true });
       element.removeEventListener("focusin", holdFocusedStop);
       element.removeEventListener("keydown", stepBetweenStops);

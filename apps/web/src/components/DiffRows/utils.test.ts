@@ -67,8 +67,8 @@ describe("findRowByLine", () => {
 
   it("finds the split cell on the side, the pair's row is not the target", () => {
     const root = mount(
-      '<table><tbody><tr><td data-side="left" data-line-old="14">14</td><td id="l" data-side="left" tabindex="-1"></td>' +
-        '<td data-side="right" data-line-new="11">11</td><td id="r" data-side="right" tabindex="0"></td></tr></tbody></table>',
+      '<table><tbody><tr><td data-line-old="14">14</td><td id="l" data-line-stop="left" tabindex="-1"></td>' +
+        '<td data-line-new="11">11</td><td id="r" data-line-stop="right" tabindex="0"></td></tr></tbody></table>',
     );
 
     expect(findRowByLine(root, "new", 11)?.id).toBe("r");
