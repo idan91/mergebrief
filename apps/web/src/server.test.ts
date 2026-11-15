@@ -1,3 +1,4 @@
+import { brotliDecompressSync } from "node:zlib";
 import { SECURITY_RESPONSE_HEADERS } from "contract";
 import { HttpMethods } from "types";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -106,6 +107,43 @@ describe("server entry", () => {
     expect(response.headers.get("content-encoding")).toBe("gzip");
     const body = response.body?.pipeThrough(new DecompressionStream("gzip"));
     expect(await new Response(body).text()).toBe("+a\n");
+  });
+  it("compresses a rendered document for a same-origin navigation", async () => {
+    rendered.page = new Response("<html></html>", {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+    const inbound = new Request("http://localhost/repos/1/pulls/2", {
+      headers: {
+        "accept-encoding": "br",
+        "sec-fetch-site": "same-origin",
+        cookie: "mb_session=opaque",
+      },
+    });
+
+    const response = await serverEntry.fetch(inbound);
+
+    expect(response.headers.get("content-encoding")).toBe("br");
+    const compressed = Buffer.from(await response.arrayBuffer());
+    expect(brotliDecompressSync(compressed).toString()).toBe("<html></html>");
+  });
+
+  it("sends a cross-site navigation its document in identity bytes", async () => {
+    rendered.page = new Response("<html></html>", {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+    const inbound = new Request("http://localhost/repos/1/pulls/2", {
+      headers: {
+        "accept-encoding": "br",
+        "sec-fetch-site": "cross-site",
+        cookie: "mb_session=opaque",
+      },
+    });
+
+    const response = await serverEntry.fetch(inbound);
+
+    expect(response.headers.get("content-encoding")).toBeNull();
+    expect(response.headers.get("vary")).toContain("sec-fetch-site");
+    expect(await response.text()).toBe("<html></html>");
   });
 });
 

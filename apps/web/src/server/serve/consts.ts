@@ -5,8 +5,6 @@ export const REVALIDATE_CACHE_CONTROL = "no-cache";
 
 /** base64url characters of the content's sha256 an ETag keeps: 160 bits. */
 export const ETAG_HASH_LENGTH = 27;
-/** Below this, compression saves less than its own headers cost. */
-export const MIN_COMPRESSED_BYTES = 1024;
 /** Compressed once at boot, so a slower, smaller setting than the per-request default pays. */
 export const BROTLI_QUALITY = 9;
 export const NOT_MODIFIED_STATUS = 304;

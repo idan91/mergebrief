@@ -69,6 +69,10 @@ to give it, with the `/api/auth/*` rule matched first:
   `/readyz` only for a monitor outside it.
 - **An open tab:** it calls `/api/auth/*` too, so it needs a reload once the IdP
   session expires.
+- **Compression:** leave it off at the proxy for pages and `/api` answers. The
+  app compresses its own answers and sends some plain on purpose, and a proxy
+  that compresses would compress exactly those
+  ([compose.md](./compose.md#2-terminate-tls-at-a-reverse-proxy)).
 - **Access rules:** the proxy adds to `operators` and `allowed` and replaces
   neither.
 - **Leavers:** disabling someone in the IdP leaves their API tokens working,

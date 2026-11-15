@@ -15,11 +15,12 @@ import {
   FALLBACK_CONTENT_TYPE,
   HASHED_ASSET_PREFIX,
   HASHED_ASSET_CACHE_CONTROL,
-  MIN_COMPRESSED_BYTES,
   NOT_MODIFIED_STATUS,
   REVALIDATE_CACHE_CONTROL,
 } from "./consts";
 import { readAcceptedCodings } from "../accept-encoding";
+import { MIN_COMPRESSED_BYTES } from "../consts";
+import { type ReplyCoding, ReplyCodings } from "../types";
 
 const compressBrotli = promisify(brotliCompress);
 const compressGzip = promisify(gzip);
@@ -94,7 +95,7 @@ export async function indexStaticFiles(dir: string): Promise<StaticFiles> {
 interface ChosenBody {
   readonly body: FileBytes;
   readonly etag: string;
-  readonly encoding?: string;
+  readonly encoding?: ReplyCoding;
 }
 
 /** Each coding is its own representation, so each carries its own validator. */
@@ -102,13 +103,21 @@ function pickEncoding(file: StaticFile, acceptEncoding: string): ChosenBody {
   const quoted = file.etag.slice(0, -1);
   const accepted = readAcceptedCodings(acceptEncoding);
   const { brotli, gzip: gzipped } = file;
-  const sendsBrotli = brotli !== undefined && accepted.has("br");
+  const sendsBrotli = brotli !== undefined && accepted.has(ReplyCodings.BROTLI);
   if (sendsBrotli) {
-    return { body: brotli, etag: `${quoted}-br"`, encoding: "br" };
+    return {
+      body: brotli,
+      etag: `${quoted}-${ReplyCodings.BROTLI}"`,
+      encoding: ReplyCodings.BROTLI,
+    };
   }
-  const sendsGzip = gzipped !== undefined && accepted.has("gzip");
+  const sendsGzip = gzipped !== undefined && accepted.has(ReplyCodings.GZIP);
   if (sendsGzip) {
-    return { body: gzipped, etag: `${quoted}-gzip"`, encoding: "gzip" };
+    return {
+      body: gzipped,
+      etag: `${quoted}-${ReplyCodings.GZIP}"`,
+      encoding: ReplyCodings.GZIP,
+    };
   }
   return { body: file.body, etag: file.etag };
 }

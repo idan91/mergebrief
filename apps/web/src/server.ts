@@ -16,12 +16,12 @@ import { nameRequestSpan } from "logging";
 import { checkApiReadiness, handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
-import { compressDiffReply } from "./server/api/compression";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
 import {
   formatServerTiming,
   runWithReadTimings,
 } from "./server/api/read-timings";
+import { compressReply } from "./server/compression";
 import { stampDocumentHeaders } from "./server/document-headers";
 import { answerInternalError } from "./server/json-answer";
 import { isRefusedPath } from "./server/refused-paths";
@@ -58,10 +58,10 @@ async function proxyToApi(
     return apiUnavailable(503);
   }
   // The raw request straight through: the exact bytes GitHub signed reach
-  // the webhook route's HMAC check unmodified. Only this browser hop
-  // compresses: an SSR read consumes its Response in process, undecoded.
+  // the webhook route's HMAC check unmodified. Only an answer to the browser
+  // is compressed: an SSR read consumes its Response in process, undecoded.
   const reply = await requestApi(stamped, transport);
-  return compressDiffReply(stamped, reply);
+  return compressReply(stamped, reply);
 }
 
 async function answerRequest(
@@ -94,7 +94,11 @@ async function answerRequest(
     const page = await runWithReadTimings(() =>
       handleStartRequest(stamped, requestOpts),
     );
-    return stampDocumentHeaders(page.value, formatServerTiming(page.reads));
+    const document = stampDocumentHeaders(
+      page.value,
+      formatServerTiming(page.reads),
+    );
+    return compressReply(stamped, document);
   } catch (error) {
     logger.error("web request failed", { err: error, reqId: requestId });
     return answerInternalError();

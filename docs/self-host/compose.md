@@ -498,6 +498,13 @@ on every answer, documents and `/api` alike, so your proxy needs to add none
 of them. The app sends no `Strict-Transport-Security`: that one belongs to the
 proxy, because the proxy owns TLS.
 
+The app compresses its own answers too, and the built client files once at
+boot. A page or `/api` answer is compressed only when the app's own pages, a
+typed address or a cookieless client such as the CLI asked for it; a request
+another site started gets plain bytes, so its size cannot reveal a viewer's
+private brief content. Leave `encode` and `gzip` off in your proxy: it would
+compress exactly those answers.
+
 ### 3. The webhook secret is the ONLY gate on the webhook route
 
 `POST /api/webhooks/github` is unauthenticated by design: GitHub cannot
