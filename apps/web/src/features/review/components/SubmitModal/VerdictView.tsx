@@ -1,5 +1,5 @@
 import type { ReviewOutcome } from "types/reviews";
-import { useState, type RefObject } from "react";
+import { useId, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
@@ -74,6 +74,7 @@ export function VerdictView({
     reasonShown && attachError === status.blockedReason;
   const attachErrorShown =
     attachError !== undefined && !attachErrorRepeatsReason;
+  const attachErrorId = useId();
 
   return (
     <>
@@ -114,11 +115,18 @@ export function VerdictView({
         mentionListLayout={MentionListLayouts.FLOATING}
         announce={announce}
         announceQuietly={announceQuietly}
+        ariaInvalid={attachErrorShown}
+        describedBy={attachErrorShown ? attachErrorId : undefined}
         onAttachError={setAttachError}
         onSubmit={submit.attempt}
       />
       {attachErrorShown ? (
-        <p className={styles["submitStatus"]} data-kind="error" role="alert">
+        <p
+          className={styles["submitStatus"]}
+          data-kind="error"
+          id={attachErrorId}
+          role="alert"
+        >
           {attachError}
         </p>
       ) : null}

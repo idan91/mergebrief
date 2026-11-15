@@ -646,6 +646,35 @@ describe("CommentThread edit write", () => {
     expect(screen.getByLabelText("Edit comment")).toBeTruthy();
   });
 
+  it("ties the edit error to the editor it is about", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "   ",
+    );
+    const editor = screen.getByLabelText("Edit comment");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(editor.getAttribute("aria-describedby")).toBe(
+      screen.getByRole("alert").id,
+    );
+    expect(editor.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("drops the editor's tie to its error once the text changes", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "   ",
+    );
+    const editor = screen.getByLabelText("Edit comment");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    fireEvent.change(editor, { target: { value: "note, amended" } });
+
+    expect(editor.hasAttribute("aria-describedby")).toBe(false);
+    expect(editor.hasAttribute("aria-invalid")).toBe(false);
+  });
+
   it("holds Save, Cancel and Escape while the update is in flight", () => {
     const pending = makeDeferredUpdate();
     openEditorWith(pending.update, "note, amended");

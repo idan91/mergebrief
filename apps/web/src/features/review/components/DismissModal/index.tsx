@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
 import { Modal } from "@web/components/Modal";
@@ -24,6 +24,7 @@ export function DismissModal({
 }: DismissModalProps) {
   const { t } = useTranslation();
   const reasonRef = useRef<HTMLTextAreaElement | null>(null);
+  const warningId = useId();
 
   return (
     <Modal
@@ -40,6 +41,7 @@ export function DismissModal({
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
         ref={reasonRef}
+        aria-describedby={warned ? warningId : undefined}
         aria-label={t("review.dismiss.reasonLabel")}
         suppressHydrationWarning
         value={reason}
@@ -49,7 +51,12 @@ export function DismissModal({
       {/* Conditionally rendered (not CSS-toggled) so its appearance is a DOM
           change role="alert" announces; visible timing is unchanged. */}
       {warned ? (
-        <div className={styles["warn"]} data-state="visible" role="alert">
+        <div
+          className={styles["warn"]}
+          data-state="visible"
+          id={warningId}
+          role="alert"
+        >
           {t("review.dismiss.thinWarning")}
         </div>
       ) : null}

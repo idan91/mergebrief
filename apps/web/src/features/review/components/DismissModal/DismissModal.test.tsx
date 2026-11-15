@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { stubExitTransition } from "@web/test/transitions";
@@ -19,6 +19,7 @@ function stubProps() {
 }
 
 afterEach(() => {
+  cleanup();
   vi.useRealTimers();
 });
 
@@ -37,5 +38,31 @@ describe("DismissModal", () => {
     });
     expect(screen.queryByText(TARGET.label)).toBeNull();
     exitStyle.remove();
+  });
+
+  it("ties the short-reason warning to the reason field, not as an error", () => {
+    render(<DismissModal {...stubProps()} target={TARGET} warned />);
+    const field = screen.getByRole("textbox", {
+      name: "Dismissal reason",
+    });
+
+    expect(field.getAttribute("aria-describedby")).toBe(
+      screen.getByRole("alert").id,
+    );
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("drops the reason field's tie once the warning clears", () => {
+    const props = stubProps();
+    const { rerender } = render(
+      <DismissModal {...props} target={TARGET} warned />,
+    );
+
+    rerender(<DismissModal {...props} target={TARGET} warned={false} />);
+
+    const field = screen.getByRole("textbox", {
+      name: "Dismissal reason",
+    });
+    expect(field.hasAttribute("aria-describedby")).toBe(false);
   });
 });

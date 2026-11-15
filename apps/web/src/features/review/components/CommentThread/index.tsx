@@ -124,6 +124,8 @@ export function CommentThread({
   // else keeps its visible paragraph as the description.
   const postingReason = posting ? t("review.comment.postingReason") : undefined;
   const postReasonId = useId();
+  const editErrorId = useId();
+  const editErrorShown = editError !== undefined;
   const postDescribed = postingReason ?? postBlocked;
   const locationLabel = isFileCommentAnchor(comment.anchor)
     ? t("review.comment.commentOnFile")
@@ -182,14 +184,16 @@ export function CommentThread({
             announce={announce}
             announceQuietly={announceQuietly}
             ariaBusy={saving}
+            ariaInvalid={editErrorShown}
+            describedBy={editErrorShown ? editErrorId : undefined}
             readOnly={saving}
             onAttachError={thread.setEditError}
             onChange={thread.editBody}
             onEscape={thread.cancelEdit}
             onSubmit={thread.saveEdit}
           />
-          {editError !== undefined ? (
-            <p className={styles["postBlocked"]} role="alert">
+          {editErrorShown ? (
+            <p className={styles["postBlocked"]} id={editErrorId} role="alert">
               {editError}
             </p>
           ) : null}

@@ -133,6 +133,34 @@ describe("TokenSettings", () => {
     expect(isCreateHeld()).toBe(false);
   });
 
+  it("ties a name reason to the name field, not the scope", () => {
+    renderSettings();
+    const nameField = screen.getByLabelText(/token name/i);
+
+    fireEvent.change(nameField, { target: { value: "   " } });
+
+    const describedBy = nameField.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(describedBy)?.textContent).toBe(
+      appI18n.t("tokens.nameRequired"),
+    );
+    expect(nameField.getAttribute("aria-invalid")).toBe("true");
+    expect(readScopeDescription()).toBe(appI18n.t("tokens.scopeHint"));
+  });
+
+  it("drops the name field's tie once the name is valid", () => {
+    renderSettings();
+    const nameField = screen.getByLabelText(/token name/i);
+    fireEvent.change(nameField, { target: { value: "   " } });
+
+    fireEvent.change(nameField, { target: { value: "ci-token" } });
+
+    expect(nameField.hasAttribute("aria-describedby")).toBe(false);
+    expect(nameField.hasAttribute("aria-invalid")).toBe(false);
+    expect(readScopeDescription()).toBe(
+      `${appI18n.t("tokens.scopeHint")} ${appI18n.t("tokens.scopeRequired")}`,
+    );
+  });
+
   it("shows each token's scope in the list", () => {
     renderSettings({ tokens: [LIVE_TOKEN] });
     // The picker offers the same labels, so scope the query to the row.

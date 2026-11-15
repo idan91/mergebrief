@@ -13,7 +13,7 @@ import { SCOPE_LABEL_KEY, SCOPE_ORDER } from "./consts";
 import { CreatedToken } from "./CreatedToken";
 import { TokenRow } from "./TokenRow";
 import styles from "./TokenSettings.module.scss";
-import { ExpiryChoices } from "../../types";
+import { ExpiryChoices, MintFields } from "../../types";
 import { describeToken, parseExpiryChoice, parseScopeChoice } from "./utils";
 
 export interface TokenSettingsProps {
@@ -47,12 +47,13 @@ export function TokenSettings({
     nameRef.current?.focus();
   }
 
-  const blockedReasonShown =
-    state.mintBlockedReason !== null && state.name !== "";
-  const scopeDescribedBy = blockedReasonShown
-    ? `${SCOPE_HINT_ID} ${CREATE_BLOCKED_ID}`
-    : SCOPE_HINT_ID;
-  const createHeld = state.mintPending || state.mintBlockedReason !== null;
+  const shownBlock = state.name === "" ? undefined : state.mintBlocked;
+  const nameBlocked = shownBlock?.field === MintFields.NAME;
+  const scopeDescribedBy =
+    shownBlock?.field === MintFields.SCOPE
+      ? `${SCOPE_HINT_ID} ${CREATE_BLOCKED_ID}`
+      : SCOPE_HINT_ID;
+  const createHeld = state.mintPending || state.mintBlocked !== undefined;
   const listEmpty = state.tokens !== undefined && state.tokens.length === 0;
   const hasTokens = state.tokens !== undefined && state.tokens.length > 0;
   const revokeInFlight = state.revokePendingId !== null;
@@ -102,6 +103,8 @@ export function TokenSettings({
         <label className={styles["field"]}>
           <span>{t("tokens.nameLabel")}</span>
           <input
+            aria-describedby={nameBlocked ? CREATE_BLOCKED_ID : undefined}
+            aria-invalid={nameBlocked || undefined}
             maxLength={RequestBounds.TOKEN_NAME_LENGTH}
             onChange={(event) => state.setName(event.target.value)}
             placeholder={t("tokens.namePlaceholder")}
@@ -174,11 +177,11 @@ export function TokenSettings({
         <p className={styles["hint"]} id={SCOPE_HINT_ID}>
           {t("tokens.scopeHint")}
         </p>
-        {blockedReasonShown ? (
+        {shownBlock === undefined ? null : (
           <p className={styles["hint"]} id={CREATE_BLOCKED_ID}>
-            {state.mintBlockedReason}
+            {shownBlock.reason}
           </p>
-        ) : null}
+        )}
         {state.mintError !== null ? (
           <p className={styles["error"]} role="alert">
             {state.mintError}

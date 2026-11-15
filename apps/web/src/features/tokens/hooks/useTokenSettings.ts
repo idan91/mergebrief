@@ -10,8 +10,10 @@ import type { AccessLevel } from "types/access-levels";
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../queries";
 import {
   ExpiryChoices,
+  MintFields,
   type ApiTokenView,
   type ExpiryChoice,
+  type MintBlock,
   type MintedToken,
 } from "../types";
 
@@ -30,8 +32,8 @@ export interface TokenSettingsState {
   readonly setExpiry: (value: ExpiryChoice) => void;
   readonly scope: ScopeChoice;
   readonly setScope: (value: ScopeChoice) => void;
-  /** The deterministic-400 mirror: why the form cannot submit, or null. */
-  readonly mintBlockedReason: string | null;
+  /** The deterministic-400 mirror: why the form cannot submit, and which field it is about. */
+  readonly mintBlocked: MintBlock | undefined;
   readonly mintPending: boolean;
   readonly mintError: string | null;
   readonly submitMint: () => void;
@@ -89,22 +91,27 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   });
 
   const trimmedName = name.trim();
-  const blockedReason = (): string | null => {
+  const readMintBlock = (): MintBlock | undefined => {
     if (trimmedName.length === 0) {
-      return t("tokens.nameRequired");
+      return { field: MintFields.NAME, reason: t("tokens.nameRequired") };
     }
     if (trimmedName.length > RequestBounds.TOKEN_NAME_LENGTH) {
-      return t("tokens.nameTooLong", { max: RequestBounds.TOKEN_NAME_LENGTH });
+      return {
+        field: MintFields.NAME,
+        reason: t("tokens.nameTooLong", {
+          max: RequestBounds.TOKEN_NAME_LENGTH,
+        }),
+      };
     }
     if (scope === SCOPE_UNCHOSEN) {
-      return t("tokens.scopeRequired");
+      return { field: MintFields.SCOPE, reason: t("tokens.scopeRequired") };
     }
-    return null;
+    return undefined;
   };
-  const mintBlockedReason = blockedReason();
+  const mintBlocked = readMintBlock();
 
   const submitMint = (): void => {
-    if (mintBlockedReason !== null || minting.isPending) {
+    if (mintBlocked !== undefined || minting.isPending) {
       return;
     }
     if (scope === SCOPE_UNCHOSEN) {
@@ -142,7 +149,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     setExpiry,
     scope,
     setScope,
-    mintBlockedReason,
+    mintBlocked,
     mintPending: minting.isPending,
     mintError,
     submitMint,

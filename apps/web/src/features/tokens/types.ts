@@ -13,6 +13,19 @@ export const ExpiryChoices = {
 } as const;
 export type ExpiryChoice = ValueOf<typeof ExpiryChoices>;
 
+/** The create-form fields a blocked reason can be about. */
+export const MintFields = {
+  NAME: "name",
+  SCOPE: "scope",
+} as const;
+export type MintField = ValueOf<typeof MintFields>;
+
+/** Why the create form cannot submit, and the field the reason is about. */
+export interface MintBlock {
+  readonly field: MintField;
+  readonly reason: string;
+}
+
 /** One token as the settings list shows it; metadata only, never material. */
 export interface ApiTokenView {
   readonly id: string;

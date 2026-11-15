@@ -420,6 +420,35 @@ describe("SubmitModal views", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
+  it("ties an attach error to the review comment field", () => {
+    renderModal();
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+    fireEvent.change(textbox, {
+      target: { value: "see\n![Uploading shot.png…]()" },
+    });
+
+    fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+
+    expect(textbox.getAttribute("aria-describedby")).toBe(
+      screen.getByRole("alert").id,
+    );
+    expect(textbox.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("drops the comment field's tie once the comment changes", () => {
+    renderModal();
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+    fireEvent.change(textbox, {
+      target: { value: "see\n![Uploading shot.png…]()" },
+    });
+    fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+
+    fireEvent.change(textbox, { target: { value: "see" } });
+
+    expect(textbox.hasAttribute("aria-describedby")).toBe(false);
+    expect(textbox.hasAttribute("aria-invalid")).toBe(false);
+  });
+
   it.each([
     ["Submit then Cmd+Enter", ["click", "keys"]],
     ["Cmd+Enter then Submit", ["keys", "click"]],
