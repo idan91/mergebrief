@@ -3,9 +3,9 @@
 // (import/no-cycle).
 export {
   ConversationSection,
-  type ConversationPlan,
   type ConversationSectionProps,
 } from "./components/ConversationSection";
+export type { ConversationPlan } from "./components/ConversationSection/types";
 export {
   ConversationFilterPanel,
   type ConversationFilterPanelProps,

@@ -1,5 +1,14 @@
-import type { PrConversation } from "../../types";
-import { isStatedVerdict } from "../../utils/filter";
+import type { Mutable } from "types";
+
+import type { MentionSource, PrConversation } from "../../types";
+import { DigestRowKinds, type DigestRow } from "../../utils/digest";
+import {
+  applyConversationFilter,
+  isStatedVerdict,
+  type ConversationFilter,
+} from "../../utils/filter";
+import type { ThreadComposerWiring } from "../../wiring";
+import type { ConversationPlan } from "./types";
 
 /** Input that hands the scroll back to the reader. */
 const READER_INPUT_EVENTS = [
@@ -65,6 +74,94 @@ export function listHeadSummaryParts(
     });
   }
   return parts;
+}
+
+/**
+ * The conversation as the filter leaves it, with a landing target kept in.
+ * A `?thread=` target is exempt: filter keys persist in the URL, so a
+ * filtered-out target would make the jump silently do nothing.
+ */
+export function filterForLanding(
+  conversation: PrConversation,
+  filter: ConversationFilter,
+  focusThreadId: number | undefined,
+): PrConversation {
+  const filtered = applyConversationFilter(conversation, filter);
+  if (focusThreadId === undefined) {
+    return filtered;
+  }
+  const alreadyIn = filtered.threads.some(
+    (thread) => thread.rootCommentId === focusThreadId,
+  );
+  if (alreadyIn) {
+    return filtered;
+  }
+
+  const target = conversation.threads.find(
+    (thread) => thread.rootCommentId === focusThreadId,
+  );
+  return target === undefined
+    ? filtered
+    : { ...filtered, threads: [...filtered.threads, target] };
+}
+
+/** True when the row is the thread's own, or a bot group holding it. */
+export function holdsThread(row: DigestRow, threadId: number): boolean {
+  if (row.kind === DigestRowKinds.THREAD) {
+    return row.thread.rootCommentId === threadId;
+  }
+  return row.threads.some((nested) => nested.thread.rootCommentId === threadId);
+}
+
+export interface ThreadComposerInput {
+  plan: ConversationPlan;
+  readOnlyReason: string | undefined;
+  mentionSource: MentionSource;
+  focusThreadId: number | undefined;
+  refresh: () => void;
+  relandInPlace: () => void;
+}
+
+/**
+ * The wiring a thread's composer writes through. Every conversation write
+ * evicts server-side, so a post and a resolution flip both refetch; draft
+ * reads and writes and announce copy live inside ReplyComposer.
+ */
+export function buildThreadComposer(
+  input: ThreadComposerInput,
+): ThreadComposerWiring {
+  const { plan, refresh, focusThreadId, relandInPlace } = input;
+  const composer: Mutable<ThreadComposerWiring> = {
+    post: plan.postReply,
+    onPosted: refresh,
+    mentionSource: input.mentionSource,
+  };
+  if (input.readOnlyReason !== undefined) {
+    composer.readOnlyReason = input.readOnlyReason;
+  }
+  if (plan.revisionJump !== undefined) {
+    const revisionJump = plan.revisionJump;
+    composer.revisionJump = {
+      ...revisionJump,
+      onJump: (anchorSha, threadId) => {
+        const spot = {
+          currentHeadSha: revisionJump.currentHeadSha,
+          anchorSha,
+          focusThreadId,
+          threadId,
+        };
+        if (shouldRelandInPlace(spot)) {
+          relandInPlace();
+        }
+        revisionJump.onJump(anchorSha, threadId);
+      },
+    };
+  }
+  // A row's slim/full transition comes from this section's refetch, never a local edit.
+  if (plan.resolution !== undefined) {
+    composer.resolution = { ...plan.resolution, refetchConversation: refresh };
+  }
+  return composer;
 }
 
 /**

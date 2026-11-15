@@ -42,11 +42,8 @@ import {
   parseConversationFilter,
   type ConversationFilter,
 } from "../../utils/filter";
-import {
-  ConversationSection,
-  type ConversationPlan,
-  type ConversationSectionProps,
-} from ".";
+import { ConversationSection, type ConversationSectionProps } from ".";
+import type { ConversationPlan } from "./types";
 
 import type * as DigestGroupViewModule from "./DigestGroupView";
 import type { DigestGroupViewProps } from "./DigestGroupView";
