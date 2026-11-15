@@ -9,6 +9,7 @@ import {
 import {
   defaultRangeExtractor,
   useWindowVirtualizer,
+  windowScroll,
   type Range,
   type VirtualItem,
 } from "@tanstack/react-virtual";
@@ -25,6 +26,9 @@ export const SSR_VIEWPORT_RECT = {
   width: 1280,
   height: 900,
 } as const;
+
+/** Where the server reads the page scroll: it has none. */
+const SSR_SCROLL_OFFSET = 0;
 
 const DEFAULT_OVERSCAN = 4;
 
@@ -101,6 +105,10 @@ function readServerHydrating(): boolean {
   return true;
 }
 
+function readWindowScrollOffset(): number {
+  return window.scrollY;
+}
+
 /**
  * Windows one group's chunk-card list against the page scroll.
  *
@@ -115,8 +123,10 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   const [listEl, setListEl] = useState<HTMLElement | null>(null);
   const [active, setActive] = useState(true);
   const [scrollMargin, setScrollMargin] = useState(0);
-  // The server reads the viewport at 0, so hydration does too; the restored
-  // scroll position arrives with the render after it.
+  // The server reads the viewport at 0, so hydration does too, for the
+  // window as for `viewportTop`: a reload restores the scroll before React
+  // hydrates, and a window read off it would not be the one in the HTML.
+  // The restored position arrives with the render after it.
   const hydrating = useSyncExternalStore(
     subscribeToNothing,
     readClientHydrating,
@@ -124,6 +134,7 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   );
   const live = useRef<LiveRefs>({ virtualizer: null, active: true });
   const measurementsSnapshot = useRef<VirtualItem[]>([]);
+  const holdsServerOffset = useRef(false);
 
   const keyIndex = useMemo(() => {
     const map = new Map<string, number>();
@@ -222,6 +233,17 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     [keyIndex, pinnedKeys, jumpKey, near, active],
   );
 
+  // On mount the virtualizer scrolls the page to the offset it holds. Held
+  // at the server's, that would send a restored page back to the top.
+  const scrollUnlessHydrating = useCallback<typeof windowScroll>(
+    (offset, scrollOptions, instance) => {
+      if (!holdsServerOffset.current) {
+        windowScroll(offset, scrollOptions, instance);
+      }
+    },
+    [],
+  );
+
   const virtualizer = useWindowVirtualizer({
     count: chunkKeys.length,
     estimateSize: estimateChunk,
@@ -229,6 +251,8 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     scrollMargin,
     enabled: active,
     initialRect: SSR_VIEWPORT_RECT,
+    initialOffset: hydrating ? SSR_SCROLL_OFFSET : readWindowScrollOffset,
+    scrollToFn: scrollUnlessHydrating,
     initialMeasurementsCache: measurementsSnapshot.current,
     getItemKey: (index) => chunkKeys[index] ?? index,
     rangeExtractor,
@@ -238,6 +262,15 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
   // callbacks, before any effect could set it.
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange ??=
     resolveRestingCompensation();
+  // In render too: the hydrating render cached the server's offset, and no
+  // scroll event follows a restored position to replace it. Cleared, the
+  // next read takes the page's own.
+  if (hydrating) {
+    holdsServerOffset.current = true;
+  } else if (holdsServerOffset.current) {
+    holdsServerOffset.current = false;
+    virtualizer.scrollOffset = null;
+  }
 
   // Latch: refs only advance while active, so a hidden pane keeps serving
   // its last visible window and the kept-warm DOM never changes shape.

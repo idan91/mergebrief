@@ -80,6 +80,16 @@ const SCROLL_RESET_DELAY_MS = 150;
 /** A reload's restored position, short of the first card boundary. */
 const RESTORED_SCROLL_Y = 150;
 
+/** A reload's restored position twenty 600px cards down: past the server's window. */
+const DEEP_RESTORED_SCROLL_Y = 12_000;
+const DEEP_RESTORED_INDEX = 20;
+/** Every card's estimated height in the hydration tests. */
+const CARD_ESTIMATE = 600;
+/** A card far past the restored window, so the jump has to move the page. */
+const JUMP_TARGET_INDEX = 30;
+/** Cards 0 and 1 fill the 900px server viewport; four more ride as overscan. */
+const SERVER_WINDOW = [0, 1, 2, 3, 4, 5];
+
 const KEYS = Array.from(
   { length: 40 },
   (_, i) => `src/file-${String(i)}.ts#c${String(i)}`,
@@ -128,6 +138,43 @@ function renderHarness(overrides: Partial<GroupWindowOptions> = {}) {
   return { view, current };
 }
 
+/**
+ * Hydrates the harness over server markup with the page restored `scrollY`
+ * down, as a reload does.
+ */
+async function hydrateReload(
+  scrollY: number,
+  onWindow: HarnessProps["onWindow"],
+  onRecoverableError: (error: unknown) => void = () => undefined,
+): Promise<void> {
+  vi.stubGlobal("scrollY", scrollY);
+  onTestFinished(() => {
+    vi.unstubAllGlobals();
+  });
+  const options: GroupWindowOptions = {
+    chunkKeys: KEYS,
+    estimateChunk: () => CARD_ESTIMATE,
+  };
+  const container = document.createElement("div");
+  container.innerHTML = renderToString(
+    <Harness options={options} onWindow={() => undefined} />,
+  );
+  document.body.append(container);
+
+  await act(async () => {
+    const root = hydrateRoot(
+      container,
+      <Harness options={options} onWindow={onWindow} />,
+      { onRecoverableError },
+    );
+    onTestFinished(() => {
+      root.unmount();
+      container.remove();
+    });
+    await Promise.resolve();
+  });
+}
+
 describe("useGroupWindow", () => {
   it("renders a bounded window, not the whole list", () => {
     const { current } = renderHarness();
@@ -138,38 +185,68 @@ describe("useGroupWindow", () => {
   });
 
   it("reads the viewport top as the server does while it hydrates", async () => {
-    vi.stubGlobal("scrollY", RESTORED_SCROLL_Y);
-    onTestFinished(() => {
-      vi.unstubAllGlobals();
-    });
-    const options: GroupWindowOptions = {
-      chunkKeys: KEYS,
-      estimateChunk: () => 600,
-    };
-    const container = document.createElement("div");
-    container.innerHTML = renderToString(
-      <Harness options={options} onWindow={() => undefined} />,
-    );
-    document.body.append(container);
     const tops: number[] = [];
 
-    await act(async () => {
-      const root = hydrateRoot(
-        container,
-        <Harness
-          options={options}
-          onWindow={(groupWindow) => tops.push(groupWindow.viewportTop)}
-        />,
-      );
-      onTestFinished(() => {
-        root.unmount();
-        container.remove();
-      });
-      await Promise.resolve();
-    });
+    await hydrateReload(RESTORED_SCROLL_Y, (groupWindow) =>
+      tops.push(groupWindow.viewportTop),
+    );
 
     expect(tops[0]).toBe(0);
     expect(tops.at(-1)).toBe(RESTORED_SCROLL_Y);
+  });
+
+  it("hydrates the server's window after a reload deep in the list", async () => {
+    const onRecoverableError = vi.fn();
+    const windows: number[][] = [];
+    const tops: number[] = [];
+
+    await hydrateReload(
+      DEEP_RESTORED_SCROLL_Y,
+      (groupWindow) => {
+        windows.push(groupWindow.items.map((item) => item.index));
+        tops.push(groupWindow.viewportTop);
+      },
+      onRecoverableError,
+    );
+
+    // jsdom gives the list no offset, so its margin lands on the scroll
+    // position and the last window slides back; the render before that
+    // effect is the one that shows the restored window.
+    const restored = windows.find((indexes) =>
+      indexes.includes(DEEP_RESTORED_INDEX),
+    );
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(windows[0]).toEqual(SERVER_WINDOW);
+    expect(restored).not.toContain(0);
+    expect(tops.at(-1)).toBe(DEEP_RESTORED_SCROLL_Y);
+  });
+
+  it("scrolls the page to a jump's target once hydration ends", async () => {
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: PAGE_HEIGHT,
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(document.documentElement, "scrollHeight");
+    });
+    let latest: ReturnType<typeof useGroupWindow> | undefined;
+    await hydrateReload(DEEP_RESTORED_SCROLL_Y, (groupWindow) => {
+      latest = groupWindow;
+    });
+
+    let jumped: boolean | undefined;
+    act(() => {
+      jumped = latest?.scrollToKey(KEYS[JUMP_TARGET_INDEX] ?? "");
+    });
+
+    // The list's margin is the restored scroll position, as above.
+    const targetTop =
+      DEEP_RESTORED_SCROLL_Y + JUMP_TARGET_INDEX * CARD_ESTIMATE;
+    expect(jumped).toBe(true);
+    expect(window.scrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({ top: targetTop }),
+    );
   });
 
   it("server markup and the client's first render agree on the window", () => {
