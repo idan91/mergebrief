@@ -44,6 +44,8 @@
       cursor: default;
       transition: box-shadow var(--motion-base) var(--ease-out);
 
+      @include mixins.forced-current;
+
       .title {
         font-weight: 600;
       }

@@ -41,6 +41,8 @@
       border-color: var(--color-accent-edge);
       background: var(--color-accent-tint-subtle);
       color: var(--color-accent);
+
+      @include mixins.forced-selected;
     }
 
     /* Mixed: the dashed edge carries the half state without colour. */

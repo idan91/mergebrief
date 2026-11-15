@@ -3,6 +3,7 @@
 
 $columns-max: 18;
 $mark-min: functions.to-rem(24px);
+$forced-resting-opacity: 0.45;
 
 @layer components {
   .marks {
@@ -37,14 +38,32 @@ $mark-min: functions.to-rem(24px);
       border-radius: var(--radius-xs);
       background: var(--color-line-strong);
       transition: background-color var(--motion-fast) ease;
+
+      @include mixins.forced-fill;
+
+      @include mixins.forced-colors {
+        opacity: $forced-resting-opacity;
+      }
     }
 
     &[data-state="peek"]::before {
       background: var(--color-text-3);
+
+      @include mixins.forced-fill;
+
+      @include mixins.forced-colors {
+        opacity: 1;
+      }
     }
 
     &[aria-current="true"]::before {
       background: var(--color-text-1);
+
+      @include mixins.forced-fill(Highlight);
+
+      @include mixins.forced-colors {
+        opacity: 1;
+      }
     }
 
     @include mixins.focus-visible;
@@ -53,10 +72,18 @@ $mark-min: functions.to-rem(24px);
   @include mixins.hover {
     .mark:hover::before {
       background: var(--color-text-3);
+
+      @include mixins.forced-fill;
+
+      @include mixins.forced-colors {
+        opacity: 1;
+      }
     }
 
     .mark[aria-current="true"]:hover::before {
       background: var(--color-text-1);
+
+      @include mixins.forced-fill(Highlight);
     }
   }
 

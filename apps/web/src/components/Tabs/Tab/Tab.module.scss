@@ -34,6 +34,8 @@
     &[aria-selected="true"] {
       border-block-end-color: var(--color-accent);
       color: var(--color-text-1);
+
+      @include mixins.forced-selected($inset-ring: true);
     }
 
     &[data-variant="rail"] {
@@ -75,6 +77,8 @@
         &[aria-selected="true"] {
           border-block-end-color: var(--color-accent);
           background: transparent;
+
+          @include mixins.forced-selected($inset-ring: true);
         }
 
         svg {

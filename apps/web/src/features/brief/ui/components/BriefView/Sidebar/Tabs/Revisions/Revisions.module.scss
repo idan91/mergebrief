@@ -77,6 +77,8 @@
       background: var(--color-accent-tint-subtle);
       color: var(--color-text-1);
 
+      @include mixins.forced-current;
+
       .node::after {
         background: var(--color-accent);
         box-shadow: var(--node-halo);

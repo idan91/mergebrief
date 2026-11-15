@@ -160,6 +160,12 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
         var(--color-accent) var(--diff-selected-gutter-tint),
         var(--color-well)
       );
+
+      @include mixins.forced-selected;
+    }
+
+    &[data-selected] > .lineNumber[data-state="covered"] {
+      @include mixins.forced-covered(".digits > *");
     }
 
     &[data-rev="added"] .code {
@@ -264,6 +270,10 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
       > .oldNumber[data-state="covered"] + .lineNumber {
         color: transparent;
+      }
+
+      &[data-selected] > .oldNumber[data-state="covered"] + .lineNumber {
+        @include mixins.forced-covered;
       }
 
       > .code {

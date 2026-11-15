@@ -5,11 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@web/components/Button";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import {
-  DIFF_VIEW_COOKIE,
-  LEGACY_DIFF_VIEW_STORAGE_KEY,
-  readDiffView,
-} from "./diff-view-storage";
+import { DIFF_VIEW_COOKIE, LEGACY_DIFF_VIEW_STORAGE_KEY } from "./consts";
+import { readDiffView } from "./diff-view-storage";
 import { useDiffViewPreference } from "./useDiffViewPreference";
 
 afterEach(() => {

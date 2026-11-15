@@ -38,9 +38,13 @@
     background: var(--color-text-3);
     opacity: 0.45;
 
+    @include mixins.forced-fill;
+
     &[data-current] {
       background: var(--color-accent);
       opacity: 1;
+
+      @include mixins.forced-fill(Highlight);
     }
   }
 

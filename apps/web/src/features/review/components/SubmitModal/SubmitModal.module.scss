@@ -87,6 +87,8 @@
       border-color: var(--color-text-3);
       background: functions.ink-lift(var(--color-line));
       color: var(--color-text-1);
+
+      @include mixins.forced-selected;
     }
   }
 

@@ -53,6 +53,85 @@
   }
 }
 
+// Forced colours repaint every author fill and edge in one ink, so a bar or a
+// state drawn by colour alone disappears. System colours survive the mode.
+@mixin forced-colors {
+  @media (forced-colors: active) {
+    @content;
+  }
+}
+
+// A bar that exists only as a background.
+@mixin forced-fill($ink: CanvasText) {
+  @include forced-colors {
+    background: $ink;
+  }
+}
+
+// The selected or pressed one of a set of controls. The mode backs text with
+// a plate of the page colour, which would cover the fill, so the control opts
+// out and restates every colour inside it, its own ring however triggered.
+// The opt-out is inherited, so a child's hover fill would paint its theme
+// colour too. Important: opted out, a hover or focus variant would otherwise
+// paint over the fill. A child's ring is inset to stay on the fill. Pass
+// `$inset-ring` where the control's own ring sits inside its edge; an outset
+// ring sits on Canvas, where HighlightText can match the page.
+@mixin forced-selected($inset-ring: false) {
+  @include forced-colors {
+    forced-color-adjust: none;
+    border-color: Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+    outline-color: Highlight !important;
+
+    * {
+      background: transparent !important;
+      color: inherit !important;
+    }
+
+    :focus-visible {
+      outline-color: HighlightText !important;
+      outline-offset: -2px !important;
+    }
+
+    @if $inset-ring {
+      &:focus-visible {
+        outline-color: HighlightText !important;
+      }
+    }
+  }
+}
+
+// A number cell under `forced-selected` whose digits something else covers:
+// the digits stay hidden on the plate, and the stand-in drawn over them, when
+// the cell holds it, takes the plate's ink. Hiding the digits rests on
+// `forced-selected` giving every descendant `color: inherit`.
+@mixin forced-covered($stand-in: null) {
+  @include forced-colors {
+    color: transparent !important;
+
+    @if $stand-in {
+      #{$stand-in} {
+        color: HighlightText !important;
+      }
+    }
+  }
+}
+
+// The row the reader is on, where the fill would hide what the row holds.
+// Dashed, so it never reads as the solid focus ring; a focused current row
+// shows the ring.
+@mixin forced-current {
+  @include forced-colors {
+    outline: 2px dashed Highlight;
+    outline-offset: -2px;
+
+    &:focus-visible {
+      outline-style: solid;
+    }
+  }
+}
+
 @mixin user-select($value) {
   /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select, and the build has no autoprefixer */
   -webkit-user-select: $value;

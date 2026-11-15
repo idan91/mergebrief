@@ -9,7 +9,7 @@ import {
   DESKTOP_WRAP_COLUMNS,
   estimateReservedRowsHeight,
 } from "../reading/chunk-height-model";
-import { DIFF_VIEW_COOKIE } from "./diff-view-storage";
+import { DIFF_VIEW_COOKIE } from "./consts";
 import { useDiffViewPreference } from "./useDiffViewPreference";
 
 const requestCookies = vi.hoisted(() => new Map<string, string>());

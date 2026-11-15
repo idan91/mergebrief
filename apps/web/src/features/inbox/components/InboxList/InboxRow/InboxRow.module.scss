@@ -60,6 +60,8 @@
 
       background: var(--row-bg);
       box-shadow: var(--row-cursor-ring);
+
+      @include mixins.forced-current;
     }
 
     &[data-selected="true"] {

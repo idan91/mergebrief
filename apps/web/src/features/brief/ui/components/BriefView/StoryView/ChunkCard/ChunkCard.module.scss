@@ -30,6 +30,11 @@
       .body,
       .notice {
         border-color: var(--color-cursor-ring);
+
+        @include mixins.forced-colors {
+          border-style: dashed;
+          border-color: Highlight;
+        }
       }
     }
 

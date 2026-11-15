@@ -74,6 +74,8 @@
       background: var(--color-accent-tint-subtle);
       box-shadow: var(--shadow-inset-accent);
       color: var(--color-accent);
+
+      @include mixins.forced-selected;
     }
 
     &[data-unavailable] {

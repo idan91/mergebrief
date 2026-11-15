@@ -46,6 +46,8 @@
       border-color: var(--color-accent-edge);
       background: var(--color-accent-tint-medium);
       color: var(--color-accent);
+
+      @include mixins.forced-selected;
     }
 
     &[aria-disabled="true"] {

@@ -32,6 +32,8 @@
       border-color: var(--color-accent);
       background: var(--color-surface-1);
       color: var(--color-text-1);
+
+      @include mixins.forced-selected;
     }
   }
 

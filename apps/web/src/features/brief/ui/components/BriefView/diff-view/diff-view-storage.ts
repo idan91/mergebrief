@@ -7,12 +7,7 @@ import {
   readCookieValue,
   writePreferenceCookie,
 } from "@web/utils/preference-cookie";
-
-/** The cookie the preference lives in: the server renders with it. */
-export const DIFF_VIEW_COOKIE = "mergebrief.diffView";
-
-/** The preference's localStorage home before the cookie, read once to seed it. */
-export const LEGACY_DIFF_VIEW_STORAGE_KEY = "mergebrief.diffView";
+import { DIFF_VIEW_COOKIE, LEGACY_DIFF_VIEW_STORAGE_KEY } from "./consts";
 
 // A view this build no longer ships must not strand the reader on a blank
 // preference; the catch lands them back on the default.

@@ -2,9 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews } from "@web/components/DiffRows/types";
+import { DIFF_VIEW_COOKIE, LEGACY_DIFF_VIEW_STORAGE_KEY } from "./consts";
 import {
-  DIFF_VIEW_COOKIE,
-  LEGACY_DIFF_VIEW_STORAGE_KEY,
   migrateLegacyDiffView,
   parseDiffView,
   readDiffView,

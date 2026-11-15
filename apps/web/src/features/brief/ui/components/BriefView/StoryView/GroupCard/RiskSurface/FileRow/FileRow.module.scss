@@ -19,6 +19,8 @@
       border-radius: var(--radius-xs);
       background: var(--color-text-1);
       content: "";
+
+      @include mixins.forced-fill(Highlight);
     }
   }
 

@@ -35,6 +35,11 @@
       background: var(--color-surface-3);
       box-shadow: var(--url-box-shadow-focus);
 
+      @include mixins.forced-colors {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+
       .icon {
         color: var(--color-accent);
       }

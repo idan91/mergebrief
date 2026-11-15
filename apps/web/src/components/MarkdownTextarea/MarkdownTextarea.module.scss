@@ -73,6 +73,8 @@
 
       &[data-state="active"] {
         color: var(--color-text-1);
+
+        @include mixins.forced-selected;
       }
 
       @include mixins.focus-visible;

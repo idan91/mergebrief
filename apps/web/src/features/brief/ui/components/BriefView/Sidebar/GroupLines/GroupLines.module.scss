@@ -45,6 +45,8 @@ $mark-gap: 6px;
         inline-size var(--motion-fast) ease,
         opacity var(--motion-fast) ease,
         background-color var(--motion-fast) ease;
+
+      @include mixins.forced-fill;
     }
 
     @include mixins.hover {
@@ -52,6 +54,8 @@ $mark-gap: 6px;
         inline-size: $line-size-hover;
         background: var(--color-text-1);
         opacity: 1;
+
+        @include mixins.forced-fill;
       }
     }
 
@@ -62,6 +66,8 @@ $mark-gap: 6px;
     &[data-current]::before {
       background: var(--color-accent);
       opacity: 1;
+
+      @include mixins.forced-fill(Highlight);
     }
   }
 

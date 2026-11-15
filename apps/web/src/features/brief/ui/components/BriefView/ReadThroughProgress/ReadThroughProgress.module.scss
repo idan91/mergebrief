@@ -36,6 +36,8 @@
       transition:
         background var(--motion-fast) ease,
         outline-color var(--motion-fast) ease;
+
+      @include mixins.forced-fill(GrayText);
     }
 
     @include mixins.hover {
@@ -47,6 +49,8 @@
     @include mixins.hover {
       &:hover::before {
         background: var(--color-text-3);
+
+        @include mixins.forced-fill(GrayText);
       }
     }
 
@@ -78,6 +82,8 @@
     );
     transition: clip-path var(--motion-slow) var(--ease-out);
 
+    @include mixins.forced-fill;
+
     &:dir(rtl) {
       clip-path: inset(
         0 0 0 calc((1 - var(--fill)) * 100%) round var(--radius-pill)
@@ -87,9 +93,13 @@
 
   .segment[data-current] .fill {
     background: var(--color-text-1);
+
+    @include mixins.forced-fill;
   }
 
   .progress[data-complete] .segment::before {
     background: var(--color-text-3);
+
+    @include mixins.forced-fill(GrayText);
   }
 }

@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .mentionOption {
     display: flex;
@@ -13,6 +15,8 @@
     &[data-state="active"] {
       background: var(--color-surface-2);
       color: var(--color-text-1);
+
+      @include mixins.forced-selected;
     }
 
     &[data-state="active"][data-variant="floating"] {

@@ -54,6 +54,8 @@
       background: var(--color-accent-tint-subtle);
       color: var(--color-text-1);
 
+      @include mixins.forced-current;
+
       .name {
         color: var(--color-text-1);
       }

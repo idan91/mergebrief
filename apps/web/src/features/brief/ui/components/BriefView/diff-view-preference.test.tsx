@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { readCookieValue } from "@web/utils/preference-cookie";
-import { DIFF_VIEW_COOKIE } from "./diff-view/diff-view-storage";
+import { DIFF_VIEW_COOKIE } from "./diff-view/consts";
 import type { BriefSearchParams } from "../../../model/comparison/compare-state";
 import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
 import {

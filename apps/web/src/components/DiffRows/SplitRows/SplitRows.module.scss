@@ -52,10 +52,16 @@
         var(--color-accent) var(--diff-selected-gutter-tint),
         var(--color-well)
       );
+
+      @include mixins.forced-selected($inset-ring: true);
     }
 
     > td[data-side][data-line-number][data-state="covered"] {
       color: transparent;
+    }
+
+    > td[data-selected][data-line-number][data-state="covered"] {
+      @include mixins.forced-covered("> span > *");
     }
 
     > td[data-select-anchor][data-line-number] {
