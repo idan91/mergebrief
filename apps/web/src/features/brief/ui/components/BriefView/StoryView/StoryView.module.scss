@@ -36,6 +36,14 @@
     }
   }
 
+  .cardFailure {
+    margin-block-end: functions.to-rem(layout.$chunk-card-gap);
+    padding: var(--space-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+  }
+
   :global(.main) .group {
     display: grid;
     grid-template-columns: layout.story-columns();

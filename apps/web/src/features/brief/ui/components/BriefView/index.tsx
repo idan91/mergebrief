@@ -12,6 +12,7 @@ import { ChunkLayoutProvider } from "../../../model/chunk-layout/useChunkLayout"
 import { useHeldCardPosition } from "./reading/useHeldCardPosition";
 import { ReviewPostureProvider } from "../../hooks/useReviewPosture";
 import { ConversationSection } from "@web/features/conversation";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import { SubmitModal } from "@web/features/review";
 import {
   ReviewFlowProvider,
@@ -213,23 +214,29 @@ function BriefViewContent(props: BriefViewProps) {
   ) : null;
   const conversationSection =
     regions.conversation && conversationPlan !== undefined ? (
-      <ConversationSection
-        key={`conversation-${briefId}`}
-        {...conversationReadOnly}
-        chunks={session.readingOrderedChunks}
-        filter={conversation?.filter}
-        focusThreadId={conversation?.focusThreadId}
-        jumpToChunk={conversationWiring.jumpToChunkFromConversation}
-        localComments={session.reviewComments}
-        markCommentsSubmitted={(ids) =>
-          session.actions.markCommentsSubmitted(ids)
-        }
-        open={conversationWiring.open}
-        onToggle={conversationWiring.toggleOpen}
-        plan={conversationPlan}
-        submittedReviewIds={session.submittedReviewIds}
-        beginSmoothScroll={chunkWindowsRef.current.beginSmoothScroll}
-      />
+      <RegionBoundary
+        failureClassName={styles["conversationFailure"]}
+        heading={<h2>{t("conversation.renderFailed")}</h2>}
+        resetKey={briefId}
+      >
+        <ConversationSection
+          key={`conversation-${briefId}`}
+          {...conversationReadOnly}
+          chunks={session.readingOrderedChunks}
+          filter={conversation?.filter}
+          focusThreadId={conversation?.focusThreadId}
+          jumpToChunk={conversationWiring.jumpToChunkFromConversation}
+          localComments={session.reviewComments}
+          markCommentsSubmitted={(ids) =>
+            session.actions.markCommentsSubmitted(ids)
+          }
+          open={conversationWiring.open}
+          onToggle={conversationWiring.toggleOpen}
+          plan={conversationPlan}
+          submittedReviewIds={session.submittedReviewIds}
+          beginSmoothScroll={chunkWindowsRef.current.beginSmoothScroll}
+        />
+      </RegionBoundary>
     ) : null;
   const readThroughAvailable =
     overlay.compareState.view === "full" && session.chunkIds.length > 0;

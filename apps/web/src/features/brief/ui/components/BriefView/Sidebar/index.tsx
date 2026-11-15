@@ -33,6 +33,7 @@ import {
 } from "./types";
 import type { SidebarState } from "./useSidebarState";
 import { isSidebarTab, resolveShownTab } from "./utils";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import styles from "./Sidebar.module.scss";
 
 /** The control names and shows the view a click switches to. */
@@ -360,20 +361,32 @@ export function Sidebar({
               )}
             </Tabs.List>
             <Tabs.Panel value={SidebarTabs.THIS_PR}>
-              <ThisPr
-                activeGroupId={activeGroupId}
-                groupThreadCounts={groupThreadCounts}
-                groups={groups}
-                jumpToGroup={jumpFromSidebar}
-              />
+              <RegionBoundary
+                failureClassName={styles["failure"]}
+                heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+                resetKey={shownTab}
+              >
+                <ThisPr
+                  activeGroupId={activeGroupId}
+                  groupThreadCounts={groupThreadCounts}
+                  groups={groups}
+                  jumpToGroup={jumpFromSidebar}
+                />
+              </RegionBoundary>
             </Tabs.Panel>
             {revisionPlan === undefined ? null : (
               <Tabs.Panel value={SidebarTabs.REVISIONS}>
-                <Revisions
-                  afterActivate={afterRevision}
-                  currentRowRef={currentRevisionRef}
-                  plan={revisionPlan}
-                />
+                <RegionBoundary
+                  failureClassName={styles["failure"]}
+                  heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+                  resetKey={shownTab}
+                >
+                  <Revisions
+                    afterActivate={afterRevision}
+                    currentRowRef={currentRevisionRef}
+                    plan={revisionPlan}
+                  />
+                </RegionBoundary>
               </Tabs.Panel>
             )}
           </Tabs>

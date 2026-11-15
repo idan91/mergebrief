@@ -981,6 +981,8 @@
       "viewingBrief": "Viewing brief {{index}} of {{total}}."
     },
     "chunk": {
+      "renderFailed": "This diff could not be shown",
+      "cardFailed": "{{file}} could not be shown",
       "viewed": "Viewed",
       "announceViewed": "Marked viewed",
       "announceUnviewed": "Viewed unchecked",
@@ -1080,6 +1082,7 @@
       "threadCount_other": "{{count}} threads"
     },
     "sidebar": {
+      "renderFailed": "This tab could not be shown",
       "ariaLabel": "Sidebar",
       "expand": "Expand sidebar",
       "collapse": "Collapse sidebar",
@@ -1404,6 +1407,7 @@
     "refresh": "Refresh",
     "loading": "Loading the conversation…",
     "readFailed": "The conversation could not be read (unexpected response). Refresh to retry.",
+    "renderFailed": "The conversation could not be shown",
     "unauthorized": "Your GitHub session expired. Sign in again to see the conversation.",
     "notFound": "This pull request's conversation is no longer accessible on GitHub.",
     "unavailable": "GitHub or the MergeBrief server is unreachable, so the conversation could not be loaded. Refresh to retry.",
@@ -1643,6 +1647,10 @@
       "heading": "This page failed to load",
       "detail": "Something went wrong showing this page. Reload to try again.",
       "home": "Go home"
+    },
+    "regionFailed": {
+      "detail": "The rest of the page still works. Try again, or reload the page if it keeps failing.",
+      "retry": "Try again"
     },
     "skipToContent": "Skip to content",
     "backToBriefs": "Back to briefs",

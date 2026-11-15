@@ -1,6 +1,10 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
+
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import type { ChunkShare, GithubHeadRef } from "../types";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useViewportShape } from "@web/hooks/useViewportShape";
@@ -137,6 +141,7 @@ export function StoryView(props: StoryViewProps) {
   );
   const githubHead = useGithubHead(props.brief);
   const { t } = useTranslation();
+  const { briefKey } = useTokenPlan();
 
   return (
     <div
@@ -195,31 +200,52 @@ export function StoryView(props: StoryViewProps) {
                  * Use a plain list to avoid a fixed-height empty track, and mount only
                  * the active group's cards to preserve the windowing cost savings.
                  */}
-                {(isActiveFocusGroup ? group.chunks : []).map((chunk) => (
-                  <ChunkCard
-                    key={`${chunk.file}#${chunk.id}`}
-                    chunk={chunk}
-                    riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
-                    comparison={props.comparison}
-                    diffView={groupView}
-                    open={props.openChunks.has(chunk.id)}
-                    addressedReviewComments={addressedReviewComments}
-                    conversationComposer={props.conversationComposer}
-                    conversationRows={props.conversationByChunk?.get(chunk.id)}
-                    hiddenThreads={props.hiddenThreadsByFile?.get(chunk.file)}
-                    fileThreads={props.lineThreadsByFile?.get(chunk.file)}
-                    jumpToLine={props.jumpToLine}
-                    shareChunk={props.shareChunk}
-                    githubHead={githubHead}
-                    actionsOpen={props.chunkActionsFor === chunk.id}
-                    openActions={props.openChunkActions}
-                    closeActions={props.closeChunkActions}
-                    lineOwners={lineOwnersByFile.get(chunk.file)}
-                    markReviewed={props.markReviewed}
-                    marksDisabled={props.marksDisabled}
-                    toggleChunk={props.toggleChunk}
-                  />
-                ))}
+                {(isActiveFocusGroup ? group.chunks : []).map((chunk) => {
+                  const cardKey = `${chunk.file}#${chunk.id}`;
+                  const cardResetKey = `${briefKey}:${cardKey}`;
+                  const failureHeading = (
+                    <h3>
+                      {t("brief.chunk.cardFailed", {
+                        file: formatDisplayPath(chunk.file),
+                      })}
+                    </h3>
+                  );
+                  return (
+                    <RegionBoundary
+                      failureClassName={styles["cardFailure"]}
+                      heading={failureHeading}
+                      key={cardKey}
+                      resetKey={cardResetKey}
+                    >
+                      <ChunkCard
+                        chunk={chunk}
+                        riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
+                        comparison={props.comparison}
+                        diffView={groupView}
+                        open={props.openChunks.has(chunk.id)}
+                        addressedReviewComments={addressedReviewComments}
+                        conversationComposer={props.conversationComposer}
+                        conversationRows={props.conversationByChunk?.get(
+                          chunk.id,
+                        )}
+                        hiddenThreads={props.hiddenThreadsByFile?.get(
+                          chunk.file,
+                        )}
+                        fileThreads={props.lineThreadsByFile?.get(chunk.file)}
+                        jumpToLine={props.jumpToLine}
+                        shareChunk={props.shareChunk}
+                        githubHead={githubHead}
+                        actionsOpen={props.chunkActionsFor === chunk.id}
+                        openActions={props.openChunkActions}
+                        closeActions={props.closeChunkActions}
+                        lineOwners={lineOwnersByFile.get(chunk.file)}
+                        markReviewed={props.markReviewed}
+                        marksDisabled={props.marksDisabled}
+                        toggleChunk={props.toggleChunk}
+                      />
+                    </RegionBoundary>
+                  );
+                })}
               </div>
             ) : (
               <WindowedChunkList
@@ -415,6 +441,8 @@ function WindowedChunkList({
   };
 
   const listRef = useMergedRef(attachWrapper, window.listRef);
+  const { t } = useTranslation();
+  const { briefKey } = useTokenPlan();
   function buildCard(index: number) {
     const chunk = group.chunks[index];
     if (!chunk) {
@@ -424,29 +452,42 @@ function WindowedChunkList({
     // on a reused positional id remounts clean. Same file + same id keeps the
     // card (the common revision step), so chunk-subtree local state MUST be
     // thread-id-scoped or gesture-transient.
+    const cardKey = `${chunk.file}#${chunk.id}`;
+    const cardResetKey = `${briefKey}:${cardKey}`;
+    const failureHeading = (
+      <h3>
+        {t("brief.chunk.cardFailed", { file: formatDisplayPath(chunk.file) })}
+      </h3>
+    );
     return (
-      <ChunkCard
-        chunk={chunk}
-        riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
-        comparison={view.comparison}
-        diffView={diffView}
-        open={view.openChunks.has(chunk.id)}
-        addressedReviewComments={addressedReviewComments}
-        conversationComposer={view.conversationComposer}
-        conversationRows={view.conversationByChunk?.get(chunk.id)}
-        hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
-        fileThreads={view.lineThreadsByFile?.get(chunk.file)}
-        jumpToLine={view.jumpToLine}
-        shareChunk={view.shareChunk}
-        githubHead={githubHead}
-        actionsOpen={view.chunkActionsFor === chunk.id}
-        openActions={view.openChunkActions}
-        closeActions={view.closeChunkActions}
-        lineOwners={lineOwnersByFile.get(chunk.file)}
-        markReviewed={view.markReviewed}
-        marksDisabled={view.marksDisabled}
-        toggleChunk={view.toggleChunk}
-      />
+      <RegionBoundary
+        failureClassName={styles["cardFailure"]}
+        heading={failureHeading}
+        resetKey={cardResetKey}
+      >
+        <ChunkCard
+          chunk={chunk}
+          riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
+          comparison={view.comparison}
+          diffView={diffView}
+          open={view.openChunks.has(chunk.id)}
+          addressedReviewComments={addressedReviewComments}
+          conversationComposer={view.conversationComposer}
+          conversationRows={view.conversationByChunk?.get(chunk.id)}
+          hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
+          fileThreads={view.lineThreadsByFile?.get(chunk.file)}
+          jumpToLine={view.jumpToLine}
+          shareChunk={view.shareChunk}
+          githubHead={githubHead}
+          actionsOpen={view.chunkActionsFor === chunk.id}
+          openActions={view.openChunkActions}
+          closeActions={view.closeChunkActions}
+          lineOwners={lineOwnersByFile.get(chunk.file)}
+          markReviewed={view.markReviewed}
+          marksDisabled={view.marksDisabled}
+          toggleChunk={view.toggleChunk}
+        />
+      </RegionBoundary>
     );
   }
 

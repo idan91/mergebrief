@@ -46,6 +46,7 @@ import {
   markSmoothScroll,
   shouldRelandInPlace,
 } from "./utils";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
@@ -402,6 +403,7 @@ export function ConversationSection({
         : t("conversation.refresh")}
     </Button>
   ) : undefined;
+  const threadsResetKey = String(query.dataUpdatedAt);
   return (
     <CollapsibleBar
       actions={refreshAction}
@@ -443,7 +445,10 @@ export function ConversationSection({
           ) : null}
 
           {conversation !== undefined ? (
-            <>
+            <RegionBoundary
+              heading={<h3>{t("conversation.renderFailed")}</h3>}
+              resetKey={threadsResetKey}
+            >
               {verdicts.length > 0 ? (
                 <ul
                   aria-label={t("conversation.ariaLabelVerdicts")}
@@ -508,7 +513,7 @@ export function ConversationSection({
                   {t("conversation.tooLarge")}
                 </p>
               ) : null}
-            </>
+            </RegionBoundary>
           ) : null}
         </div>
       ) : null}

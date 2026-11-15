@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { act, Profiler, useState } from "react";
+import { act, Profiler, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { intersectionObservers } from "@web/test/setup";
@@ -34,6 +34,23 @@ import {
 import { ChunkCard, type ChunkCardProps } from ".";
 import { ReviewPostureProvider } from "../../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../../utils/review-posture";
+import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
+import type { BriefChunkSize } from "@web/utils/diffTokens/types";
+import type * as DiffTableModule from "../../DiffTable";
+import type { DiffTableProps } from "../../DiffTable/types";
+
+const bodyFault = vi.hoisted(() => ({ thrown: false }));
+
+vi.mock("../../DiffTable", async (importOriginal) => {
+  const actual = await importOriginal<typeof DiffTableModule>();
+  function FaultyDiffTable(props: DiffTableProps) {
+    if (bodyFault.thrown) {
+      throw new Error("diff failed");
+    }
+    return <actual.DiffTable {...props} />;
+  }
+  return { ...actual, DiffTable: FaultyDiffTable };
+});
 
 afterEach(() => {
   window.getSelection()?.removeAllRanges();
@@ -105,11 +122,16 @@ function Harness(props: HarnessProps) {
   );
 }
 
-function renderCard(
-  overrides: Partial<HarnessProps> = {},
+interface CardStores {
+  queryClient: QueryClient;
+  flowStore: ReturnType<typeof createReviewFlowStore>;
+  expansionStore: ReturnType<typeof createExpansionStore>;
+  positionStore: ReturnType<typeof createReadingPositionStore>;
+}
+
+function makeCardStores(
   positionStore = createReadingPositionStore(),
-) {
-  const toggleChunk = vi.fn();
+): CardStores {
   const flowStore = createReviewFlowStore(
     {
       saveComment: vi.fn(),
@@ -120,37 +142,93 @@ function renderCard(
     },
     appI18n.t,
   );
-  const props: HarnessProps = {
-    chunk,
-    comparison,
-    open: false,
-    addressedReviewComments: [],
-    toggleChunk,
-    markReviewed: vi.fn(),
-    ...overrides,
+  return {
+    queryClient: new QueryClient(),
+    flowStore,
+    expansionStore: createExpansionStore(),
+    positionStore,
   };
-  const onCardRender = vi.fn();
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+}
+
+interface CardProvidersProps {
+  stores: CardStores;
+  children: ReactNode;
+}
+
+function CardProviders({ stores, children }: CardProvidersProps) {
+  return (
+    <QueryClientProvider client={stores.queryClient}>
       <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(brief)}
       >
-        <ReviewFlowProvider store={flowStore}>
-          <ExpansionProvider store={createExpansionStore()}>
+        <ReviewFlowProvider store={stores.flowStore}>
+          <ExpansionProvider store={stores.expansionStore}>
             <ReviewPostureProvider posture={makeReviewPosture()}>
-              <ReadingPositionProvider store={positionStore}>
-                <Profiler id="card" onRender={onCardRender}>
-                  <Harness {...props} />
-                </Profiler>
+              <ReadingPositionProvider store={stores.positionStore}>
+                {children}
               </ReadingPositionProvider>
             </ReviewPostureProvider>
           </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
+  );
+}
+
+function makeHarnessProps(overrides: Partial<HarnessProps>): HarnessProps {
+  return {
+    chunk,
+    comparison,
+    open: false,
+    addressedReviewComments: [],
+    toggleChunk: vi.fn(),
+    markReviewed: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderCard(
+  overrides: Partial<HarnessProps> = {},
+  positionStore = createReadingPositionStore(),
+) {
+  const toggleChunk = vi.fn();
+  const props = makeHarnessProps({ toggleChunk, ...overrides });
+  const stores = makeCardStores(positionStore);
+  const onCardRender = vi.fn();
+  render(
+    <CardProviders stores={stores}>
+      <Profiler id="card" onRender={onCardRender}>
+        <Harness {...props} />
+      </Profiler>
+    </CardProviders>,
   );
   return { toggleChunk, positionStore, onCardRender };
+}
+
+const NO_CHUNK_SIZES: BriefChunkSize[] = [];
+
+/** The same open card under a Brief identity, re-rendered in place under another. */
+function renderCardInBrief(briefKey: string) {
+  const props = makeHarnessProps({ open: true });
+  const stores = makeCardStores();
+  const view = render(
+    <CardProviders stores={stores}>
+      <TokenPlanProvider briefKey={briefKey} chunkSizes={NO_CHUNK_SIZES}>
+        <Harness {...props} />
+      </TokenPlanProvider>
+    </CardProviders>,
+  );
+  return {
+    switchBrief: (nextKey: string) =>
+      view.rerender(
+        <CardProviders stores={stores}>
+          <TokenPlanProvider briefKey={nextKey} chunkSizes={NO_CHUNK_SIZES}>
+            <Harness {...props} />
+          </TokenPlanProvider>
+        </CardProviders>,
+      ),
+  };
 }
 
 function selectFilePath(toggle: HTMLElement) {
@@ -907,5 +985,42 @@ describe("ChunkCard stuck head", () => {
     placeStickyTarget(readHead(), STICKY_TOP_PX, STICKY_TOP_PX);
 
     await waitFor(() => expect(readHead().dataset["motion"]).toBe("on"));
+  });
+});
+
+describe("ChunkCard render failure", () => {
+  beforeEach(() => {
+    bodyFault.thrown = true;
+    // React reports a caught render error on the console; that is the path under test.
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    bodyFault.thrown = false;
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the card head when its diff cannot be shown", () => {
+    renderCard({ open: true });
+
+    expect(
+      screen.getByRole("heading", {
+        level: 4,
+        name: "This diff could not be shown",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByTestId("chunk-toggle")).toBeTruthy();
+  });
+
+  it("shows the diff again when the same chunk opens in another brief", () => {
+    const card = renderCardInBrief("brief-1");
+    expect(screen.getByRole("alert")).toBeTruthy();
+    bodyFault.thrown = false;
+
+    card.switchBrief("brief-2");
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("validate(a);")).toBeTruthy();
   });
 });

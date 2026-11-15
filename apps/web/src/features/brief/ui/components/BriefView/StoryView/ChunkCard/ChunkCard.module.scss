@@ -224,6 +224,11 @@
     line-height: functions.to-rem(20px);
   }
 
+  .failure {
+    padding-block: var(--space-5);
+    padding-inline: var(--space-5);
+  }
+
   .deltaSummary {
     display: grid;
     gap: var(--space-2-5);

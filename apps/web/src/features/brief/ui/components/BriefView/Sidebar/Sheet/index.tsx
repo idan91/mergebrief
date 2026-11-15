@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { BottomSheet } from "@web/components/BottomSheet";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import { Tabs } from "@web/components/Tabs";
 import type { RevisionTimelinePlan } from "../../../../../model/types";
 import type { GroupView } from "../../../../../model/utils/view-model";
@@ -14,6 +15,7 @@ import {
   type SidebarTab,
 } from "../types";
 import { isSidebarTab } from "../utils";
+import styles from "./Sheet.module.scss";
 
 export interface SheetProps {
   groups: GroupView[];
@@ -73,18 +75,30 @@ export function Sheet({
           )}
         </Tabs.List>
         <Tabs.Panel value={SidebarTabs.THIS_PR}>
-          <ThisPr
-            activeGroupId={activeGroupId}
-            groupThreadCounts={groupThreadCounts}
-            groups={groups}
-            jumpToChunk={jumpToChunk}
-            jumpToGroup={jumpToGroup}
-            selected={thisPrSelected}
-          />
+          <RegionBoundary
+            failureClassName={styles["failure"]}
+            heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+            resetKey={tab}
+          >
+            <ThisPr
+              activeGroupId={activeGroupId}
+              groupThreadCounts={groupThreadCounts}
+              groups={groups}
+              jumpToChunk={jumpToChunk}
+              jumpToGroup={jumpToGroup}
+              selected={thisPrSelected}
+            />
+          </RegionBoundary>
         </Tabs.Panel>
         {revisions === undefined ? null : (
           <Tabs.Panel value={SidebarTabs.REVISIONS}>
-            <Revisions afterActivate={afterRevision} plan={revisions} />
+            <RegionBoundary
+              failureClassName={styles["failure"]}
+              heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+              resetKey={tab}
+            >
+              <Revisions afterActivate={afterRevision} plan={revisions} />
+            </RegionBoundary>
           </Tabs.Panel>
         )}
       </Tabs>

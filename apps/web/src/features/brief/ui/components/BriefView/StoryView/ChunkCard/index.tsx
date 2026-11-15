@@ -64,6 +64,7 @@ import {
   isLargeChunk,
   resolveChunkGithubUrl,
 } from "../../utils";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
@@ -275,6 +276,8 @@ export const ChunkCard = memo(function ChunkCard({
     />
   );
   const githubUrl = resolveChunkGithubUrl(chunk, githubHead);
+  // The card outlives a Brief switch on the same file and chunk id.
+  const bodyResetKey = `${tokenPlan.briefKey}:${diffView}`;
   const closeActionsToTrigger = () => {
     closeActions();
     actionsRef.current?.focus();
@@ -433,67 +436,76 @@ export const ChunkCard = memo(function ChunkCard({
       ) : null}
       {open ? (
         <div className={styles["body"]}>
-          <FileCommentBand
-            bandRef={fileComposer.bandRef}
-            chunk={chunk}
-            composerOpen={fileComposer.composerOpen}
-            conversationComposer={conversationComposer}
-            inboundRows={conversationSplit.fileHeader}
-            onCancelComposer={fileComposer.cancelComposer}
-          />
-          {chunk.summary ||
-          chunk.addressesComments?.length ||
-          topReviewComments.length > 0 ? (
-            <div className={styles["deltaSummary"]}>
-              {chunk.summary ? <p>{chunk.summary}</p> : null}
-              {chunk.addressesComments?.length ? (
-                <AddressedComments chunk={chunk} comments={topReviewComments} />
-              ) : null}
-              {!chunk.addressesComments?.length &&
-              topReviewComments.length > 0 ? (
-                <ReviewComments
-                  comments={topReviewComments}
-                  label={t("brief.chunk.reviewComment")}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          {conversationSplit.botGroups.length > 0 &&
-          conversationComposer !== undefined ? (
-            <InlineThreads
-              composer={conversationComposer}
-              rows={conversationSplit.botGroups}
-            />
-          ) : null}
-          {showsNoLinesNote ? (
-            <p className={styles["noLines"]}>
-              {t("brief.chunk.noChangedLines")}
-            </p>
-          ) : (
-            <DiffTable
-              tokensByRow={tokensByRow}
-              tokensPending={diffPending}
-              view={diffView}
-              expansion={expansion}
-              hiddenThreads={hiddenThreads}
-              fileThreads={fileThreads}
-              jumpToLine={jumpToLine}
-              deriveChunkUrl={shareChunk?.deriveUrl}
-              lineOwners={lineOwners}
-              conversationComposer={conversationComposer}
-              conversationThreadsByRow={conversationSplit.byRow}
-              addressedComments={inlineReviewComments}
+          <RegionBoundary
+            failureClassName={styles["failure"]}
+            heading={<h4>{t("brief.chunk.renderFailed")}</h4>}
+            resetKey={bodyResetKey}
+          >
+            <FileCommentBand
+              bandRef={fileComposer.bandRef}
               chunk={chunk}
-              comparisonView={comparisonView}
-              comparisonSource={comparison.source}
-              comparisonSkipReason={comparison.skipReason}
-              reviewCommentLabel={
-                hasLinkedAddressedComments
-                  ? t("brief.chunk.addressed")
-                  : t("brief.chunk.reviewComment", { context: "inline" })
-              }
+              composerOpen={fileComposer.composerOpen}
+              conversationComposer={conversationComposer}
+              inboundRows={conversationSplit.fileHeader}
+              onCancelComposer={fileComposer.cancelComposer}
             />
-          )}
+            {chunk.summary ||
+            chunk.addressesComments?.length ||
+            topReviewComments.length > 0 ? (
+              <div className={styles["deltaSummary"]}>
+                {chunk.summary ? <p>{chunk.summary}</p> : null}
+                {chunk.addressesComments?.length ? (
+                  <AddressedComments
+                    chunk={chunk}
+                    comments={topReviewComments}
+                  />
+                ) : null}
+                {!chunk.addressesComments?.length &&
+                topReviewComments.length > 0 ? (
+                  <ReviewComments
+                    comments={topReviewComments}
+                    label={t("brief.chunk.reviewComment")}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            {conversationSplit.botGroups.length > 0 &&
+            conversationComposer !== undefined ? (
+              <InlineThreads
+                composer={conversationComposer}
+                rows={conversationSplit.botGroups}
+              />
+            ) : null}
+            {showsNoLinesNote ? (
+              <p className={styles["noLines"]}>
+                {t("brief.chunk.noChangedLines")}
+              </p>
+            ) : (
+              <DiffTable
+                tokensByRow={tokensByRow}
+                tokensPending={diffPending}
+                view={diffView}
+                expansion={expansion}
+                hiddenThreads={hiddenThreads}
+                fileThreads={fileThreads}
+                jumpToLine={jumpToLine}
+                deriveChunkUrl={shareChunk?.deriveUrl}
+                lineOwners={lineOwners}
+                conversationComposer={conversationComposer}
+                conversationThreadsByRow={conversationSplit.byRow}
+                addressedComments={inlineReviewComments}
+                chunk={chunk}
+                comparisonView={comparisonView}
+                comparisonSource={comparison.source}
+                comparisonSkipReason={comparison.skipReason}
+                reviewCommentLabel={
+                  hasLinkedAddressedComments
+                    ? t("brief.chunk.addressed")
+                    : t("brief.chunk.reviewComment", { context: "inline" })
+                }
+              />
+            )}
+          </RegionBoundary>
         </div>
       ) : null}
     </article>

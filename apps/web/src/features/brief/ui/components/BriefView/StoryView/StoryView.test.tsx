@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { appI18n } from "@web/i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
@@ -29,6 +29,8 @@ import { STORY_CHUNKS_ATTR } from "./StorySplitter/consts";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
 import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
+import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import {
   DESKTOP_CARD_METRICS,
@@ -41,7 +43,22 @@ import {
   type useGroupWindow,
 } from "../reading/useGroupWindow";
 
+import type * as ChunkCardModule from "./ChunkCard";
+import type { ChunkCardProps } from "./ChunkCard";
+
 const windowEstimates = vi.hoisted(() => new Map<string, number>());
+const cardFault = vi.hoisted(() => ({ file: "" }));
+
+vi.mock("./ChunkCard", async (importOriginal) => {
+  const actual = await importOriginal<typeof ChunkCardModule>();
+  function FaultyChunkCard(props: ChunkCardProps) {
+    if (props.chunk.file === cardFault.file) {
+      throw new Error("card failed");
+    }
+    return <actual.ChunkCard {...props} />;
+  }
+  return { ...actual, ChunkCard: FaultyChunkCard };
+});
 
 vi.mock("../reading/useGroupWindow", async (importOriginal) => {
   const original = await importOriginal<{
@@ -122,7 +139,15 @@ const comparison: ComparisonOverlayState = {
   runCount: 0,
 };
 
-function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
+/** What a story render keeps across a rerender in place. */
+interface StoryStores {
+  viewModel: ReturnType<typeof buildBriefViewModel>;
+  flowStore: ReturnType<typeof createReviewFlowStore>;
+  positionStore: ReturnType<typeof createReadingPositionStore>;
+  queryClient: QueryClient;
+}
+
+function makeStoryStores(setup: StorySetup): StoryStores {
   const viewModel = buildBriefViewModel(setup.brief);
   const flowStore = createReviewFlowStore(
     {
@@ -138,8 +163,22 @@ function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
   positionStore
     .getState()
     .actions.setActive(setup.activeChunkId, setup.activeGroupId);
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+  return {
+    viewModel,
+    flowStore,
+    positionStore,
+    queryClient: new QueryClient(),
+  };
+}
+
+function buildStoryTree(
+  focusMode: boolean,
+  setup: StorySetup,
+  stores: StoryStores,
+) {
+  const { viewModel, flowStore, positionStore, queryClient } = stores;
+  return (
+    <QueryClientProvider client={queryClient}>
       <ReviewSessionProvider briefId="test-brief" model={viewModel}>
         <ReviewFlowProvider store={flowStore}>
           <ExpansionProvider store={createExpansionStore()}>
@@ -166,8 +205,32 @@ function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
           </ExpansionProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+}
+
+function renderStory(focusMode: boolean, setup: StorySetup = FIXTURE_SETUP) {
+  render(buildStoryTree(focusMode, setup, makeStoryStores(setup)));
+}
+
+const NO_CHUNK_SIZES: BriefChunkSize[] = [];
+
+/** The story under one Brief identity, re-rendered in place under another. */
+function renderStoryInBrief(focusMode: boolean, briefKey: string) {
+  const stores = makeStoryStores(FIXTURE_SETUP);
+  const view = render(
+    <TokenPlanProvider briefKey={briefKey} chunkSizes={NO_CHUNK_SIZES}>
+      {buildStoryTree(focusMode, FIXTURE_SETUP, stores)}
+    </TokenPlanProvider>,
+  );
+  return {
+    switchBrief: (nextKey: string) =>
+      view.rerender(
+        <TokenPlanProvider briefKey={nextKey} chunkSizes={NO_CHUNK_SIZES}>
+          {buildStoryTree(focusMode, FIXTURE_SETUP, stores)}
+        </TokenPlanProvider>,
+      ),
+  };
 }
 
 function getRemainderRegion(): HTMLElement {
@@ -321,5 +384,70 @@ describe("StoryView windowed cards", () => {
         metrics: PHONE_CARD_METRICS,
       }),
     );
+  });
+});
+
+describe("StoryView card failure", () => {
+  beforeEach(() => {
+    cardFault.file = "src/leak.ts";
+    // React reports a caught render error on the console; that is the path under test.
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    cardFault.file = "";
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("names the file whose card failed and keeps its sibling card", () => {
+    renderStory(false);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "src/leak.ts could not be shown",
+      }),
+    ).toBeTruthy();
+    expect(screen.getAllByTestId("brief-chunk")).toHaveLength(1);
+  });
+
+  it("holds the failed card inside its window slot", () => {
+    renderStory(false);
+    const failure = screen.getByRole("alert");
+
+    expect(failure.closest(`[${CHUNK_WINDOW_INDEX_ATTR}]`)).not.toBeNull();
+  });
+
+  it("names the failed card in focus mode too", () => {
+    renderStory(true);
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "src/leak.ts could not be shown",
+    );
+  });
+
+  it("shows the failed card again when another brief opens in place", () => {
+    const { switchBrief } = renderStoryInBrief(false, "brief-a");
+    expect(screen.getByRole("alert")).toBeTruthy();
+    const shownCards = screen.getAllByTestId("brief-chunk").length;
+
+    cardFault.file = "";
+    switchBrief("brief-b");
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getAllByTestId("brief-chunk")).toHaveLength(shownCards + 1);
+  });
+
+  it("shows the failed focus card again when another brief opens", () => {
+    const { switchBrief } = renderStoryInBrief(true, "brief-a");
+    expect(screen.getByRole("alert")).toBeTruthy();
+    const shownCards = screen.getAllByTestId("brief-chunk").length;
+
+    cardFault.file = "";
+    switchBrief("brief-b");
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getAllByTestId("brief-chunk")).toHaveLength(shownCards + 1);
   });
 });

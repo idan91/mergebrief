@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
-import { Button } from "../Button";
+import { Button, ButtonSizes, type ButtonSize } from "../Button";
 import styles from "./FailureBlock.module.scss";
+import { FailureBlockScales, type FailureBlockScale } from "./types";
 
 export interface FailureBlockProps {
   /** The heading element at the level the screen's structure gives it. */
@@ -10,8 +11,15 @@ export interface FailureBlockProps {
   retryLabel: string;
   /** The retry is in flight: the button holds and says so. */
   pending?: boolean;
+  /** A failure inside a page reads at the size of the content around it. */
+  scale?: FailureBlockScale;
   onRetry: () => void;
 }
+
+const RETRY_SIZE_BY_SCALE: Record<FailureBlockScale, ButtonSize> = {
+  [FailureBlockScales.PAGE]: ButtonSizes.MD,
+  [FailureBlockScales.REGION]: ButtonSizes.SM,
+};
 
 /** A read that failed: what did not answer, and the one way to ask again. */
 export function FailureBlock({
@@ -19,14 +27,21 @@ export function FailureBlock({
   detail,
   retryLabel,
   pending = false,
+  scale = FailureBlockScales.PAGE,
   onRetry,
 }: FailureBlockProps) {
   return (
-    <div className={styles["block"]} data-testid="failure-block" role="alert">
+    <div
+      className={styles["block"]}
+      data-scale={scale}
+      data-testid="failure-block"
+      role="alert"
+    >
       {heading}
       <p className={styles["detail"]}>{detail}</p>
       <Button
         loading={pending}
+        size={RETRY_SIZE_BY_SCALE[scale]}
         type="button"
         variant="secondary"
         onClick={onRetry}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Concerns, Roles, type RevisionNarrative } from "brief-core/types";
 import { CommentAnchorKinds } from "types/comments";
@@ -44,6 +44,22 @@ vi.mock("@web/utils/diffTokens/client", async (importOriginal) => {
     requestSnippetTokens,
     warmDiffTokenWorker: () => undefined,
   };
+});
+
+import type * as GuestDiffModule from "./GuestDiff";
+import type { GuestDiffProps } from "./GuestDiff";
+
+const guestFault = vi.hoisted(() => ({ thrown: false }));
+
+vi.mock("./GuestDiff", async (importOriginal) => {
+  const actual = await importOriginal<typeof GuestDiffModule>();
+  function FaultyGuestDiff(props: GuestDiffProps) {
+    if (guestFault.thrown) {
+      throw new Error("guest diff failed");
+    }
+    return <actual.GuestDiff {...props} />;
+  }
+  return { ...actual, GuestDiff: FaultyGuestDiff };
 });
 
 const PR = {
@@ -252,6 +268,8 @@ interface RenderOptions {
   /** The previous-brief span diff, the source of a card's removed lines. */
   narrativeSpanRows?: FileRowsCache;
   jumpToChunk?: (chunkId: string) => void;
+  /** The brief the view shows; the screen keys the view by it, so a new one remounts it. */
+  briefId?: string;
 }
 
 function renderChanges(options: RenderOptions = {}) {
@@ -293,6 +311,7 @@ function renderChanges(options: RenderOptions = {}) {
   const client = new QueryClient();
   function buildTree(next: RenderOptions) {
     const compare = next.compare ?? "previous-brief";
+    const briefId = next.briefId ?? "test-brief";
     return (
       <QueryClientProvider client={client}>
         <TokenPlanProvider
@@ -301,13 +320,14 @@ function renderChanges(options: RenderOptions = {}) {
         >
           <FileRowsProvider cache={FILE_ROWS_CACHE}>
             <ReviewSessionProvider
-              briefId="test-brief"
+              briefId={briefId}
               model={model}
               session={next.session}
             >
               <ReviewFlowProvider store={flowStore}>
                 <ReviewPostureProvider posture={makeReviewPosture()}>
                   <ChangesOnlyView
+                    key={`changes-${briefId}`}
                     brief={FULL_BRIEF}
                     compare={compare}
                     delta={
@@ -682,5 +702,59 @@ describe("Changes Only diff tokenization", () => {
       filePath: "src/a.ts",
       mode: TokenizeModes.HUNK,
     });
+  });
+});
+
+describe("Changes Only cards whose diff cannot render", () => {
+  beforeEach(() => {
+    guestFault.thrown = true;
+    // React reports a caught render error on the console; that is the path under test.
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    guestFault.thrown = false;
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps a narrative card's head and summary around its failed diff", () => {
+    renderChanges();
+
+    expect(
+      screen.getAllByRole("heading", {
+        level: 3,
+        name: "This diff could not be shown",
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Adds the validate(a) guard on the shared path."),
+    ).toBeTruthy();
+  });
+
+  it("shows a card's diff again once another brief mounts the view", () => {
+    const { view, rerender } = renderChanges();
+    expect(
+      screen.getAllByRole("heading", { name: "This diff could not be shown" })
+        .length,
+    ).toBeGreaterThan(0);
+
+    guestFault.thrown = false;
+    rerender({ briefId: "next-brief" });
+
+    expect(findCardRow(view.container, "validate(a);")).toBeTruthy();
+    expect(screen.queryByTestId("failure-block")).toBeNull();
+  });
+
+  it("keeps a delta card's summary around its failed diff", () => {
+    renderChanges({ compare: "last-review" });
+
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "This diff could not be shown",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
   });
 });

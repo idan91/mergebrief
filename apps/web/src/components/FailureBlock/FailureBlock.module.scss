@@ -7,7 +7,7 @@
     justify-items: start;
     max-inline-size: 56ch;
 
-    :is(h1, h2, h3) {
+    :is(h1, h2, h3, h4) {
       color: var(--color-text-1);
       font-size: var(--font-size-5);
       font-weight: 600;
@@ -20,6 +20,14 @@
       font-size: var(--font-size-7);
       line-height: var(--line-height-display);
     }
+
+    &[data-scale="region"] {
+      gap: var(--space-2-5);
+
+      :is(h2, h3, h4) {
+        font-size: var(--font-size-3);
+      }
+    }
   }
 
   .detail {
@@ -27,6 +35,10 @@
     color: var(--color-text-2);
     font-size: var(--font-size-4);
     line-height: var(--line-height-body);
+
+    [data-scale="region"] > & {
+      font-size: var(--font-size-2);
+    }
   }
 
   @include mixins.for-breakpoint("small-mobile", "<") {

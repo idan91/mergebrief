@@ -13,7 +13,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildBriefViewModel,
@@ -47,6 +47,22 @@ import {
   type ConversationPlan,
   type ConversationSectionProps,
 } from ".";
+
+import type * as DigestGroupViewModule from "./DigestGroupView";
+import type { DigestGroupViewProps } from "./DigestGroupView";
+
+const digestFault = vi.hoisted(() => ({ thrown: false }));
+
+vi.mock("./DigestGroupView", async (importOriginal) => {
+  const actual = await importOriginal<typeof DigestGroupViewModule>();
+  function FaultyDigestGroupView(props: DigestGroupViewProps) {
+    if (digestFault.thrown) {
+      throw new Error("digest failed");
+    }
+    return <actual.DigestGroupView {...props} />;
+  }
+  return { ...actual, DigestGroupView: FaultyDigestGroupView };
+});
 
 afterEach(() => {
   cleanup();
@@ -991,5 +1007,45 @@ describe("ConversationSection outdated-thread revision jump", () => {
       );
       expect(screen.queryByText(/filtered/)).toBeNull();
     });
+  });
+});
+
+describe("ConversationSection render failure", () => {
+  beforeEach(() => {
+    digestFault.thrown = true;
+    // React reports a caught render error on the console; that is the path under test.
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    digestFault.thrown = false;
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the section bar when the threads cannot be shown", async () => {
+    renderSection({ plan: plan([ready()]) });
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 3,
+        name: "The conversation could not be shown",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Refresh/ })).toBeTruthy();
+  });
+
+  it("shows the threads again once a refetch brings new data", async () => {
+    const { client } = renderSection({ plan: plan([ready(), ready()]) });
+    await screen.findByRole("alert");
+    digestFault.thrown = false;
+
+    await act(() => client.invalidateQueries());
+
+    expect(
+      await screen.findByRole("button", {
+        name: /This null check looks inverted/,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

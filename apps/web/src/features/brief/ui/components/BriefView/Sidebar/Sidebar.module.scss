@@ -89,6 +89,11 @@
     }
   }
 
+  .failure {
+    padding-block: var(--space-5);
+    padding-inline: var(--space-4);
+  }
+
   // Overflow opens for the overlay's shadow: the panel under the rail spills
   // only past the viewport edge, and a fixed box adds no scrollable overflow.
   @media (width <= #{layout.$sidebar-overlay-max}) {

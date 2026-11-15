@@ -235,6 +235,7 @@ export type Catalog = typeof en & {
       viewingBrief: "Viewing brief {{index}} of {{total}}.";
     };
     chunk: (typeof en)["brief"]["chunk"] & {
+      cardFailed: "{{file}} could not be shown";
       largeDiffHidden_one: "{{count, number}} changed line hidden";
       largeDiffHidden_other: "{{count, number}} changed lines hidden";
       drafts_one: "{{count}} draft";

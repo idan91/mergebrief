@@ -6,7 +6,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { ReviewSessionProvider } from "@web/features/review/session";
@@ -33,6 +33,35 @@ import { useSidebarState } from "./useSidebarState";
 import { CHUNK_ROW_SELECTOR } from "./Tabs/ThisPr/ChunkRows/consts";
 import type { RevisionTimelinePlan } from "../../../../model/types";
 import type { ShownButtonRef } from "../hooks/usePhoneChrome";
+
+import type * as RevisionsModule from "./Tabs/Revisions";
+import type { RevisionsProps } from "./Tabs/Revisions";
+import type * as ThisPrModule from "./Tabs/ThisPr";
+import type { ThisPrProps } from "./Tabs/ThisPr";
+
+const tabFault = vi.hoisted(() => ({ thisPr: false, revisions: false }));
+
+vi.mock("./Tabs/ThisPr", async (importOriginal) => {
+  const actual = await importOriginal<typeof ThisPrModule>();
+  function FaultyThisPr(props: ThisPrProps) {
+    if (tabFault.thisPr) {
+      throw new Error("tab failed");
+    }
+    return <actual.ThisPr {...props} />;
+  }
+  return { ...actual, ThisPr: FaultyThisPr };
+});
+
+vi.mock("./Tabs/Revisions", async (importOriginal) => {
+  const actual = await importOriginal<typeof RevisionsModule>();
+  function FaultyRevisions(props: RevisionsProps) {
+    if (tabFault.revisions) {
+      throw new Error("tab failed");
+    }
+    return <actual.Revisions {...props} />;
+  }
+  return { ...actual, Revisions: FaultyRevisions };
+});
 
 const model = buildBriefViewModel(briefFixture);
 const firstGroup = model.groups[0];
@@ -643,5 +672,119 @@ describe("the split view control", () => {
   it("stays out of the foot where rows cannot split", () => {
     renderSidebar({ diffToggleWired: false });
     expect(screen.queryByTestId("sidebar-diff-view")).toBeNull();
+  });
+});
+
+describe("Sidebar tab content that cannot render", () => {
+  const failedHeading = "This tab could not be shown";
+
+  beforeEach(() => {
+    // React reports a caught render error on the console; that is the path under test.
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    tabFault.thisPr = false;
+    tabFault.revisions = false;
+    vi.restoreAllMocks();
+  });
+
+  function openSheet(): HTMLElement {
+    fireEvent.click(
+      within(screen.getByTestId("sidebar-bar")).getByRole("button", {
+        name: /sidebar/,
+      }),
+    );
+    return screen.getByRole("dialog", { name: "Sidebar" });
+  }
+
+  it("names the panel's failure and keeps the column", () => {
+    tabFault.thisPr = true;
+    renderSidebar();
+
+    fireEvent.click(chevron());
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: failedHeading }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("navigation", { name: "Change groups" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "This PR" })).toBeTruthy();
+  });
+
+  it("shows This PR again once a tab switch clears its failure", () => {
+    tabFault.thisPr = true;
+    renderSidebar({ revisions: makeRevisionPlan() });
+    fireEvent.click(chevron());
+    expect(screen.getByRole("heading", { name: failedHeading })).toBeTruthy();
+
+    tabFault.thisPr = false;
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    fireEvent.click(screen.getByRole("tab", { name: "This PR" }));
+
+    expect(within(screen.getByRole("tabpanel")).getByRole("list")).toBeTruthy();
+    expect(screen.queryByTestId("failure-block")).toBeNull();
+  });
+
+  it("names a failed Revisions panel and keeps the tabs usable", () => {
+    tabFault.revisions = true;
+    renderSidebar({ revisions: makeRevisionPlan() });
+    fireEvent.click(chevron());
+
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    expect(
+      screen.getByRole("heading", { level: 2, name: failedHeading }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "This PR" }));
+    expect(within(screen.getByRole("tabpanel")).getByRole("list")).toBeTruthy();
+  });
+
+  it("names the sheet's failure and keeps the sheet and the bar", () => {
+    tabFault.thisPr = true;
+    renderSidebar({ band: "narrow" });
+
+    const sheet = openSheet();
+
+    expect(
+      within(sheet).getByRole("heading", { level: 2, name: failedHeading }),
+    ).toBeTruthy();
+    expect(within(sheet).getByRole("tab", { name: "This PR" })).toBeTruthy();
+    expect(screen.getByTestId("sidebar-bar")).toBeTruthy();
+  });
+
+  it("shows the sheet's This PR again once a tab switch clears it", () => {
+    tabFault.thisPr = true;
+    renderSidebar({ band: "narrow", revisions: makeRevisionPlan() });
+    const sheet = openSheet();
+    expect(
+      within(sheet).getByRole("heading", { name: failedHeading }),
+    ).toBeTruthy();
+
+    tabFault.thisPr = false;
+    fireEvent.click(within(sheet).getByRole("tab", { name: "Revisions" }));
+    fireEvent.click(within(sheet).getByRole("tab", { name: "This PR" }));
+
+    expect(
+      within(within(sheet).getByRole("tabpanel")).getByRole("list"),
+    ).toBeTruthy();
+    expect(within(sheet).queryByTestId("failure-block")).toBeNull();
+  });
+
+  it("names a failed sheet Revisions panel and keeps the tabs usable", () => {
+    tabFault.revisions = true;
+    renderSidebar({ band: "narrow", revisions: makeRevisionPlan() });
+    const sheet = openSheet();
+
+    fireEvent.click(within(sheet).getByRole("tab", { name: "Revisions" }));
+    expect(
+      within(sheet).getByRole("heading", { level: 2, name: failedHeading }),
+    ).toBeTruthy();
+
+    fireEvent.click(within(sheet).getByRole("tab", { name: "This PR" }));
+    expect(
+      within(within(sheet).getByRole("tabpanel")).getByRole("list"),
+    ).toBeTruthy();
   });
 });

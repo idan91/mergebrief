@@ -14,6 +14,7 @@ import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { Markdown } from "@web/components/Markdown";
+import { RegionBoundary } from "@web/components/RegionBoundary";
 import { useViewportShape } from "@web/hooks/useViewportShape";
 import { getComposerHost, useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
@@ -472,6 +473,7 @@ function NarrativeChunkCard({
     added: countLines(chunk.addedRanges),
     deleted: removedLines,
   };
+  const diffFailureHeading = <h3>{t("brief.chunk.renderFailed")}</h3>;
   return (
     <div className={styles["chunk"]}>
       <CardHead
@@ -485,13 +487,15 @@ function NarrativeChunkCard({
         {chunk.summary}
       </p>
       {narrative.rows.length > 0 ? (
-        <GuestDiff
-          chunk={host}
-          originOf={originOf}
-          review={review}
-          tokenizeMode={TokenizeModes.STANDALONE}
-          variant={GuestDiffVariants.CARD}
-        />
+        <RegionBoundary heading={diffFailureHeading} resetKey={host.id}>
+          <GuestDiff
+            chunk={host}
+            originOf={originOf}
+            review={review}
+            tokenizeMode={TokenizeModes.STANDALONE}
+            variant={GuestDiffVariants.CARD}
+          />
+        </RegionBoundary>
       ) : null}
       {removedCount > 0 ? (
         <div className={styles["removedNote"]}>
@@ -679,6 +683,7 @@ function DeltaCard({
   jumpToChunk,
   review,
 }: DeltaCardProps) {
+  const { t } = useTranslation();
   // A delta chunk's id is the delta's own, so the Full chunk comes from the
   // file and head lines.
   const ownerId = resolveCardOwnerChunkId(
@@ -689,6 +694,7 @@ function DeltaCard({
   const summaryId = chunk.summary
     ? `${GuestHostPrefixes.DELTA}${chunk.id}-summary`
     : undefined;
+  const diffFailureHeading = <h3>{t("brief.chunk.renderFailed")}</h3>;
   return (
     <div className={styles["chunk"]}>
       <CardHead
@@ -703,7 +709,9 @@ function DeltaCard({
           {chunk.summary}
         </p>
       ) : null}
-      <DeltaChunkDiff chunk={chunk} deltaSpan={deltaSpan} review={review} />
+      <RegionBoundary heading={diffFailureHeading} resetKey={chunk.id}>
+        <DeltaChunkDiff chunk={chunk} deltaSpan={deltaSpan} review={review} />
+      </RegionBoundary>
     </div>
   );
 }
