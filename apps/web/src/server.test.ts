@@ -1,6 +1,8 @@
 import { SECURITY_RESPONSE_HEADERS } from "contract";
+import { HttpMethods } from "types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import serverEntry from "./server";
+import { timeApiRead } from "./server/api/read-timings";
 import { getServerLogger } from "./server/logger";
 import { REQUEST_ID_HEADER } from "./server/request-id";
 
@@ -9,6 +11,7 @@ const MINTED_ID = "00000000-0000-4000-8000-000000000001";
 const rendered = vi.hoisted(() => ({
   requests: [] as Request[],
   page: undefined as Response | undefined,
+  beforeRender: undefined as (() => Promise<unknown>) | undefined,
   apiReply: undefined as Response | undefined,
 }));
 
@@ -24,12 +27,13 @@ vi.mock("./server/api/proxy", async (importOriginal) => ({
 
 vi.mock("@tanstack/react-start/server", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  createStartHandler: () => (request: Request) => {
+  createStartHandler: () => async (request: Request) => {
     rendered.requests.push(request);
+    await rendered.beforeRender?.();
     if (rendered.page !== undefined) {
-      return Promise.resolve(rendered.page);
+      return rendered.page;
     }
-    return Promise.reject(new Error("render blew up"));
+    throw new Error("render blew up");
   },
 }));
 
@@ -37,6 +41,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   rendered.requests.length = 0;
   rendered.page = undefined;
+  rendered.beforeRender = undefined;
   rendered.apiReply = undefined;
 });
 
@@ -69,6 +74,26 @@ describe("server entry", () => {
       "web request failed",
       expect.objectContaining(failureFields),
     );
+  });
+
+  it("reports a render's timed API read in Server-Timing", async () => {
+    rendered.beforeRender = () =>
+      timeApiRead(HttpMethods.GET, "/repos/1/pulls/2/brief", () =>
+        Promise.resolve(),
+      );
+    rendered.page = new Response("<html></html>", {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+
+    const response = await serverEntry.fetch(
+      new Request("http://localhost/repos/1/pulls/2"),
+    );
+
+    const serverTiming = response.headers.get("server-timing") ?? "";
+    expect(serverTiming).toMatch(
+      /^api;desc="GET \/repos\/1\/pulls\/2\/brief @/,
+    );
+    expect(serverTiming).toContain("api-total;dur=");
   });
 
   it("gzips a proxied diff read for a browser that accepts it", async () => {

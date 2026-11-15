@@ -4,6 +4,7 @@ import "@tanstack/react-start/server-only";
 
 import { getRequestHeader } from "@tanstack/react-start/server";
 import type { ApiFetchInit } from "@web/data/apiFetch";
+import { HttpMethods } from "types";
 import { getServerEnv } from "../env";
 import { getServerLogger } from "../logger";
 import { REQUEST_ID_HEADER } from "../request-id";
@@ -14,6 +15,7 @@ import {
 } from "./consts";
 import { resolveApiOrigin } from "./origin";
 import { apiUnavailable, requestApi, type ApiTransportDeps } from "./proxy";
+import { timeApiRead } from "./read-timings";
 
 let cached: ApiTransportDeps | undefined;
 
@@ -108,5 +110,7 @@ export function fetchFromApi(
     });
     return Promise.resolve(apiUnavailable(503));
   }
-  return dispatchToApi(path, forwarded, transport, init);
+  return timeApiRead(init?.method ?? HttpMethods.GET, path, () =>
+    dispatchToApi(path, forwarded, transport, init),
+  );
 }

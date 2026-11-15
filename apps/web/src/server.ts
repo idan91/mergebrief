@@ -18,6 +18,11 @@ import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
 import { compressDiffReply } from "./server/api/compression";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
+import {
+  formatServerTiming,
+  runWithReadTimings,
+} from "./server/api/read-timings";
+import { stampDocumentHeaders } from "./server/document-headers";
 import { answerInternalError } from "./server/json-answer";
 import { isRefusedPath } from "./server/refused-paths";
 import { stampRequestId } from "./server/request-id";
@@ -35,25 +40,6 @@ const handleStartRequest = createStartHandler(defaultStreamHandler);
 /** Paths the API process serves rather than the page router. */
 function isApiPath(pathname: string): boolean {
   return pathname.startsWith("/api/");
-}
-
-/**
- * Stamp `cache-control: no-store` on SSR'd HTML documents: they embed
- * authz-gated, per-viewer data that must never land in a shared proxy/CDN
- * cache. Non-HTML assets keep their own caching.
- */
-function withNoStoreForDocuments(response: Response): Response {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("text/html")) {
-    return response;
-  }
-  const headers = new Headers(response.headers);
-  headers.set("cache-control", "no-store");
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
 }
 
 async function proxyToApi(
@@ -104,8 +90,11 @@ async function answerRequest(
       return await proxyToApi(stamped, requestId);
     }
     nameRequestSpan(request.method, PAGE_ROUTE);
-    const page = await handleStartRequest(stamped, requestOpts);
-    return withNoStoreForDocuments(page);
+    // A read still running when the stream starts misses the header.
+    const page = await runWithReadTimings(() =>
+      handleStartRequest(stamped, requestOpts),
+    );
+    return stampDocumentHeaders(page.value, formatServerTiming(page.reads));
   } catch (error) {
     logger.error("web request failed", { err: error, reqId: requestId });
     return answerInternalError();

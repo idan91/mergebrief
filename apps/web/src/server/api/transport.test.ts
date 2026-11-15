@@ -4,10 +4,21 @@
 // second authorization path.
 import { createServer, type Server } from "node:http";
 import { createServerEntry } from "@tanstack/react-start/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { stampRequestId } from "../request-id";
 import { dispatchToApi, fetchFromApi } from "./transport";
 import type { ApiTransportDeps } from "./proxy";
+import { runWithReadTimings } from "./read-timings";
+import { stubClock } from "./test-utils";
 
 interface Upstream {
   readonly origin: string;
@@ -132,8 +143,19 @@ describe("dispatchToApi", () => {
 });
 
 describe("fetchFromApi", () => {
+  // The transport is built once per process, so these renders share one upstream.
+  let apiUpstream: Upstream;
+
+  beforeAll(async () => {
+    apiUpstream = await startUpstream();
+  });
+
+  afterAll(async () => {
+    await apiUpstream.close();
+  });
+
   it("sends the stamped id and cookie from the request it renders", async () => {
-    vi.stubEnv("MERGEBRIEF_API_ORIGIN", upstream.origin);
+    vi.stubEnv("MERGEBRIEF_API_ORIGIN", apiUpstream.origin);
     const inbound = new Request("http://localhost/pulls/1", {
       headers: { cookie: "session=abc", "x-request-id": "client-chosen" },
     });
@@ -143,7 +165,23 @@ describe("fetchFromApi", () => {
 
     await render(stampRequestId(inbound, "minted-id"), {});
 
-    expect(upstream.requestIds).toEqual(["minted-id"]);
-    expect(upstream.cookies).toEqual(["session=abc"]);
+    expect(apiUpstream.requestIds).toEqual(["minted-id"]);
+    expect(apiUpstream.cookies).toEqual(["session=abc"]);
+  });
+
+  it("times each read into the render's timing log", async () => {
+    vi.stubEnv("MERGEBRIEF_API_ORIGIN", apiUpstream.origin);
+    const { fetch: render } = createServerEntry({
+      fetch: () => fetchFromApi("/api/inbox?view=open"),
+    });
+
+    const run = await runWithReadTimings(
+      () => render(new Request("http://localhost/"), {}),
+      stubClock([100, 105, 117]),
+    );
+
+    expect(run.reads).toEqual([
+      { method: "GET", path: "/api/inbox", startMs: 5, durationMs: 12 },
+    ]);
   });
 });
