@@ -256,7 +256,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -286,7 +285,6 @@ describe("Changes Only rendering", () => {
           brief={restarted}
           model={buildBriefViewModel(restarted)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -309,7 +307,6 @@ describe("Changes Only rendering", () => {
           brief={restarted}
           model={buildBriefViewModel(restarted)}
           narrative={null}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -333,7 +330,6 @@ describe("Changes Only rendering", () => {
           brief={restarted}
           model={buildBriefViewModel(restarted)}
           narrative={null}
-          marks={previousBriefMarks}
           skipReason="span too large"
           delta={null}
         />,
@@ -364,7 +360,6 @@ describe("Changes Only rendering", () => {
           brief={verbose}
           model={buildBriefViewModel(verbose)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -394,7 +389,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={verboseNarrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -424,7 +418,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={checkpointMarks}
           skipReason={null}
           delta={verboseDelta}
         />,
@@ -443,7 +436,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -461,7 +453,6 @@ describe("Changes Only rendering", () => {
           brief={anchored}
           model={buildBriefViewModel(anchored)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -476,7 +467,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -497,7 +487,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={warned}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -515,7 +504,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={null}
           skipReason={null}
           delta={null}
           deltaSkipped
@@ -537,7 +525,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={null}
           skipReason={null}
           delta={null}
           deltaUnchanged
@@ -558,7 +545,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={previousBriefMarks}
           skipReason={null}
           narrativeUnchanged
           delta={null}
@@ -579,7 +565,6 @@ describe("Changes Only rendering", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={null}
           skipReason={null}
           delta={delta}
         />,
@@ -654,7 +639,6 @@ describe("Changes Only raw span diff toggle", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
         />,
@@ -671,7 +655,6 @@ describe("Changes Only raw span diff toggle", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
           rawSpanDiff={rawDiffQuery("prev1234")}
@@ -692,7 +675,6 @@ describe("Changes Only raw span diff toggle", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={narrative}
-          marks={previousBriefMarks}
           skipReason={null}
           delta={null}
           rawSpanDiff={rawDiffQuery("prev1234")}
@@ -713,7 +695,6 @@ describe("Changes Only raw span diff toggle", () => {
           brief={fullBrief}
           model={buildBriefViewModel(fullBrief)}
           narrative={null}
-          marks={null}
           skipReason={null}
           delta={delta}
           rawSpanDiff={rawDiffQuery("prev1234")}

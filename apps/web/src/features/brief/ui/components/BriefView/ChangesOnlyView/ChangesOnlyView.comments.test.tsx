@@ -334,7 +334,6 @@ function renderChanges(options: RenderOptions = {}) {
                       compare === "last-review" ? (next.delta ?? DELTA) : null
                     }
                     deltaSpan={next.deltaSpan}
-                    marks={null}
                     model={model}
                     narrative={
                       compare === "previous-brief"

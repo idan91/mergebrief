@@ -453,7 +453,6 @@ function BriefViewContent(props: BriefViewProps) {
                                 brief={brief}
                                 model={model}
                                 narrative={overlay.narrative}
-                                marks={overlay.marks}
                                 skipReason={overlay.skipReason}
                                 narrativeUnchanged={overlay.narrativeUnchanged}
                                 delta={overlay.delta}

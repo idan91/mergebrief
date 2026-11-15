@@ -241,7 +241,6 @@ function OverlayChanges({
       deltaSpan={overlay.deltaSpanStatus}
       deltaSpanLanding={overlay.deltaSpanLanding}
       jumpToChunk={jumpToChunk}
-      marks={null}
       model={model}
       narrative={null}
       skipReason={null}
@@ -289,7 +288,6 @@ function renderSection(options: RenderOptions = {}) {
                   deltaSpan={options.deltaSpan}
                   deltaSpanLanding={options.deltaSpanLanding}
                   jumpToChunk={jumpToChunk}
-                  marks={null}
                   model={model}
                   narrative={compare === "previous-brief" ? narrative : null}
                   skipReason={null}

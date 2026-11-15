@@ -33,7 +33,6 @@ import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
   type Brief,
   type BriefChunk,
-  type ComparisonMarks,
   GuestHostPrefixes,
 } from "../../../../model/types";
 import {
@@ -79,8 +78,6 @@ export interface ChangesOnlyViewProps {
   model: BriefViewModel;
   /** The Revision narrative for Previous Brief, or null when it failed. */
   narrative: RevisionNarrative | null;
-  /** Full comparison marks, used to describe removed lines the diff can't show. */
-  marks: ComparisonMarks | null;
   /** Distinct skip reason when the narrative was deliberately not generated. */
   skipReason: RevisionNarrativeSkipReason | null;
   /** The narrative is the no-change record: nothing of the PR's own moved. */
