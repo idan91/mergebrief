@@ -56,6 +56,13 @@ const CASES: readonly FixtureCase[] = [
     lines: [5, 6, 7, 8],
   },
   {
+    rule: "no-conditional-spread",
+    name: "no-conditional-spread on a JSX element",
+    bad: "bad.tsx",
+    good: "good.tsx",
+    lines: [5, 6, 7],
+  },
+  {
     rule: "test-title",
     bad: "bad.ts",
     good: "good.ts",

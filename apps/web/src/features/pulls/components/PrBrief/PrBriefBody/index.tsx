@@ -160,7 +160,7 @@ function PrBriefBodyState({
           searchParams={searchParams}
           span={state.span}
           staleHead={staleHead}
-          {...(onGoToNewest ? { onGoToNewest } : {})}
+          onGoToNewest={onGoToNewest}
           timeline={timeline}
         />
       );

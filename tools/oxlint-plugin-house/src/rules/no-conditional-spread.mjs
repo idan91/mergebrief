@@ -8,7 +8,7 @@ export const noConditionalSpread = {
     },
     messages: {
       violation:
-        "Conditional fields are assigned, not spread: declare the object with its unconditional fields, then assign the optional one under an `if`.",
+        "Conditional fields are assigned, not spread: declare the object with its unconditional fields, then assign the optional one under an `if`. On a JSX element, pass the prop its maybe-value.",
     },
   },
   create(context) {
@@ -20,6 +20,8 @@ export const noConditionalSpread = {
     return {
       "ObjectExpression > SpreadElement > ConditionalExpression": reportSpread,
       "ObjectExpression > SpreadElement > LogicalExpression": reportSpread,
+      "JSXSpreadAttribute > ConditionalExpression": reportSpread,
+      "JSXSpreadAttribute > LogicalExpression": reportSpread,
     };
   },
 };

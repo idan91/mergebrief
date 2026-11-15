@@ -75,7 +75,7 @@ export function Checkbox({
         disabled={disabled}
         ref={setInput}
         type="checkbox"
-        {...(testId === undefined ? {} : { "data-testid": testId })}
+        data-testid={testId}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span aria-hidden className={styles["box"]} />
