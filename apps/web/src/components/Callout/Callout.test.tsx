@@ -397,6 +397,137 @@ async function waitPastCloseTimer(): Promise<void> {
   });
 }
 
+/** A callout anchored to a React-rendered button that handles keys itself. */
+function ReactAnchoredCallout({
+  onAnchorKey,
+  onClose,
+}: {
+  onAnchorKey: () => void;
+  onClose: () => void;
+}) {
+  const [button, setButton] = useState<HTMLButtonElement | null>(null);
+  return (
+    <>
+      <Button onKeyDown={onAnchorKey} ref={setButton} variant="secondary">
+        Anchor
+      </Button>
+      {button ? (
+        <Callout anchor={button} onClose={onClose}>
+          Label
+        </Callout>
+      ) : null}
+    </>
+  );
+}
+
+/** Owns the open state the way a host does: hover opens, `onClose` closes. */
+function HoverHost() {
+  const [button, setButton] = useState<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        onMouseEnter={() => setOpen(true)}
+        ref={setButton}
+        variant="secondary"
+      >
+        Anchor
+      </Button>
+      {open && button ? (
+        <Callout anchor={button} onClose={() => setOpen(false)}>
+          Label
+        </Callout>
+      ) : null}
+    </>
+  );
+}
+
+describe("Callout dismissal", () => {
+  it("closes on Escape with the pointer and focus where they were", () => {
+    const onClose = vi.fn();
+    render(
+      <Callout anchor={anchor} onClose={onClose}>
+        Label
+      </Callout>,
+    );
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledExactlyOnceWith("escape-key");
+  });
+
+  it("keeps the Escape that closed it from the window's listeners", () => {
+    const onPageKey = vi.fn();
+    window.addEventListener("keydown", onPageKey);
+    onTestFinished(() => window.removeEventListener("keydown", onPageKey));
+    render(
+      <Callout anchor={anchor} onClose={() => {}}>
+        Label
+      </Callout>,
+    );
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(onPageKey).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Escape that closed it from the anchor's own handler", () => {
+    const onAnchorKey = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <ReactAnchoredCallout onAnchorKey={onAnchorKey} onClose={onClose} />,
+    );
+    const button = screen.getByRole("button", { name: "Anchor" });
+    button.focus();
+
+    fireEvent.keyDown(button, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onAnchorKey).not.toHaveBeenCalled();
+  });
+
+  it("leaves no Escape listener behind on the key's target", () => {
+    const onClose = vi.fn();
+    render(<ReactAnchoredCallout onAnchorKey={() => {}} onClose={onClose} />);
+    const button = screen.getByRole("button", { name: "Anchor" });
+    button.focus();
+    fireEvent.keyDown(button, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+
+    fireEvent.keyDown(button, { key: "Enter" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("shows again on the next hover after Escape closed it", () => {
+    render(<HoverHost />);
+    const button = screen.getByRole("button", { name: "Anchor" });
+    fireEvent.mouseEnter(button);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+
+    fireEvent.keyDown(button, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.mouseLeave(button);
+    fireEvent.mouseEnter(button);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+  });
+
+  it("stays open on a press outside it", () => {
+    const onClose = vi.fn();
+    render(
+      <Callout anchor={anchor} onClose={onClose}>
+        Label
+      </Callout>,
+    );
+
+    fireEvent.pointerDown(outside);
+    fireEvent.click(outside);
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
 describe("Callout close timer", () => {
   it("closes a mounted callout once its timer fires", async () => {
     stubCalloutAboveAnchor();

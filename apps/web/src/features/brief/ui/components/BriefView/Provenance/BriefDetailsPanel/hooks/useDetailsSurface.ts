@@ -20,8 +20,15 @@ export function useDetailsSurface(
     hoveredSurface.current = undefined;
     moveTo(undefined);
   };
-  const closeOnLeave = (surface: DetailsSurface, reason?: OpenChangeReason) => {
+  const closeFromCallout = (
+    surface: DetailsSurface,
+    reason?: OpenChangeReason,
+  ) => {
     if (getLatestSurface() !== surface) {
+      return;
+    }
+    if (reason === "escape-key") {
+      close();
       return;
     }
 
@@ -66,7 +73,7 @@ export function useDetailsSurface(
   return {
     openSurface,
     close,
-    closeOnLeave,
+    closeFromCallout,
     pin,
     pinOpen,
     isPinned,

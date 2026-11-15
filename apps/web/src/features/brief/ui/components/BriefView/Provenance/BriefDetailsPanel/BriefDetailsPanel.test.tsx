@@ -142,6 +142,25 @@ describe("BriefDetailsPanel disclosure semantics", () => {
     window.removeEventListener("keydown", onWindowKeyDown);
   });
 
+  it("Escape closes a focused copy label first, then the panel", () => {
+    renderPanel();
+    fireEvent.click(infoTrigger());
+    const copy = screen.getByRole("button", { name: /^Copy full SHA a/ });
+    vi.spyOn(copy, "matches").mockImplementation(
+      (selector) => selector === ":focus-visible",
+    );
+    act(() => copy.focus());
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+
+    fireEvent.keyDown(copy, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(copy, { key: "Escape" });
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(infoTrigger());
+  });
+
   it("Escape from the scrolling content returns focus to the trigger", () => {
     stubOverflowingCallout();
     renderPanel();

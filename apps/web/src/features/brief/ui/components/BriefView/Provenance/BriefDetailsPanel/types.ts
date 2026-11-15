@@ -13,10 +13,14 @@ export interface DetailsSurfaceState {
   openSurface: DetailsSurface | undefined;
   close: () => void;
   /**
-   * Closes `surface` only while it is still the open one, then, after a
-   * pointer leave, previews the other trigger's surface if the mouse is on it.
+   * Closes `surface` only while it is still the open one. Escape closes it
+   * as `close` does; after a pointer leave it previews the other trigger's
+   * surface if the mouse is on it.
    */
-  closeOnLeave: (surface: DetailsSurface, reason?: OpenChangeReason) => void;
+  closeFromCallout: (
+    surface: DetailsSurface,
+    reason?: OpenChangeReason,
+  ) => void;
   pin: (surface: DetailsSurface) => void;
   /** Pins the surface already open, without moving. */
   pinOpen: () => void;

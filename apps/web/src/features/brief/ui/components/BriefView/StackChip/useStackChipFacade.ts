@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 
 import type { PrStack } from "../../../../model/types";
 import { StackChipOpeners, type StackChipOpener } from "./types";
@@ -86,21 +86,6 @@ export function useStackChipFacade({ stack }: StackChipFacadeParams) {
       node.focus();
     }
   };
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.stopPropagation();
-      close();
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [open, close]);
 
   return {
     chipLabel,

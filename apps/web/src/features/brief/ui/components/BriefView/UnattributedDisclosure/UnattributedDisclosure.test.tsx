@@ -119,7 +119,7 @@ describe("UnattributedDisclosure", () => {
     const matches = vi
       .spyOn(trigger, "matches")
       .mockImplementation((selector) => selector === ":focus-visible");
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(jump, { key: "Escape" });
     expect(trigger.dataset["state"]).toBe("closed");
     expect(document.activeElement).toBe(trigger);
     matches.mockRestore();
@@ -137,9 +137,13 @@ describe("UnattributedDisclosure", () => {
     }
     fireEvent.pointerEnter(wrap, { pointerType: "mouse" });
     expect(trigger.dataset["state"]).toBe("open");
-    fireEvent.keyDown(document, { key: "Escape" });
+    const onPageKey = vi.fn();
+    window.addEventListener("keydown", onPageKey);
+    fireEvent.keyDown(outside, { key: "Escape" });
+    window.removeEventListener("keydown", onPageKey);
     expect(trigger.dataset["state"]).toBe("closed");
     expect(document.activeElement).toBe(outside);
+    expect(onPageKey).not.toHaveBeenCalled();
     outside.remove();
   });
 

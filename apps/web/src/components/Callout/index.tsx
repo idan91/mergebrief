@@ -11,6 +11,7 @@ import {
   safePolygon,
   shift,
   size,
+  useDismiss,
   useFloating,
   useFloatingNodeId,
   useFloatingParentNodeId,
@@ -52,9 +53,10 @@ export interface CalloutProps {
   interactive?: boolean;
   /**
    * Called when the hover system (anchor + callout, joined by safePolygon)
-   * is left; the parent unmounts the callout in response. The pointer can
-   * travel into the callout and rest there (select, copy) without closing.
-   * `reason` is floating-ui's: a pointer leave, or focus moving out.
+   * is left, or on Escape; the parent unmounts the callout in response. The
+   * pointer can travel into the callout and rest there (select, copy)
+   * without closing. `reason` is floating-ui's: a pointer leave, focus
+   * moving out, or `escape-key`.
    */
   onClose: (reason?: OpenChangeReason) => void;
   children: ReactNode;
@@ -79,7 +81,7 @@ function CalloutTreeBoundary({ children }: { children: ReactNode }) {
  * Element-anchored hover callout, positioned by floating-ui: flips, shifts
  * and caps its height to stay inside the viewport, tracks the anchor while
  * scrolling, and points at it with an arrow. Mounted = open; the parent owns the
- * open state and gets `onClose` when hover leaves.
+ * open state and gets `onClose` when hover leaves or Escape is pressed.
  */
 function CalloutRoot({
   anchor,
@@ -176,7 +178,17 @@ function CalloutNode({
     placement: resolvedPlacement,
   } = useFloating(floatingOptions);
   const hover = useHover(context, { handleClose: safePolygon() });
-  const { getFloatingProps } = useInteractions([hover]);
+  // Escape alone: a press elsewhere belongs to whatever it lands on, and the
+  // hover system already closes on a pointer that leaves. The Escape that
+  // closes a callout is consumed: `capture` stops it at its target, before
+  // React's root listener and any window shortcut (focus mode, a Modal) see it.
+  const dismiss = useDismiss(context, {
+    outsidePress: false,
+    referencePress: false,
+    ancestorScroll: false,
+    capture: { escapeKey: true },
+  });
+  const { getFloatingProps } = useInteractions([hover, dismiss]);
   const reduceMotion = prefersReducedMotion();
   const { styles: transitionStyles } = useTransitionStyles(context, {
     duration: reduceMotion || instant ? 0 : POPOVER_ENTER_MS,

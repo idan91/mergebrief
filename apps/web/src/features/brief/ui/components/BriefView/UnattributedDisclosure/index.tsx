@@ -1,3 +1,4 @@
+import type { OpenChangeReason } from "@floating-ui/react";
 import { useTranslation } from "react-i18next";
 import {
   useEffect,
@@ -30,7 +31,7 @@ export interface UnattributedDisclosureProps {
 /**
  * The header's "unattributed" stat + Jump callout, in the
  * CoreLinesDisclosure grammar: hover previews (mouse only), click is
- * canonical for touch, keyboard focus opens, Escape-at-capture dismisses,
+ * canonical for touch, keyboard focus opens, the Callout's Escape dismisses,
  * scroll closes.
  */
 export function UnattributedDisclosure({
@@ -50,33 +51,6 @@ export function UnattributedDisclosure({
   const panelRef = useRef<HTMLSpanElement | null>(null);
   const ignoreFocusOpenRef = useRef(false);
   const detailId = useId();
-
-  useEffect(() => {
-    // Escape must dismiss a hover-opened panel too: focus may be anywhere,
-    // so listen at the document while open, capture phase, and consume the
-    // key so it never reaches page-level shortcut handling.
-    if (anchor === null) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.stopPropagation();
-      const active = document.activeElement;
-      const callout = panelRef.current?.closest(CALLOUT_ROOT_SELECTOR);
-      const heldInPanel =
-        active instanceof Node && (callout?.contains(active) ?? false);
-      setAnchor(null);
-      if (!heldInPanel) {
-        return;
-      }
-      ignoreFocusOpenRef.current = true;
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [anchor]);
 
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
@@ -111,6 +85,19 @@ export function UnattributedDisclosure({
       node instanceof Element &&
       node.hasAttribute("data-floating-ui-focus-guard")
     );
+  };
+
+  const closeFromCallout = (reason?: OpenChangeReason) => {
+    const active = document.activeElement;
+    const callout = panelRef.current?.closest(CALLOUT_ROOT_SELECTOR);
+    const heldInPanel =
+      active instanceof Node && (callout?.contains(active) ?? false);
+    setAnchor(null);
+    if (reason !== "escape-key" || !heldInPanel) {
+      return;
+    }
+    ignoreFocusOpenRef.current = true;
+    triggerRef.current?.focus();
   };
 
   const jumpFromCallout = (event: MouseEvent<HTMLButtonElement>) => {
@@ -182,7 +169,7 @@ export function UnattributedDisclosure({
           fit
           interactive
           placement="bottom"
-          onClose={() => setAnchor(null)}
+          onClose={closeFromCallout}
         >
           <span
             className={styles["panel"]}

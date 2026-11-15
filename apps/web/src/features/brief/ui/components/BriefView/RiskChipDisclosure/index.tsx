@@ -23,25 +23,6 @@ export function RiskChipDisclosure({
 }: RiskChipDisclosureProps) {
   const [anchor, setAnchor] = useState<Element | null>(null);
   const detailId = useId();
-  useEffect(() => {
-    // Escape must dismiss a hover-opened callout too: focus may be
-    // anywhere, so listen at the document while open.
-    if (anchor === null) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        // Consume the key: it dismissed this callout, so it must not ALSO
-        // fire global shortcuts (e.g. exiting focus mode).
-        event.stopPropagation();
-        setAnchor(null);
-      }
-    };
-    // Capture phase so the stopPropagation beats bubble-phase global
-    // shortcut listeners regardless of registration order.
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [anchor]);
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
     if (anchor === null) {

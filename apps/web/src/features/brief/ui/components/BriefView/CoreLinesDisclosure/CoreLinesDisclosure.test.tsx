@@ -54,15 +54,18 @@ describe("CoreLinesDisclosure", () => {
   it("Escape dismisses and the key never reaches page-level handlers", () => {
     renderDisclosure();
     const trigger = screen.getByRole("button", { name: "Core lines" });
+    trigger.focus();
     fireEvent.click(trigger);
+    expect(trigger.dataset["state"]).toBe("open");
     let leaked = false;
     const pageListener = () => {
       leaked = true;
     };
     window.addEventListener("keydown", pageListener);
-    fireEvent.keyDown(document.body, { key: "Escape" });
+    fireEvent.keyDown(trigger, { key: "Escape" });
     window.removeEventListener("keydown", pageListener);
     expect(trigger.dataset["state"]).toBe("closed");
+    expect(document.activeElement).toBe(trigger);
     expect(leaked).toBe(false);
   });
 });

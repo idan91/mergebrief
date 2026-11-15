@@ -47,7 +47,7 @@ export interface BriefDetailsPanelProps {
  * an unmounted portal node would dump it on <body>. Each trigger opens its own
  * surface, and one is open at a time.
  *
- * Hover previews either surface, click is canonical, Escape-at-capture
+ * Hover previews either surface, click is canonical, the Callout's Escape
  * dismisses without reaching page shortcuts.
  */
 export function BriefDetailsPanel({
@@ -69,7 +69,7 @@ export function BriefDetailsPanel({
     chipEl,
     setChipEl,
     setWarningsNode,
-    closeOnLeave,
+    closeFromCallout,
     toggle,
     activateWarnings,
     previewOnHover,
@@ -109,7 +109,9 @@ export function BriefDetailsPanel({
             fit
             interactive
             placement="bottom-start"
-            onClose={(reason) => closeOnLeave(DetailsSurfaces.FACTS, reason)}
+            onClose={(reason) =>
+              closeFromCallout(DetailsSurfaces.FACTS, reason)
+            }
           >
             <span className={styles["panel"]} id={surfaceId}>
               <ArtifactSection
@@ -156,7 +158,9 @@ export function BriefDetailsPanel({
           fit
           interactive
           placement="bottom-start"
-          onClose={(reason) => closeOnLeave(DetailsSurfaces.WARNINGS, reason)}
+          onClose={(reason) =>
+            closeFromCallout(DetailsSurfaces.WARNINGS, reason)
+          }
         >
           <span className={styles["panel"]} id={surfaceId}>
             <GenerationWarnings ref={setWarningsNode} warnings={warnings} />

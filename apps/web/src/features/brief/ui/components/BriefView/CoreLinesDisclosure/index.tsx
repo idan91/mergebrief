@@ -25,7 +25,7 @@ export interface CoreLinesDisclosureProps {
  * The core-lines mini panel: both line scopes plus the derivation caveat,
  * anchored to a real-button trigger in the RiskChipDisclosure grammar:
  * hover previews (mouse only), click is canonical for touch, keyboard focus
- * opens, Escape-at-capture dismisses without reaching page shortcuts.
+ * opens, and the Callout's Escape dismisses without reaching page shortcuts.
  */
 export function CoreLinesDisclosure({
   coreAdded,
@@ -43,22 +43,6 @@ export function CoreLinesDisclosure({
   // at the viewport origin.
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const detailId = useId();
-  useEffect(() => {
-    // Escape must dismiss a hover-opened panel too: focus may be anywhere,
-    // so listen at the document while open, capture phase, and consume the
-    // key so it never reaches page-level shortcut handling.
-    if (anchor === null) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setAnchor(null);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [anchor]);
   // Close on scroll: the portal'd panel repositions a frame late (stutter).
   useEffect(() => {
     if (anchor === null) {

@@ -7,7 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ForkPrStack, LinearPrStack } from "../../../../model/types";
 import { StackChip } from ".";
@@ -375,5 +375,28 @@ describe("StackChip", () => {
     expect(chip.getAttribute("aria-expanded")).toBe("true");
     const panel = screen.getByRole("list").closest("[tabindex='-1']");
     expect(document.activeElement).toBe(panel);
+  });
+
+  it("closes on Escape with focus back on the chip and the key consumed", async () => {
+    const onPageKey = vi.fn();
+    window.addEventListener("keydown", onPageKey);
+    onTestFinished(() => window.removeEventListener("keydown", onPageKey));
+    await renderChip(
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
+    );
+    const chip = screen.getByRole("button", {
+      name: "Pull request 2 of 3 in the stack",
+    });
+    fireEvent.click(chip);
+    const panel = screen.getByRole("list").closest("[tabindex='-1']");
+    expect(document.activeElement).toBe(panel);
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+
+    expect(chip.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(chip);
+    expect(onPageKey).not.toHaveBeenCalled();
   });
 });
