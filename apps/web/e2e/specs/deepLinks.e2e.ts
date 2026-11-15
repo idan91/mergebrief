@@ -273,3 +273,39 @@ test("the tab title leads with the PR title, then names the home page", async ({
 
   await expect(page).toHaveTitle("Briefs · MergeBrief");
 });
+
+test("Back across a Scope change keeps Focus mode and corrects the Address", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  const focusIndicator = page.getByRole("group", {
+    name: "Focus mode",
+    exact: true,
+  });
+  const changesOnly = page.getByRole("radio", {
+    name: "Changes only",
+    exact: true,
+  });
+  // The radio is sr-only and its label carries the chrome: pick it by key.
+  await changesOnly.focus();
+  await page.keyboard.press("Space");
+  await expect(changesOnly).toBeChecked();
+  await expect(page).toHaveURL(/view=changes/);
+
+  await page.keyboard.press("z");
+  await expect(page).toHaveURL(/focus=true/);
+  await page.goBack();
+
+  // The Brief view store owns focus mode: the older entry is rewritten to say so.
+  await expect(page).not.toHaveURL(/view=changes/);
+  await expect(page).toHaveURL(/focus=true/);
+  await expect(focusIndicator).toBeVisible();
+
+  await page.keyboard.press("z");
+  await expect(page).not.toHaveURL(/focus=true/);
+  await page.goForward();
+
+  await expect(page).toHaveURL(/view=changes/);
+  await expect(page).not.toHaveURL(/focus=true/);
+  await expect(focusIndicator).toHaveCount(0);
+});
