@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { memo, useMemo, useRef } from "react";
+import { memo, useId, useMemo, useRef } from "react";
 import { resolveFileStatus } from "brief-core/chunk-layout";
 import { formatDisplayPath } from "brief-core/hidden-chars";
 
@@ -166,6 +166,7 @@ export const ChunkCard = memo(function ChunkCard({
     state.reviewedChunks.has(chunk.id),
   );
   const currentMarkRef = useCurrentChunkMark(chunk.id);
+  const headingId = useId();
   // Selection identity when the toggle gesture started. Only a selection
   // CHANGED by this gesture suppresses the click. A stale selection that
   // survives the mousedown untouched (Firefox/Safari keep selections
@@ -281,6 +282,7 @@ export const ChunkCard = memo(function ChunkCard({
 
   return (
     <article
+      aria-labelledby={headingId}
       className={styles["chunk"]}
       data-large={large ? "" : undefined}
       data-reviewed={reviewed ? "" : undefined}
@@ -293,65 +295,67 @@ export const ChunkCard = memo(function ChunkCard({
       tabIndex={-1}
     >
       <div className={styles["head"]} ref={headRef}>
-        {/* oxlint-disable-next-line house/no-raw-button -- disclosure with a user-select: text requirement no shared component models */}
-        <button
-          className={styles["toggle"]}
-          ref={toggleRef}
-          type="button"
-          aria-expanded={open}
-          data-testid="chunk-toggle"
-          onMouseDown={(event) => {
-            selectionAtMouseDown.current = snapshotSelection();
-            if (event.detail <= 1) {
-              togglesThisPair.current = 0;
-            }
-          }}
-          onClick={(event) => {
-            // Selecting the file path (selectable inside this button) must
-            // not toggle the chunk open/closed. Keyboard activation
-            // (detail 0) always toggles. Residual edge: re-selecting the
-            // EXACT same range reads as unchanged and toggles.
-            if (event.detail > 0) {
-              const selection = snapshotSelection();
-              // Either endpoint counts: a shift-click extension keeps its
-              // anchor where the selection started (e.g. down in the diff)
-              // and only moves the focus into this button.
-              if (
-                selection !== null &&
-                !isSameSnapshot(selection, selectionAtMouseDown.current) &&
-                (event.currentTarget.contains(selection.anchorNode) ||
-                  event.currentTarget.contains(selection.focusNode))
-              ) {
-                return;
+        <h3 className={styles["heading"]} id={headingId}>
+          {/* oxlint-disable-next-line house/no-raw-button -- disclosure with a user-select: text requirement no shared component models */}
+          <button
+            className={styles["toggle"]}
+            ref={toggleRef}
+            type="button"
+            aria-expanded={open}
+            data-testid="chunk-toggle"
+            onMouseDown={(event) => {
+              selectionAtMouseDown.current = snapshotSelection();
+              if (event.detail <= 1) {
+                togglesThisPair.current = 0;
               }
-              togglesThisPair.current += 1;
-            }
-            toggleChunk(chunk.id);
-          }}
-          onDoubleClick={() => {
-            // A double-click pair that netted exactly ONE unsuppressed
-            // toggle (its first click preceded the word selection, the
-            // second was suppressed) toggles again so the pair nets to
-            // zero. Pairs that netted zero (both suppressed) or two (no
-            // selection change, already net zero) are left alone.
-            if (togglesThisPair.current === 1) {
+            }}
+            onClick={(event) => {
+              // Selecting the file path (selectable inside this button) must
+              // not toggle the chunk open/closed. Keyboard activation
+              // (detail 0) always toggles. Residual edge: re-selecting the
+              // EXACT same range reads as unchanged and toggles.
+              if (event.detail > 0) {
+                const selection = snapshotSelection();
+                // Either endpoint counts: a shift-click extension keeps its
+                // anchor where the selection started (e.g. down in the diff)
+                // and only moves the focus into this button.
+                if (
+                  selection !== null &&
+                  !isSameSnapshot(selection, selectionAtMouseDown.current) &&
+                  (event.currentTarget.contains(selection.anchorNode) ||
+                    event.currentTarget.contains(selection.focusNode))
+                ) {
+                  return;
+                }
+                togglesThisPair.current += 1;
+              }
               toggleChunk(chunk.id);
-            }
-          }}
-        >
-          <span aria-hidden="true" className={styles["twist"]}>
-            <Icon
-              name={IconNames.CARET_DOWN}
-              rotation={
-                open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+            }}
+            onDoubleClick={() => {
+              // A double-click pair that netted exactly ONE unsuppressed
+              // toggle (its first click preceded the word selection, the
+              // second was suppressed) toggles again so the pair nets to
+              // zero. Pairs that netted zero (both suppressed) or two (no
+              // selection change, already net zero) are left alone.
+              if (togglesThisPair.current === 1) {
+                toggleChunk(chunk.id);
               }
-              size={IconSizes.SM}
-            />
-          </span>
-          <span className={styles["file"]} title={displayFile}>
-            <bdi dir="ltr">{displayFile}</bdi>
-          </span>
-        </button>
+            }}
+          >
+            <span aria-hidden="true" className={styles["twist"]}>
+              <Icon
+                name={IconNames.CARET_DOWN}
+                rotation={
+                  open ? IconRotations.NONE : IconRotations.THREE_QUARTERS
+                }
+                size={IconSizes.SM}
+              />
+            </span>
+            <span className={styles["file"]} title={displayFile}>
+              <bdi dir="ltr">{displayFile}</bdi>
+            </span>
+          </button>
+        </h3>
         <span className={styles["tools"]} data-testid="chunk-tools">
           <CopyButton label={t("brief.chunk.copyFilePath")} text={chunk.file} />
           {shareChunk !== undefined ? (

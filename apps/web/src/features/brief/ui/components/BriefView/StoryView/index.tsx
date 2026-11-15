@@ -1,4 +1,6 @@
+import { useTranslation } from "react-i18next";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { ChunkShare, GithubHeadRef } from "../types";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useViewportShape } from "@web/hooks/useViewportShape";
@@ -17,6 +19,7 @@ import type {
   Brief,
   BriefChunk,
 } from "../../../../model/types";
+import { resolveGroupName } from "../../../../model/utils/resolve-group-name";
 import type { BriefViewModel } from "../../../../model/utils/view-model";
 import type {
   DigestRow,
@@ -133,6 +136,7 @@ export function StoryView(props: StoryViewProps) {
     focusMode ? state.activeGroupId : null,
   );
   const githubHead = useGithubHead(props.brief);
+  const { t } = useTranslation();
 
   return (
     <div
@@ -145,6 +149,9 @@ export function StoryView(props: StoryViewProps) {
         const groupView = resolveGroupDiffView(diffView, group.chunks);
         const sectionId = deriveGroupSectionId(group.id);
         const cardId = `${sectionId}-card`;
+        const focusHeading = isActiveFocusGroup
+          ? resolveGroupName(t, group)
+          : undefined;
         return (
           <section
             className={`${styles["group"]} reveal`}
@@ -154,6 +161,29 @@ export function StoryView(props: StoryViewProps) {
             data-diff-view={groupView}
             data-testid="story-group"
           >
+            {focusHeading === undefined ? null : (
+              <ScreenReaderOnly as="h2">{focusHeading}</ScreenReaderOnly>
+            )}
+            {props.focusMode || props.cardTrack === undefined ? null : (
+              <StorySplitter
+                sidebar={props.sidebar}
+                cardId={cardId}
+                setTrack={props.cardTrack.setTrack}
+                resetTrack={props.cardTrack.resetTrack}
+              />
+            )}
+            {props.focusMode ? null : (
+              <GroupCard
+                id={cardId}
+                group={group}
+                brief={props.brief}
+                model={props.model}
+                jumpToChunk={props.jumpToChunk}
+                sinceBaselineShortSha={props.sinceMarkers?.baselineShortSha}
+                sinceChangedFileCount={props.sinceMarkers?.counts.get(group.id)}
+                openComparison={props.openComparison}
+              />
+            )}
             {props.focusMode ? (
               <div
                 className={styles["chunks"]}
@@ -200,26 +230,6 @@ export function StoryView(props: StoryViewProps) {
                 group={group}
                 lineOwnersByFile={lineOwnersByFile}
                 view={props}
-              />
-            )}
-            {props.focusMode || props.cardTrack === undefined ? null : (
-              <StorySplitter
-                sidebar={props.sidebar}
-                cardId={cardId}
-                setTrack={props.cardTrack.setTrack}
-                resetTrack={props.cardTrack.resetTrack}
-              />
-            )}
-            {props.focusMode ? null : (
-              <GroupCard
-                id={cardId}
-                group={group}
-                brief={props.brief}
-                model={props.model}
-                jumpToChunk={props.jumpToChunk}
-                sinceBaselineShortSha={props.sinceMarkers?.baselineShortSha}
-                sinceChangedFileCount={props.sinceMarkers?.counts.get(group.id)}
-                openComparison={props.openComparison}
               />
             )}
           </section>

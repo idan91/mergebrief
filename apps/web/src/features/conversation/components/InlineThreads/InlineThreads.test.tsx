@@ -187,6 +187,16 @@ describe("InlineThreads", () => {
     expect(screen.getByRole("button", { name: /bot two/ })).toBeDefined();
   });
 
+  it("heads its list one level under the chunk card's heading", () => {
+    renderInline([thread({ line: 10, body: "human inline note" })]);
+
+    const heading = screen.getByRole("heading", {
+      name: appI18n.t("conversation.inlineHeading"),
+    });
+
+    expect(heading.tagName).toBe("H4");
+  });
+
   it("renders nothing for an empty row set", () => {
     const { container } = renderInline([]);
     expect(container.querySelector("section")).toBeNull();

@@ -42,7 +42,7 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
       aria-label={t("conversation.ariaLabelInlineThreads")}
       className={styles["inline"]}
     >
-      <h3 className={styles["label"]}>{t("conversation.inlineHeading")}</h3>
+      <h4 className={styles["label"]}>{t("conversation.inlineHeading")}</h4>
       <ul className={styles["rows"]}>
         {rows.map((row) =>
           row.kind === "thread" ? (

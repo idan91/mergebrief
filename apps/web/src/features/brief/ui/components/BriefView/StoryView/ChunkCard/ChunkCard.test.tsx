@@ -501,6 +501,27 @@ describe("ChunkCard selectable file path", () => {
   });
 });
 
+describe("ChunkCard heading", () => {
+  it("holds its toggle in a level-three heading named by the file", () => {
+    renderCard();
+
+    const heading = screen.getByRole("heading", {
+      level: 3,
+      name: chunk.file,
+    });
+
+    expect(within(heading).getByTestId("chunk-toggle")).toBeTruthy();
+  });
+
+  it("names the card after its heading", () => {
+    renderCard();
+
+    const card = screen.getByRole("article", { name: chunk.file });
+
+    expect(card.getAttribute("data-testid")).toBe("brief-chunk");
+  });
+});
+
 describe("ChunkCard reading position", () => {
   it("marks itself current from the position store, not a prop", () => {
     const { positionStore } = renderCard();

@@ -217,6 +217,51 @@ describe("StoryView chunk column", () => {
   });
 });
 
+/** The page's own h1 sits above the story view, outside this render. */
+const PAGE_HEADING_LEVEL = 1;
+
+function readHeadingLevel(heading: HTMLElement): number {
+  return Number(heading.tagName.slice(1));
+}
+
+describe("StoryView heading outline", () => {
+  it("puts each group's h2 before its first chunk's h3", () => {
+    renderStory(false, REMAINDER_SETUP);
+    const sections = screen
+      .getAllByTestId("story-group")
+      .filter((section) => section.querySelector("article h3") !== null);
+
+    expect(sections.length).toBeGreaterThanOrEqual(2);
+    for (const section of sections) {
+      const [groupHeading] = within(section).getAllByRole("heading", {
+        level: 2,
+      });
+      const chunkHeading = section.querySelector(
+        '[data-testid="brief-chunk"] h3',
+      );
+      if (groupHeading === undefined || chunkHeading === null) {
+        throw new Error("expected a group heading and a chunk heading");
+      }
+      const position = groupHeading.compareDocumentPosition(chunkHeading);
+      expect(position & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+  });
+
+  it("skips no heading level in focus mode", () => {
+    renderStory(true);
+    const levels = [
+      PAGE_HEADING_LEVEL,
+      ...screen.getAllByRole("heading").map(readHeadingLevel),
+    ];
+    const jumps = levels.filter(
+      (level, index) => index > 0 && level - (levels[index - 1] ?? 0) > 1,
+    );
+
+    expect(levels).toContain(3);
+    expect(jumps).toEqual([]);
+  });
+});
+
 describe("remainder stamps", () => {
   it("renders Story without concern, role, or category text on the remainder", () => {
     renderStory(false, REMAINDER_SETUP);

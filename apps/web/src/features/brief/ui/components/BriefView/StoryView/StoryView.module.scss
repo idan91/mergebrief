@@ -43,8 +43,11 @@
     align-items: start;
     gap: functions.to-rem(layout.$story-group-gap);
 
+    // The card precedes the chunks in the DOM; without a row, sparse
+    // auto-placement drops the chunks to a second row under it.
     .chunks {
       order: initial;
+      grid-row: 1;
       grid-column: 1;
       min-inline-size: 0;
     }
@@ -58,6 +61,7 @@
     display: flex;
     flex-direction: column;
     order: initial;
+    grid-row: 1;
     grid-column: 2;
     max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
   }

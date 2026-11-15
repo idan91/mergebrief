@@ -65,6 +65,10 @@ const NOTCH_INSETS = [
   { left: NOTCH_INSET_PX, right: 0 },
   { left: 0, right: NOTCH_INSET_PX },
 ];
+/** Sub-pixel rounding between a control's box and the head's content edge. */
+const HEAD_END_TOLERANCE_PX = 2;
+/** One scroll step while looking for the first mounted chunk card. */
+const CHUNK_SEEK_STEP_PX = 300;
 const FOCUS_ROUTE = `${FIXTURE_ROUTE_REV2}&focus=true`;
 const LINE_LINK_MISS_ROUTE = `${FIXTURE_ROUTE_REV1}&l=c9.R1`;
 const LINE_LINK_SETTLE_MS = 15_000;
@@ -151,6 +155,17 @@ for (const viewport of SIDEWAYS_PHONES) {
         .toBe(true);
     });
 
+    test("ends a chunk head's last control at the head's end", async ({
+      page,
+    }) => {
+      await gotoBrief(page, FIXTURE_ROUTE_REV2);
+      await scrollToFirstChunk(page);
+
+      const shortfall = await readChunkHeadShortfall(page);
+
+      expect(Math.abs(shortfall)).toBeLessThanOrEqual(HEAD_END_TOLERANCE_PX);
+    });
+
     test("keeps every control clear of a notch on either side", async ({
       page,
     }) => {
@@ -176,6 +191,47 @@ for (const viewport of SIDEWAYS_PHONES) {
         expect(notice.end).toBeGreaterThanOrEqual(notch.right);
       }
     });
+  });
+}
+
+/** A short screen opens above the story, where the windowed list has mounted no card yet. */
+async function scrollToFirstChunk(page: Page): Promise<void> {
+  const card = page.getByTestId("brief-chunk").first();
+  const seekCard = async () => {
+    await page.evaluate((stepPx) => {
+      window.scrollBy({ top: stepPx, behavior: "instant" });
+    }, CHUNK_SEEK_STEP_PX);
+    return card.count();
+  };
+  await expect.poll(seekCard).toBeGreaterThan(0);
+  await card.scrollIntoViewIfNeeded();
+}
+
+/** How far the first chunk head's last drawn control ends short of the head's content edge. */
+async function readChunkHeadShortfall(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const head = document.querySelector(
+      '[data-testid="brief-chunk"] > div:first-child',
+    );
+    if (head === null) {
+      throw new Error("no chunk head");
+    }
+    const style = getComputedStyle(head);
+    const contentEnd =
+      head.getBoundingClientRect().right -
+      Number.parseFloat(style.borderRightWidth) -
+      Number.parseFloat(style.paddingRight);
+    const controlEnds = [...head.querySelectorAll("*")]
+      .filter((element) =>
+        element.checkVisibility({ visibilityProperty: true }),
+      )
+      .map((element) => element.getBoundingClientRect())
+      .filter((box) => box.width > 1 && box.height > 1)
+      .map((box) => box.right);
+    if (controlEnds.length === 0) {
+      throw new Error("the chunk head draws no control");
+    }
+    return contentEnd - Math.max(...controlEnds);
   });
 }
 
