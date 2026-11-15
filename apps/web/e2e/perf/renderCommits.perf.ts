@@ -1,109 +1,18 @@
-// React render work under scroll:
+// React render work under scroll, counted by the shared commit hook:
 //   storm-*: full-page traversal, windowed card mounts included
 //   spy-tick-*: boundary wiggles in a warmed region, reading-position ticks only
-// A DevTools-hook shim counts, per commit, the component fibers that
-// actually rendered (fresh actualStartTime) and sums the inclusive render
-// duration of each re-render island. Dev-build React only: the hook relies
-// on the dev renderer's profiling fields; numbers compare run-to-run, not
-// to production.
 import { expect, test } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
+import {
+  installCommitHook,
+  reportCommitStats,
+  sumSamples,
+} from "./commit-stats";
 import { PERF_ROUTE_REV1 } from "./ids";
-import { report } from "./report";
-
-interface CommitStats {
-  commits: number;
-  renderedComponents: number[];
-  renderMs: number[];
-}
-
-declare global {
-  interface Window {
-    __COMMIT_TRACKING__?: boolean;
-    __COMMIT_STATS__?: CommitStats;
-  }
-}
-
-/**
- * Private React Fiber work tags for user components: FunctionComponent (0),
- * ClassComponent (1), ForwardRef (11), MemoComponent (14),
- * SimpleMemoComponent (15). Private contract, like the profiling fields the
- * hook reads: a React upgrade can silently renumber them, so every tracked
- * run ASSERTS it counted rendered components, so drift fails loudly instead of
- * reporting zeros that read as an improvement.
- */
-const COMPONENT_TAGS = new Set([0, 1, 11, 14, 15]);
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(
-    ([componentTags]) => {
-      const stats: CommitStats = {
-        commits: 0,
-        renderedComponents: [],
-        renderMs: [],
-      };
-      window.__COMMIT_STATS__ = stats;
-      let lastCommitTime = 0;
-      const tags = new Set(componentTags);
-
-      interface FiberLike {
-        tag: number;
-        actualStartTime?: number;
-        actualDuration?: number;
-        child: FiberLike | null;
-        sibling: FiberLike | null;
-      }
-
-      const hook = {
-        renderers: new Map<number, unknown>(),
-        supportsFiber: true,
-        inject(renderer: unknown) {
-          const id = hook.renderers.size + 1;
-          hook.renderers.set(id, renderer);
-          return id;
-        },
-        onScheduleFiberRoot() {},
-        onCommitFiberUnmount() {},
-        onCommitFiberRoot(_id: number, root: { current: FiberLike }) {
-          const now = performance.now();
-          if (window.__COMMIT_TRACKING__ !== true) {
-            lastCommitTime = now;
-            return;
-          }
-          let rendered = 0;
-          let islandMs = 0;
-          const walk = (fiber: FiberLike | null, insideIsland: boolean) => {
-            for (let node = fiber; node !== null; node = node.sibling) {
-              const fresh =
-                typeof node.actualStartTime === "number" &&
-                node.actualStartTime > lastCommitTime;
-              if (fresh && tags.has(node.tag)) {
-                rendered += 1;
-              }
-              if (fresh && !insideIsland) {
-                islandMs += node.actualDuration ?? 0;
-                walk(node.child, true);
-              } else {
-                walk(node.child, insideIsland || fresh);
-              }
-            }
-          };
-          walk(root.current, false);
-          stats.commits += 1;
-          stats.renderedComponents.push(rendered);
-          stats.renderMs.push(islandMs);
-          lastCommitTime = now;
-        },
-      };
-      Object.defineProperty(window, "__REACT_DEVTOOLS_GLOBAL_HOOK__", {
-        value: hook,
-        configurable: false,
-        writable: false,
-      });
-    },
-    [[...COMPONENT_TAGS]] as const,
-  );
+  await installCommitHook(page);
 });
 
 test("render work during a scroll storm", async ({ page }) => {
@@ -145,21 +54,12 @@ test("render work during a scroll storm", async ({ page }) => {
   }, 4000);
 
   expect(stats.commits).toBeGreaterThan(0);
-  const total = (values: number[]) =>
-    values.reduce((sum, value) => sum + value, 0);
   // The fiber-contract canary: commits with zero counted component renders
   // means the private tags/profiling fields drifted, not that the app got
   // infinitely cheaper.
-  expect(total(stats.renderedComponents)).toBeGreaterThan(0);
-  expect(total(stats.renderMs)).toBeGreaterThan(0);
-  report("storm-commits", [stats.commits]);
-  report("storm-rendered-components-total", [total(stats.renderedComponents)]);
-  report("storm-rendered-components-max-per-commit", [
-    Math.max(...stats.renderedComponents),
-  ]);
-  report("storm-render-ms-total", [
-    Math.round(total(stats.renderMs) * 100) / 100,
-  ]);
+  expect(sumSamples(stats.renderedComponents)).toBeGreaterThan(0);
+  expect(sumSamples(stats.renderMs)).toBeGreaterThan(0);
+  reportCommitStats("storm", stats);
 });
 
 test("render work per pure scroll-spy tick", async ({ page }) => {
@@ -220,18 +120,7 @@ test("render work per pure scroll-spy tick", async ({ page }) => {
   });
 
   expect(stats.commits).toBeGreaterThan(0);
-  const total = (values: number[]) =>
-    values.reduce((sum, value) => sum + value, 0);
   // Same fiber-contract canary as the storm test.
-  expect(total(stats.renderedComponents)).toBeGreaterThan(0);
-  report("spy-tick-commits", [stats.commits]);
-  report("spy-tick-rendered-components-total", [
-    total(stats.renderedComponents),
-  ]);
-  report("spy-tick-rendered-components-max-per-commit", [
-    Math.max(...stats.renderedComponents),
-  ]);
-  report("spy-tick-render-ms-total", [
-    Math.round(total(stats.renderMs) * 100) / 100,
-  ]);
+  expect(sumSamples(stats.renderedComponents)).toBeGreaterThan(0);
+  reportCommitStats("spy-tick", stats);
 });
