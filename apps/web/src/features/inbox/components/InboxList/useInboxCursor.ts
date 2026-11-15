@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 import type { InboxCursor } from "./types";
 
 const NO_CURSOR = -1;
@@ -90,7 +91,7 @@ export function useInboxCursor(
       if (hasModifier(event) || isTypingTarget(event.target)) {
         return;
       }
-      if (isInsideOverlay(event.target)) {
+      if (isInsideOverlay(event.target) || isSuppressedSingleKey(event)) {
         return;
       }
 

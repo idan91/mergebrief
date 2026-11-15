@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { isInsideOverlay } from "../../../utils/overlay-target";
 import { isTypingTarget } from "../../../utils/typingTarget";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 
 const TOGGLE_KEY = "?";
 
@@ -22,7 +23,7 @@ export function useHomeShortcuts(enabled: boolean) {
       if (event.key !== TOGGLE_KEY || event.metaKey || event.ctrlKey) {
         return;
       }
-      if (isTypingTarget(event.target)) {
+      if (isTypingTarget(event.target) || isSuppressedSingleKey(event)) {
         return;
       }
       if (isInsideOverlay(event.target) && !isOpen) {

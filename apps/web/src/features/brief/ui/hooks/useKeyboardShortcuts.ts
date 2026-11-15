@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { isTypingTarget } from "../../../../utils/typingTarget";
 import { isInsideMenuOrDialog } from "../../../../utils/overlay-target";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 
 export interface KeyboardShortcutsOptions {
   chunkIds: string[];
@@ -241,7 +242,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isInsideMenuOrDialog(event.target)) {
+      if (isInsideMenuOrDialog(event.target) || isSuppressedSingleKey(event)) {
         return;
       }
       const current = latest.current;

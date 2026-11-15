@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { I18nextProvider } from "react-i18next";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  readSingleKeyShortcutsOn,
+  writeSingleKeyShortcutsOn,
+} from "@web/utils/single-key-shortcuts";
 
 import { appI18n } from "../../i18n/I18nProvider";
 import { ShortcutsModal, type ShortcutSection } from ".";
@@ -54,5 +59,49 @@ describe("ShortcutsModal", () => {
     const close = renderOpenModal();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ShortcutsModal single-key switch", () => {
+  afterEach(() => {
+    writeSingleKeyShortcutsOn(true);
+  });
+
+  it("starts ticked and turns the single-key shortcuts off and on", () => {
+    renderOpenModal();
+    const toggle = screen.getByRole("checkbox", {
+      name: "Single-key shortcuts",
+    });
+    expect(toggle).toHaveProperty("checked", true);
+
+    fireEvent.click(toggle);
+    const offAfterClick = readSingleKeyShortcutsOn();
+    fireEvent.click(toggle);
+
+    expect(offAfterClick).toBe(false);
+    expect(readSingleKeyShortcutsOn()).toBe(true);
+    expect(toggle).toHaveProperty("checked", true);
+  });
+
+  it("describes the switch by the hint under it", () => {
+    renderOpenModal();
+    const toggle = screen.getByRole("checkbox", {
+      name: "Single-key shortcuts",
+    });
+
+    const hintId = toggle.getAttribute("aria-describedby") ?? "";
+    const hint = document.getElementById(hintId);
+
+    expect(hint?.textContent).toContain("Keys pressed on their own");
+  });
+
+  it("shows a choice made before it opened", () => {
+    writeSingleKeyShortcutsOn(false);
+    renderOpenModal();
+
+    const toggle = screen.getByRole("checkbox", {
+      name: "Single-key shortcuts",
+    });
+    expect(toggle).toHaveProperty("checked", false);
   });
 });

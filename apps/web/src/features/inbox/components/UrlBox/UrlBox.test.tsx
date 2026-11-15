@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { RequestBounds } from "contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 import { renderInRouter } from "../../../../test/router";
 import { UrlBox } from ".";
 
@@ -15,6 +16,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
+  writeSingleKeyShortcutsOn(true);
 });
 
 describe("UrlBox", () => {
@@ -34,6 +36,16 @@ describe("UrlBox", () => {
     other.focus();
     fireEvent.keyDown(other, { key: "/" });
     expect(document.activeElement).toBe(other);
+  });
+
+  it("leaves the slash key alone with single-key shortcuts off", async () => {
+    writeSingleKeyShortcutsOn(false);
+    await renderInRouter(<UrlBox />);
+    const field = screen.getByRole("textbox", { name: "Pull request URL" });
+
+    fireEvent.keyDown(window, { key: "/" });
+
+    expect(document.activeElement).not.toBe(field);
   });
 
   it("an empty field submits nothing on Enter", async () => {

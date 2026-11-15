@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useReviewSession } from "@web/features/review/session";
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
 import { useFocusTrap } from "@web/hooks/useFocusTrap";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 import { isTypingTarget } from "@web/utils/typingTarget";
 import {
   isAttributedGroupView,
@@ -146,7 +147,8 @@ export function useFocusPanelFacade({
     const hideKey =
       event.key.toLowerCase() === "s" &&
       !modified &&
-      !isTypingTarget(event.target);
+      !isTypingTarget(event.target) &&
+      !isSuppressedSingleKey(event);
     if (event.key !== "Escape" && !hideKey) {
       trapFocus(event);
       return;

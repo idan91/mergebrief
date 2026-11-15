@@ -19,6 +19,8 @@ export interface CheckboxProps {
   children?: ReactNode;
   /** The accessible name of a control with no visible label beside it. */
   ariaLabel?: string;
+  /** The id of text beside the control that explains it. */
+  describedBy?: string;
   disabled?: boolean | undefined;
   /** A partial set: the control reads mixed and draws a dash. */
   indeterminate?: boolean | undefined;
@@ -33,6 +35,7 @@ export function Checkbox({
   onChange,
   children,
   ariaLabel,
+  describedBy,
   disabled,
   indeterminate = false,
   testId,
@@ -63,6 +66,7 @@ export function Checkbox({
     <label className={styles["root"]} data-variant={variant}>
       <input
         aria-checked={indeterminate ? "mixed" : undefined}
+        aria-describedby={describedBy}
         aria-label={ariaLabel}
         // Keeps a browser's restored form state from passing for a tick.
         autoComplete="off"

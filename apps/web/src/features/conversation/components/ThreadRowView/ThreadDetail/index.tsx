@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 
 import { Button } from "@web/components/Button";
 import type { DigestThreadRow } from "../../../utils/digest";
@@ -120,6 +121,9 @@ export function ThreadDetail({
       }
       // An open modal owns the keyboard. R must not act behind it.
       if (document.querySelector('[aria-modal="true"]') !== null) {
+        return;
+      }
+      if (isSuppressedSingleKey(event)) {
         return;
       }
       // Containment scopes the shortcut: with the same thread rendered inline

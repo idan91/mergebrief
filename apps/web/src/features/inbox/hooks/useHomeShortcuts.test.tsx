@@ -2,11 +2,13 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 import { useHomeShortcuts } from "./useHomeShortcuts";
 
 afterEach(() => {
   cleanup();
   document.body.innerHTML = "";
+  writeSingleKeyShortcutsOn(true);
 });
 
 function pressQuestionMark(target: EventTarget = window): boolean {
@@ -76,5 +78,25 @@ describe("useHomeShortcuts", () => {
     expect(result.current.isOpen).toBe(false);
     rerender({ enabled: true });
     expect(result.current.isOpen).toBe(false);
+  });
+});
+
+describe("useHomeShortcuts with single-key shortcuts off", () => {
+  it("leaves ? alone, and the dialog still opens when asked", () => {
+    writeSingleKeyShortcutsOn(false);
+    const { result } = renderHook(() => useHomeShortcuts(true));
+
+    let prevented = true;
+    act(() => {
+      prevented = pressQuestionMark();
+    });
+    const openAfterKey = result.current.isOpen;
+    act(() => {
+      result.current.open();
+    });
+
+    expect(prevented).toBe(false);
+    expect(openAfterKey).toBe(false);
+    expect(result.current.isOpen).toBe(true);
   });
 });

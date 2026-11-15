@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 
 import { useInboxCursor } from "./useInboxCursor";
 
@@ -191,5 +193,23 @@ describe("useInboxCursor", () => {
 
     expect(readCursorRow()).toBe("c");
     expect(readMoveCount()).toBe("2");
+  });
+});
+
+describe("useInboxCursor with single-key shortcuts off", () => {
+  afterEach(() => {
+    writeSingleKeyShortcutsOn(true);
+  });
+
+  it("ignores j and still moves on the arrow keys", () => {
+    writeSingleKeyShortcutsOn(false);
+    render(<Harness rowKeys={THREE_ROWS} onOpen={vi.fn()} />);
+
+    pressJ(1);
+    const afterLetter = readCursorRow();
+    fireEvent.keyDown(window, { key: "ArrowDown" });
+
+    expect(afterLetter).toBe("none");
+    expect(readCursorRow()).toBe("a");
   });
 });

@@ -11,7 +11,9 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 
 import {
   buildBriefViewModel,
@@ -791,6 +793,28 @@ describe("ThreadDetail, quote reply", () => {
       "> This null check looks inverted.\n\n",
     );
   });
+  it("leaves R alone with single-key shortcuts off", () => {
+    writeSingleKeyShortcutsOn(false);
+    onTestFinished(() => {
+      writeSingleKeyShortcutsOn(true);
+    });
+    renderDetail();
+    const commentText = screen
+      .getAllByText("This null check looks inverted.")
+      .find((element) => element.tagName === "P");
+    if (commentText === undefined) {
+      throw new Error("comment body not found");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(commentText);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    fireEvent.keyDown(window, { key: "r" });
+
+    expect(getReplyTextarea().value).toBe("");
+  });
+
   it("adds a taken quote only once when writes switch back on", () => {
     const { composer, rerenderDetail } = renderDetail();
     const quoteButton = screen

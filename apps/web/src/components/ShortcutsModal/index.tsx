@@ -1,10 +1,14 @@
 import type { TranslationKey } from "i18n";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
+import { Checkbox } from "../Checkbox";
 import { Kbd, KbdGroup } from "../Kbd";
 import { REVIEW_MARK_ORDER, ReviewMarkLabelKeys } from "../ReviewMark/consts";
 import { ReviewMarkGlyphs } from "../ReviewMark";
 import { Modal } from "../Modal";
 import styles from "./ShortcutsModal.module.scss";
+import { useSingleKeyShortcutsOn } from "./useSingleKeyShortcutsOn";
 
 export interface ShortcutsModalProps {
   open: boolean;
@@ -27,6 +31,8 @@ export interface ShortcutSection {
 
 export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
   const { t } = useTranslation();
+  const singleKeysOn = useSingleKeyShortcutsOn();
+  const hintId = useId();
   return (
     <Modal
       boxClassName={styles["box"]}
@@ -41,6 +47,18 @@ export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
         title={t("brief.shortcuts.heading")}
       />
       <div className={styles["sections"]}>
+        <div className={styles["preference"]}>
+          <Checkbox
+            checked={singleKeysOn}
+            describedBy={hintId}
+            onChange={writeSingleKeyShortcutsOn}
+          >
+            {t("brief.shortcuts.singleKeys")}
+          </Checkbox>
+          <p className={styles["preferenceHint"]} id={hintId}>
+            {t("brief.shortcuts.singleKeysHint")}
+          </p>
+        </div>
         {sections.map((section) => (
           <section key={section.id}>
             <h3 className={styles["sectionHeading"]}>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -23,6 +23,7 @@ import {
   ReadingPositionProvider,
   type ReadingPositionStore,
 } from "../reading/reading-position";
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 import { useFocusPanel } from "./useFocusPanel";
 import { FocusPanel } from ".";
 
@@ -356,6 +357,18 @@ describe("FocusPanel", () => {
     fireEvent.keyDown(sheet, { key: "s" });
     expect(sheet.dataset["state"]).toBe("closed");
     expect(document.activeElement).toBe(screen.getByTestId("focus-panel-tab"));
+  });
+
+  it("keeps the sheet open on S while single-key shortcuts are off", () => {
+    writeSingleKeyShortcutsOn(false);
+    onTestFinished(() => writeSingleKeyShortcutsOn(true));
+    const { sheet } = renderSheet();
+
+    fireEvent.keyDown(sheet, { key: "s" });
+    expect(sheet.dataset["state"]).not.toBe("closed");
+
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    expect(sheet.dataset["state"]).toBe("closed");
   });
 
   it("closes the sheet after a jump from its chunk strip", () => {

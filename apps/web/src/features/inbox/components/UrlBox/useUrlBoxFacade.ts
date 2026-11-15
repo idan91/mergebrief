@@ -7,6 +7,7 @@ import { generateBriefViaApi } from "../../../brief/queries";
 import { briefErrorDetail } from "../../../brief/model";
 import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
+import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 
 const FOCUS_KEY = "/";
 
@@ -25,6 +26,9 @@ export function useUrlBoxFacade() {
         return;
       }
       if (isTypingTarget(event.target) || isInsideOverlay(event.target)) {
+        return;
+      }
+      if (isSuppressedSingleKey(event)) {
         return;
       }
       event.preventDefault();

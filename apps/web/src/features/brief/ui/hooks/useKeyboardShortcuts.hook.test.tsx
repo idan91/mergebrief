@@ -4,7 +4,9 @@
 // return sits before preventDefault, which the pure resolver tests cannot
 // reach.
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 
 import {
   useKeyboardShortcuts,
@@ -232,5 +234,29 @@ describe("useKeyboardShortcuts D dispatch", () => {
     const event = pressD();
     expect(event.defaultPrevented).toBe(true);
     expect(toggleDiffView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useKeyboardShortcuts with single-key shortcuts off", () => {
+  afterEach(() => {
+    writeSingleKeyShortcutsOn(true);
+  });
+
+  it("leaves a letter alone and still takes Escape", () => {
+    writeSingleKeyShortcutsOn(false);
+    const jumpToConversation = vi.fn();
+    const toggleFocusMode = vi.fn();
+    renderHook(() =>
+      useKeyboardShortcuts(
+        options({ jumpToConversation, toggleFocusMode, focusModeActive: true }),
+      ),
+    );
+
+    const letter = pressC();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(letter.defaultPrevented).toBe(false);
+    expect(jumpToConversation).not.toHaveBeenCalled();
+    expect(toggleFocusMode).toHaveBeenCalledOnce();
   });
 });
