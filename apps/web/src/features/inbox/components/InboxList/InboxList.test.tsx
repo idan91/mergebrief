@@ -32,6 +32,7 @@ import {
 import { omitFields } from "@web/test/fields";
 import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
+import { ROW_LINK_ATTRIBUTE } from "./consts";
 import { InboxList } from ".";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -278,6 +279,94 @@ async function selectWholePage(): Promise<void> {
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Select all on this page" }),
     );
+  });
+}
+
+/** An InboxList whose rows a test swaps the way a poll re-reads them, beside a field outside it. */
+async function renderReReadHarness(
+  initial: InboxItem[],
+): Promise<{ setItems?: (items: InboxItem[]) => void }> {
+  const host: { setItems?: (items: InboxItem[]) => void } = {};
+  function ReReadHarness() {
+    const [items, setItems] = useState(initial);
+    host.setItems = setItems;
+    return (
+      <>
+        <input aria-label="Outside" />
+        <InboxList
+          items={items}
+          layout={InboxLayouts.FOLDED}
+          sort={InboxSorts.UPDATED}
+        />
+      </>
+    );
+  }
+  await renderInRouter(<ReReadHarness />);
+  return host;
+}
+
+/**
+ * Models the browser's focus fixup on a keyed move: jsdom keeps focus on a
+ * node that `insertBefore` moves, a browser drops it to the body and fires
+ * no focusout for it. React's commit then focuses the moved node again.
+ */
+function stubMoveDropsFocus() {
+  const insertBefore = Node.prototype.insertBefore;
+  return vi.spyOn(Node.prototype, "insertBefore").mockImplementation(function <
+    Moved extends Node,
+  >(this: Node, node: Moved, child: Node | null): Moved {
+    const active = document.activeElement;
+    const holdsFocus = active instanceof HTMLElement && node.contains(active);
+    if (holdsFocus && node.isConnected) {
+      window.addEventListener("focusout", stopEvent, {
+        capture: true,
+        once: true,
+      });
+      active.blur();
+    }
+    return insertBefore.call(this, node, child) as Moved;
+  });
+}
+
+function stopEvent(event: Event): void {
+  event.stopImmediatePropagation();
+}
+
+/**
+ * Blurs to the body the way a browser does: the document keeps focus. jsdom
+ * clears its focused element before focusout, so `hasFocus()` reads false
+ * there, which the list takes for a window blur.
+ */
+function blurInsidePage(element: HTMLElement): void {
+  const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  act(() => element.blur());
+  hasFocus.mockRestore();
+}
+
+/** Opens the cursor row's menu, whose items render in a portal, and puts focus in it. */
+async function openCursorRowMenu(): Promise<void> {
+  const cursorRow = readRows().find(
+    (row) => row.getAttribute("data-cursor") === "true",
+  );
+  if (cursorRow === undefined) {
+    throw new Error("no cursor row");
+  }
+  await act(async () => {
+    fireEvent.click(
+      within(cursorRow).getByRole("button", { name: "More actions" }),
+    );
+  });
+  const [item] = within(screen.getByRole("menu")).getAllByRole("menuitem");
+  act(() => item?.focus());
+  expect(cursorRow.contains(document.activeElement)).toBe(false);
+}
+
+/** Lets a focus handed over on the next frame land before the test reads it. */
+async function waitForNextFrame(): Promise<void> {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
   });
 }
 
@@ -566,6 +655,31 @@ describe("InboxList", () => {
     });
   });
 
+  it("j carries keyboard focus onto the row it lands on", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "First" }),
+          makeItem({ prNumber: 2, title: "Second" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "j" });
+
+    const secondLink = screen.getByRole("link", { name: /Second/ });
+    expect(document.activeElement).toBe(secondLink);
+    expect(secondLink.hasAttribute(ROW_LINK_ATTRIBUTE)).toBe(true);
+
+    fireEvent.keyDown(window, { key: "k" });
+
+    const firstLink = screen.getByRole("link", { name: /First/ });
+    expect(document.activeElement).toBe(firstLink);
+  });
+
   it("the cursor row scrolls into view at once, never smoothly", async () => {
     const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
     await renderInRouter(
@@ -620,6 +734,297 @@ describe("InboxList", () => {
 
     expect(scrollIntoView).not.toHaveBeenCalled();
     scrollIntoView.mockRestore();
+  });
+
+  it("a re-read across the fold keeps focus on the cursor row's link", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+
+    act(() =>
+      host.setItems?.([
+        makeItem({
+          prNumber: 1,
+          title: "First",
+          reviewState: InboxReviewStates.REVIEWED,
+        }),
+        second,
+      ]),
+    );
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /First/ }),
+    );
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    scrollIntoView.mockRestore();
+  });
+
+  it("a re-read that takes the focused cursor row hands focus to the heading", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+
+    act(() => host.setItems?.([second]));
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Briefs" }),
+      );
+    });
+  });
+
+  it("a re-read taking the row whose menu holds focus focuses the heading", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    await openCursorRowMenu();
+
+    act(() => host.setItems?.([second]));
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Briefs" }),
+      );
+    });
+  });
+
+  it("a re-read across the fold moves focus from the row's menu to its link", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    await openCursorRowMenu();
+
+    act(() =>
+      host.setItems?.([
+        makeItem({
+          prNumber: 1,
+          title: "First",
+          reviewState: InboxReviewStates.REVIEWED,
+        }),
+        second,
+      ]),
+    );
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /First/ }),
+    );
+  });
+
+  it("a re-read leaves focus that sat outside the cursor row alone", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    const outside = screen.getByRole("textbox", { name: "Outside" });
+    outside.focus();
+
+    act(() => host.setItems?.([second]));
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    });
+
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("a re-read that reorders one list keeps focus on the cursor row", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const third = makeItem({ prNumber: 3, title: "Third" });
+    const host = await renderReReadHarness([first, second, third]);
+    fireEvent.keyDown(window, { key: "j" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /First/ }),
+    );
+    const move = stubMoveDropsFocus();
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+
+    act(() => host.setItems?.([second, first, third]));
+
+    expect(move).toHaveBeenCalled();
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /First/ }),
+    );
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    scrollIntoView.mockRestore();
+    move.mockRestore();
+  });
+
+  it("a re-read that takes the focused row focuses the heading in place", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    const heading = screen.getByRole("heading", { name: "Briefs" });
+    const focus = vi.spyOn(heading, "focus");
+
+    act(() => host.setItems?.([second]));
+
+    await waitFor(() => {
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+  });
+
+  it("a window blur keeps the cursor row's focus through a later re-read", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    fireEvent.focusOut(screen.getByRole("link", { name: /First/ }));
+    hasFocus.mockRestore();
+
+    act(() =>
+      host.setItems?.([
+        makeItem({
+          prNumber: 1,
+          title: "First",
+          reviewState: InboxReviewStates.REVIEWED,
+        }),
+        second,
+      ]),
+    );
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /First/ }),
+    );
+  });
+
+  it("the cursor follows focus into a row, so j steps from there", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "First" }),
+          makeItem({ prNumber: 2, title: "Second" }),
+          makeItem({ prNumber: 3, title: "Third" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const secondLink = screen.getByRole("link", { name: /Second/ });
+    act(() => secondLink.focus());
+
+    expect(readRows()[1]?.getAttribute("data-cursor")).toBe("true");
+    fireEvent.keyDown(secondLink, { key: "j" });
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /Third/ }),
+    );
+  });
+
+  it("focus on a row's checkbox moves the cursor without refocus or scroll", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "First" }),
+          makeItem({ prNumber: 2, title: "Second" }),
+          makeItem({ prNumber: 3, title: "Third" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    const box = screen.getByRole("checkbox", { name: "Select Second" });
+
+    act(() => box.focus());
+
+    expect(readRows()[1]?.getAttribute("data-cursor")).toBe("true");
+    expect(document.activeElement).toBe(box);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    scrollIntoView.mockRestore();
+  });
+
+  it("focus blurred off the cursor row stays put when that row leaves", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    blurInsidePage(screen.getByRole("link", { name: /First/ }));
+    const focus = vi.spyOn(
+      screen.getByRole("heading", { name: "Briefs" }),
+      "focus",
+    );
+
+    act(() => host.setItems?.([second]));
+    await waitForNextFrame();
+
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("focus blurred off the cursor row stays put when it crosses the fold", async () => {
+    const first = makeItem({ prNumber: 1, title: "First" });
+    const second = makeItem({ prNumber: 2, title: "Second" });
+    const host = await renderReReadHarness([first, second]);
+    fireEvent.keyDown(window, { key: "j" });
+    blurInsidePage(screen.getByRole("link", { name: /First/ }));
+    const focus = vi.spyOn(
+      screen.getByRole("heading", { name: "Briefs" }),
+      "focus",
+    );
+
+    act(() =>
+      host.setItems?.([
+        makeItem({
+          prNumber: 1,
+          title: "First",
+          reviewState: InboxReviewStates.REVIEWED,
+        }),
+        second,
+      ]),
+    );
+    await waitForNextFrame();
+
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("the arrows belong to the page while focus is outside the list", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const notPrevented = fireEvent.keyDown(document.body, { key: "ArrowDown" });
+
+    expect(notPrevented).toBe(true);
+    expect(readRows().map((row) => row.getAttribute("data-cursor"))).toEqual([
+      "false",
+      "false",
+    ]);
+  });
+
+  it("the arrows step the cursor from a focused row link", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "First" }),
+          makeItem({ prNumber: 2, title: "Second" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const firstLink = screen.getByRole("link", { name: /First/ });
+    act(() => firstLink.focus());
+
+    const notPrevented = fireEvent.keyDown(firstLink, { key: "ArrowDown" });
+
+    expect(notPrevented).toBe(false);
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /Second/ }),
+    );
   });
 
   it("Enter on a control inside a row leaves that control alone", async () => {

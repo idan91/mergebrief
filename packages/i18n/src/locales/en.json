@@ -1970,6 +1970,8 @@
       "cursorDown": "Move the cursor down the list",
       "toggleSelect": "Select rows",
       "cursorUp": "Move the cursor up the list",
+      "cursorDownInList": "Move the cursor down, with focus in the list",
+      "cursorUpInList": "Move the cursor up, with focus in the list",
       "openRow": "Open the brief under the cursor",
       "focusUrl": "Focus the URL box",
       "toggleShortcuts": "Toggle this shortcuts list",

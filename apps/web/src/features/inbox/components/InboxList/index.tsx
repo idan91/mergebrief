@@ -34,7 +34,8 @@ import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
 import { useInboxPurgeFacade } from "./useInboxPurgeFacade";
 import { useInboxSelection } from "./useInboxSelection";
-import { listMatchingRows, readSelectionText } from "./utils";
+import { useKeepCursorFocus } from "./useKeepCursorFocus";
+import { focusCursorRow, listMatchingRows, readSelectionText } from "./utils";
 
 const NO_PARAMS: InboxQueryParams = {};
 
@@ -86,6 +87,7 @@ export function InboxList({
   const firstLoad = useFirstLoad();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const cursorRowRef = useRef<HTMLLIElement>(null);
+  const listsRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const { above, below } =
     layout === InboxLayouts.FOLDED
@@ -93,8 +95,10 @@ export function InboxList({
       : { above: items, below: [] };
   const ordered = [...above, ...below];
   const selection = useInboxSelection(ordered);
+  const rowKeys = ordered.map(readRowKey);
   const cursor = useInboxCursor(
-    ordered.map(readRowKey),
+    rowKeys,
+    listsRef,
     (index) => {
       const item = ordered[index];
       if (item === undefined) {
@@ -145,20 +149,32 @@ export function InboxList({
   const now = new Date();
   const showFold = above.length > 0 && below.length > 0;
 
-  // The page scrolls smoothly for anchors; a key press must land at once.
-  // Keyed on key moves: a re-read that shifts or removes the row never scrolls.
+  // Keyed on key moves: a re-read that shifts or removes the row never
+  // scrolls, and moves focus only to give back what it dropped.
   useEffect(() => {
-    cursorRowRef.current?.scrollIntoView({
-      block: "nearest",
-      behavior: "instant",
-    });
+    if (cursorRowRef.current !== null) {
+      focusCursorRow(cursorRowRef.current);
+    }
   }, [cursor.moveCount]);
 
   // The row's menu returns focus to its trigger as it leaves; the heading
   // takes it on the next frame, and keeps it once the row is gone.
-  const focusHeading = useCallback((): void => {
-    window.requestAnimationFrame(() => headingRef.current?.focus());
+  const focusHeading = useCallback((options?: FocusOptions): void => {
+    window.requestAnimationFrame(() => headingRef.current?.focus(options));
   }, []);
+
+  const { handleRowFocus, handleListsFocus, handleListsBlur } =
+    useKeepCursorFocus({
+      listsRef,
+      cursorRowRef,
+      cursorRowKey: rowKeys[cursor.index],
+      rowsLayout: `${above.map(readRowKey).join(" ")}|${below.map(readRowKey).join(" ")}`,
+      setCursorRow: cursor.setCursorRow,
+      focusHeading,
+    });
+  function handleRowFocusIn(item: InboxItem): void {
+    handleRowFocus(readRowKey(item));
+  }
   // The ticks come off the rows that went before the re-read lands, so the
   // bar never offers those rows again while the list still shows them.
   const { remove: removeSelected } = selection;
@@ -380,6 +396,9 @@ export function InboxList({
         className={styles["lists"]}
         data-first-load={firstLoad}
         hidden={ordered.length === 0}
+        onBlur={handleListsBlur}
+        onFocus={handleListsFocus}
+        ref={listsRef}
       >
         <SelectionHeader
           allMatching={allMatching}
@@ -422,6 +441,7 @@ export function InboxList({
                 onArchived={announceArchived}
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
+                onFocusRow={handleRowFocusIn}
                 onRemoved={handleRowGone}
                 onSelectRow={handleSelect}
               />
@@ -460,6 +480,7 @@ export function InboxList({
                 onArchived={announceArchived}
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
+                onFocusRow={handleRowFocusIn}
                 onRemoved={handleRowGone}
                 onSelectRow={handleSelect}
               />

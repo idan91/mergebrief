@@ -19,4 +19,6 @@ export interface PendingDelete {
 export interface InboxCursor {
   readonly index: number;
   readonly moveCount: number;
+  /** Puts the cursor on the row focus entered; not a key move, so nothing scrolls or refocuses. */
+  readonly setCursorRow: (index: number) => void;
 }

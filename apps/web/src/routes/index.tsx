@@ -211,9 +211,9 @@ const HOME_SHORTCUTS: ShortcutSection[] = [
     id: "list",
     headingKey: "home.shortcuts.sectionList",
     shortcuts: [
-      { keys: ["\u2193"], descriptionKey: "home.shortcuts.cursorDown" },
+      { keys: ["\u2193"], descriptionKey: "home.shortcuts.cursorDownInList" },
       { keys: ["J"], descriptionKey: "home.shortcuts.cursorDown" },
-      { keys: ["\u2191"], descriptionKey: "home.shortcuts.cursorUp" },
+      { keys: ["\u2191"], descriptionKey: "home.shortcuts.cursorUpInList" },
       { keys: ["K"], descriptionKey: "home.shortcuts.cursorUp" },
       { keys: ["Enter"], descriptionKey: "home.shortcuts.openRow" },
       { keys: ["X"], descriptionKey: "home.shortcuts.toggleSelect" },

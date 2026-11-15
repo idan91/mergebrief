@@ -4,9 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { ArchiveScopes } from "./types";
+import { ROW_LINK_ATTRIBUTE } from "./consts";
 import {
   describeArchiveOutcome,
+  focusCursorRow,
   listMatchingRows,
+  NO_ROW,
+  readRowIndex,
   readSelectionText,
 } from "./utils";
 
@@ -205,5 +209,58 @@ describe("describeArchiveOutcome", () => {
     expect(describeArchiveOutcome(t, { ...restored, done: 0 })).toBe(
       "Unarchived 0 of 3; 3 failed",
     );
+  });
+});
+
+/** A row holding a repository link before its link to the brief. */
+function makeRow(): { row: HTMLLIElement; link: HTMLAnchorElement } {
+  const row = document.createElement("li");
+  const repoLink = document.createElement("a");
+  const link = document.createElement("a");
+  link.setAttribute(ROW_LINK_ATTRIBUTE, "");
+  row.append(repoLink, link);
+  return { row, link };
+}
+
+describe("focusCursorRow", () => {
+  it("focuses the brief link without a scroll, then brings the row in", () => {
+    const { row, link } = makeRow();
+    document.body.append(row);
+    const steps: string[] = [];
+    const focus = vi.spyOn(link, "focus").mockImplementation(() => {
+      steps.push("focus");
+    });
+    const scrollIntoView = vi.fn(() => {
+      steps.push("scroll");
+    });
+    row.scrollIntoView = scrollIntoView;
+
+    focusCursorRow(row);
+    row.remove();
+
+    expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({
+      block: "nearest",
+      behavior: "instant",
+    });
+    expect(steps).toEqual(["focus", "scroll"]);
+  });
+});
+
+describe("readRowIndex", () => {
+  it("counts the row holding the target through both lists", () => {
+    const lists = document.createElement("div");
+    const [aboveList, belowList] = [
+      document.createElement("ol"),
+      document.createElement("ol"),
+    ];
+    const rows = [makeRow(), makeRow(), makeRow()];
+    aboveList.append(rows[0]!.row);
+    belowList.append(rows[1]!.row, rows[2]!.row);
+    lists.append(aboveList, belowList);
+
+    expect(readRowIndex(lists, rows[2]!.link)).toBe(2);
+    expect(readRowIndex(lists, lists)).toBe(NO_ROW);
+    expect(readRowIndex(null, rows[0]!.link)).toBe(NO_ROW);
   });
 });

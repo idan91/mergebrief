@@ -8,6 +8,7 @@ import {
   type InboxQueryParams,
 } from "../../types";
 import { readRowKey } from "../../utils";
+import { ROW_LINK_SELECTOR, ROW_SELECTOR } from "./consts";
 import { ArchiveScopes, type ArchiveScope } from "./types";
 
 export interface MatchingRowsInput {
@@ -135,4 +136,36 @@ export function describeArchiveOutcome(
     ? t("home.inbox.actions.unarchivedSome", tally)
     : t("home.inbox.actions.archivedSome", tally);
   return someDone;
+}
+
+/** No row holds the focus. */
+export const NO_ROW = -1;
+
+/** Hands the row's link to its brief the focus, leaving the scroll where it is. */
+export function focusRowLink(row: HTMLElement): void {
+  row.querySelector<HTMLElement>(ROW_LINK_SELECTOR)?.focus({
+    preventScroll: true,
+  });
+}
+
+/**
+ * Hands the cursor row's link the focus and brings the row on screen. The
+ * page scrolls smoothly for anchors; a key press must land at once.
+ */
+export function focusCursorRow(row: HTMLElement): void {
+  focusRowLink(row);
+
+  row.scrollIntoView({ block: "nearest", behavior: "instant" });
+}
+
+/** The position, counted through both lists, of the row holding `target`. */
+export function readRowIndex(
+  lists: HTMLElement | null,
+  target: EventTarget | null,
+): number {
+  if (lists === null || !(target instanceof Node)) {
+    return NO_ROW;
+  }
+  const rows = [...lists.querySelectorAll(ROW_SELECTOR)];
+  return rows.findIndex((row) => row.contains(target));
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { isInsideOverlay } from "../../../../utils/overlay-target";
@@ -7,15 +7,27 @@ import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 import type { InboxCursor } from "./types";
 
 const NO_CURSOR = -1;
-const STEP_BY_KEY: Record<string, number> = {
-  j: 1,
-  ArrowDown: 1,
-  k: -1,
-  ArrowUp: -1,
-};
+const LETTER_STEPS: Record<string, number> = { j: 1, k: -1 };
+const ARROW_STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
 
 function hasModifier(event: KeyboardEvent): boolean {
   return event.metaKey || event.ctrlKey || event.altKey;
+}
+
+/** J and K step from anywhere; an arrow steps only from inside the list, and scrolls the page elsewhere. */
+function readStep(
+  event: KeyboardEvent,
+  list: HTMLElement | null,
+): number | undefined {
+  const letterStep = LETTER_STEPS[event.key];
+  if (letterStep !== undefined) {
+    return letterStep;
+  }
+  const insideList =
+    list !== null &&
+    event.target instanceof Node &&
+    list.contains(event.target);
+  return insideList ? ARROW_STEPS[event.key] : undefined;
 }
 
 /** One step from the cursor, held inside the rows; up from nowhere stays nowhere. */
@@ -30,7 +42,7 @@ function readNextCursor(current: number, step: number, last: number): number {
 }
 
 /** The cursor's last placement: the row it is on and where that row sat. */
-interface CursorPlacement extends InboxCursor {
+interface CursorPlacement extends Pick<InboxCursor, "index" | "moveCount"> {
   readonly rowKey: string | undefined;
 }
 
@@ -59,8 +71,8 @@ function resolveCursorIndex(
 }
 
 /**
- * The keyboard cursor over the page's rows: j, k and the arrows move it,
- * stopping at either end; Enter opens the row under it, x ticks or unticks
+ * The keyboard cursor over the page's rows: j and k move it, and so do the
+ * arrows while focus is inside `listRef`, stopping at either end; Enter opens the row under it, x ticks or unticks
  * it. It stays on its row when a re-read adds or removes rows above it; when
  * its own row leaves, the row in its place takes it, and a shorter list pulls
  * it back onto its last row. The index counts rows as rendered and is -1
@@ -69,6 +81,7 @@ function resolveCursorIndex(
  */
 export function useInboxCursor(
   rowKeys: readonly string[],
+  listRef: RefObject<HTMLElement | null>,
   onOpen: (index: number) => void,
   onToggleSelect?: (index: number) => void,
 ): InboxCursor {
@@ -96,7 +109,7 @@ export function useInboxCursor(
       }
 
       const current = latestIndex.current;
-      const step = STEP_BY_KEY[event.key];
+      const step = readStep(event, listRef.current);
       if (step !== undefined) {
         const keys = latestRowKeys.current;
         const next = readNextCursor(current, step, keys.length - 1);
@@ -132,7 +145,21 @@ export function useInboxCursor(
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [latestIndex, latestOpen, latestRowKeys, latestToggle]);
+  }, [latestIndex, latestOpen, latestRowKeys, latestToggle, listRef]);
 
-  return { index, moveCount: placement.moveCount };
+  function setCursorRow(next: number): void {
+    const nextKey = rowKeys[next];
+    if (nextKey === undefined) {
+      return;
+    }
+    setPlacement((previous) => {
+      const unchanged = previous.rowKey === nextKey && previous.index === next;
+      if (unchanged) {
+        return previous;
+      }
+      return { rowKey: nextKey, index: next, moveCount: previous.moveCount };
+    });
+  }
+
+  return { index, moveCount: placement.moveCount, setCursorRow };
 }

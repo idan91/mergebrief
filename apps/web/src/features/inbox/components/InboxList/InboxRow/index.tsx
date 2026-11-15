@@ -66,6 +66,8 @@ export interface InboxRowProps {
   onPurgeAttachments: (item: InboxItem) => void;
   /** The row archived or unarchived and is leaving the list. */
   onRemoved: (item: InboxItem) => void;
+  /** Focus landed in the row or in its menu, which renders in a portal. */
+  onFocusRow: (item: InboxItem) => void;
 }
 
 /**
@@ -95,6 +97,7 @@ export function InboxRow({
   onDelete,
   onPurgeAttachments,
   onRemoved,
+  onFocusRow,
 }: InboxRowProps) {
   const { t } = useTranslation();
   const rowParams = { repoId: item.repoId, prNumber: String(item.prNumber) };
@@ -128,10 +131,14 @@ export function InboxRow({
   function handleRemoved(): void {
     onRemoved(item);
   }
+  function handleFocus(): void {
+    onFocusRow(item);
+  }
 
   const otherAuthor = readOtherAuthor(item);
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- observes focus bubbling from the row's controls and its portalled menu; adds no interaction
     <li
       className={styles["row"]}
       data-cursor={cursor}
@@ -143,6 +150,7 @@ export function InboxRow({
       data-unreachable={item.unreachable}
       ref={rowRef}
       style={rowStyle}
+      onFocus={handleFocus}
     >
       <RowLead
         className={styles["lead"]}
@@ -153,6 +161,7 @@ export function InboxRow({
       />
       <Link
         className={styles["main"]}
+        data-row-link=""
         params={rowParams}
         to="/repos/$repoId/pulls/$prNumber"
       >

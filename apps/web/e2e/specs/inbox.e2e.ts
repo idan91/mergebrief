@@ -2,7 +2,7 @@
 // URL row from one page, folds the rows that need the reviewer above the
 // rest, marks each row's review state, and prints a status only when it is
 // not Open. The URL row is read live before the list answers.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { FIXTURE_PR_TITLE } from "../fixtures/ids";
 import { INBOX_BEHIND_ROW, INBOX_ROWS } from "../fixtures/inbox";
@@ -153,3 +153,39 @@ test("the controls never scroll the page sideways at 320px", async ({
   );
   expect(overflow).toBe(0);
 });
+
+test("the keyboard cursor carries focus, so Tab goes on from its row", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForFirstLoad(page);
+  const cursorRow = page.locator('li[data-cursor="true"]');
+  // A key sent before hydration is lost; press until the cursor lands.
+  await expect(async () => {
+    await page.keyboard.press("j");
+    await expect(cursorRow).toBeVisible({ timeout: 500 });
+  }).toPass();
+
+  const rowLink = readBriefLink(cursorRow);
+  await expect(rowLink).toBeFocused();
+  const cursorRowHref = (await rowLink.getAttribute("href")) ?? "";
+  expect(cursorRowHref).not.toBe("");
+
+  // The cursor follows focus, so the focused row is found by its brief link.
+  await page.keyboard.press("Tab");
+  const focusedRow = page.locator("li").filter({ has: page.locator(":focus") });
+  const focusedRowLink = readBriefLink(focusedRow);
+  await expect(focusedRowLink).toHaveAttribute("href", cursorRowHref);
+  await expect(focusedRowLink).not.toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/repos\/\d+\/pulls\/\d+/);
+});
+
+const GITHUB_LINK_NAME = "Open on GitHub";
+
+/** A row's link to its brief; the row's other link opens the pull on GitHub. */
+function readBriefLink(row: Locator): Locator {
+  return row.getByRole("link").filter({ hasNotText: GITHUB_LINK_NAME });
+}
