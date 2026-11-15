@@ -78,6 +78,7 @@ export function Sheet({
           <RegionBoundary
             failureClassName={styles["failure"]}
             heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+            holdsServerFailure
             resetKey={tab}
           >
             <ThisPr
@@ -95,6 +96,7 @@ export function Sheet({
             <RegionBoundary
               failureClassName={styles["failure"]}
               heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+              holdsServerFailure
               resetKey={tab}
             >
               <Revisions afterActivate={afterRevision} plan={revisions} />

@@ -133,6 +133,7 @@ export function ConversationSection(props: ConversationSectionProps) {
           {conversation !== undefined ? (
             <RegionBoundary
               heading={<h3>{t("conversation.renderFailed")}</h3>}
+              holdsServerFailure
               resetKey={threadsResetKey}
             >
               {verdicts.length > 0 ? (

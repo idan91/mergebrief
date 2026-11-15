@@ -217,6 +217,7 @@ function BriefViewContent(props: BriefViewProps) {
       <RegionBoundary
         failureClassName={styles["conversationFailure"]}
         heading={<h2>{t("conversation.renderFailed")}</h2>}
+        holdsServerFailure
         resetKey={briefId}
       >
         <ConversationSection

@@ -364,6 +364,7 @@ export function Sidebar({
               <RegionBoundary
                 failureClassName={styles["failure"]}
                 heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+                holdsServerFailure
                 resetKey={shownTab}
               >
                 <ThisPr
@@ -379,6 +380,7 @@ export function Sidebar({
                 <RegionBoundary
                   failureClassName={styles["failure"]}
                   heading={<h2>{t("brief.sidebar.renderFailed")}</h2>}
+                  holdsServerFailure
                   resetKey={shownTab}
                 >
                   <Revisions

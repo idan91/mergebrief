@@ -1,6 +1,13 @@
-import type { QueryClient } from "@tanstack/react-query";
-import type { AnyRouter } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  type AnyRouter,
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { act } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import {
   useState,
   type Dispatch,
@@ -158,6 +165,29 @@ function BriefViewOverFixture({
 
 export function FixtureBriefView(overrides: BriefViewOverrides): ReactElement {
   return <BriefViewOverFixture overrides={overrides} />;
+}
+
+/** The screen's HTML as the server renders it, before any viewport is read. */
+export async function buildBriefViewHtml(
+  overrides: BriefViewOverrides = {},
+): Promise<string> {
+  const queryClient = new QueryClient();
+  const rootRoute = createRootRoute({
+    component: () => (
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider>
+          <BriefViewOverFixture overrides={overrides} />
+        </I18nProvider>
+      </QueryClientProvider>
+    ),
+  });
+  const router = createRouter({
+    routeTree: rootRoute,
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  await router.load();
+
+  return renderToString(<RouterProvider router={router} />);
 }
 
 /** Mounts a test's own host around FixtureBriefView in the screen's shell. */

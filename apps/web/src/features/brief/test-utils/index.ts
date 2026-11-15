@@ -10,5 +10,6 @@ export {
   FixtureBriefView,
   mountBriefHost,
   mountBriefView,
+  buildBriefViewHtml,
   type BriefViewOverrides,
 } from "./render";
