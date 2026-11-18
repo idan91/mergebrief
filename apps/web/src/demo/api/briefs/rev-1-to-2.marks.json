@@ -1,0 +1,162 @@
+{
+  "baselineIndex": 1,
+  "baselineLabel": "previous-brief",
+  "baselineSha": "0068da4bcb03d4bf282dc8cdaddf85f874879ef7",
+  "headSha": "633b0895406e1bfa2356f50638384b9d51819d2a",
+  "files": [
+    {
+      "file": "apps/api/src/routes/auth/sessions/handler.ts",
+      "addedRanges": [],
+      "removedRanges": [
+        {
+          "start": 24,
+          "end": 24
+        }
+      ]
+    },
+    {
+      "file": "apps/api/test/sessions.test.ts",
+      "addedRanges": [
+        {
+          "start": 118,
+          "end": 118
+        },
+        {
+          "start": 126,
+          "end": 126
+        },
+        {
+          "start": 141,
+          "end": 141
+        },
+        {
+          "start": 210,
+          "end": 210
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 118,
+          "end": 118
+        },
+        {
+          "start": 126,
+          "end": 126
+        },
+        {
+          "start": 141,
+          "end": 141
+        },
+        {
+          "start": 210,
+          "end": 210
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/account/components/AccountMenu/AccountMenu.test.tsx",
+      "addedRanges": [
+        {
+          "start": 101,
+          "end": 101
+        },
+        {
+          "start": 104,
+          "end": 104
+        },
+        {
+          "start": 120,
+          "end": 120
+        },
+        {
+          "start": 221,
+          "end": 265
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 101,
+          "end": 101
+        },
+        {
+          "start": 104,
+          "end": 104
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/account/components/AccountMenu/AccountMenu.tsx",
+      "addedRanges": [
+        {
+          "start": 23,
+          "end": 24
+        },
+        {
+          "start": 144,
+          "end": 164
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 23,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/account/components/AccountMenu/useAccountMenuFacade.ts",
+      "addedRanges": [
+        {
+          "start": 16,
+          "end": 16
+        },
+        {
+          "start": 34,
+          "end": 61
+        },
+        {
+          "start": 67,
+          "end": 68
+        },
+        {
+          "start": 76,
+          "end": 85
+        },
+        {
+          "start": 97,
+          "end": 98
+        },
+        {
+          "start": 102,
+          "end": 102
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 45,
+          "end": 55
+        }
+      ]
+    },
+    {
+      "file": "docs/api-changelog.md",
+      "addedRanges": [
+        {
+          "start": 32,
+          "end": 36
+        }
+      ],
+      "removedRanges": []
+    },
+    {
+      "file": "packages/i18n/locales/en.json",
+      "addedRanges": [
+        {
+          "start": 1061,
+          "end": 1062
+        }
+      ],
+      "removedRanges": []
+    }
+  ]
+}

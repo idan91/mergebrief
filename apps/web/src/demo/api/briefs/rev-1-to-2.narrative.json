@@ -1,0 +1,216 @@
+{
+  "artifactKind": "revisionNarrative",
+  "pr": {
+    "repo": "idan91/mergebrief",
+    "number": 625,
+    "title": "fix: Sign Out Everywhere Revokes Every Session",
+    "url": "https://github.com/idan91/mergebrief/pull/625",
+    "sha": "633b0895406e1bfa2356f50638384b9d51819d2a",
+    "description": "### Overview\n\nLast PR of the stack, the revocation control. A leaked cookie stayed valid until its ~6-month expiry, and the reviewer had nothing to reach for without holding the leaked cookie themselves, since logout only deletes the row it was sent with. Logout stays per device. Beside it, `DELETE /api/auth/sessions` (Product Action `revoke-sessions`, private-write) deletes every session of the signed-in reviewer, the caller's own included, clears the cookie and answers `{ ok: true, revoked }`. The Account menu gains a \"Sign out everywhere\" row under Sign out that calls it and lands on the signed-out Home.\n\nThe route mirrors the token surface: a domain folder with composition, handler, controller and types; mounted under `/api/auth`, where `sessionLayer` ignores Bearer, so a stolen API token cannot sign its owner out; and it inherits the same-origin check from the previous PR. The delete goes through the owner-world tenant repository, so the id is the cookie's own and no request input names a reviewer. A grant dies only with its last session and token referent, so a token minted off one of the revoked sessions keeps working; the wire suite pins that with a Bearer read after the revoke.\n\nTwo things worth knowing. Adding a Product Action touches the composed manifest, the CLI's baked catalog fingerprint and the CLI map, plus two count pins in tests; all four moved together. And the throwaway browser check found that the first click on the menu trigger lands before hydration and does nothing, which is the same reason the existing homeStates specs poll; the check waited and passed.\n\n### Changelog\n\n- `packages/contract`: `ProductActionIds.REVOKE_SESSIONS`.\n- `apps/api/src/routes/auth/sessions/{index,handler,controller,types}.ts`; mounted in `auth/index.ts`; the cookie-only list in the `sessionLayer` comment names it. Manifest regenerated.\n- `apps/api/test/sessions.test.ts`: two devices revoked and a stranger's row kept; the token's grant survives and the Bearer still reads; 401 bare and 401 with Bearer; 403 cross-origin; one audit row targeting the reviewer. Catalog test lists the new descriptor.\n- `apps/cli`: map entry `webOnly`, fingerprint rewritten by `map:check --write`, the web-only count pin.\n- `apps/web`: `useAccountMenuFacade` gains `signOutEverywhere` on a shared `runSignOut`; `AccountMenu` gains the row and its failure line; tests for the row, the DELETE, the failure copy and the row counts.\n- `packages/i18n`: `shell.accountMenu.signOutEverywhere` and `signOutEverywhereFailed`.\n- `docs/api-changelog.md`: the Added entry.\n\n### Verification\n\nOn nvm 24.17.0, exit codes: `pnpm lint` 0, typecheck 0 for api, web, cli, contract and i18n, `pnpm -C apps/api test` 0 (67 files, 762 tests), `pnpm -C apps/web test` 0 (295 files, 2850 tests), `pnpm -C apps/cli test` 0 (166 tests), `pnpm -C packages/i18n test` 0, `pnpm -C packages/contract test` 0, `pnpm -C apps/api manifest:check` 0, `pnpm check:catalog` 0."
+  },
+  "prevHeadSha": "0068da4bcb03d4bf282dc8cdaddf85f874879ef7",
+  "headSha": "633b0895406e1bfa2356f50638384b9d51819d2a",
+  "prevIndex": 1,
+  "headIndex": 2,
+  "generation": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "provider": "anthropic"
+  },
+  "overview": "This revision adds the web half: a \"Sign out everywhere\" row in the Account menu that calls the new endpoint, with its tests and copy. It also adds the changelog entry and follows the session cookie's rename in the API tests.",
+  "chunks": [
+    {
+      "id": "rc1",
+      "briefChangeGroupId": "g2",
+      "file": "apps/web/src/features/account/components/AccountMenu/useAccountMenuFacade.ts",
+      "addedRanges": [
+        {
+          "start": 16,
+          "end": 16
+        },
+        {
+          "start": 34,
+          "end": 61
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds `deleteSessions` and a shared `runSignOut` flow: success leaves for Home, a refusal reports back."
+    },
+    {
+      "id": "rc2",
+      "briefChangeGroupId": "g2",
+      "file": "apps/web/src/features/account/components/AccountMenu/useAccountMenuFacade.ts",
+      "addedRanges": [
+        {
+          "start": 67,
+          "end": 68
+        },
+        {
+          "start": 76,
+          "end": 85
+        },
+        {
+          "start": 97,
+          "end": 98
+        },
+        {
+          "start": 102,
+          "end": 102
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 45,
+          "end": 55
+        }
+      ],
+      "summary": "`signOut` now runs through `runSignOut`, and `signOutEverywhere` joins it with its own pending and failed state."
+    },
+    {
+      "id": "rc3",
+      "briefChangeGroupId": "g2",
+      "file": "apps/web/src/features/account/components/AccountMenu/AccountMenu.tsx",
+      "addedRanges": [
+        {
+          "start": 23,
+          "end": 24
+        },
+        {
+          "start": 144,
+          "end": 164
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 23,
+          "end": 23
+        }
+      ],
+      "summary": "Adds the \"Sign out everywhere\" row under Sign out, with its failure line."
+    },
+    {
+      "id": "rc4",
+      "briefChangeGroupId": "g2",
+      "file": "apps/web/src/features/account/components/AccountMenu/AccountMenu.test.tsx",
+      "addedRanges": [
+        {
+          "start": 101,
+          "end": 101
+        },
+        {
+          "start": 104,
+          "end": 104
+        },
+        {
+          "start": 120,
+          "end": 120
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 101,
+          "end": 101
+        },
+        {
+          "start": 104,
+          "end": 104
+        }
+      ],
+      "summary": "The row-count tests expect the new row."
+    },
+    {
+      "id": "rc5",
+      "briefChangeGroupId": "g2",
+      "file": "apps/web/src/features/account/components/AccountMenu/AccountMenu.test.tsx",
+      "addedRanges": [
+        {
+          "start": 221,
+          "end": 265
+        }
+      ],
+      "removedRanges": [],
+      "summary": "New tests: the row sends the DELETE and leaves the page, and a refusal keeps the page and says so."
+    },
+    {
+      "id": "rc6",
+      "briefChangeGroupId": "g2",
+      "file": "packages/i18n/locales/en.json",
+      "addedRanges": [
+        {
+          "start": 1061,
+          "end": 1062
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds the row's label and its failure copy to the catalog."
+    },
+    {
+      "id": "rc7",
+      "briefChangeGroupId": "g1",
+      "file": "docs/api-changelog.md",
+      "addedRanges": [
+        {
+          "start": 32,
+          "end": 36
+        }
+      ],
+      "removedRanges": [],
+      "summary": "The API changelog gains the Added entry for `DELETE /api/auth/sessions`."
+    },
+    {
+      "id": "rc8",
+      "briefChangeGroupId": "g1",
+      "file": "apps/api/test/sessions.test.ts",
+      "addedRanges": [
+        {
+          "start": 118,
+          "end": 118
+        },
+        {
+          "start": 126,
+          "end": 126
+        },
+        {
+          "start": 141,
+          "end": 141
+        },
+        {
+          "start": 210,
+          "end": 210
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 118,
+          "end": 118
+        },
+        {
+          "start": 126,
+          "end": 126
+        },
+        {
+          "start": 141,
+          "end": 141
+        },
+        {
+          "start": 210,
+          "end": 210
+        }
+      ],
+      "summary": "The sessions tests send and expect the renamed `__Host-mergebrief_session` cookie."
+    },
+    {
+      "id": "rc9",
+      "briefChangeGroupId": "g1",
+      "file": "apps/api/src/routes/auth/sessions/handler.ts",
+      "addedRanges": [],
+      "removedRanges": [
+        {
+          "start": 24,
+          "end": 24
+        }
+      ],
+      "summary": "Drops a comment that restated the cookie clear under it."
+    }
+  ]
+}

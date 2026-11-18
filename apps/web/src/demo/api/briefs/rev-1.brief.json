@@ -1,0 +1,459 @@
+{
+  "pr": {
+    "sha": "0068da4bcb03d4bf282dc8cdaddf85f874879ef7",
+    "url": "https://github.com/idan91/mergebrief/pull/625",
+    "repo": "idan91/mergebrief",
+    "draft": false,
+    "stack": {
+      "index": 3,
+      "members": [
+        {
+          "title": "fix: Session Cookies Carry The __Host- Prefix And The Product Name",
+          "number": 623
+        },
+        {
+          "title": "fix: Cookie Mutations Prove Their Origin",
+          "number": 624
+        },
+        {
+          "title": "fix: Sign Out Everywhere Revokes Every Session",
+          "number": 625
+        }
+      ]
+    },
+    "state": "open",
+    "title": "fix: Sign Out Everywhere Revokes Every Session",
+    "merged": false,
+    "number": 625,
+    "baseRef": "fix/2-same-origin-mutations",
+    "headRef": "fix/3-revoke-all-sessions",
+    "description": "### Overview\n\nLast PR of the stack, the revocation control. A leaked cookie stayed valid until its ~6-month expiry, and the reviewer had nothing to reach for without holding the leaked cookie themselves, since logout only deletes the row it was sent with. Logout stays per device. Beside it, `DELETE /api/auth/sessions` (Product Action `revoke-sessions`, private-write) deletes every session of the signed-in reviewer, the caller's own included, clears the cookie and answers `{ ok: true, revoked }`. The Account menu gains a \"Sign out everywhere\" row under Sign out that calls it and lands on the signed-out Home.\n\nThe route mirrors the token surface: a domain folder with composition, handler, controller and types; mounted under `/api/auth`, where `sessionLayer` ignores Bearer, so a stolen API token cannot sign its owner out; and it inherits the same-origin check from the previous PR. The delete goes through the owner-world tenant repository, so the id is the cookie's own and no request input names a reviewer. A grant dies only with its last session and token referent, so a token minted off one of the revoked sessions keeps working; the wire suite pins that with a Bearer read after the revoke.\n\nTwo things worth knowing. Adding a Product Action touches the composed manifest, the CLI's baked catalog fingerprint and the CLI map, plus two count pins in tests; all four moved together. And the throwaway browser check found that the first click on the menu trigger lands before hydration and does nothing, which is the same reason the existing homeStates specs poll; the check waited and passed.\n\n### Changelog\n\n- `packages/contract`: `ProductActionIds.REVOKE_SESSIONS`.\n- `apps/api/src/routes/auth/sessions/{index,handler,controller,types}.ts`; mounted in `auth/index.ts`; the cookie-only list in the `sessionLayer` comment names it. Manifest regenerated.\n- `apps/api/test/sessions.test.ts`: two devices revoked and a stranger's row kept; the token's grant survives and the Bearer still reads; 401 bare and 401 with Bearer; 403 cross-origin; one audit row targeting the reviewer. Catalog test lists the new descriptor.\n- `apps/cli`: map entry `webOnly`, fingerprint rewritten by `map:check --write`, the web-only count pin.\n- `apps/web`: `useAccountMenuFacade` gains `signOutEverywhere` on a shared `runSignOut`; `AccountMenu` gains the row and its failure line; tests for the row, the DELETE, the failure copy and the row counts.\n- `packages/i18n`: `shell.accountMenu.signOutEverywhere` and `signOutEverywhereFailed`.\n- `docs/api-changelog.md`: the Added entry.\n\n### Verification\n\nOn nvm 24.17.0, exit codes: `pnpm lint` 0, typecheck 0 for api, web, cli, contract and i18n, `pnpm -C apps/api test` 0 (67 files, 762 tests), `pnpm -C apps/web test` 0 (295 files, 2850 tests), `pnpm -C apps/cli test` 0 (166 tests), `pnpm -C packages/i18n test` 0, `pnpm -C packages/contract test` 0, `pnpm -C apps/api manifest:check` 0, `pnpm check:catalog` 0."
+  },
+  "index": 1,
+  "anchor": {
+    "state": "none"
+  },
+  "chunks": [
+    {
+      "id": "c1",
+      "loc": {
+        "added": 1,
+        "deleted": 0
+      },
+      "file": "packages/contract/src/operations.ts",
+      "role": "core",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 38,
+          "end": 38
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c2",
+      "loc": {
+        "added": 17,
+        "deleted": 0
+      },
+      "file": "apps/api/src/routes/auth/sessions/controller.ts",
+      "role": "core",
+      "concern": "implementation",
+      "riskNotes": [
+        {
+          "attr": "mutates-state",
+          "note": "Deletes every auth_session row of the reviewer via sessions.deleteByReviewer; grants referenced by API tokens survive."
+        }
+      ],
+      "addedRanges": [
+        {
+          "start": 1,
+          "end": 17
+        }
+      ],
+      "riskSurface": ["touches-auth", "mutates-state", "new-abstraction"],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c3",
+      "loc": {
+        "added": 30,
+        "deleted": 0
+      },
+      "file": "apps/api/src/routes/auth/sessions/handler.ts",
+      "role": "core",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 1,
+          "end": 30
+        }
+      ],
+      "riskSurface": ["touches-auth", "mutates-state"],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c4",
+      "loc": {
+        "added": 30,
+        "deleted": 0
+      },
+      "file": "apps/api/src/routes/auth/sessions/index.ts",
+      "role": "core",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 1,
+          "end": 30
+        }
+      ],
+      "riskSurface": ["touches-auth"],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c5",
+      "loc": {
+        "added": 19,
+        "deleted": 0
+      },
+      "file": "apps/api/src/routes/auth/sessions/types.ts",
+      "role": "core",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 1,
+          "end": 19
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c6",
+      "loc": {
+        "added": 3,
+        "deleted": 1
+      },
+      "file": "apps/api/src/routes/auth/index.ts",
+      "role": "core",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 2,
+          "end": 2
+        },
+        {
+          "start": 11,
+          "end": 11
+        },
+        {
+          "start": 20,
+          "end": 20
+        }
+      ],
+      "riskSurface": ["touches-auth"],
+      "changeGroupId": "g1",
+      "removedRanges": [
+        {
+          "start": 2,
+          "end": 2
+        }
+      ]
+    },
+    {
+      "id": "c7",
+      "loc": {
+        "added": 4,
+        "deleted": 4
+      },
+      "file": "apps/api/src/routes/authz.ts",
+      "role": "supporting",
+      "concern": "implementation",
+      "addedRanges": [
+        {
+          "start": 308,
+          "end": 311
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": [
+        {
+          "start": 308,
+          "end": 311
+        }
+      ]
+    },
+    {
+      "id": "c8",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "file": "apps/api/product-operations.manifest.json",
+      "role": "supporting",
+      "concern": "generated",
+      "addedRanges": [
+        {
+          "start": 183,
+          "end": 188
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c9",
+      "loc": {
+        "added": 234,
+        "deleted": 0
+      },
+      "file": "apps/api/test/sessions.test.ts",
+      "role": "supporting",
+      "concern": "test",
+      "addedRanges": [
+        {
+          "start": 1,
+          "end": 234
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c10",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "file": "apps/api/test/product-operation-catalog.test.ts",
+      "role": "supporting",
+      "concern": "test",
+      "addedRanges": [
+        {
+          "start": 196,
+          "end": 201
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c11",
+      "loc": {
+        "added": 6,
+        "deleted": 0
+      },
+      "file": "apps/cli/product-operations.map.json",
+      "role": "supporting",
+      "concern": "config",
+      "addedRanges": [
+        {
+          "start": 110,
+          "end": 115
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": []
+    },
+    {
+      "id": "c12",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "file": "apps/cli/src/generated-catalog-fingerprint.ts",
+      "role": "supporting",
+      "concern": "generated",
+      "addedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "file": "apps/cli/test/operations-map.test.ts",
+      "role": "supporting",
+      "concern": "test",
+      "addedRanges": [
+        {
+          "start": 305,
+          "end": 305
+        }
+      ],
+      "riskSurface": [],
+      "changeGroupId": "g1",
+      "removedRanges": [
+        {
+          "start": 305,
+          "end": 305
+        }
+      ]
+    }
+  ],
+  "summary": "Adds the server half of \"sign out everywhere\". The new cookie-only `DELETE /api/auth/sessions` action deletes every session of the signed-in reviewer and clears the cookie, so a leaked session cookie can be killed without holding it. API tokens minted from those sessions keep working. The Account menu row the description names is not in this push.\n\n## Changelog\n- API: `revoke-sessions` action (private-write), mounted under `/api/auth`, so a Bearer token cannot call it. The manifest, the CLI map and fingerprint, and the count pins all move with it.",
+  "diffTotals": {
+    "added": 358,
+    "deleted": 7
+  },
+  "generation": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "provider": "anthropic"
+  },
+  "commitRange": {
+    "base": "25be791e287a47d115d6726744b361fa6864664a",
+    "head": "0068da4bcb03d4bf282dc8cdaddf85f874879ef7",
+    "commitCount": 1
+  },
+  "concernView": [
+    {
+      "concern": "implementation",
+      "added": 104,
+      "deleted": 5
+    },
+    {
+      "concern": "test",
+      "added": 241,
+      "deleted": 1
+    },
+    {
+      "concern": "config",
+      "added": 6,
+      "deleted": 0
+    },
+    {
+      "concern": "generated",
+      "added": 7,
+      "deleted": 1
+    }
+  ],
+  "intentCheck": {
+    "alignment": {
+      "goal": "__Host- prefix on session + state cookies; add an Origin allowlist check on mutating methods; delete the prior session row on re-login and/or add a revoke-all-sessions control.",
+      "read": "partial",
+      "response": "The diff delivers the revoke-all-sessions endpoint. The Account menu row that calls it is not in this push, and the cookie prefix and Origin check belong to the earlier PRs in the stack."
+    },
+    "scopeNote": "The ticket spans the stack; this PR (3 of 3, base fix/2-same-origin-mutations) carries only the revocation control, while the cookie prefix and Origin check land in #623 and #624.",
+    "deviations": [],
+    "ticketUrls": ["https://www.notion.so/"],
+    "maskedFixes": [],
+    "specificity": "precise",
+    "accomplished": [
+      {
+        "quote": "delete the prior session row on re-login and/or add a revoke-all-sessions control.",
+        "intent": "Add a revoke-all-sessions control on the server.",
+        "groupIds": ["g1"],
+        "sourceUrl": "https://www.notion.so/",
+        "acknowledged": false
+      }
+    ],
+    "ticketTitles": [
+      "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation"
+    ],
+    "primaryTicket": {
+      "key": "",
+      "url": "https://www.notion.so/",
+      "title": "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation",
+      "header": "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation · In review · Backend · Next",
+      "reason": "",
+      "status": "read",
+      "foundIn": "description",
+      "tracker": "notion"
+    },
+    "doneButUnstated": [],
+    "statedButMissing": [
+      {
+        "quote": "The Account menu gains a \"Sign out everywhere\" row under Sign out that calls it and lands on the signed-out Home.",
+        "intent": "Put a Sign out everywhere row in the Account menu that calls the endpoint.",
+        "groupIds": [],
+        "sourceUrl": "",
+        "acknowledged": false
+      },
+      {
+        "quote": "`docs/api-changelog.md`: the Added entry.",
+        "intent": "Add the new endpoint to the API changelog.",
+        "groupIds": [],
+        "sourceUrl": "",
+        "acknowledged": false
+      }
+    ]
+  },
+  "productDiff": {
+    "changes": [
+      {
+        "when": "a client sends `DELETE /api/auth/sessions` with a session cookie",
+        "after": "The API deletes every session of the signed-in reviewer, clears the cookie and answers `{ ok: true, revoked }` with the number of sessions it ended.",
+        "affects": "api-contract",
+        "groupIds": ["g1"],
+        "beforeSource": "did-not-exist"
+      },
+      {
+        "when": "the same request carries a Bearer API token and no session cookie",
+        "after": "The API answers 401, so an API token cannot sign its owner out.",
+        "affects": "business-rule",
+        "groupIds": ["g1"],
+        "beforeSource": "did-not-exist"
+      },
+      {
+        "when": "a reviewer's sessions are revoked while an API token minted from one of them exists",
+        "after": "The token keeps working: its grant ends only with its last session and token.",
+        "affects": "business-rule",
+        "groupIds": ["g1"],
+        "beforeSource": "did-not-exist"
+      },
+      {
+        "when": "a reviewer's sessions are revoked",
+        "after": "One audit row is written that names the reviewer as its target.",
+        "affects": "operations",
+        "groupIds": ["g1"],
+        "beforeSource": "did-not-exist"
+      }
+    ],
+    "hasMore": false,
+    "availability": "available"
+  },
+  "changeGroups": [
+    {
+      "id": "g1",
+      "title": "Add DELETE /api/auth/sessions revoke-all action",
+      "summary": "New cookie-only, same-origin route that deletes all of the signed-in reviewer's sessions through the owner-scoped repository, clears the cookie and writes an audit row. It is registered as the `revoke-sessions` product action.",
+      "uncertain": false,
+      "dominantCategory": "new-feature",
+      "uncertainBetween": [],
+      "secondaryCategories": []
+    }
+  ],
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "the whole push: the endpoint, its product action and their tests"
+    }
+  ],
+  "unattributed": []
+}

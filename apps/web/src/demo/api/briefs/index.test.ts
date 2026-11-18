@@ -1,9 +1,25 @@
-import { checkBriefForWrite, readStoredBrief } from "brief-core/artifact";
+import {
+  checkBriefForWrite,
+  checkRevisionNarrativeForWrite,
+  readStoredBrief,
+} from "brief-core/artifact";
+import type { LineRange } from "brief-core/types";
 import { describe, expect, it } from "vitest";
 
-import { parseFileDiffPatches } from "@web/features/brief/model";
-import { DEMO_BASE_SHA, DEMO_REV2_HEAD } from "./consts";
-import { briefRev2Text, diffsRev2Text } from "./index";
+import {
+  parseComparisonMarks,
+  parseFileDiffPatches,
+} from "@web/features/brief/model";
+import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./consts";
+import {
+  briefRev1Text,
+  briefRev2Text,
+  diffsRev1Text,
+  diffsRev2Text,
+  revisionNarrativeText,
+  revisionSpanDiffsText,
+  revisionSpanMarksText,
+} from "./index";
 
 interface LineTotals {
   added: number;
@@ -18,6 +34,12 @@ interface DemoRevision {
 }
 
 const REVISIONS: readonly DemoRevision[] = [
+  {
+    name: "revision 1",
+    head: DEMO_REV1_HEAD,
+    briefText: briefRev1Text,
+    diffsText: diffsRev1Text,
+  },
   {
     name: "revision 2",
     head: DEMO_REV2_HEAD,
@@ -50,6 +72,10 @@ function sumLines(totals: readonly LineTotals[]): LineTotals {
     added: totals.reduce((sum, entry) => sum + entry.added, 0),
     deleted: totals.reduce((sum, entry) => sum + entry.deleted, 0),
   };
+}
+
+function countRangeLines(ranges: readonly LineRange[]): number {
+  return ranges.reduce((sum, range) => sum + range.end - range.start + 1, 0);
 }
 
 function readPatchTotals(diffsText: string): LineTotals {
@@ -103,5 +129,58 @@ describe.each(REVISIONS)("the demo brief of $name", (revision) => {
     expect(brief.diffTotals).toEqual(patchTotals);
     expect(sumLines(brief.concernView)).toEqual(patchTotals);
     expect(chunkTotals).toEqual(patchTotals);
+  });
+});
+
+describe("what the demo says changed between its revisions", () => {
+  const parsedMarks = parseComparisonMarks(JSON.parse(revisionSpanMarksText));
+  if (!parsedMarks.ok) {
+    throw new Error(parsedMarks.error);
+  }
+  const marks = parsedMarks.value;
+
+  it("marks the lines the span's patches change, between the two heads", () => {
+    const markedTotals: LineTotals = {
+      added: countRangeLines(marks.files.flatMap((file) => file.addedRanges)),
+      deleted: countRangeLines(
+        marks.files.flatMap((file) => file.removedRanges),
+      ),
+    };
+
+    expect(marks.baselineSha).toBe(DEMO_REV1_HEAD);
+    expect(marks.headSha).toBe(DEMO_REV2_HEAD);
+    expect(markedTotals).toEqual(readPatchTotals(revisionSpanDiffsText));
+  });
+
+  it("holds a narrative the API would store", () => {
+    const check = checkRevisionNarrativeForWrite(
+      JSON.parse(revisionNarrativeText),
+    );
+
+    expect(check.ok).toBe(true);
+  });
+
+  it("tells every marked file's story under a group of the brief", () => {
+    const check = checkRevisionNarrativeForWrite(
+      JSON.parse(revisionNarrativeText),
+    );
+    const read = readStoredBrief(briefRev2Text);
+    if (!check.ok || !read.ok) {
+      throw new Error("the narrative or the brief does not read");
+    }
+    if (!("chunks" in check.value)) {
+      throw new Error("the narrative holds no chunks");
+    }
+    const groupIds = read.value.brief.changeGroups.map((group) => group.id);
+    const toldFiles = new Set(check.value.chunks.map((chunk) => chunk.file));
+    const toldGroups = check.value.chunks.map(
+      (chunk) => chunk.briefChangeGroupId,
+    );
+
+    expect(marks.files.map((file) => file.file)).toEqual(
+      expect.arrayContaining([...toldFiles]),
+    );
+    expect(toldFiles.size).toBe(marks.files.length);
+    expect(groupIds).toEqual(expect.arrayContaining(toldGroups));
   });
 });
