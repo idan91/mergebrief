@@ -81,8 +81,10 @@ function readAddedLines(patch: string): ReadonlySet<number> {
       nextLine = Number(start);
       continue;
     }
-    const isOutsideHunk = nextLine === undefined || row.startsWith("-");
-    if (isOutsideHunk || nextLine === undefined) {
+    if (nextLine === undefined) {
+      continue;
+    }
+    if (row.startsWith("-") || row.startsWith("\\")) {
       continue;
     }
     if (row.startsWith("+")) {
