@@ -179,6 +179,7 @@ export const inboxAnswer: InboxResponse = {
       generation,
       latestBriefAt: REV2_CREATED_AT,
       githubUpdatedAt: REV2_CREATED_AT,
+      githubCreatedAt: REV1_CREATED_AT,
       stack: null,
     },
   ],

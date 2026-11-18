@@ -32,6 +32,7 @@ function parseInboxQuery(c: Context<AuthzEnv>): InboxQuery {
   const query = inboxQuerySchema.safeParse({
     [InboxQueryKeys.PAGE]: c.req.query(InboxQueryKeys.PAGE),
     [InboxQueryKeys.SORT]: c.req.query(InboxQueryKeys.SORT),
+    [InboxQueryKeys.DIRECTION]: c.req.query(InboxQueryKeys.DIRECTION),
     [InboxQueryKeys.LAYOUT]: c.req.query(InboxQueryKeys.LAYOUT),
     [InboxQueryKeys.STATE]: c.req.queries(InboxQueryKeys.STATE),
     [InboxQueryKeys.REPO]: c.req.queries(InboxQueryKeys.REPO),

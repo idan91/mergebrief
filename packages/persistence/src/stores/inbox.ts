@@ -5,6 +5,7 @@
 // Every write in this package keeps one scope; nothing here writes.
 import {
   and,
+  asc,
   desc,
   eq,
   getTableColumns,
@@ -22,12 +23,14 @@ import {
   InboxAuthorFilters,
   InboxFoldStates,
   InboxReviewStates,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxReviewState,
   type InboxSort,
+  type InboxSortDirection,
   type InboxStatus,
   InboxLayouts,
   type InboxLayout,
@@ -78,6 +81,8 @@ export interface InboxListInput {
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;
   readonly sort: InboxSort;
+  /** Which way the sort runs inside the fold; a row with no sort value is last either way. */
+  readonly direction: InboxSortDirection;
   /** Folded leads with the rows that need the reviewer; mixed is the sort alone. */
   readonly layout: InboxLayout;
   /** One-based. */
@@ -503,6 +508,21 @@ function buildViewable(
 }
 type Viewable = ReturnType<typeof buildViewable>;
 
+/** The sort's own order: its column in the chosen direction, a row with no value last, the id settling a tie the same way. */
+function buildSortOrder(input: InboxListInput, page: Viewable): SQL[] {
+  const sortColumns: Record<InboxSort, SQLWrapper> = {
+    [InboxSorts.UPDATED]: page.githubUpdatedAt,
+    [InboxSorts.GENERATED]: page.latestCreatedAt,
+    [InboxSorts.CREATED]: page.githubCreatedAt,
+  };
+  const sortColumn = sortColumns[input.sort];
+
+  if (input.direction === InboxSortDirections.ASCENDING) {
+    return [sql`${sortColumn} asc nulls last`, asc(page.id)];
+  }
+  return [sql`${sortColumn} desc nulls last`, desc(page.id)];
+}
+
 /** The fold: open, non-draft rows in a fold state lead; the rest follow. */
 function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
   const foldStates = sql.join(
@@ -511,10 +531,6 @@ function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
   );
   const open = buildOpenPredicate(page.state, page.draft);
   const needsViewer = sql<boolean>`coalesce(${page.reviewState} in (${foldStates}) and ${open}, false)`;
-  const sortColumn =
-    input.sort === InboxSorts.GENERATED
-      ? page.latestCreatedAt
-      : page.githubUpdatedAt;
   const offset = (input.page - 1) * input.pageSize;
   const foldFirst =
     input.layout === InboxLayouts.FOLDED ? [desc(needsViewer)] : [];
@@ -523,7 +539,7 @@ function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
     .select()
     .from(page)
     .where(buildStateFilter(input, page.reviewState))
-    .orderBy(...foldFirst, sql`${sortColumn} desc nulls last`, desc(page.id))
+    .orderBy(...foldFirst, ...buildSortOrder(input, page))
     .limit(input.pageSize)
     .offset(offset);
 }

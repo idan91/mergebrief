@@ -150,6 +150,7 @@ interface SeedInput {
   readonly title?: string;
   readonly authorLogin?: string;
   readonly updatedAt?: Date;
+  readonly createdAt?: Date;
   readonly draft?: boolean;
   /** Stamp the row as read now, so the live read leaves it alone. */
   readonly fresh?: boolean;
@@ -170,6 +171,9 @@ async function seedPr(handle: AppDatabase, input: SeedInput) {
   }
   if (input.draft !== undefined) {
     upsert.draft = input.draft;
+  }
+  if (input.createdAt !== undefined) {
+    upsert.githubCreatedAt = input.createdAt;
   }
   return createTenantRepository(handle, input.ctx).pullRequests.upsert(upsert);
 }
@@ -646,6 +650,39 @@ describe("GET /api/inbox", () => {
     expect(body.archivedSearchMatchTotal).toBe(0);
   });
 
+  it("the created sort lists by GitHub's creation time, either way", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const fresh = { ctx: TENANT, repoId: REPO_A, fresh: true };
+    await seedPr(harness.handle, {
+      ...fresh,
+      prNumber: 1,
+      createdAt: new Date("2026-09-03T00:00:00Z"),
+    });
+    await seedPr(harness.handle, {
+      ...fresh,
+      prNumber: 2,
+      createdAt: new Date("2026-09-01T00:00:00Z"),
+    });
+    await seedPr(harness.handle, { ...fresh, prNumber: 3 });
+    const created = "/api/inbox?sort=created&layout=mixed";
+
+    const newest = await readBody(await get(created, cookie));
+    const oldest = await readBody(
+      await get(`${created}&direction=asc`, cookie),
+    );
+    const sideways = await get(`${created}&direction=sideways`, cookie);
+
+    expect(newest.items.map((i) => i["prNumber"])).toEqual([1, 2, 3]);
+    expect(oldest.items.map((i) => i["prNumber"])).toEqual([2, 1, 3]);
+    expect(newest.items.map((i) => i["githubCreatedAt"])).toEqual([
+      "2026-09-03T00:00:00.000Z",
+      "2026-09-01T00:00:00.000Z",
+      null,
+    ]);
+    expect(sideways.status).toBe(400);
+  });
+
   it("no state key on the wire reads as open and draft", async () => {
     arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);
@@ -936,7 +973,11 @@ describe("GET /api/inbox", () => {
     expect(res.status).toBe(200);
     expect(countLiveReads(fake)).toBe(1);
     const body = await readBody(res);
-    expect(body.items[0]).toMatchObject({ prNumber: 3, draft: false });
+    expect(body.items[0]).toMatchObject({
+      prNumber: 3,
+      draft: false,
+      githubCreatedAt: "2025-12-01T00:00:00.000Z",
+    });
   });
 
   it("reads a stale url row live before listing it", async () => {
@@ -958,6 +999,7 @@ describe("GET /api/inbox", () => {
     expect(body.items[0]).toMatchObject({
       title: "Live title",
       githubUpdatedAt: "2026-09-20T10:00:00.000Z",
+      githubCreatedAt: "2025-12-01T00:00:00.000Z",
     });
   });
 });

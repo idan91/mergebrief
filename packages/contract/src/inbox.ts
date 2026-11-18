@@ -14,6 +14,7 @@ import type { ViewerView } from "./viewer";
 export const InboxQueryKeys = {
   PAGE: "page",
   SORT: "sort",
+  DIRECTION: "direction",
   LAYOUT: "layout",
   STATE: "state",
   REPO: "repo",
@@ -81,6 +82,8 @@ export interface InboxItem {
   readonly generation: GenerationSummaryView | null;
   readonly latestBriefAt: string | null;
   readonly githubUpdatedAt: string | null;
+  /** GitHub's creation time; null until an event or a live read carries it. */
+  readonly githubCreatedAt: string | null;
   /** From the latest brief's stored snapshot; null when it sat in no chain. */
   readonly stack: InboxStackView | null;
 }

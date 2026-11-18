@@ -8,7 +8,11 @@ import type {
   RepoId,
   ReviewerId,
 } from "persistence";
-import { type InboxSort, type InboxLayout } from "types/inbox";
+import {
+  type InboxSort,
+  type InboxSortDirection,
+  type InboxLayout,
+} from "types/inbox";
 import type {
   AccessibleInstallationsResolver,
   AccessibleSetFailure,
@@ -61,6 +65,7 @@ export interface InboxPageInput {
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;
   readonly sort: InboxSort;
+  readonly direction: InboxSortDirection;
   readonly layout: InboxLayout;
   /** One-based. */
   readonly page: number;

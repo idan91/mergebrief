@@ -125,6 +125,7 @@ export async function listInbox(
       reviewerLogin: session.reviewerLogin,
       filters: shapeFilters(query),
       sort: query.sort,
+      direction: query.direction,
       layout: query.layout,
       page: query.page,
       githubAppSlug: deps.githubAppSlug,
