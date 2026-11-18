@@ -265,6 +265,34 @@ describe("createTenantRepository entry comment rotation", () => {
   });
 });
 
+describe("createTenantRepository upsert, GitHub's creation time", () => {
+  const OPENED = new Date("2026-09-01T08:00:00Z");
+
+  it("stores the creation time and fills it on a row that had none", async () => {
+    const handle = shared.handle;
+    const { pullRequests } = createTenantRepository(handle, CTX_A);
+    const stored = await pullRequests.upsert(upsertInput(7));
+
+    const filled = await pullRequests.upsert({
+      ...upsertInput(7),
+      githubCreatedAt: OPENED,
+    });
+
+    expect(stored.githubCreatedAt).toBeNull();
+    expect(filled.githubCreatedAt).toEqual(OPENED);
+  });
+
+  it("an event that names no creation time keeps the stored one", async () => {
+    const handle = shared.handle;
+    const { pullRequests } = createTenantRepository(handle, CTX_A);
+    await pullRequests.upsert({ ...upsertInput(7), githubCreatedAt: OPENED });
+
+    const kept = await pullRequests.upsert(upsertInput(7));
+
+    expect(kept.githubCreatedAt).toEqual(OPENED);
+  });
+});
+
 describe("createTenantRepository setDraft, the mark-ready flip", () => {
   const FLIP_AT = new Date("2026-09-20T12:00:00Z");
   const WEBHOOK_AT = new Date("2026-09-20T12:05:00Z");

@@ -282,6 +282,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         title: "feat: add widgets",
         draft: false,
         githubUpdatedAt: new Date("2026-10-01T10:05:00Z"),
+        githubCreatedAt: new Date("2026-09-01T08:00:00Z"),
         lifecycle: { state: PrStates.OPEN },
       },
     );
@@ -317,6 +318,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       title: "feat: add widgets",
       draft: false,
       githubUpdatedAt: pushedAt,
+      githubCreatedAt: new Date("2026-09-01T08:00:00Z"),
       lifecycle: { state: PrStates.OPEN },
     };
 

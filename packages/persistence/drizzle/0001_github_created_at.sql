@@ -1,0 +1,1 @@
+ALTER TABLE "pull_request" ADD COLUMN "github_created_at" timestamp with time zone;

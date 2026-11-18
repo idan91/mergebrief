@@ -41,6 +41,8 @@ export interface LiveReadFacts extends LiveReadStamp {
   readonly title: string;
   readonly draft: boolean;
   readonly githubUpdatedAt: Date;
+  /** GitHub's `created_at`; it never changes, so both scope worlds write it. */
+  readonly githubCreatedAt: Date;
   /** Applied as read: a live open beats a stored closed. */
   readonly lifecycle: PullRequestLifecycle;
   /** Absent when the account is gone; the stored login then stays. */
@@ -232,6 +234,7 @@ export function createLiveReadStore(
         githubHeadSha: facts.headSha,
         githubReadAt: facts.readAt,
         githubUnreachableAt: null,
+        githubCreatedAt: facts.githubCreatedAt,
         ...buildLifecycleColumns(facts.lifecycle),
         rowVersion: buildNextRowVersion(),
         updatedAt: new Date(),

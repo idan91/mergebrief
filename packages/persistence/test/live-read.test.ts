@@ -36,6 +36,7 @@ const TENANT: TenantContext = {
 };
 
 const NOW = new Date("2026-09-20T12:00:00Z");
+const OPENED = new Date("2026-09-01T08:00:00Z");
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const HEAD = "a".repeat(40);
 
@@ -58,6 +59,7 @@ function stubFacts(overrides?: Partial<LiveReadFacts>): LiveReadFacts {
     title: "live title",
     draft: false,
     githubUpdatedAt: NOW,
+    githubCreatedAt: OPENED,
     lifecycle: { state: PrStates.OPEN },
     ...overrides,
   };
@@ -305,6 +307,19 @@ describe("createLiveReadStore.record", () => {
 
     expect(row.draft).toBe(true);
     expect(row.githubUpdatedAt).toBeNull();
+  });
+
+  it.each([
+    ["an owner", CTX_A],
+    ["an installation", TENANT],
+  ])("writes the creation time GitHub reports on %s row", async (_, ctx) => {
+    const handle = shared.handle;
+    const id = await seedOpen(handle, ctx, 1);
+    const store = createLiveReadStore(handle, ctx);
+
+    const row = unwrap(await store.record(id, stubFacts()));
+
+    expect(row.githubCreatedAt).toEqual(OPENED);
   });
 
   it("reopens a closed row only on a strictly newer read", async () => {

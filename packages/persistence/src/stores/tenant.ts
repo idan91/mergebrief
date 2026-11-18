@@ -104,6 +104,8 @@ interface BasePullRequestUpsertInput {
    * stored value.
    */
   readonly githubUpdatedAt?: Date;
+  /** GitHub's `pull_request.created_at`; an omitted value preserves the stored one. */
+  readonly githubCreatedAt?: Date;
   /**
    * A paste is a live read: stamp when GitHub answered and the head it
    * reported, and clear any unreachable mark. Webhook events carry none.
