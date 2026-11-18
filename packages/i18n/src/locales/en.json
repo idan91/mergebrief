@@ -1952,7 +1952,8 @@
       "sortOrder": "Order",
       "sortNewestFirst": "Newest first",
       "sortOldestFirst": "Oldest first",
-      "sortValueOldestFirst": "{{sort}}, oldest first",
+      "sortOldestFirst_inline": "oldest first",
+      "sortValueWithDirection": "{{sort}}, {{direction}}",
       "ariaLabelControls": "Filters, view and sort"
     },
     "pager": {

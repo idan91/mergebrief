@@ -480,7 +480,7 @@ export type Catalog = typeof en & {
       changed_other: "{{count}} changed";
       chosen_one: "{{count}} chosen";
       chosen_other: "{{count}} chosen";
-      sortValueOldestFirst: "{{sort}}, oldest first";
+      sortValueWithDirection: "{{sort}}, {{direction}}";
     };
     pager: (typeof en)["home"]["pager"] & {
       range: "{{first}} to {{last}} of {{total}}";

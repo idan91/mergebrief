@@ -21,8 +21,13 @@ export function SortMenu({ sort, direction }: SortMenuProps) {
   const { t } = useTranslation();
   const label = t("home.filters.sort");
   const sortLabel = describeFilterValue(sort) ?? "";
+  // Newest first is the default and goes unsaid, so a changed direction is this one.
+  const oldestFirst = t("home.filters.sortOldestFirst", { context: "inline" });
   const value = direction.changed
-    ? t("home.filters.sortValueOldestFirst", { sort: sortLabel })
+    ? t("home.filters.sortValueWithDirection", {
+        sort: sortLabel,
+        direction: oldestFirst,
+      })
     : sortLabel;
   const changed = sort.changed || direction.changed;
   const state: FilterState = changed
