@@ -175,6 +175,18 @@ export interface InboxSearch {
   readonly error?: SignInFailure;
 }
 
+/**
+ * The search text someone other than the search field put in place, which
+ * the field takes at once: Clear empties it, and a Back, a Forward or a link
+ * carries its target's. The URL on screen cannot say so while that target is
+ * still loading, or when it holds the text the URL already showed.
+ */
+export interface SearchTextOverride {
+  /** Steps on each one, so the same text twice still registers. */
+  readonly count: number;
+  readonly text: string;
+}
+
 /** A change to the URL's state; an explicit `undefined` unsets a key. */
 export type InboxSearchChange = {
   readonly [Key in keyof InboxSearch]?: InboxSearch[Key] | undefined;

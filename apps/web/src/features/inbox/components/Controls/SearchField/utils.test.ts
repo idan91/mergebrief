@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { SearchTextOverride } from "../../../types";
 import type { SearchFieldState } from "./types";
 import {
   reconcileUrlText,
@@ -8,15 +9,18 @@ import {
   typeText,
 } from "./utils";
 
+const NONE: SearchTextOverride = { count: 0, text: "" };
+const CLEARED: SearchTextOverride = { count: 1, text: "" };
+
 function makeState(overrides: Partial<SearchFieldState>): SearchFieldState {
-  return { ...startSearchField("", 0), ...overrides };
+  return { ...startSearchField("", NONE), ...overrides };
 }
 
 describe("reconcileUrlText", () => {
   it("hands back the same state while the URL has not moved", () => {
     const state = makeState({ text: "anchor" });
 
-    expect(reconcileUrlText(state, "", 0)).toBe(state);
+    expect(reconcileUrlText(state, "", NONE)).toBe(state);
   });
 
   it("keeps the typing when the URL lands on the field's text, trimmed", () => {
@@ -26,12 +30,12 @@ describe("reconcileUrlText", () => {
       awaitsLanding: true,
     });
 
-    expect(reconcileUrlText(state, "anchor", 0)).toEqual({
+    expect(reconcileUrlText(state, "anchor", NONE)).toEqual({
       text: " anchor ",
       seenUrlText: "anchor",
       ownWrites: [],
       awaitsLanding: false,
-      seenClearCount: 0,
+      seenOverrideCount: 0,
     });
   });
 
@@ -42,12 +46,12 @@ describe("reconcileUrlText", () => {
       awaitsLanding: true,
     });
 
-    expect(reconcileUrlText(state, "anc", 0)).toEqual({
+    expect(reconcileUrlText(state, "anc", NONE)).toEqual({
       text: "anchor",
       seenUrlText: "anc",
       ownWrites: ["anchor"],
       awaitsLanding: true,
-      seenClearCount: 0,
+      seenOverrideCount: 0,
     });
   });
 
@@ -58,7 +62,9 @@ describe("reconcileUrlText", () => {
       ownWrites: [],
     });
 
-    expect(reconcileUrlText(state, "", 0)).toEqual(startSearchField("", 0));
+    expect(reconcileUrlText(state, "", NONE)).toEqual(
+      startSearchField("", NONE),
+    );
   });
 });
 
@@ -70,22 +76,75 @@ describe("reconcileUrlText after a Clear", () => {
       awaitsLanding: true,
     });
 
-    expect(reconcileUrlText(state, "", 1)).toEqual(startSearchField("", 1));
+    expect(reconcileUrlText(state, "", CLEARED)).toEqual(
+      startSearchField("", CLEARED),
+    );
   });
 
   it("remembers the empty text as its own without awaiting it", () => {
     const state = makeState({ text: "foo", seenUrlText: "foo" });
 
-    const cleared = reconcileUrlText(state, "foo", 1);
+    const cleared = reconcileUrlText(state, "foo", CLEARED);
 
     expect(cleared).toEqual({
       text: "",
       seenUrlText: "foo",
       ownWrites: [""],
       awaitsLanding: false,
-      seenClearCount: 1,
+      seenOverrideCount: 1,
     });
-    expect(reconcileUrlText(typeText(cleared, "x"), "", 1).text).toBe("x");
+    expect(reconcileUrlText(typeText(cleared, "x"), "", CLEARED).text).toBe(
+      "x",
+    );
+  });
+});
+
+describe("reconcileUrlText after a Back or a link", () => {
+  const BACK_TO_LEDG: SearchTextOverride = { count: 1, text: "ledg" };
+
+  it("takes the target's text though the field once wrote that text", () => {
+    const ahead = makeState({
+      text: "ledger",
+      ownWrites: ["ledg", "ledger"],
+      awaitsLanding: true,
+    });
+
+    const yielded = reconcileUrlText(ahead, "", BACK_TO_LEDG);
+
+    expect(yielded).toEqual({
+      text: "ledg",
+      seenUrlText: "",
+      ownWrites: ["ledg"],
+      awaitsLanding: false,
+      seenOverrideCount: 1,
+    });
+    expect(reconcileUrlText(yielded, "ledg", BACK_TO_LEDG)).toEqual({
+      text: "ledg",
+      seenUrlText: "ledg",
+      ownWrites: [],
+      awaitsLanding: false,
+      seenOverrideCount: 1,
+    });
+  });
+
+  it("drops every pending write when the target holds the URL's own text", () => {
+    const ahead = makeState({
+      text: "ledger",
+      ownWrites: ["ledg", "ledger"],
+      awaitsLanding: true,
+    });
+
+    expect(reconcileUrlText(ahead, "", CLEARED)).toEqual(
+      startSearchField("", CLEARED),
+    );
+  });
+
+  it("keeps what is typed while the target is still loading", () => {
+    const yielded = reconcileUrlText(makeState({}), "", BACK_TO_LEDG);
+
+    const typedOn = typeText(yielded, "ledgx");
+
+    expect(reconcileUrlText(typedOn, "ledg", BACK_TO_LEDG).text).toBe("ledgx");
   });
 });
 
@@ -102,7 +161,7 @@ describe("typeText", () => {
       seenUrlText: "",
       ownWrites: ["fo"],
       awaitsLanding: false,
-      seenClearCount: 0,
+      seenOverrideCount: 0,
     });
   });
 });
@@ -116,7 +175,7 @@ describe("recordWrite", () => {
       seenUrlText: "",
       ownWrites: ["fo"],
       awaitsLanding: true,
-      seenClearCount: 0,
+      seenOverrideCount: 0,
     });
   });
 

@@ -6,12 +6,44 @@ import { parseInboxSearch } from "../search";
 import type { InboxSearch } from "../types";
 import { useInboxSearchState } from "./useInboxSearchState";
 
+interface HistoryEvent {
+  readonly location: { readonly pathname: string; readonly q?: string };
+  readonly action: { readonly type: string };
+}
+
 const navigateMock = vi.fn();
+const historyListeners = new Set<(event: HistoryEvent) => void>();
+/** The router as the hook reads it: history events in, the target's path and search out. */
+const routerStub = {
+  history: {
+    subscribe: (listener: (event: HistoryEvent) => void) => {
+      historyListeners.add(listener);
+      return () => historyListeners.delete(listener);
+    },
+  },
+  parseLocation: ({ pathname, q }: HistoryEvent["location"]) => ({
+    pathname,
+    search: q === undefined ? {} : { q },
+  }),
+};
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigateMock,
+  useRouter: () => routerStub,
 }));
 
-beforeEach(() => navigateMock.mockReset());
+beforeEach(() => {
+  navigateMock.mockReset();
+  historyListeners.clear();
+});
+
+function emitHistory(type: string, pathname: string, q?: string): void {
+  const location = q === undefined ? { pathname } : { pathname, q };
+  act(() => {
+    for (const listener of historyListeners) {
+      listener({ location, action: { type } });
+    }
+  });
+}
 
 /** What the nth navigate would write, given the URL it finds at that moment. */
 function readWrite(index: number, live: InboxSearch): unknown {
@@ -112,13 +144,68 @@ describe("useInboxSearchState", () => {
     });
   });
 
-  it("every Clear steps the clear count the search field watches", () => {
-    const shown = parseInboxSearch({ review: "new" });
+  it("every Clear overrides the search text with none", () => {
+    const shown = parseInboxSearch({ review: "new", q: "fo" });
     const { result } = renderHook(() => useInboxSearchState(shown, 30, 25));
-    expect(result.current.clearCount).toBe(0);
+    expect(result.current.searchTextOverride).toEqual({ count: 0, text: "" });
 
     act(() => result.current.clear());
 
-    expect(result.current.clearCount).toBe(1);
+    expect(result.current.searchTextOverride).toEqual({ count: 1, text: "" });
+  });
+});
+
+describe("useInboxSearchState, a navigation that is not a write", () => {
+  function renderState() {
+    const shown = parseInboxSearch({});
+    return renderHook(() => useInboxSearchState(shown, 30, 25)).result;
+  }
+
+  it.each(["BACK", "FORWARD", "GO", "PUSH"])(
+    "a %s onto Home overrides the search text with the target's",
+    (type) => {
+      const result = renderState();
+
+      emitHistory(type, "/", "ledg");
+
+      expect(result.current.searchTextOverride).toEqual({
+        count: 1,
+        text: "ledg",
+      });
+    },
+  );
+
+  it("a target with no search text overrides with none", () => {
+    const result = renderState();
+
+    emitHistory("BACK", "/");
+
+    expect(result.current.searchTextOverride).toEqual({ count: 1, text: "" });
+  });
+
+  it("a replace is one of the list's own writes and overrides nothing", () => {
+    const result = renderState();
+
+    emitHistory("REPLACE", "/", "ledg");
+
+    expect(result.current.searchTextOverride.count).toBe(0);
+  });
+
+  it("a navigation away from Home leaves the field alone", () => {
+    const result = renderState();
+
+    emitHistory("PUSH", "/repos/1/pulls/2");
+
+    expect(result.current.searchTextOverride.count).toBe(0);
+  });
+
+  it("stops listening once Home is gone", () => {
+    const { unmount } = renderHook(() =>
+      useInboxSearchState(parseInboxSearch({}), 30, 25),
+    );
+
+    unmount();
+
+    expect(historyListeners.size).toBe(0);
   });
 });

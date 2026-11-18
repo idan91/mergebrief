@@ -5,6 +5,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { Kbd, KbdSizes } from "@web/components/Kbd";
+import type { SearchTextOverride } from "../../../types";
 import { FilterStates, type FilterState } from "../types";
 import { SEARCH_FOCUS_KEY } from "./consts";
 import styles from "./SearchField.module.scss";
@@ -15,8 +16,8 @@ export interface SearchFieldProps {
   value: string;
   /** Rows the list holds for that text, across every page. */
   resultCount: number;
-  /** Times the filters were cleared; a step empties the field even while its search is still loading. */
-  clearCount: number;
+  /** The text a Clear, a Back or a link put in place; the field takes it even while its own search is still loading. */
+  override: SearchTextOverride;
   onSearch: (text: string) => void;
   /** The reviewer typed past a write whose list is still loading; stop waiting for it. */
   onDropPendingSearch: () => void;
@@ -30,13 +31,13 @@ export interface SearchFieldProps {
 export function SearchField({
   value,
   resultCount,
-  clearCount,
+  override,
   onSearch,
   onDropPendingSearch,
 }: SearchFieldProps) {
   const { t } = useTranslation();
   const actions = { onSearch, onDropPendingSearch };
-  const facade = useSearchFieldFacade(value, clearCount, actions);
+  const facade = useSearchFieldFacade(value, override, actions);
   const searching = value !== "";
   const state: FilterState = searching
     ? FilterStates.CHANGED

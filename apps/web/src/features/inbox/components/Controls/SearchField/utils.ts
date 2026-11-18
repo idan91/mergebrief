@@ -1,24 +1,25 @@
 import { shapeSearchText } from "../../../search";
+import type { SearchTextOverride } from "../../../types";
 import { OWN_WRITES_KEPT } from "./consts";
 import type { SearchFieldState } from "./types";
 
 export function startSearchField(
   urlText: string,
-  clearCount: number,
+  override: SearchTextOverride,
 ): SearchFieldState {
   return {
     text: urlText,
     seenUrlText: urlText,
     ownWrites: [],
     awaitsLanding: false,
-    seenClearCount: clearCount,
+    seenOverrideCount: override.count,
   };
 }
 
 /**
- * Whether the URL's search text moved without this field writing it: Clear,
- * Back, a link. The URL landing on what the field holds, or on a write the
- * field made a moment ago, is the field's own change catching up.
+ * Whether the URL's search text moved with nothing here expecting it. The
+ * URL landing on what the field holds, or on a text on its way there, is a
+ * change the field already knows catching up.
  */
 function isOutsideChange(state: SearchFieldState, urlText: string): boolean {
   const matchesField = urlText === shapeSearchText(state.text);
@@ -26,35 +27,37 @@ function isOutsideChange(state: SearchFieldState, urlText: string): boolean {
 }
 
 /**
- * The state once the URL holds `urlText` and the filters were cleared
- * `clearCount` times. A Clear empties the field itself, since a search
- * still loading never moved the URL for the field to notice. The field's own write landing keeps what the reviewer typed
- * since and forgets that write with every one before it; a change from
- * outside replaces the text. The same state comes back when nothing moved.
+ * The state once the URL holds `urlText` under `override`. A new override
+ * replaces the field's text and every write it had pending, since a Clear,
+ * a Back or a link took their place and the URL may never show it. The
+ * field's own write landing keeps what the reviewer typed since and forgets
+ * that write with every one before it; a change from outside replaces the
+ * text. The same state comes back when nothing moved.
  */
 export function reconcileUrlText(
   state: SearchFieldState,
   urlText: string,
-  clearCount: number,
+  override: SearchTextOverride,
 ): SearchFieldState {
-  if (clearCount !== state.seenClearCount) {
-    // The empty text is remembered as the field's own, so its landing keeps
-    // what is typed meanwhile. It is not awaited: the Clear is not a search
-    // a keystroke may drop.
-    const cleared: SearchFieldState = {
-      text: "",
+  if (override.count !== state.seenOverrideCount) {
+    // The override's text is remembered like a write, so its landing keeps
+    // what is typed meanwhile. It is not awaited: it is not a search a
+    // keystroke may drop.
+    const alreadyShown = state.seenUrlText === override.text;
+    const yielded: SearchFieldState = {
+      text: override.text,
       seenUrlText: state.seenUrlText,
-      ownWrites: state.seenUrlText === "" ? [] : [""],
+      ownWrites: alreadyShown ? [] : [override.text],
       awaitsLanding: false,
-      seenClearCount: clearCount,
+      seenOverrideCount: override.count,
     };
-    return reconcileUrlText(cleared, urlText, clearCount);
+    return reconcileUrlText(yielded, urlText, override);
   }
   if (urlText === state.seenUrlText) {
     return state;
   }
   if (isOutsideChange(state, urlText)) {
-    return startSearchField(urlText, clearCount);
+    return startSearchField(urlText, override);
   }
   const landedAt = state.ownWrites.lastIndexOf(urlText);
   const ownWrites = state.ownWrites.slice(landedAt + 1);

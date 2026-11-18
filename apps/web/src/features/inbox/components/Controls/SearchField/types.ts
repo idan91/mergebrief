@@ -4,10 +4,10 @@ export interface SearchFieldState {
   readonly text: string;
   /** The URL's search text when the state last took it in. */
   readonly seenUrlText: string;
-  /** Texts this field wrote that the URL has not shown yet, oldest first. */
+  /** Texts on their way to the URL, oldest first: this field's writes, or the override it took. */
   readonly ownWrites: readonly string[];
   /** A write went out and its list is still loading. */
   readonly awaitsLanding: boolean;
-  /** How many times the filters had been cleared when the state last took that in. */
-  readonly seenClearCount: number;
+  /** The override's count when the state last took one in. */
+  readonly seenOverrideCount: number;
 }

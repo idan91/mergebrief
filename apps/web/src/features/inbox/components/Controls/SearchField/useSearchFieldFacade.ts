@@ -9,6 +9,7 @@ import {
 
 import { useFocusOnKey } from "../../../hooks/useFocusOnKey";
 import { shapeSearchText } from "../../../search";
+import type { SearchTextOverride } from "../../../types";
 import { SEARCH_DEBOUNCE_MS, SEARCH_FOCUS_KEY } from "./consts";
 import {
   reconcileUrlText,
@@ -25,14 +26,14 @@ export interface SearchFieldActions {
 
 /**
  * The field's own text, ahead of the URL while the reviewer types: a pause
- * writes it, Enter writes it at once, and the URL moving on its own (Clear,
- * Back) replaces it. Clear empties it whether or not the URL moved. A
- * keystroke drops the list still loading for older text. Escape empties
- * the field, then leaves it.
+ * writes it, Enter writes it at once, and an override (Clear, Back, a link)
+ * replaces it whether or not the URL has moved yet. A keystroke drops the
+ * list still loading for older text. Escape empties the field, then leaves
+ * it.
  */
 export function useSearchFieldFacade(
   urlText: string,
-  clearCount: number,
+  override: SearchTextOverride,
   { onSearch, onDropPendingSearch }: SearchFieldActions,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,9 +42,9 @@ export function useSearchFieldFacade(
   const scheduledRef = useRef<string>(undefined);
   /** An IME holds text the reviewer has not committed; no pause writes it. */
   const composingRef = useRef(false);
-  const [held, setHeld] = useState(() => startSearchField(urlText, clearCount));
+  const [held, setHeld] = useState(() => startSearchField(urlText, override));
 
-  const state = reconcileUrlText(held, urlText, clearCount);
+  const state = reconcileUrlText(held, urlText, override);
   if (state !== held) {
     setHeld(state);
   }
@@ -52,8 +53,8 @@ export function useSearchFieldFacade(
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  // The URL replaced the text from outside: a pause still counting down
-  // would write the older text back.
+  // The text was replaced from outside: a pause still counting down would
+  // write the older text back.
   useEffect(() => {
     const scheduled = scheduledRef.current;
     if (scheduled !== undefined && scheduled !== state.text) {

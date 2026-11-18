@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { LinkButton } from "@web/components/LinkButton";
+import type { SearchTextOverride } from "../../types";
 import { CollapsedFilters } from "./CollapsedFilters";
 import styles from "./Controls.module.scss";
 import { Filter } from "./Filter";
@@ -19,8 +20,8 @@ export interface ControlsProps {
   searchText: string;
   /** Rows the list holds for the current filters and search text. */
   total: number;
-  /** Times the filters were cleared, for the search field. */
-  clearCount: number;
+  /** The text a Clear, a Back or a link put in place, for the search field. */
+  searchTextOverride: SearchTextOverride;
   onSearch: (text: string) => void;
   /** The reviewer typed past a search whose list is still loading. */
   onDropPendingSearch: () => void;
@@ -39,7 +40,7 @@ export function Controls({
   changedCount,
   searchText,
   total,
-  clearCount,
+  searchTextOverride,
   onSearch,
   onDropPendingSearch,
   onClear,
@@ -59,7 +60,7 @@ export function Controls({
     >
       <div className={styles["search"]}>
         <SearchField
-          clearCount={clearCount}
+          override={searchTextOverride}
           resultCount={total}
           value={searchText}
           onDropPendingSearch={onDropPendingSearch}
