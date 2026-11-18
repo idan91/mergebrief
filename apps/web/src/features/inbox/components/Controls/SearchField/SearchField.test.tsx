@@ -434,6 +434,30 @@ describe("SearchField", () => {
     expect(onDropPendingSearch).not.toHaveBeenCalled();
   });
 
+  it("writes nothing while an IME composes, then writes what it commits", () => {
+    const onSearch = vi.fn();
+    render(
+      <SearchField
+        clearCount={0}
+        resultCount={0}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+
+    fireEvent.compositionStart(getField());
+    typeText("けんさく");
+    waitOutPause();
+    expect(onSearch).not.toHaveBeenCalled();
+
+    typeText("検索");
+    fireEvent.compositionEnd(getField());
+    waitOutPause();
+
+    expect(onSearch.mock.calls).toEqual([["検索"]]);
+  });
+
   it("leaves Escape and Enter to the IME while it composes", () => {
     const onSearch = vi.fn();
     render(

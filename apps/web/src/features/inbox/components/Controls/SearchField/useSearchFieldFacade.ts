@@ -3,12 +3,11 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CompositionEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
-import { isInsideOverlay } from "@web/utils/overlay-target";
-import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
-import { isTypingTarget } from "@web/utils/typingTarget";
+import { useFocusOnKey } from "../../../hooks/useFocusOnKey";
 import { shapeSearchText } from "../../../search";
 import { SEARCH_DEBOUNCE_MS, SEARCH_FOCUS_KEY } from "./consts";
 import {
@@ -40,6 +39,8 @@ export function useSearchFieldFacade(
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The text the running timer will write; absent while none runs. */
   const scheduledRef = useRef<string>(undefined);
+  /** An IME holds text the reviewer has not committed; no pause writes it. */
+  const composingRef = useRef(false);
   const [held, setHeld] = useState(() => startSearchField(urlText, clearCount));
 
   const state = reconcileUrlText(held, urlText, clearCount);
@@ -47,24 +48,7 @@ export function useSearchFieldFacade(
     setHeld(state);
   }
 
-  useEffect(() => {
-    function focusOnSlash(event: KeyboardEvent): void {
-      if (event.key !== SEARCH_FOCUS_KEY || event.metaKey || event.ctrlKey) {
-        return;
-      }
-      if (isTypingTarget(event.target) || isInsideOverlay(event.target)) {
-        return;
-      }
-      if (isSuppressedSingleKey(event)) {
-        return;
-      }
-      event.preventDefault();
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-    window.addEventListener("keydown", focusOnSlash);
-    return () => window.removeEventListener("keydown", focusOnSlash);
-  }, []);
+  useFocusOnKey(SEARCH_FOCUS_KEY, inputRef, true);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
@@ -94,8 +78,26 @@ export function useSearchFieldFacade(
     setHeld((previous) => typeText(previous, next));
 
     clearTimeout(timerRef.current);
+    if (composingRef.current) {
+      scheduledRef.current = undefined;
+      return;
+    }
+    schedule(next);
+  }
+
+  function schedule(next: string): void {
     scheduledRef.current = next;
     timerRef.current = setTimeout(() => write(next), SEARCH_DEBOUNCE_MS);
+  }
+
+  function startComposing(): void {
+    composingRef.current = true;
+  }
+
+  function endComposing(event: CompositionEvent<HTMLInputElement>): void {
+    composingRef.current = false;
+    clearTimeout(timerRef.current);
+    schedule(event.currentTarget.value);
   }
 
   function clear(): void {
@@ -106,7 +108,7 @@ export function useSearchFieldFacade(
 
   function pressKey(event: ReactKeyboardEvent<HTMLInputElement>): void {
     // Enter commits an IME candidate and Escape cancels one; neither is the field's yet.
-    if (event.nativeEvent.isComposing) {
+    if (event.nativeEvent.isComposing || composingRef.current) {
       return;
     }
     if (event.key === "Enter") {
@@ -124,5 +126,13 @@ export function useSearchFieldFacade(
     clear();
   }
 
-  return { inputRef, text: state.text, change, clear, pressKey };
+  return {
+    inputRef,
+    text: state.text,
+    change,
+    clear,
+    pressKey,
+    startComposing,
+    endComposing,
+  };
 }

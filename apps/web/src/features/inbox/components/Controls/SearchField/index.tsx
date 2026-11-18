@@ -65,6 +65,8 @@ export function SearchField({
         type="search"
         value={facade.text}
         onChange={facade.change}
+        onCompositionEnd={facade.endComposing}
+        onCompositionStart={facade.startComposing}
         onKeyDown={facade.pressKey}
       />
       {facade.text === "" ? (
