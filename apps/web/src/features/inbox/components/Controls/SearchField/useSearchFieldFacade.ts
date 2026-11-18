@@ -27,20 +27,22 @@ export interface SearchFieldActions {
 /**
  * The field's own text, ahead of the URL while the reviewer types: a pause
  * writes it, Enter writes it at once, and the URL moving on its own (Clear,
- * Back) replaces it. A keystroke drops the list still loading for older
- * text. Escape empties the field, then leaves it.
+ * Back) replaces it. Clear empties it whether or not the URL moved. A
+ * keystroke drops the list still loading for older text. Escape empties
+ * the field, then leaves it.
  */
 export function useSearchFieldFacade(
   urlText: string,
+  clearCount: number,
   { onSearch, onDropPendingSearch }: SearchFieldActions,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The text the running timer will write; absent while none runs. */
   const scheduledRef = useRef<string>(undefined);
-  const [held, setHeld] = useState(() => startSearchField(urlText));
+  const [held, setHeld] = useState(() => startSearchField(urlText, clearCount));
 
-  const state = reconcileUrlText(held, urlText);
+  const state = reconcileUrlText(held, urlText, clearCount);
   if (state !== held) {
     setHeld(state);
   }

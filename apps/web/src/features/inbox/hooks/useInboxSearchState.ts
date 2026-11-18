@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   clearInboxFilters,
@@ -32,6 +32,7 @@ export function useInboxSearchState(
   pageSize: number | undefined,
 ) {
   const navigate = useNavigate();
+  const [clearCount, setClearCount] = useState(0);
   const choices: InboxChoices = readInboxChoices(search);
 
   function write(next: InboxSearchWrite): void {
@@ -81,7 +82,10 @@ export function useInboxSearchState(
           dropPendingSearchText(parseInboxSearch({ ...previous }), search),
       });
     },
+    /** Steps on every Clear: the one signal a search still loading leaves, since the URL on screen never held its text. */
+    clearCount,
     clear: () => {
+      setClearCount((count) => count + 1);
       void navigate({
         to: HOME_PATH,
         replace: true,

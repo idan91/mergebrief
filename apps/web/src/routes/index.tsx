@@ -354,6 +354,7 @@ function SignedInHome({
                 filters={controls.filters}
                 sort={controls.sort}
                 layout={controls.layout}
+                clearCount={state.clearCount}
                 searchText={state.choices.searchText}
                 total={page.total}
                 onClear={state.clear}

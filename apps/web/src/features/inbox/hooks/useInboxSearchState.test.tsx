@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseInboxSearch } from "../search";
@@ -110,5 +110,15 @@ describe("useInboxSearchState", () => {
       review: "new",
       author: "mine",
     });
+  });
+
+  it("every Clear steps the clear count the search field watches", () => {
+    const shown = parseInboxSearch({ review: "new" });
+    const { result } = renderHook(() => useInboxSearchState(shown, 30, 25));
+    expect(result.current.clearCount).toBe(0);
+
+    act(() => result.current.clear());
+
+    expect(result.current.clearCount).toBe(1);
   });
 });

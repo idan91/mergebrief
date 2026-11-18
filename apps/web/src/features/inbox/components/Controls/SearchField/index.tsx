@@ -15,6 +15,8 @@ export interface SearchFieldProps {
   value: string;
   /** Rows the list holds for that text, across every page. */
   resultCount: number;
+  /** Times the filters were cleared; a step empties the field even while its search is still loading. */
+  clearCount: number;
   onSearch: (text: string) => void;
   /** The reviewer typed past a write whose list is still loading; stop waiting for it. */
   onDropPendingSearch: () => void;
@@ -28,11 +30,13 @@ export interface SearchFieldProps {
 export function SearchField({
   value,
   resultCount,
+  clearCount,
   onSearch,
   onDropPendingSearch,
 }: SearchFieldProps) {
   const { t } = useTranslation();
-  const facade = useSearchFieldFacade(value, { onSearch, onDropPendingSearch });
+  const actions = { onSearch, onDropPendingSearch };
+  const facade = useSearchFieldFacade(value, clearCount, actions);
   const searching = value !== "";
   const state: FilterState = searching
     ? FilterStates.CHANGED

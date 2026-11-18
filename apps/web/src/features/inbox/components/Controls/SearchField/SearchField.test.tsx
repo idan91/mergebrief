@@ -44,6 +44,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -69,6 +70,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -87,6 +89,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -105,6 +108,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -128,6 +132,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -147,6 +152,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -156,6 +162,7 @@ describe("SearchField", () => {
 
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={9}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -170,6 +177,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -182,6 +190,7 @@ describe("SearchField", () => {
     typeText("anchor");
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={2}
         value="anc"
         onDropPendingSearch={onDropPendingSearch}
@@ -196,6 +205,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -205,6 +215,7 @@ describe("SearchField", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={9}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -215,6 +226,7 @@ describe("SearchField", () => {
     waitOutPause();
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -224,6 +236,7 @@ describe("SearchField", () => {
 
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={9}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -238,6 +251,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -258,6 +272,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -268,6 +283,7 @@ describe("SearchField", () => {
     waitOutPause();
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={2}
         value="fo"
         onDropPendingSearch={onDropPendingSearch}
@@ -284,6 +300,7 @@ describe("SearchField", () => {
     const onSearch = vi.fn();
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={3}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -294,6 +311,7 @@ describe("SearchField", () => {
 
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={9}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -306,11 +324,95 @@ describe("SearchField", () => {
     expect(onSearch).not.toHaveBeenCalled();
   });
 
+  it("Clear empties the field while its first search still loads", () => {
+    const onSearch = vi.fn();
+    const view = render(
+      <SearchField
+        clearCount={0}
+        resultCount={9}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    typeText("foo");
+    waitOutPause();
+
+    view.rerender(
+      <SearchField
+        clearCount={1}
+        resultCount={9}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+
+    expect(getField().value).toBe("");
+  });
+
+  it("Clear inside the pause stops the text from being written", () => {
+    const onSearch = vi.fn();
+    const view = render(
+      <SearchField
+        clearCount={0}
+        resultCount={9}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    typeText("foo");
+
+    view.rerender(
+      <SearchField
+        clearCount={1}
+        resultCount={9}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    waitOutPause();
+
+    expect(getField().value).toBe("");
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it("a dropped write is not mistaken for the field's own later", () => {
+    const onSearch = vi.fn();
+    const view = render(
+      <SearchField
+        clearCount={0}
+        resultCount={3}
+        value="foo"
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    typeText("foo");
+    waitOutPause();
+
+    view.rerender(
+      <SearchField
+        clearCount={0}
+        resultCount={9}
+        value=""
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+
+    expect(getField().value).toBe("");
+  });
+
   it("the slash key focuses the field from the page, never from a field", () => {
     render(
       <>
         <input aria-label="Other" />
         <SearchField
+          clearCount={0}
           resultCount={0}
           value=""
           onDropPendingSearch={onDropPendingSearch}
@@ -332,6 +434,7 @@ describe("SearchField", () => {
   it("says how many rows match only while a search is on", () => {
     const view = render(
       <SearchField
+        clearCount={0}
         resultCount={12}
         value=""
         onDropPendingSearch={onDropPendingSearch}
@@ -342,6 +445,7 @@ describe("SearchField", () => {
 
     view.rerender(
       <SearchField
+        clearCount={0}
         resultCount={1}
         value="anchor"
         onDropPendingSearch={onDropPendingSearch}
@@ -356,6 +460,7 @@ describe("SearchField", () => {
   it("holds the field to the wire's length", () => {
     render(
       <SearchField
+        clearCount={0}
         resultCount={0}
         value=""
         onDropPendingSearch={onDropPendingSearch}

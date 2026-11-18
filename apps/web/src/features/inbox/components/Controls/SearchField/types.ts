@@ -8,4 +8,6 @@ export interface SearchFieldState {
   readonly ownWrites: readonly string[];
   /** A write went out and its list is still loading. */
   readonly awaitsLanding: boolean;
+  /** How many times the filters had been cleared when the state last took that in. */
+  readonly seenClearCount: number;
 }

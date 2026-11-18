@@ -284,17 +284,19 @@ export function hasEveryStatus(states: readonly InboxStatus[]): boolean {
   );
 }
 
+/** The filters the controls row draws as triggers; the search text is the one more. */
+const FILTER_KEYS = [
+  "state",
+  "repo",
+  "review",
+  "author",
+  "installation",
+  "archived",
+] as const satisfies readonly (keyof InboxSearch)[];
+
 /** How many filters sit off their default; the sort and the page are not filters. */
 export function countChangedFilters(search: InboxSearch): number {
-  const keys: (keyof InboxSearch)[] = [
-    "state",
-    "repo",
-    "review",
-    "author",
-    "installation",
-    "archived",
-    "q",
-  ];
+  const keys: readonly (keyof InboxSearch)[] = [...FILTER_KEYS, "q"];
   return keys.filter((key) => search[key] !== undefined).length;
 }
 
@@ -313,14 +315,9 @@ export function writeInboxSearch(
 
 /** The keys a search write leaves alone; `q` and the page it restarts are the rest. */
 const KEYS_BESIDE_SEARCH_TEXT: readonly (keyof InboxSearch)[] = [
+  ...FILTER_KEYS,
   "sort",
   "layout",
-  "state",
-  "repo",
-  "review",
-  "author",
-  "installation",
-  "archived",
   "error",
 ];
 

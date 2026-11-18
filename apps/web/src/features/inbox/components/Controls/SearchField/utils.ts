@@ -2,12 +2,16 @@ import { shapeSearchText } from "../../../search";
 import { OWN_WRITES_KEPT } from "./consts";
 import type { SearchFieldState } from "./types";
 
-export function startSearchField(urlText: string): SearchFieldState {
+export function startSearchField(
+  urlText: string,
+  clearCount: number,
+): SearchFieldState {
   return {
     text: urlText,
     seenUrlText: urlText,
     ownWrites: [],
     awaitsLanding: false,
+    seenClearCount: clearCount,
   };
 }
 
@@ -22,25 +26,33 @@ function isOutsideChange(state: SearchFieldState, urlText: string): boolean {
 }
 
 /**
- * The state once the URL holds `urlText`. The field's own write landing
- * keeps what the reviewer typed since and forgets that write with every
- * one before it; a change from outside replaces the text. The same state
- * comes back when the URL has not moved.
+ * The state once the URL holds `urlText` and the filters were cleared
+ * `clearCount` times. A Clear empties the field as a write of its own
+ * would, since a search still loading never moved the URL for the field to
+ * notice. The field's own write landing keeps what the reviewer typed
+ * since and forgets that write with every one before it; a change from
+ * outside replaces the text. The same state comes back when nothing moved.
  */
 export function reconcileUrlText(
   state: SearchFieldState,
   urlText: string,
+  clearCount: number,
 ): SearchFieldState {
+  if (clearCount !== state.seenClearCount) {
+    const cleared = recordWrite(typeText(state, ""), "");
+    const counted = { ...cleared, seenClearCount: clearCount };
+    return reconcileUrlText(counted, urlText, clearCount);
+  }
   if (urlText === state.seenUrlText) {
     return state;
   }
   if (isOutsideChange(state, urlText)) {
-    return startSearchField(urlText);
+    return startSearchField(urlText, clearCount);
   }
   const landedAt = state.ownWrites.lastIndexOf(urlText);
   const ownWrites = state.ownWrites.slice(landedAt + 1);
   return {
-    text: state.text,
+    ...state,
     seenUrlText: urlText,
     ownWrites,
     awaitsLanding: ownWrites.length > 0,
@@ -55,13 +67,17 @@ export function typeText(
   return { ...state, text, awaitsLanding: false };
 }
 
-/** The field wrote `written`; a text the URL already shows has nothing to land. */
+/**
+ * The field wrote `written`. A text the URL already shows has nothing to
+ * land, and any earlier write was dropped on the way back to it.
+ */
 export function recordWrite(
   state: SearchFieldState,
   written: string,
 ): SearchFieldState {
   if (written === state.seenUrlText) {
-    return state;
+    const settled = state.ownWrites.length === 0 && !state.awaitsLanding;
+    return settled ? state : { ...state, ownWrites: [], awaitsLanding: false };
   }
   const ownWrites = [...state.ownWrites, written].slice(-OWN_WRITES_KEPT);
   return { ...state, ownWrites, awaitsLanding: true };

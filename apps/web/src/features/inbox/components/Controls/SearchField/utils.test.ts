@@ -9,14 +9,14 @@ import {
 } from "./utils";
 
 function makeState(overrides: Partial<SearchFieldState>): SearchFieldState {
-  return { ...startSearchField(""), ...overrides };
+  return { ...startSearchField("", 0), ...overrides };
 }
 
 describe("reconcileUrlText", () => {
   it("hands back the same state while the URL has not moved", () => {
     const state = makeState({ text: "anchor" });
 
-    expect(reconcileUrlText(state, "")).toBe(state);
+    expect(reconcileUrlText(state, "", 0)).toBe(state);
   });
 
   it("keeps the typing when the URL lands on the field's text, trimmed", () => {
@@ -26,11 +26,12 @@ describe("reconcileUrlText", () => {
       awaitsLanding: true,
     });
 
-    expect(reconcileUrlText(state, "anchor")).toEqual({
+    expect(reconcileUrlText(state, "anchor", 0)).toEqual({
       text: " anchor ",
       seenUrlText: "anchor",
       ownWrites: [],
       awaitsLanding: false,
+      seenClearCount: 0,
     });
   });
 
@@ -41,11 +42,12 @@ describe("reconcileUrlText", () => {
       awaitsLanding: true,
     });
 
-    expect(reconcileUrlText(state, "anc")).toEqual({
+    expect(reconcileUrlText(state, "anc", 0)).toEqual({
       text: "anchor",
       seenUrlText: "anc",
       ownWrites: ["anchor"],
       awaitsLanding: true,
+      seenClearCount: 0,
     });
   });
 
@@ -56,7 +58,31 @@ describe("reconcileUrlText", () => {
       ownWrites: [],
     });
 
-    expect(reconcileUrlText(state, "")).toEqual(startSearchField(""));
+    expect(reconcileUrlText(state, "", 0)).toEqual(startSearchField("", 0));
+  });
+});
+
+describe("reconcileUrlText after a Clear", () => {
+  it("empties the field while its first search is still loading", () => {
+    const state = makeState({
+      text: "foo",
+      ownWrites: ["foo"],
+      awaitsLanding: true,
+    });
+
+    expect(reconcileUrlText(state, "", 1)).toEqual(startSearchField("", 1));
+  });
+
+  it("awaits the cleared URL when the one on screen holds text", () => {
+    const state = makeState({ text: "foo", seenUrlText: "foo" });
+
+    expect(reconcileUrlText(state, "foo", 1)).toEqual({
+      text: "",
+      seenUrlText: "foo",
+      ownWrites: [""],
+      awaitsLanding: true,
+      seenClearCount: 1,
+    });
   });
 });
 
@@ -73,6 +99,7 @@ describe("typeText", () => {
       seenUrlText: "",
       ownWrites: ["fo"],
       awaitsLanding: false,
+      seenClearCount: 0,
     });
   });
 });
@@ -86,7 +113,18 @@ describe("recordWrite", () => {
       seenUrlText: "",
       ownWrites: ["fo"],
       awaitsLanding: true,
+      seenClearCount: 0,
     });
+  });
+
+  it("forgets dropped writes when the text is back to the URL's", () => {
+    const state = makeState({
+      text: "foo",
+      seenUrlText: "foo",
+      ownWrites: [""],
+    });
+
+    expect(recordWrite(state, "foo").ownWrites).toEqual([]);
   });
 
   it("records nothing for a text the URL already shows", () => {
