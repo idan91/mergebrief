@@ -215,6 +215,14 @@ export function sanitizeUntrustedText(text: string): string {
   return stripKnownProseFences(redacted.text);
 }
 
+/** Unicode's mandatory line breaks; a `\r` is already `\n` after `normalizeLineBreaks`. */
+const LINE_BREAK = /[\n\v\f\u0085\u2028\u2029]/g;
+
+/** For a field the prompt shows on one line, an id or a title: a line break in it becomes a space, so it never starts a line. */
+export function sanitizeUntrustedLine(text: string): string {
+  return sanitizeUntrustedText(text).replace(LINE_BREAK, " ");
+}
+
 /** For a diff: escapes and redaction markers stay on their line so ranges hold; HTML comments are code here. */
 export function sanitizeUntrustedDiff(diff: string): string {
   const redacted = redactDiffSecrets(diff, escapeHiddenCharacters);
@@ -269,7 +277,7 @@ export function restoreRawGroupIds<
   GroupChunk extends { readonly changeGroupId: string },
 >(chunks: readonly GroupChunk[], rawGroupIds: readonly string[]): GroupChunk[] {
   const raw = new Set(rawGroupIds);
-  const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedText]);
+  const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedLine]);
 
   return chunks.map((chunk) => {
     const restored = raw.has(chunk.changeGroupId)

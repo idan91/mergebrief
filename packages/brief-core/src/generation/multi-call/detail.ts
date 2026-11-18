@@ -21,7 +21,10 @@ import { describePlaceholder, redactIndexedFile } from "../redacted-diff";
 import { stripForgedRepoFences } from "../repo-context";
 import { estimateTokens } from "../size";
 import { BYTES_PER_TOKEN } from "../size/consts";
-import { sanitizeUntrustedText } from "../untrusted-text";
+import {
+  sanitizeUntrustedLine,
+  sanitizeUntrustedText,
+} from "../untrusted-text";
 import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "./consts";
 import type {
   DetailBatch,
@@ -34,8 +37,8 @@ import type {
 
 function renderGroupLine(group: ChangeGroup, hunkCount: number): string {
   const categories = [group.dominantCategory, ...group.secondaryCategories];
-  const id = sanitizeUntrustedText(group.id);
-  const title = sanitizeUntrustedText(group.title);
+  const id = sanitizeUntrustedLine(group.id);
+  const title = sanitizeUntrustedLine(group.title);
   const summary = sanitizeUntrustedText(group.summary);
   return `- ${id} [${categories.join(", ")}] ${title}: ${summary} (${hunkCount} hunks)`;
 }
@@ -168,7 +171,7 @@ function cutHunkHeader(
 /** A group id is the grouping call's text: shown sanitized, and `restoreRawGroupIds` maps the answer back. */
 function renderHunk(location: ShownHunk, groupId: string): string[] {
   const { file, hunk } = location;
-  const marker = `[hunk ${hunk.id} -> ${sanitizeUntrustedText(groupId)}]`;
+  const marker = `[hunk ${hunk.id} -> ${sanitizeUntrustedLine(groupId)}]`;
   if (hunk.header === undefined) {
     return [`${marker} ${describePlaceholder(file)}`];
   }
@@ -299,7 +302,7 @@ function describeBatch(batch: DetailBatch, batchCount: number): string {
 export function buildDetailRequest(input: DetailRequestInput): DetailRequest {
   const { batch, batchCount } = input;
   const shownIds = batch.parts.map((part) =>
-    sanitizeUntrustedText(part.groupId),
+    sanitizeUntrustedLine(part.groupId),
   );
   const groupIds = [...new Set(shownIds)];
   const repoReminder = input.attributesBlock === "" ? "" : REPO_REMINDER;

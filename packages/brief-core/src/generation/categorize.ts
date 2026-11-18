@@ -86,6 +86,7 @@ import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
   restoreRawPaths,
   sanitizeUntrustedDiff,
+  sanitizeUntrustedLine,
   sanitizeUntrustedText,
 } from "./untrusted-text";
 import { createWarningCollector, formatGenerationWarnings } from "./warnings";
@@ -981,8 +982,8 @@ function renderContextGroup(
   group: ChangeGroup,
   includesSummary: boolean,
 ): string {
-  const id = sanitizeUntrustedText(group.id);
-  const title = sanitizeUntrustedText(group.title);
+  const id = sanitizeUntrustedLine(group.id);
+  const title = sanitizeUntrustedLine(group.title);
   if (!includesSummary) {
     return `- ${id} ${title}`;
   }
@@ -1003,8 +1004,8 @@ function renderContextChunk(chunk: Chunk): string {
     chunk.removedRanges
       .map((range) => `-${range.start}-${range.end}`)
       .join(",") || "none";
-  const id = sanitizeUntrustedText(chunk.id);
-  const groupId = sanitizeUntrustedText(chunk.changeGroupId);
+  const id = sanitizeUntrustedLine(chunk.id);
+  const groupId = sanitizeUntrustedLine(chunk.changeGroupId);
   return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(chunk.file)} added:${added} removed:${removed}`;
 }
 

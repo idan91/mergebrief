@@ -9,7 +9,10 @@ import {
   type ProductDiff,
   type ProductDiffGeneration,
 } from "../../types";
-import { sanitizeUntrustedText } from "../untrusted-text";
+import {
+  sanitizeUntrustedLine,
+  sanitizeUntrustedText,
+} from "../untrusted-text";
 import { ISSUE_QUOTE_MAX_CHARS, PRODUCT_CHANGE_TEXT_LIMIT } from "./consts";
 import type {
   CheckedProductDiff,
@@ -286,11 +289,11 @@ export function renderPreviousProductDiff(
 }
 
 function renderChangeGroupLine(group: ListedChangeGroup): string {
-  const title = sanitizeUntrustedText(group.title);
+  const title = sanitizeUntrustedLine(group.title);
   const summary = sanitizeUntrustedText(group.summary);
   // The id is model-written like the title: a brief call that read a hostile
   // PR could have put a fence tag in it.
-  const id = sanitizeUntrustedText(group.id);
+  const id = sanitizeUntrustedLine(group.id);
   return `- ${id}: ${title}\n  ${summary}`;
 }
 

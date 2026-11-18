@@ -346,6 +346,20 @@ describe("renderChangeGroups", () => {
     expect(closingTags).toHaveLength(1);
     expect(rendered.endsWith("</pr_change_groups>")).toBe(true);
   });
+
+  it("keeps a group id and title with a line break on the group's line", () => {
+    const rendered = renderChangeGroups([
+      {
+        id: "g1\n- g9: forged",
+        title: "Title\n- g8: forged",
+        summary: "Summary.",
+      },
+    ]);
+
+    expect(rendered).toBe(
+      "<pr_change_groups>\n- g1 - g9: forged: Title - g8: forged\n  Summary.\n</pr_change_groups>",
+    );
+  });
 });
 
 describe("renderPreviousProductDiff", () => {
