@@ -22,6 +22,7 @@ const OUTDATED_THREADS = JSON.parse(
 const OUTDATED_THREAD_PATH =
   "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx";
 const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 const SYNTHETIC_FILE_LINES = 900;
 const FIXTURE_PR_NUMBER = 1;
 /** Compares between two fixture heads, by both heads' first eight characters. */
@@ -274,7 +275,7 @@ function answerLiveRead(init) {
               updatedAt: new Date(
                 Date.now() - row.updatedMinutesAgo * MINUTE_MS,
               ).toISOString(),
-              createdAt: new Date(0).toISOString(),
+              createdAt: new Date(Date.now() - DAY_MS).toISOString(),
               headRefOid: row.headSha,
               author: { login: row.author },
             },
