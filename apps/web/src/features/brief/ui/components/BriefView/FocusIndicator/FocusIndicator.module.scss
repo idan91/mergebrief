@@ -1,0 +1,81 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .stickyWrapper {
+    position: sticky;
+    inset-block-start: var(--top-bar-h);
+    z-index: functions.get-z-index("focus-chrome");
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    block-size: 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline: 0;
+      block-size: var(--focus-indicator-h);
+      background: var(--color-focus-ground);
+    }
+  }
+
+  .focusIndicator {
+    position: relative;
+    padding-block: var(--space-4);
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    block-size: functions.to-rem(32px);
+    padding-inline: var(--space-4-5) var(--space-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-float);
+    color: var(--color-text-3);
+    font-size: var(--font-size-2);
+    transition: border-color var(--motion-base) ease;
+
+    &:focus-within {
+      border-color: var(--color-line-strong);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        border-color: var(--color-line-strong);
+      }
+    }
+  }
+
+  .label {
+    color: var(--color-text-2);
+    font-weight: 500;
+  }
+
+  .countFigures {
+    display: inline-flex;
+    gap: var(--space-2);
+    font-variant-numeric: tabular-nums;
+
+    b {
+      color: var(--color-text-1);
+      font-weight: 500;
+    }
+  }
+
+  .separator {
+    inline-size: 1px;
+    block-size: functions.to-rem(14px);
+    background: var(--color-line-strong);
+  }
+
+  @media (width < 480px) {
+    .label {
+      display: none;
+    }
+  }
+}

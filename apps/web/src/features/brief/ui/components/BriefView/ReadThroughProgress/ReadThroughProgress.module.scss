@@ -1,0 +1,105 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .progress {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+    max-inline-size: 50vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .segment {
+    --track-h: 3px;
+
+    position: relative;
+    flex: none;
+    inline-size: functions.to-rem(24px);
+    block-size: functions.to-rem(24px);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline: 2px;
+      inset-block-start: calc(50% - var(--track-h) / 2);
+      block-size: var(--track-h);
+      border-radius: var(--radius-pill);
+      background: var(--color-line-strong);
+      transition:
+        background var(--motion-fast) ease,
+        outline-color var(--motion-fast) ease;
+
+      @include mixins.forced-fill(GrayText);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        --track-h: 5px;
+      }
+    }
+
+    @include mixins.hover {
+      &:hover::before {
+        background: var(--color-text-3);
+
+        @include mixins.forced-fill(GrayText);
+      }
+    }
+
+    &[data-current] {
+      --track-h: 5px;
+    }
+
+    &[data-current]::before {
+      outline: 1px solid var(--color-text-3);
+      outline-offset: 1px;
+    }
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .fill {
+    position: absolute;
+    inset-inline-start: 2px;
+    inset-block-start: calc(50% - var(--track-h) / 2);
+    display: block;
+    inline-size: calc(100% - 4px);
+    block-size: var(--track-h);
+    border-radius: var(--radius-pill);
+    background: var(--color-text-2);
+    clip-path: inset(
+      0 calc((1 - var(--fill)) * 100%) 0 0 round var(--radius-pill)
+    );
+    transition: clip-path var(--motion-slow) var(--ease-out);
+
+    @include mixins.forced-fill;
+
+    &:dir(rtl) {
+      clip-path: inset(
+        0 0 0 calc((1 - var(--fill)) * 100%) round var(--radius-pill)
+      );
+    }
+  }
+
+  .segment[data-current] .fill {
+    background: var(--color-text-1);
+
+    @include mixins.forced-fill;
+  }
+
+  .progress[data-complete] .segment::before {
+    background: var(--color-text-3);
+
+    @include mixins.forced-fill(GrayText);
+  }
+}

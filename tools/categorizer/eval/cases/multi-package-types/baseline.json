@@ -1,0 +1,12 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 5,
+    "manifests-are-config-concern": 5,
+    "spans-multiple-packages": 5,
+    "types-package-before-consumers": 5,
+    "types-package-in-one-group": 5,
+    "types-package-split-from-migration": 5
+  }
+}

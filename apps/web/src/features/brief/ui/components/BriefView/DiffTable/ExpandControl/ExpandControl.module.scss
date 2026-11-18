@@ -1,0 +1,76 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Qualified by the row attribute every diff row carries, to outrank
+  // DiffRows' hunk-row padding: the lane alone sets the height, and the
+  // arrows sit at the same inset in a hunk row and in a row of their own.
+  tr[data-line-kind] > td.cell {
+    padding-block: 0;
+    padding-inline: var(--space-2-5) var(--space-4-5);
+  }
+
+  .cell {
+    background: var(--color-well);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+
+  .lane {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2-5);
+    block-size: functions.to-rem(31px);
+  }
+
+  .arrows {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-1);
+  }
+
+  .header {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .threads {
+    flex: none;
+    padding-block: 0;
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--color-text-2);
+    font: inherit;
+    line-height: functions.to-rem(22px);
+    cursor: pointer;
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        border-color: var(--color-text-2);
+      }
+    }
+  }
+
+  // A refusal is its own line under the lane, ruled off from the header
+  // text it would otherwise blend into.
+  .note {
+    margin-block: 0 var(--space-2-5);
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-text-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    line-height: functions.to-rem(20px);
+    white-space: normal;
+  }
+
+  .plain {
+    flex: none;
+    color: var(--color-text-2);
+  }
+}

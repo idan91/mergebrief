@@ -1,0 +1,85 @@
+@use "functions";
+@use "mixins";
+@use "layout";
+
+@layer components {
+  .grid {
+    --masthead-card-min: auto;
+    --masthead-stack-offset: 0px;
+
+    display: grid;
+    grid-template:
+      "summary card" auto
+      "stack card" 1fr
+      / layout.story-columns();
+    gap: var(--space-6) functions.to-rem(layout.$story-group-gap);
+    margin-block-end: var(--space-5);
+
+    @include layout.when-story-stacks {
+      grid-template:
+        "summary"
+        "stack"
+        / minmax(0, 1fr);
+    }
+  }
+
+  .summary {
+    min-inline-size: 0;
+    grid-area: summary;
+    align-self: start;
+  }
+
+  .card {
+    grid-area: card;
+
+    @include layout.when-story-stacks {
+      display: none;
+    }
+  }
+
+  .grid[data-held] .card {
+    min-block-size: var(--masthead-card-min);
+    align-self: start;
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-inline-size: 0;
+    grid-area: stack;
+    align-self: end;
+  }
+
+  // The hook marks the grid held only while a fold is open; at rest the
+  // stretched card and the end-aligned stack are flush with no measurement.
+  .grid[data-held] .stack {
+    margin-block-start: var(--masthead-stack-offset);
+
+    @include layout.when-story-stacks {
+      margin-block-start: 0;
+    }
+  }
+
+  .facts {
+    display: none;
+
+    @include layout.when-story-stacks {
+      display: block;
+    }
+  }
+
+  @include mixins.for-phone {
+    :global(.main) .generatedRow {
+      display: none;
+    }
+
+    :global(.main) .facts > .splitRow {
+      border-block-start: 0;
+    }
+
+    :global(.main) .facts:not(:has(.splitRow)) {
+      display: none;
+    }
+  }
+}

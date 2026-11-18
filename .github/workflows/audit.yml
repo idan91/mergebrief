@@ -1,0 +1,93 @@
+name: Audit
+
+# Supply-chain gate. Blocking, and deliberately narrow: only
+# a dependency-graph change can introduce a new advisory, so PRs that do not
+# touch a manifest or the lockfile have nothing to check. The weekly run is
+# what catches advisories published against dependencies we already have.
+on:
+  pull_request:
+    paths:
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - "apps/*/package.json"
+      - "packages/*/package.json"
+      - "tools/*/package.json"
+      - ".github/workflows/audit.yml"
+  schedule:
+    # Monday 06:17 UTC — offset off the hour to dodge the cron stampede.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # No install: `pnpm audit` resolves the graph from pnpm-lock.yaml, so
+      # the gate costs one registry round trip instead of a full workspace
+      # install.
+      #
+      # `--prod` scopes to the dependency graph that ships: the Image installs
+      # api, worker and web with `--prod`, and every runtime entrypoint
+      # (`tsx`, `srvx`) is a declared dependency, so the audited graph and
+      # the shipped one are the same graph.
+      # `--audit-level=high` is the blocking floor. Accepted advisories live
+      # in `pnpm.auditConfig.ignoreGhsas` in pnpm-workspace.yaml, each with
+      # its reason.
+      - name: Run pnpm audit
+        run: pnpm audit --prod --audit-level=high
+
+  licenses:
+    name: Dependency licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Weekly and on dispatch, never per PR. release.yml does not run it, so
+    # a tag cut between two runs ships unchecked.
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # `pnpm licenses` reads each installed package's manifest, so this job
+      # installs where the audit job does not.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check production dependency licenses
+        run: pnpm -C tools/release run licenses

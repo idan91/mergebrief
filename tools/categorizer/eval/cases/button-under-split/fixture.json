@@ -1,0 +1,41 @@
+{
+  "pr": {
+    "locator": {
+      "owner": "acme",
+      "repo": "components",
+      "number": 10
+    },
+    "meta": {
+      "title": "fix: Fix Button Data Attributes And Add Rounded Prop",
+      "body": "### Overview\nAdds a `rounded` prop to Button and fixes the `data-full-width` attribute mismatch.\n\n### Changelog\n- Added `rounded` prop to Button (pill-shaped corners via `data-full-width` attr + scss)\n- Fixed `fullWidth` prop not applying styles due to attribute name mismatch",
+      "url": "https://github.com/acme/components/pull/10",
+      "sha": "3110bbb36df31bef3b1dacdeadd6a0a9a6287383",
+      "baseSha": "6dd8ae4440dee648b25dd3a945af2afe3455ed06",
+      "commitCount": 3,
+      "files": [
+        {
+          "path": "src/App.tsx",
+          "additions": 4,
+          "deletions": 4
+        },
+        {
+          "path": "src/components/Button/Button.scss",
+          "additions": 14,
+          "deletions": 9
+        },
+        {
+          "path": "src/components/Button/Button.tsx",
+          "additions": 17,
+          "deletions": 11
+        }
+      ]
+    },
+    "diff": "diff --git a/src/App.tsx b/src/App.tsx\nindex b4760cf..b0b6015 100644\n--- a/src/App.tsx\n+++ b/src/App.tsx\n@@ -13,10 +13,10 @@ export const App = () => {\n         <div className=\"app__demo\">\n           <h2>Button Component Demo</h2>\n           <div className=\"app__buttons\">\n-            <Button variant=\"primary\">Primary</Button>\n-            <Button variant=\"secondary\">Secondary</Button>\n-            <Button variant=\"outline\">Outline</Button>\n-            <Button variant=\"ghost\">Ghost</Button>\n+            <Button type=\"primary\">Primary</Button>\n+            <Button type=\"secondary\">Secondary</Button>\n+            <Button type=\"outline\">Outline</Button>\n+            <Button type=\"ghost\">Ghost</Button>\n           </div>\n \n           <div className=\"app__buttons\">\ndiff --git a/src/components/Button/Button.scss b/src/components/Button/Button.scss\nindex 9627229..4b87152 100644\n--- a/src/components/Button/Button.scss\n+++ b/src/components/Button/Button.scss\n@@ -28,23 +28,23 @@\n   }\n \n   // Sizes\n-  &--sm {\n+  &[data-size=\"sm\"] {\n     padding: var(--spacing-sm) var(--spacing-md);\n     font-size: 0.875rem;\n   }\n \n-  &--md {\n+  &[data-size=\"md\"] {\n     padding: var(--spacing-sm) var(--spacing-lg);\n     font-size: 1rem;\n   }\n \n-  &--lg {\n+  &[data-size=\"lg\"] {\n     padding: var(--spacing-md) var(--spacing-xl);\n     font-size: 1.125rem;\n   }\n \n   // Variants\n-  &--primary {\n+  &[data-variant=\"primary\"] {\n     background-color: var(--color-primary);\n     color: var(--color-white);\n     border: 2px solid var(--color-primary);\n@@ -59,7 +59,7 @@\n     }\n   }\n \n-  &--secondary {\n+  &[data-variant=\"secondary\"] {\n     background-color: var(--color-secondary);\n     color: var(--color-white);\n     border: 2px solid var(--color-secondary);\n@@ -74,7 +74,7 @@\n     }\n   }\n \n-  &--outline {\n+  &[data-variant=\"outline\"] {\n     background-color: transparent;\n     color: var(--color-primary);\n     border: 2px solid var(--color-primary);\n@@ -89,7 +89,7 @@\n     }\n   }\n \n-  &--ghost {\n+  &[data-variant=\"ghost\"] {\n     background-color: transparent;\n     color: var(--color-primary);\n     border: 2px solid transparent;\n@@ -104,15 +104,20 @@\n   }\n \n   // Full width\n-  &--full-width {\n+  &[data-full-width=\"true\"] {\n     width: 100%;\n   }\n \n   // Loading state\n-  &--loading {\n+  &[data-loading=\"true\"] {\n     cursor: wait;\n   }\n \n+  // Rounded\n+  &[data-rounded=\"true\"] {\n+    border-radius: var(--radius-full, 9999px);\n+  }\n+\n   &__content--hidden {\n     visibility: hidden;\n   }\ndiff --git a/src/components/Button/Button.tsx b/src/components/Button/Button.tsx\nindex 72326de..3f2c0dc 100644\n--- a/src/components/Button/Button.tsx\n+++ b/src/components/Button/Button.tsx\n@@ -22,6 +22,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n    * Whether the button is in a loading state\n    */\n   loading?: boolean;\n+  /**\n+   * Whether the button has fully rounded (pill-shaped) corners\n+   */\n+  rounded?: boolean;\n }\n \n export const Button = ({\n@@ -30,23 +34,25 @@ export const Button = ({\n   size = 'md',\n   fullWidth = false,\n   loading = false,\n+  rounded = false,\n   disabled,\n   className = '',\n   ...props\n }: ButtonProps) => {\n-  const classNames = [\n-    'btn',\n-    `btn--${variant}`,\n-    `btn--${size}`,\n-    fullWidth && 'btn--full-width',\n-    loading && 'btn--loading',\n-    className,\n-  ]\n-    .filter(Boolean)\n-    .join(' ');\n+  const classNames = ['btn', className].filter(Boolean).join(' ');\n \n   return (\n-    <button type=\"button\" className={classNames} disabled={disabled || loading} {...props}>\n+    <button\n+      type=\"button\"\n+      className={classNames}\n+      disabled={disabled || loading}\n+      {...props}\n+      data-size={size}\n+      data-variant={variant}\n+      data-full-width={fullWidth}\n+      data-loading={loading}\n+      data-rounded={rounded}\n+    >\n       {loading ? <span className=\"btn__spinner\" /> : null}\n       <span className={loading ? 'btn__content--hidden' : 'btn__content'}>{children}</span>\n     </button>\n",
+    "links": []
+  },
+  "commitRange": {
+    "base": "6dd8ae4440dee648b25dd3a945af2afe3455ed06",
+    "head": "3110bbb36df31bef3b1dacdeadd6a0a9a6287383",
+    "commitCount": 3
+  }
+}

@@ -1,0 +1,35 @@
+@use "functions";
+
+$notice-max: functions.to-rem(880px);
+
+@layer components {
+  .notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    max-inline-size: min(
+      #{$notice-max},
+      100% - var(--sidebar-covered-w) - 2 * var(--page-gutter)
+    );
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the room under the notice, 4px from 16 and 24 */
+    margin-block-end: functions.to-rem(20px);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- centres the notice on its $notice-max measure, a width, not a gap */
+    margin-inline: max(
+        var(--page-gutter),
+        (100% - var(--sidebar-covered-w) - #{$notice-max}) / 2
+      )
+      var(--sidebar-covered-w);
+    padding-block: var(--space-3-5);
+    padding-inline: max(var(--space-5), env(safe-area-inset-left))
+      max(var(--space-5), env(safe-area-inset-right));
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    transition:
+      max-inline-size var(--sidebar-slide) var(--ease-out),
+      margin-inline var(--sidebar-slide) var(--ease-out);
+  }
+}

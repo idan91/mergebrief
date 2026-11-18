@@ -1,0 +1,44 @@
+@use "functions";
+
+@layer components {
+  // A flex item's base size ignores its own max-block-size, so a bare list
+  // would shrink by its uncapped length; the frame's base is the capped list.
+  .frame {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+  }
+
+  .list {
+    // Tracks the two-line row in StackMemberRow.module.scss plus its hairline.
+    --stack-row-h: #{functions.to-rem(56px)};
+    --stack-visible-rows: 6.5;
+
+    max-block-size: calc(var(--stack-row-h) * var(--stack-visible-rows));
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: var(--stack-row-h);
+    list-style: none;
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  .item {
+    border-block-end: 1px solid var(--color-line);
+
+    &:last-child {
+      border-block-end: 0;
+    }
+
+    &[data-current] {
+      position: sticky;
+      z-index: 1;
+      inset-block: 0;
+      container-type: scroll-state;
+      border-block-end-color: transparent;
+      background: var(--color-surface-3);
+    }
+  }
+}

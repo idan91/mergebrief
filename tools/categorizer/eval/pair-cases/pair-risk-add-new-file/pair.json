@@ -1,0 +1,78 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9003
+      },
+      "meta": {
+        "title": "Add a token-guarded health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route guarded by requireToken, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9003",
+        "sha": "a1987c78e205aabd104b961c5f199f7f2bf54861",
+        "baseSha": "0df614960d6981bb326e0b730cf144c4121ba1d4",
+        "commitCount": 1,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 22,
+            "deletions": 0
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/health.ts\n@@ -0,0 +1,22 @@\n+import { json, unauthorized } from \"../responses\";\n+import { requireToken } from \"../auth\";\n+import type { Route } from \"../types\";\n+\n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: (req) => {\n+      if (!requireToken(req)) {\n+        return unauthorized();\n+      }\n+      return json({ ok: true, uptimeMs: Date.now() - STARTED_AT });\n+    },\n+  };\n+}\n+\n+export function routes(): Route[] {\n+  return [healthRoute()];\n+}\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "0df614960d6981bb326e0b730cf144c4121ba1d4",
+      "head": "a1987c78e205aabd104b961c5f199f7f2bf54861",
+      "commitCount": 1
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9003
+      },
+      "meta": {
+        "title": "Add a token-guarded health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route guarded by requireToken, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9003",
+        "sha": "35af45dc05160e49cd8dded221422c726b180252",
+        "baseSha": "0df614960d6981bb326e0b730cf144c4121ba1d4",
+        "commitCount": 2,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 16,
+            "deletions": 0
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/health.ts\n@@ -0,0 +1,16 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n+export function routes(): Route[] {\n+  return [healthRoute()];\n+}\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "0df614960d6981bb326e0b730cf144c4121ba1d4",
+      "head": "35af45dc05160e49cd8dded221422c726b180252",
+      "commitCount": 2
+    }
+  },
+  "increment": {
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,5 +1,4 @@\n-import { json, unauthorized } from \"../responses\";\n-import { requireToken } from \"../auth\";\n+import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n const STARTED_AT = Date.now();\n@@ -8,12 +7,7 @@\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: (req) => {\n-      if (!requireToken(req)) {\n-        return unauthorized();\n-      }\n-      return json({ ok: true, uptimeMs: Date.now() - STARTED_AT });\n-    },\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n   };\n }\n \n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,5 +1,4 @@\n-import { json, unauthorized } from \"../responses\";\n-import { requireToken } from \"../auth\";\n+import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n const STARTED_AT = Date.now();\n@@ -8,12 +7,7 @@\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: (req) => {\n-      if (!requireToken(req)) {\n-        return unauthorized();\n-      }\n-      return json({ ok: true, uptimeMs: Date.now() - STARTED_AT });\n-    },\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n   };\n }\n \n"
+  }
+}

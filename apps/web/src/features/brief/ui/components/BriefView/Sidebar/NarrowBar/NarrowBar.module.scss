@@ -1,0 +1,71 @@
+@use "mixins";
+
+@layer components {
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    block-size: var(--sidebar-bar-h);
+    padding-block-end: env(safe-area-inset-bottom);
+    padding-inline: var(--space-3);
+    border-block-start: 1px solid var(--color-line);
+    background: var(--color-chrome);
+
+    @include mixins.for-phone {
+      display: none;
+    }
+  }
+
+  .position {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-3-5);
+    min-inline-size: 0;
+  }
+
+  .lines {
+    display: flex;
+    flex: none;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the stripe's gap equals its 3px bar width: decorative geometry, so px */
+    gap: 3px;
+  }
+
+  .line {
+    inline-size: 3px;
+    block-size: 12px;
+    border-radius: var(--radius-xs);
+    background: var(--color-text-3);
+    opacity: 0.45;
+
+    @include mixins.forced-fill;
+
+    &[data-current] {
+      background: var(--color-accent);
+      opacity: 1;
+
+      @include mixins.forced-fill(Highlight);
+    }
+  }
+
+  .name {
+    overflow: hidden;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shortcutsTrigger {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-3);
+    font-weight: 600;
+  }
+
+  @media (hover: none) {
+    /* :is(button) outranks IconButton's own display in either bundle order. */
+    .shortcutsTrigger:is(button) {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,45 @@
+@use "mixins";
+
+@layer components {
+  .preview {
+    @include mixins.markdown-type;
+    @include mixins.markdown-lists;
+
+    p {
+      margin-block: 0 var(--space-3-5);
+    }
+
+    ul,
+    ol {
+      margin-block: var(--space-3) var(--space-3-5);
+    }
+
+    code {
+      padding-block: var(--space-1);
+      padding-inline: var(--space-2-5);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+      font-family: var(--font-mono);
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: var(--space-3-5);
+      border-radius: var(--radius-md);
+      background: var(--color-surface-2);
+    }
+
+    blockquote {
+      margin-block: 0 var(--space-3-5);
+      margin-inline: 0;
+      padding-inline-start: var(--space-4);
+      border-inline-start: 3px solid var(--color-line-strong);
+      color: var(--color-text-3);
+    }
+  }
+
+  .empty {
+    color: var(--color-text-3);
+  }
+}

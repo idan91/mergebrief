@@ -1,0 +1,22 @@
+{
+  "action": "deleted",
+  "installation": {
+    "id": 2,
+    "account": {
+      "id": 1,
+      "login": "octocat"
+    }
+  },
+  "sender": {
+    "id": 1,
+    "login": "octocat",
+    "type": "User"
+  },
+  "repositories": [
+    {
+      "id": 1296269,
+      "name": "Hello-World",
+      "full_name": "octocat/Hello-World"
+    }
+  ]
+}

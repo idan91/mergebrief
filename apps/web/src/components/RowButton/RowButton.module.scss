@@ -1,0 +1,126 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  /* Disclosure rows: full-width buttons, >=44px targets (WCAG 2.5.8 aim).
+     `relative` is load-bearing for hit-testing, not layout: a positioned box
+     paints above a STATIC later sibling regardless of tree order, so every
+     row button must be positioned for tree order to govern contested
+     points. */
+  .rowButton {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-inline-size: 0;
+    min-height: functions.to-rem(44px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+    cursor: pointer;
+    font-size: var(--font-size-2);
+    text-align: start;
+
+    &[aria-expanded="true"] {
+      border-color: var(--color-text-2);
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-line));
+        background: functions.dim(var(--color-surface-2));
+      }
+    }
+  }
+
+  .rowButton[data-variant="row"][data-density="full"] {
+    flex-wrap: wrap;
+  }
+
+  .rowButton[data-variant="row"][data-density="slim"] {
+    align-items: center;
+    gap: var(--space-2-5);
+    min-height: functions.to-rem(22px);
+    padding-block: 0;
+    padding-inline: var(--space-3);
+    border: 0;
+    border-inline-start: 2px solid var(--color-line-strong);
+    border-radius: 0;
+    background: none;
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+
+    /* Target growth on a 22px row with NO layout change: a transparent
+       ::before claiming the list gap below. 4px is a CEILING — the smallest
+       gap any host list renders these rows at — because a deeper reach
+       overlaps the next box, and a positioned pseudo paints above a STATIC
+       later sibling. That caps the target at 26px: clears WCAG 2.5.8's 24px
+       floor, not its 44px aim, which is impossible at this pitch. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block: 0 -4px;
+      inset-inline: 0;
+    }
+
+    /* A borderless row carries no standing click affordance; hover supplies
+       it. */
+    @include mixins.hover {
+      &:where(:not([aria-disabled="true"])):hover {
+        background: var(--color-surface-2);
+        color: var(--color-text-2);
+      }
+    }
+
+    &:where(:not([aria-disabled="true"])):active {
+      background: var(--color-surface-3);
+    }
+
+    &[aria-disabled="true"]:focus-visible {
+      border-inline-start-color: functions.dim(var(--color-line-strong));
+      background: none;
+    }
+  }
+
+  .rowButton[data-variant="item"] {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    min-height: 0;
+    padding: var(--space-3);
+    border: 0;
+    border-radius: 0;
+    background: none;
+    line-height: var(--line-height-body);
+    transition: background-color var(--motion-fast) var(--ease-out);
+
+    @include mixins.hover {
+      &:where(:not([aria-disabled="true"])):hover {
+        border-radius: var(--radius-md);
+        background: var(--color-surface-2);
+      }
+    }
+
+    &:focus-visible {
+      border-radius: var(--radius-md);
+    }
+
+    &[aria-disabled="true"]:focus-visible {
+      background: none;
+    }
+  }
+
+  /* The 44px AIM lands where fingers do; desktop keeps the compact floor.
+     Slim rows opt out EXPLICITLY (not by specificity): the ::before above
+     already carries their target on every pointer type. */
+  @media (pointer: coarse) {
+    .rowButton[data-variant="row"]:not([data-density="slim"]),
+    .rowButton[data-variant="item"] {
+      min-height: functions.to-rem(44px);
+    }
+  }
+}

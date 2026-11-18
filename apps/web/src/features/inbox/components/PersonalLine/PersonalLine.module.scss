@@ -1,0 +1,30 @@
+@use "mixins";
+
+@layer components {
+  .personal {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .heading {
+    color: var(--color-text-1);
+    font-size: var(--font-size-7);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: var(--line-height-display);
+    text-wrap: balance;
+  }
+
+  .detail {
+    max-inline-size: 62ch;
+    color: var(--color-text-2);
+    font-size: var(--font-size-4);
+    line-height: var(--line-height-body);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .heading {
+      font-size: var(--font-size-6);
+    }
+  }
+}

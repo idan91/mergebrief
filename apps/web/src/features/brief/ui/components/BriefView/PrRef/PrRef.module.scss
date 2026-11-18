@@ -1,0 +1,42 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .ref {
+    min-inline-size: 0;
+
+    // Padding and a cancelling margin keep the link's focus ring inside the
+    // clip box.
+    overflow: hidden;
+    padding-block: var(--space-2-5);
+    margin-block: calc(-1 * var(--space-2-5));
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-heading);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    b {
+      color: var(--color-text-2);
+      font-weight: 500;
+    }
+  }
+
+  .link {
+    @include mixins.hit-area;
+
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--color-text-2);
+    text-decoration: none;
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
+    }
+  }
+}

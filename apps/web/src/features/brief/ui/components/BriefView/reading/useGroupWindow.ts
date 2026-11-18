@@ -1,0 +1,348 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  defaultRangeExtractor,
+  useWindowVirtualizer,
+  windowScroll,
+  type Range,
+  type VirtualItem,
+} from "@tanstack/react-virtual";
+
+import { useNearGroup } from "./useNearGroup";
+import {
+  refuseScrollCompensation,
+  resolveRestingCompensation,
+} from "./window-layout";
+
+/** Fixed constant, never a live viewport read: server and client must
+ * derive the identical initial window or hydration mismatches. */
+export const SSR_VIEWPORT_RECT = {
+  width: 1280,
+  height: 900,
+} as const;
+
+/** Where the server reads the page scroll: it has none. */
+const SSR_SCROLL_OFFSET = 0;
+
+const DEFAULT_OVERSCAN = 4;
+
+/**
+ * The attribute every windowed card wrapper carries. The NAME is fixed by
+ * the virtualizer (its `indexAttribute` default drives measurement); the
+ * focus-pin tracking queries it too, so it is exported rather than a bare
+ * literal at the query site.
+ */
+export const CHUNK_WINDOW_INDEX_ATTR = "data-index";
+
+export interface GroupWindowOptions {
+  /** Ordered file-qualified chunk keys (`file#chunkId`) of this group. */
+  chunkKeys: readonly string[];
+  /** Estimated card height by index, from the shared chunk height model. */
+  estimateChunk: (index: number) => number;
+  /**
+   * Chunk keys that must stay mounted regardless of the window: the card
+   * holding focus or an open composer. Undefined = none.
+   */
+  pinnedKeys?: ReadonlySet<string> | undefined;
+  overscan?: number | undefined;
+}
+
+export interface GroupWindow {
+  /** Attach to the group's chunk-list container. */
+  listRef: (node: HTMLElement | null) => void;
+  /** Attach to every rendered card (measures real height; no-ops hidden). */
+  measureElement: (node: Element | null) => void;
+  /** The cards to render right now (latched while the pane is hidden). */
+  items: readonly VirtualItem[];
+  /** Height the list container must occupy (latched while hidden). */
+  totalSize: number;
+  /**
+   * The list's document offset. Item starts are document-relative, so a
+   * card's position within the list is `item.start - scrollMargin`.
+   */
+  scrollMargin: number;
+  /** The viewport's top as the window last read it, in document offset. */
+  viewportTop: number;
+  /** False while a `[hidden]` ancestor keeps this list unmeasurable. */
+  active: boolean;
+  /** Index of a chunk key in this group, -1 when absent. */
+  indexOfKey: (key: string) => number;
+  /**
+   * Scroll the window toward a key and keep its card mounted until the group
+   * has been reached and left, or the next jump into this group; false =
+   * absent key or hidden pane.
+   */
+  scrollToKey: (key: string) => boolean;
+  /**
+   * Held, a card measured above the fold keeps its delta instead of moving
+   * the page by it: that compensation is an instant scroll, and an instant
+   * scroll cancels a smooth one in flight.
+   */
+  holdScrollCompensation: (held: boolean) => void;
+}
+
+/** Latest-value holders so DOM observer callbacks never close over stale renders. */
+interface LiveRefs {
+  virtualizer: { measurementsCache: VirtualItem[] } | null;
+  active: boolean;
+}
+
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+function readClientHydrating(): boolean {
+  return false;
+}
+
+function readServerHydrating(): boolean {
+  return true;
+}
+
+function readWindowScrollOffset(): number {
+  return window.scrollY;
+}
+
+/**
+ * Windows one group's chunk-card list against the page scroll.
+ *
+ * Hidden-pane latch: a frozen scope pane cannot receive props (the memo
+ * skips the delivering render), so hiddenness is observed from the DOM.
+ * While hidden the virtualizer is disabled, its measurements are
+ * snapshotted (disabling wipes virtual-core's cache), and the last visible
+ * items/totalSize keep being served so the kept-warm DOM never changes.
+ */
+export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
+  const { chunkKeys, estimateChunk, pinnedKeys, overscan } = options;
+  const [listEl, setListEl] = useState<HTMLElement | null>(null);
+  const [active, setActive] = useState(true);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  // The server reads the viewport at 0, so hydration does too, for the
+  // window as for `viewportTop`: a reload restores the scroll before React
+  // hydrates, and a window read off it would not be the one in the HTML.
+  // The restored position arrives with the render after it.
+  const hydrating = useSyncExternalStore(
+    subscribeToNothing,
+    readClientHydrating,
+    readServerHydrating,
+  );
+  const live = useRef<LiveRefs>({ virtualizer: null, active: true });
+  const measurementsSnapshot = useRef<VirtualItem[]>([]);
+  const holdsServerOffset = useRef(false);
+
+  const keyIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    chunkKeys.forEach((key, index) => map.set(key, index));
+    return map;
+  }, [chunkKeys]);
+
+  // Hidden watch. The snapshot must happen HERE, before the disabling
+  // render commits; after it the cache is already wiped.
+  useEffect(() => {
+    if (!listEl) {
+      return;
+    }
+
+    const update = () => {
+      const visible = listEl.closest("[hidden]") === null;
+
+      if (!visible && live.current.active) {
+        measurementsSnapshot.current =
+          live.current.virtualizer?.measurementsCache ?? [];
+      }
+
+      live.current.active = visible;
+      setActive(visible);
+    };
+    update();
+
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+
+    return () => observer.disconnect();
+  }, [listEl]);
+
+  // This list's document offset, re-read when body height changes (content
+  // above resizing moves every later group). Skipped while hidden: a
+  // hidden list measures rect 0.
+  useEffect(() => {
+    if (!listEl || !active) {
+      return;
+    }
+
+    const update = () => {
+      const next = Math.round(
+        listEl.getBoundingClientRect().top + window.scrollY,
+      );
+      setScrollMargin((current) => (current === next ? current : next));
+    };
+    update();
+
+    // Deferred one frame: a dozen instances measuring in one
+    // ResizeObserver cycle overflow its delivery budget.
+    let frame: number | null = null;
+    const observer = new ResizeObserver(() => {
+      frame ??= window.requestAnimationFrame(() => {
+        frame = null;
+        update();
+      });
+    });
+    observer.observe(document.body);
+
+    return () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      observer.disconnect();
+    };
+  }, [active, listEl]);
+
+  // A group far from the viewport renders no cards: its list keeps its
+  // height from the estimates, so the page's length holds, and the cards
+  // mount again two viewports before the reader reaches them.
+  const { near, jumpKey, pinJump } = useNearGroup(listEl, active, live);
+
+  const rangeExtractor = useCallback(
+    (range: Range) => {
+      const rendersRange = near || !active;
+      const base = rendersRange ? defaultRangeExtractor(range) : [];
+      const keepsNoPin =
+        (!pinnedKeys || pinnedKeys.size === 0) && jumpKey === undefined;
+      if (keepsNoPin) {
+        return base;
+      }
+      const merged = new Set(base);
+      for (const key of [...(pinnedKeys ?? []), jumpKey]) {
+        const index = key === undefined ? undefined : keyIndex.get(key);
+        if (index !== undefined) {
+          merged.add(index);
+        }
+      }
+      return [...merged].toSorted((a, b) => a - b);
+    },
+    [keyIndex, pinnedKeys, jumpKey, near, active],
+  );
+
+  // On mount the virtualizer scrolls the page to the offset it holds. Held
+  // at the server's, that would send a restored page back to the top.
+  const scrollUnlessHydrating = useCallback<typeof windowScroll>(
+    (offset, scrollOptions, instance) => {
+      if (!holdsServerOffset.current) {
+        windowScroll(offset, scrollOptions, instance);
+      }
+    },
+    [],
+  );
+
+  const virtualizer = useWindowVirtualizer({
+    count: chunkKeys.length,
+    estimateSize: estimateChunk,
+    overscan: overscan ?? DEFAULT_OVERSCAN,
+    scrollMargin,
+    enabled: active,
+    initialRect: SSR_VIEWPORT_RECT,
+    initialOffset: hydrating ? SSR_SCROLL_OFFSET : readWindowScrollOffset,
+    scrollToFn: scrollUnlessHydrating,
+    initialMeasurementsCache: measurementsSnapshot.current,
+    getItemKey: (index) => chunkKeys[index] ?? index,
+    rangeExtractor,
+  });
+  live.current.virtualizer = virtualizer;
+  // In render: the cards' first measurements run in the commit's ref
+  // callbacks, before any effect could set it.
+  virtualizer.shouldAdjustScrollPositionOnItemSizeChange ??=
+    resolveRestingCompensation();
+  // In render too: the hydrating render cached the server's offset, and no
+  // scroll event follows a restored position to replace it. Cleared, the
+  // next read takes the page's own.
+  if (hydrating) {
+    holdsServerOffset.current = true;
+  } else if (holdsServerOffset.current) {
+    holdsServerOffset.current = false;
+    virtualizer.scrollOffset = null;
+  }
+
+  // Latch: refs only advance while active, so a hidden pane keeps serving
+  // its last visible window and the kept-warm DOM never changes shape.
+  const latchedItems = useRef<readonly VirtualItem[]>([]);
+  const latchedTotal = useRef(0);
+  if (active) {
+    latchedItems.current = virtualizer.getVirtualItems();
+    latchedTotal.current = virtualizer.getTotalSize();
+  }
+
+  const measureElement = useCallback(
+    (node: Element | null) => {
+      // A null detach must reach the core (it prunes its element cache);
+      // only hidden LIVE nodes are refused, since their offsetHeight is 0.
+      if (node !== null && node.closest("[hidden]") !== null) {
+        return;
+      }
+      virtualizer.measureElement(node);
+    },
+    [virtualizer],
+  );
+
+  const indexOfKey = useCallback(
+    (key: string) => keyIndex.get(key) ?? -1,
+    [keyIndex],
+  );
+
+  const scrollToKey = useCallback(
+    (key: string) => {
+      // Live ref, not state: after an unhide the state is one render stale,
+      // so a jump from the same gesture would read false and die.
+      if (!live.current.active) {
+        return false;
+      }
+      const index = keyIndex.get(key);
+      const offset =
+        index === undefined
+          ? undefined
+          : virtualizer.getOffsetForIndex(index, "start")?.[0];
+      if (offset === undefined) {
+        return false;
+      }
+      pinJump(key);
+      // An offset, not an index: the library chases an index's moving offset
+      // for seconds and would scroll the page back off the caller's target.
+      // "instant": measurement adjustments cancel in-flight smooth scrolls,
+      // and "auto" would defer to the page's smooth CSS.
+      virtualizer.scrollToOffset(offset, { behavior: "instant" });
+      return true;
+    },
+    [keyIndex, virtualizer, pinJump],
+  );
+
+  const holdScrollCompensation = useCallback(
+    (held: boolean) => {
+      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = held
+        ? refuseScrollCompensation
+        : resolveRestingCompensation();
+    },
+    [virtualizer],
+  );
+
+  return {
+    listRef: setListEl,
+    measureElement,
+    items: latchedItems.current,
+    totalSize: latchedTotal.current,
+    scrollMargin,
+    viewportTop: hydrating ? 0 : (virtualizer.scrollOffset ?? 0),
+    active,
+    indexOfKey,
+    scrollToKey,
+    holdScrollCompensation,
+  };
+}

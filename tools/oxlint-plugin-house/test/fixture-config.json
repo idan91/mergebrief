@@ -1,0 +1,29 @@
+{
+  "jsPlugins": ["../src/index.mjs"],
+  "plugins": [],
+  "categories": { "correctness": "off", "suspicious": "off", "perf": "off" },
+  "rules": {
+    "house/no-enum": "error",
+    "house/extensionless-import": "error",
+    "house/no-raw-button": "error",
+    "house/no-blank-target": "error",
+    "house/no-conditional-spread": "error",
+    "house/test-title": ["error", { "maxLength": 70 }],
+    "house/comment-run": ["error", { "maxContentLines": 4 }],
+    "house/comment-density": ["error", { "maxRatio": 0.4 }],
+    "house/no-em-dash": "error",
+    "house/no-render-function": "error",
+    "house/no-process-env": "error",
+    "house/no-hand-built-plural": "error",
+    "house/types-const-maps": "error",
+    "house/no-re-export": "error",
+    "house/no-shout-case-copy": [
+      "error",
+      {
+        "ignoreKeys": ["name"],
+        "ignoreCallees": ["Error", "logger\\..*", "startsWith"],
+        "ignoreAttributes": ["className"]
+      }
+    ]
+  }
+}

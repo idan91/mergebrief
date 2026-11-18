@@ -1,0 +1,73 @@
+@use "functions";
+
+$arrow: 10px;
+$header-bar: 6px;
+
+// Arrow and header offsets track `ExpandControl`'s arrows and header text.
+@layer components {
+  .lane {
+    --skeleton-lane-ink: color-mix(
+      in srgb,
+      var(--color-text-1) 7%,
+      transparent
+    );
+    --skeleton-lane-fill: var(--color-well);
+
+    position: relative;
+    block-size: calc(var(--diff-line-box) + 9px);
+    background: var(--skeleton-lane-fill);
+    font-size: var(--font-size-1);
+
+    &[data-variant="hunk"] {
+      --skeleton-lane-fill: var(--color-surface-2);
+    }
+
+    &::before,
+    &::after {
+      position: absolute;
+      inset-block-start: 50%;
+      border-radius: var(--radius-xs);
+      background: var(--skeleton-lane-ink);
+      content: "";
+      translate: 0 -50%;
+    }
+
+    &::before {
+      inset-inline-start: 13px;
+      inline-size: $arrow;
+      block-size: $arrow;
+    }
+
+    &[data-arrows="2"] {
+      /* stylelint-disable-next-line house/custom-property-no-raw-value -- the down arrow is the up arrow copied one 26px slot along, so the lane stays one element */
+      --skeleton-down-arrow: 26px 0 0 var(--skeleton-lane-ink);
+    }
+
+    &[data-arrows="2"]::before {
+      box-shadow: var(--skeleton-down-arrow);
+    }
+
+    &::after {
+      inset-inline-start: functions.to-rem(36px);
+      inline-size: calc(var(--skeleton-header) * 1ch);
+      block-size: $header-bar;
+    }
+
+    &[data-arrows="2"]::after {
+      inset-inline-start: functions.to-rem(62px);
+    }
+
+    &[data-variant="expand"]::after {
+      display: none;
+    }
+  }
+
+  [data-layer="shine"] .lane {
+    --skeleton-lane-ink: color-mix(
+      in srgb,
+      var(--color-text-1) 14%,
+      transparent
+    );
+    --skeleton-lane-fill: transparent;
+  }
+}

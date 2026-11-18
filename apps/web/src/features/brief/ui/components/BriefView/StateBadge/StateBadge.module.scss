@@ -1,0 +1,38 @@
+@use "functions";
+
+@layer components {
+  .badge {
+    --badge-color: var(--color-text-2);
+
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-2);
+    align-items: center;
+    block-size: functions.to-rem(20px);
+    padding-inline: var(--space-2-5);
+    border: 1px solid color-mix(in srgb, var(--badge-color) 35%, transparent);
+    border-radius: var(--radius-chip);
+    background: color-mix(
+      in srgb,
+      var(--badge-color) var(--tint-medium),
+      transparent
+    );
+    color: var(--badge-color);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    vertical-align: middle;
+    white-space: nowrap;
+
+    &[data-variant="open"] {
+      --badge-color: var(--color-positive);
+    }
+
+    &[data-variant="merged"] {
+      --badge-color: var(--color-merged);
+    }
+
+    &[data-variant="closed"] {
+      --badge-color: var(--color-negative);
+    }
+  }
+}

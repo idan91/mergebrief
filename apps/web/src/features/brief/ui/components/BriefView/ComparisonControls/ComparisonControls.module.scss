@@ -1,0 +1,19 @@
+@layer components {
+  .comparisonRegion {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    min-inline-size: 0;
+  }
+
+  // SegmentedControl owns the bordered group; this only carries the metrics
+  // this surface had before the control was shared.
+  .scope {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}

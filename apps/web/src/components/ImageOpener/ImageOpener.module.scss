@@ -1,0 +1,24 @@
+@use "mixins";
+
+@layer components {
+  .opener {
+    position: relative;
+    display: inline-block;
+    max-inline-size: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    vertical-align: middle;
+
+    > img {
+      display: block;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

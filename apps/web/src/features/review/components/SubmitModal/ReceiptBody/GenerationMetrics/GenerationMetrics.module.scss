@@ -1,0 +1,9 @@
+@layer components {
+  .metricNote {
+    display: block;
+    margin-block-start: var(--space-2);
+    color: var(--color-text-3);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-1);
+  }
+}

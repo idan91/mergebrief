@@ -1,0 +1,47 @@
+@use "functions";
+
+@layer components {
+  .bar {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: functions.get-z-index("navigation-progress");
+    block-size: 2px;
+    background: var(--color-accent);
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: left;
+    animation:
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- appear is a 1ms step to full opacity after the wait, and advance is the 8s creep to 90% */
+      appear 1ms linear var(--notice-delay) forwards,
+      advance 8s var(--ease-out) var(--notice-delay) both;
+  }
+
+  @keyframes appear {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes advance {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(0.9);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes advance {
+      from {
+        transform: scaleX(0.9);
+      }
+
+      to {
+        transform: scaleX(0.9);
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  a.mention {
+    color: var(--color-accent);
+    text-underline-offset: functions.to-rem(3px);
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
+    }
+  }
+
+  .mention[data-variant="viewer"] {
+    // Earned: a grey hairline, since the accent edge token reads as the focus ring.
+    --mention-viewer-edge: #{functions.inset-ring(var(--color-line-strong))};
+
+    margin-inline: calc(-1 * var(--space-1));
+    padding-inline: var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--color-accent-tint-subtle);
+    box-shadow: var(--mention-viewer-edge);
+    color: var(--color-text-1);
+    box-decoration-break: clone;
+  }
+}

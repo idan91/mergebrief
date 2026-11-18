@@ -1,0 +1,131 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // The hidden input positions against this: outside a scrolling dialog's
+  // content it would not scroll with it, and tabbing to it would not reveal it.
+  .root {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-block-size: functions.to-rem(24px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    cursor: pointer;
+    user-select: none;
+
+    @include mixins.hover {
+      &:where(:not(:has(> .input:disabled))):hover .box {
+        border-color: color-mix(
+          in srgb,
+          var(--color-control-edge) 60%,
+          var(--color-text-1)
+        );
+      }
+    }
+
+    @include mixins.hover {
+      &:where(:not(:has(> .input:disabled))):hover .label {
+        color: var(--color-text-1);
+      }
+    }
+
+    &:has(> .input:disabled) {
+      cursor: default;
+
+      @include mixins.dimmed(null);
+    }
+
+    &[data-variant="bare"] {
+      justify-content: center;
+      min-inline-size: functions.to-rem(24px);
+    }
+  }
+
+  /* The real control, visually replaced: it keeps keyboard behaviour, form
+     semantics and the state a screen reader reads. Not `display: none`, which
+     would take it out of the tab order and the accessibility tree. */
+  .input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* The app's own control grammar (1px line, surface fill), not the
+     platform's rounded blue tile. */
+  .box {
+    position: relative;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--color-control-edge);
+    border-radius: var(--radius-xs);
+    background: var(--color-surface-2);
+    transition:
+      background var(--motion-fast),
+      border-color var(--motion-fast);
+  }
+
+  /* The tick is drawn, not typed: a glyph would inherit the font stack and
+     land differently per platform. Two borders rotated into an L; the -1.5px
+     Y bias is measured — an L's ink sits bottom-right, so rotating about the
+     element centre otherwise leaves the mark low. */
+  .box::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 7px;
+    border: solid var(--color-accent);
+    border-width: 0 1.5px 1.5px 0;
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 1.5px)) rotate(45deg) scale(0.6);
+    transform-origin: center;
+    transition:
+      opacity var(--motion-fast),
+      transform var(--motion-fast);
+  }
+
+  /* Checked uses the same vocabulary the filter chips use for pressed:
+     accent line, raised ground, accent mark. */
+  .input:checked + .box {
+    border-color: var(--color-accent);
+    background: var(--color-surface-3);
+  }
+
+  .input:checked + .box::after {
+    opacity: 1;
+    transform: translate(-50%, calc(-50% - 1.5px)) rotate(45deg) scale(1);
+  }
+
+  /* The ring paints on the SIBLING the eye tracks, since the input itself is
+     a 1px sliver (the mixin exists for exactly this case). */
+  .input:focus-visible + .box {
+    @include mixins.focus-ring;
+  }
+
+  .input:indeterminate + .box {
+    border-color: var(--color-accent);
+    background: var(--color-surface-3);
+  }
+
+  .input:indeterminate + .box::after {
+    width: 6px;
+    height: 0;
+    border-width: 0 0 1.5px;
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .box,
+    .box::after {
+      transition: none;
+    }
+  }
+}

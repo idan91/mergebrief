@@ -1,0 +1,73 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9010
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9010",
+        "sha": "7adc0b785fae9544dabf4b8ac80402912d201a1b",
+        "baseSha": "32daa5327915df00e7070cf46392ea9f1f583384",
+        "commitCount": 1,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "32daa5327915df00e7070cf46392ea9f1f583384",
+      "head": "7adc0b785fae9544dabf4b8ac80402912d201a1b",
+      "commitCount": 1
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9010
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9010",
+        "sha": "d9df95c67a02f8985212ad3c82d1580175449176",
+        "baseSha": "32daa5327915df00e7070cf46392ea9f1f583384",
+        "commitCount": 2,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 11,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "32daa5327915df00e7070cf46392ea9f1f583384",
+      "head": "d9df95c67a02f8985212ad3c82d1580175449176",
+      "commitCount": 2
+    }
+  },
+  "increment": {
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n"
+  }
+}

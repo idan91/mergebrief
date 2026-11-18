@@ -1,0 +1,48 @@
+{
+  "action": "submitted",
+  "installation": {
+    "id": 987654,
+    "node_id": "MDIzOkludGVncmF0aW9u"
+  },
+  "repository": {
+    "id": 186853002,
+    "name": "Hello-World",
+    "full_name": "Codertocat/Hello-World",
+    "private": false,
+    "owner": {
+      "id": 21031067,
+      "login": "Codertocat"
+    }
+  },
+  "pull_request": {
+    "number": 2,
+    "title": "Update the README with new information.",
+    "author_association": "OWNER",
+    "user": {
+      "login": "Codertocat",
+      "type": "User"
+    },
+    "state": "open",
+    "head": {
+      "ref": "changes",
+      "sha": "ec26c3e57ca3a959ca5aad62de7213c562f8c821"
+    }
+  },
+  "review": {
+    "id": 237895672,
+    "state": "commented",
+    "commit_id": "ec26c3e57ca3a959ca5aad62de7213c562f8c821",
+    "submitted_at": "2019-11-17T17:44:00Z",
+    "author_association": "NONE",
+    "user": {
+      "id": 49699333,
+      "login": "dependabot[bot]",
+      "type": "Bot"
+    }
+  },
+  "sender": {
+    "id": 49699333,
+    "login": "dependabot[bot]",
+    "type": "Bot"
+  }
+}

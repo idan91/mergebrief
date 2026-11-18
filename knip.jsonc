@@ -1,0 +1,167 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Dead exports, unused deps and unreachable files across the pnpm workspace:
+  // the mechanical half of the entry-barrel policy.
+  // Entry points are stated per workspace even where knip infers them from
+  // `exports`/`bin`, because the entry IS the policy here: `src/index.ts` is a
+  // package's curated public surface, and anything not reachable from one of
+  // these files is dead by definition.
+  "ignoreExportsUsedInFile": true,
+  // `@public` marks an export that is part of a module's published surface
+  // even when nothing imports it yet — the paired `ValueOf` type of an
+  // `as const` map, whose discriminated unions need the member types rather
+  // than the union.
+  "tags": ["-@public"],
+  "workspaces": {
+    ".": {
+      // The shared coverage policy is imported by every package's vitest
+      // config, which knip resolves per workspace, not from the root.
+      "entry": ["vitest.shared.ts"],
+      // Loaded by oxlint through `.oxlintrc.json`'s `jsPlugins`, by name;
+      // there is no import for knip to see.
+      "ignoreDependencies": ["eslint-plugin-i18next"],
+      "project": ["*.ts", "*.js"],
+      // The CI/weekly workflows install browsers with `pnpm -C apps/web exec
+      // playwright ...`. knip attributes a workflow's binaries to the root
+      // workspace, which does not (and should not) depend on Playwright —
+      // apps/web owns it. `check` is likewise not a binary: the lint script
+      // invokes `pnpm -C tools/baselines check`, a package script.
+      "ignoreBinaries": ["playwright", "check"],
+    },
+    "apps/web": {
+      // Routes are the app's entry surface; the feature `index.tsx` barrels
+      // are the curated internal one: a barrel export is the published
+      // surface, not a call site, so it is an entry, not dead code.
+      "entry": [
+        "src/router.tsx",
+        "src/server.ts",
+        "src/serve.ts",
+        "src/instrument.ts",
+        "src/start.ts",
+        // The hosted demo's entries: Start resolves them through
+        // `vite.demo.config.ts`, and the build script is a pnpm script.
+        "src/demo/client.tsx",
+        "src/demo/server.ts",
+        "vite.demo.config.ts",
+        "scripts/*.ts",
+        "src/routes/**/*.tsx",
+        "src/features/*/index.tsx",
+        "src/features/*/utils/index.ts",
+        // Reached by the browser through `new Worker(new URL(...))`, never by
+        // an import statement.
+        "src/utils/diffTokens/worker.ts",
+        // The browser suite is run by Playwright, not imported:
+        // its config and specs are entries, and `e2e/support` + `e2e/fixtures`
+        // hang off them.
+        "playwright.config.ts",
+        "playwright.perf.config.ts",
+        "e2e/**/*.e2e.ts",
+        "e2e/**/*.perf.ts",
+        // The harness seed runs as a tsx child process; the generator is a
+        // pnpm script.
+        "e2e/harness/seed.ts",
+        "e2e/perf/generateFixture.ts",
+        // Module stylesheets `@use` these partials through vite's Sass
+        // `loadPaths`, which knip does not resolve.
+        "src/styles/_*.scss",
+      ],
+    },
+    "apps/api": {
+      "entry": [
+        "src/index.ts",
+        "src/migrate.ts",
+        "src/instrument.ts",
+        // Reached through `new Worker(url)` and tsx's `tsImport`, never by an
+        // import statement: the line-diff thread, its test stand-in and the
+        // script a test runs in a child process.
+        "src/routes/repos/pr/reads/logic/span-thread/entry.ts",
+        "src/routes/repos/pr/reads/logic/span-thread/thread-body.ts",
+        "test/fixtures/echo-span-thread.ts",
+        "test/fixtures/idle-span-thread.ts",
+      ],
+    },
+    "packages/contract": { "entry": ["src/index.ts"] },
+    "packages/brief-core": {
+      "entry": ["src/index.ts", "src/types.ts", "src/artifact/index.ts"],
+      // An entry export no other workspace imports is dead surface here.
+      "includeEntryExports": true,
+    },
+    "apps/cli": {
+      "entry": [
+        "src/bin.ts",
+        "scripts/embed-help.ts",
+        "scripts/check-operations-map.ts",
+      ],
+    },
+    "apps/docs-site": {
+      "entry": [".vitepress/config.ts", ".vitepress/theme/index.ts"],
+    },
+    "packages/generators": {
+      // The `.cjs` shims are spawned as real child processes by the contract
+      // suites (path reference, never imported).
+      "entry": ["src/index.ts", "smoke/generate-smoke.ts", "test/shims/*.cjs"],
+    },
+    "packages/github": { "entry": ["src/index.ts", "src/testing/index.ts"] },
+    "packages/i18n": { "entry": ["src/index.ts"] },
+    "packages/logging": {
+      // The fixture runs in a child process the propagation test spawns.
+      "entry": [
+        "src/index.ts",
+        "src/testing/index.ts",
+        "test/tracing/fixtures/*.ts",
+      ],
+      // pino-pretty is loaded by pino BY NAME (`transport.target`) in
+      // development only — there is no import for knip to see.
+      // tsx loads that fixture through `node --import tsx`, not an import.
+      "ignoreDependencies": ["pino-pretty", "tsx"],
+    },
+    "packages/persistence": {
+      "entry": [
+        "src/index.ts",
+        "src/testing/index.ts",
+        "drizzle.config.ts",
+        "src/schema/*.ts",
+      ],
+      // knip's drizzle plugin EXECUTES drizzle.config.ts, which refuses to
+      // load without DATABASE_URL, so the config and its `schema` directory are
+      // listed as plain entries instead, which is what the plugin contributes.
+      "drizzle": false,
+    },
+    "packages/repo-config": { "entry": ["src/index.ts"] },
+    "packages/types": { "entry": ["src/index.ts"] },
+    "apps/worker": {
+      "entry": [
+        "src/index.ts",
+        "src/main.ts",
+        "src/instrument.ts",
+        // Forked by path as the lockfile child process, never imported.
+        "src/task/generate/logic/lockfile-summaries/summary-child.ts",
+      ],
+    },
+    "tools/baselines": { "entry": ["src/main.ts"] },
+    "tools/ingest-briefs": {
+      "entry": ["src/index.ts", "src/main.ts", "src/testing/index.ts"],
+    },
+    "tools/release": { "entry": ["src/main.ts"] },
+    "tools/oxlint-plugin-house": {
+      "entry": ["src/index.mjs"],
+      // Each rule's counter-examples: linted by the plugin's tests, never
+      // imported.
+      "ignore": ["test/fixtures/**"],
+    },
+    "tools/categorizer": {
+      // Each eval case's `expected.ts` is dynamically imported by absolute
+      // path from the case loader, so it is an entry too.
+      "entry": [
+        "eval/cli.ts",
+        "src/cli/categorize.ts",
+        "src/cli/delta.ts",
+        "scripts/*.ts",
+        "eval/cases/*/expected.ts",
+        "eval/pair-cases/*/expected.ts",
+        "test/fixtures/*/expected.ts",
+      ],
+    },
+  },
+  "ignore": ["**/routeTree.gen.ts", "**/*.gen.*"],
+}

@@ -1,0 +1,26 @@
+@use "functions";
+
+@layer components {
+  .row {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, #{functions.to-rem(240px)}), 1fr)
+    );
+    gap: var(--space-4);
+    align-items: end;
+    margin-block: var(--space-2) var(--space-4);
+
+    &:has(> .item > [data-state="failed"]) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .item {
+    min-inline-size: 0;
+  }
+
+  .row > .item > * {
+    margin-block: 0;
+  }
+}

@@ -1,0 +1,618 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { briefFixture } from "@web/features/brief/test-utils";
+import { buildBriefViewModel } from "@web/features/brief/model";
+import { type ReviewComment } from "../utils/comments";
+import type { RiskEvidence } from "../utils/state";
+import { createReviewSessionStore, deriveInitialState } from "./store";
+import { createReviewFlowStore } from "./flow/store";
+import { ComposerStateKinds } from "./flow/types";
+import { serializeSnapshot } from "./snapshot";
+import type { SessionWriteGateway } from "./writeGateway";
+import type { SessionWriteResult } from "./writes";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
+
+const model = buildBriefViewModel(briefFixture);
+const firstFlag = model.flags[0];
+if (!firstFlag) {
+  throw new Error("Expected brief fixture to include risk flags");
+}
+const flagId = firstFlag.id;
+
+function freshStore() {
+  return createReviewSessionStore(deriveInitialState(model));
+}
+
+describe("deriveInitialState", () => {
+  it("seeds open dispositions for every flag and dominant per group", () => {
+    const state = deriveInitialState(model);
+    expect(state.dispositions[flagId]).toEqual({ kind: "open" });
+    expect(state.dominants["g1"]).toBe("bugfix");
+    expect(state.reviewedChunks.size).toBe(0);
+    expect(state.reviewOutcome).toBe("comment");
+  });
+
+  it("does not seed a remainder group into the reclassification map", () => {
+    const withRemainder = buildBriefViewModel({
+      ...briefFixture,
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    const state = deriveInitialState(withRemainder);
+    expect(state.dominants["g1"]).toBe("bugfix");
+    expect(state.dominants["unattributed-remainder"]).toBeUndefined();
+  });
+});
+
+describe("disposeFlag", () => {
+  it("dismisses a batch with one shared reason atomically", () => {
+    const store = freshStore();
+    store.getState().actions.disposeFlag([flagId], {
+      kind: "dismissed",
+      reason: "not applicable",
+    });
+    expect(store.getState().dispositions[flagId]).toEqual({
+      kind: "dismissed",
+      reason: "not applicable",
+    });
+  });
+
+  it("reopens a flag, and open carries no evidence by construction", () => {
+    const store = freshStore();
+    store.getState().actions.addressFlags(
+      new Map([
+        [
+          flagId,
+          {
+            kind: "chunk-reviewed",
+            chunkId: "chunk-a",
+          },
+        ],
+      ]),
+    );
+    store.getState().actions.disposeFlag([flagId], { kind: "open" });
+    expect(store.getState().dispositions[flagId]).toEqual({ kind: "open" });
+  });
+
+  it("is a no-op for an empty batch", () => {
+    const store = freshStore();
+    const before = store.getState().dispositions;
+    store.getState().actions.disposeFlag([], { kind: "open" });
+    expect(store.getState().dispositions).toBe(before);
+  });
+});
+
+describe("addressFlags", () => {
+  it("resolves evidence per flag", () => {
+    const store = freshStore();
+    const evidence: RiskEvidence = { kind: "manual-note", note: "checked" };
+    store.getState().actions.addressFlags(new Map([[flagId, evidence]]));
+    expect(store.getState().dispositions[flagId]).toEqual({
+      kind: "addressed",
+      evidence,
+    });
+  });
+});
+
+describe("reclassifyGroup", () => {
+  it("sets the dominant and marks the group reclassified", () => {
+    const store = freshStore();
+    store.getState().actions.reclassifyGroup("g1", "logic-refactor");
+    expect(store.getState().dominants["g1"]).toBe("logic-refactor");
+    expect(store.getState().reclassifiedGroups.has("g1")).toBe(true);
+  });
+});
+
+describe("reviewChunk", () => {
+  it("toggles chunk membership", () => {
+    const store = freshStore();
+    store.getState().actions.reviewChunk("chunk-a");
+    expect(store.getState().reviewedChunks.has("chunk-a")).toBe(true);
+    store.getState().actions.reviewChunk("chunk-a");
+    expect(store.getState().reviewedChunks.has("chunk-a")).toBe(false);
+  });
+});
+
+describe("comments + outcome", () => {
+  it("saves, updates, deletes comments and sets outcome", async () => {
+    const store = freshStore();
+    const comment: Omit<ReviewComment, "id"> = {
+      anchor: {
+        kind: CommentAnchorKinds.LINE,
+        chunkId: "chunk-a",
+        file: "src/leak.ts",
+        side: DiffSides.NEW,
+        startLine: 10,
+        endLine: 10,
+        rowIds: ["chunk-a:1"],
+        selectedText: "validate(a);",
+      },
+      body: "first",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    };
+    const commentId = "chunk-a-new-10-10-1";
+    void store.getState().actions.saveComment(comment);
+    expect(store.getState().reviewComments).toHaveLength(1);
+    expect(store.getState().reviewComments[0]?.id).toBe(commentId);
+    const updated = await store
+      .getState()
+      .actions.updateComment(commentId, "second");
+    expect(updated).toBe(true);
+    expect(store.getState().reviewComments[0]?.body).toBe("second");
+    store.getState().actions.toggleComment(commentId);
+    expect(store.getState().reviewComments[0]?.collapsed).toBe(true);
+    store.getState().actions.deleteComment(commentId);
+    expect(store.getState().reviewComments).toHaveLength(0);
+    store.getState().actions.setOutcome("approve");
+    expect(store.getState().reviewOutcome).toBe("approve");
+  });
+
+  it("a two-side anchor gets its own id with no same-side collision", () => {
+    const store = freshStore();
+    const anchor = {
+      kind: CommentAnchorKinds.LINE,
+      chunkId: "chunk-a",
+      file: "src/leak.ts",
+      side: DiffSides.NEW,
+      startLine: 10,
+      endLine: 12,
+      rowIds: [] as string[],
+      selectedText: "",
+    };
+    void store.getState().actions.saveComment({
+      anchor,
+      body: "same-side",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    void store.getState().actions.saveComment({
+      anchor: { ...anchor, startSide: DiffSides.OLD },
+      body: "two-side",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    const ids = store.getState().reviewComments.map((comment) => comment.id);
+    expect(ids).toEqual(["chunk-a-new-10-12-1", "chunk-a-old-new-10-12-1"]);
+  });
+
+  it("submitted comments are immutable, update and delete no-op", async () => {
+    const store = freshStore();
+    const comment: Omit<ReviewComment, "id"> = {
+      anchor: {
+        kind: CommentAnchorKinds.LINE,
+        chunkId: "chunk-a",
+        file: "src/leak.ts",
+        side: DiffSides.NEW,
+        startLine: 10,
+        endLine: 10,
+        rowIds: ["chunk-a:1"],
+        selectedText: "validate(a);",
+      },
+      body: "posted text",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    };
+    void store.getState().actions.saveComment(comment);
+    const id = store.getState().reviewComments[0]?.id;
+    if (id === undefined) {
+      throw new Error("expected a saved comment");
+    }
+    store.getState().actions.markCommentsSubmitted([id]);
+
+    // GitHub is the system of record now: a local edit would silently diverge
+    // from what was posted (a re-submit ships drafts only).
+    const updated = await store
+      .getState()
+      .actions.updateComment(id, "silently changed");
+    expect(updated).toBe(false);
+    expect(store.getState().reviewComments[0]?.body).toBe("posted text");
+    store.getState().actions.deleteComment(id);
+    expect(store.getState().reviewComments).toHaveLength(1);
+  });
+
+  it("markCommentsSubmitted flips exactly the given ids", () => {
+    const store = freshStore();
+    const comment: Omit<ReviewComment, "id"> = {
+      anchor: {
+        kind: CommentAnchorKinds.LINE,
+        chunkId: "chunk-a",
+        file: "src/leak.ts",
+        side: DiffSides.NEW,
+        startLine: 10,
+        endLine: 10,
+        rowIds: ["chunk-a:1"],
+        selectedText: "validate(a);",
+      },
+      body: "first",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    };
+    void store.getState().actions.saveComment(comment);
+    const submittedId = store.getState().reviewComments[0]?.id;
+    if (submittedId === undefined) {
+      throw new Error("expected a saved comment");
+    }
+
+    // A draft added AFTER the submit was captured (mid-flight edit) must NOT
+    // flip, it was never posted.
+    void store
+      .getState()
+      .actions.saveComment({ ...comment, body: "mid-flight" });
+    store.getState().actions.markCommentsSubmitted([submittedId]);
+
+    const statuses = store.getState().reviewComments.map((c) => c.status);
+    expect(statuses).toEqual(["submitted", "draft"]);
+  });
+
+  it("markCommentsSubmitted flips an unplaced draft the submit posted", () => {
+    const store = freshStore();
+    store.setState({
+      unplacedDrafts: [
+        {
+          id: "gone",
+          filePath: "src/gone.ts",
+          kind: CommentAnchorKinds.FILE,
+          body: "left the brief",
+          status: DraftCommentStatuses.DRAFT,
+        },
+        {
+          id: "kept",
+          filePath: "src/kept.ts",
+          kind: CommentAnchorKinds.FILE,
+          body: "added after the click",
+          status: DraftCommentStatuses.DRAFT,
+        },
+      ],
+    });
+
+    store.getState().actions.markCommentsSubmitted(["gone"]);
+
+    const statuses = store.getState().unplacedDrafts.map((d) => d.status);
+    expect(statuses).toEqual(["submitted", "draft"]);
+  });
+
+  it("keys a file comment id on kind, path, and suffix", () => {
+    const store = freshStore();
+    void store.getState().actions.saveComment({
+      anchor: { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" },
+      body: "on the file",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    expect(store.getState().reviewComments[0]?.id).toBe("file-src/leak.ts-1");
+  });
+});
+
+describe("the Receipt's snapshot", () => {
+  it("flattens the Sets the builder cannot read", () => {
+    const store = freshStore();
+    const actions = store.getState().actions;
+    actions.reviewChunk("chunk-a");
+    actions.disposeFlag([flagId], { kind: "dismissed", reason: "n/a here" });
+    actions.reclassifyGroup("g1", "logic-refactor");
+    actions.setOutcome("request-changes");
+
+    const snapshot = serializeSnapshot("fixture-brief-1", store.getState());
+    expect(snapshot.reviewedChunkIds).toEqual(["chunk-a"]);
+    expect(snapshot.reclassifiedGroupIds).toEqual(["g1"]);
+    expect(snapshot.dispositions[flagId]).toEqual({
+      kind: "dismissed",
+      reason: "n/a here",
+    });
+    expect(snapshot.reviewOutcome).toBe("request-changes");
+  });
+});
+
+describe("recordSubmittedReview", () => {
+  it("appends the created review id and dedupes repeats", () => {
+    const store = freshStore();
+    store.getState().actions.recordSubmittedReview(4_647_663_464);
+    store.getState().actions.recordSubmittedReview(4_647_663_464);
+    store.getState().actions.recordSubmittedReview(4_700_000_000);
+    expect(store.getState().submittedReviewIds).toEqual([
+      4_647_663_464, 4_700_000_000,
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-action writes: one operation per action, and a failure that returns the
+// UI to the state where that same action is still available.
+// ---------------------------------------------------------------------------
+
+function anchorFor(chunkId: string): ReviewComment["anchor"] {
+  return {
+    kind: CommentAnchorKinds.LINE,
+    chunkId,
+    file: "src/leak.ts",
+    side: DiffSides.NEW,
+    startLine: 10,
+    endLine: 10,
+    rowIds: [`${chunkId}:1`],
+    selectedText: "validate(a);",
+  };
+}
+
+const OK: SessionWriteResult = { ok: true, value: undefined };
+const FAILED: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: false, copy: "review.writeError.failed" },
+};
+const FROZEN: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: true, copy: "review.writeError.frozen" },
+};
+
+function gatewayMock(result: SessionWriteResult = OK) {
+  const calls: string[] = [];
+  const record = (name: string) => (): Promise<SessionWriteResult> => {
+    calls.push(name);
+    return Promise.resolve(result);
+  };
+  const gateway: SessionWriteGateway = {
+    setRead: record("setRead"),
+    dispose: record("dispose"),
+    address: record("address"),
+    reclassify: record("reclassify"),
+    createComment: () => {
+      calls.push("createComment");
+      return Promise.resolve(
+        result.ok ? { ok: true as const, value: "9001" } : result,
+      );
+    },
+    updateComment: record("updateComment"),
+    reanchorComment: record("reanchorComment"),
+    deleteComment: record("deleteComment"),
+    setOutcome: record("setOutcome"),
+  };
+  return {
+    calls,
+    store: createReviewSessionStore(deriveInitialState(model), () => gateway),
+  };
+}
+
+describe("per-action writes", () => {
+  it("fires exactly ONE operation per action", async () => {
+    const { calls, store } = gatewayMock();
+    store.getState().actions.reviewChunk("c1");
+    store.getState().actions.setOutcome("approve");
+    store.getState().actions.disposeFlag([flagId], { kind: "open" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toEqual(["setRead", "setOutcome", "dispose"]);
+  });
+
+  it("un-ticks the checkbox when the read mark fails to save", async () => {
+    const { store } = gatewayMock(FAILED);
+    store.getState().actions.reviewChunk("c1");
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+    await vi.waitFor(() =>
+      expect(store.getState().reviewedChunks.has("c1")).toBe(false),
+    );
+    expect(store.getState().writeError).toBe("review.writeError.failed");
+  });
+
+  it("puts a dismissed risk back to open when the write fails", async () => {
+    const { store } = gatewayMock(FAILED);
+    store
+      .getState()
+      .actions.disposeFlag([flagId], { kind: "dismissed", reason: "no" });
+    expect(store.getState().dispositions[flagId]).toEqual({
+      kind: "dismissed",
+      reason: "no",
+    });
+    await vi.waitFor(() =>
+      expect(store.getState().dispositions[flagId]).toEqual({ kind: "open" }),
+    );
+  });
+
+  it("answers saveComment with the write's outcome and adopts the server id", async () => {
+    const { store } = gatewayMock();
+    const saved = await store.getState().actions.saveComment({
+      anchor: anchorFor("c1"),
+      body: "look here",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    expect(saved).toBe(true);
+    expect(store.getState().reviewComments[0]?.id).toBe("9001");
+  });
+
+  it("never stages the draft when the write fails", async () => {
+    const { store } = gatewayMock(FAILED);
+    const saved = await store.getState().actions.saveComment({
+      anchor: anchorFor("c1"),
+      body: "look here",
+      status: DraftCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    expect(saved).toBe(false);
+    expect(store.getState().reviewComments).toHaveLength(0);
+  });
+
+  it("answers whether a draft update landed", async () => {
+    const landedStore = gatewayMock().store;
+    const failedStore = gatewayMock(FAILED).store;
+    for (const store of [landedStore, failedStore]) {
+      await store.getState().actions.saveComment({
+        anchor: anchorFor("c1"),
+        body: "look here",
+        status: DraftCommentStatuses.DRAFT,
+        collapsed: false,
+      });
+    }
+
+    const landed = await landedStore
+      .getState()
+      .actions.updateComment("9001", "look closer");
+    const failed = await failedStore
+      .getState()
+      .actions.updateComment("9001", "look closer");
+
+    expect(landed).toBe(true);
+    expect(failed).toBe(false);
+  });
+
+  it("freezes the whole screen on a 409, rather than failing one action", async () => {
+    const { store } = gatewayMock(FROZEN);
+    store.getState().actions.reviewChunk("c1");
+    await vi.waitFor(() => expect(store.getState().frozen).toBe(true));
+    expect(store.getState().reviewedChunks.has("c1")).toBe(false);
+    expect(store.getState().writeError).toBe("review.writeError.frozen");
+  });
+
+  it("keeps the composer open at its lines when a save meets a 409", async () => {
+    const { store } = gatewayMock(FROZEN);
+    const flow = createReviewFlowStore(store.getState().actions, (key) => key);
+    const anchor = anchorFor("c1");
+    flow.getState().actions.openComposer(anchor, undefined, "c1");
+
+    const saved = await flow.getState().actions.saveComment(anchor, "look");
+
+    expect(saved).toBe(false);
+    expect(store.getState().frozen).toBe(true);
+    expect(store.getState().reviewComments).toHaveLength(0);
+    expect(flow.getState().composer).toEqual({
+      kind: ComposerStateKinds.OPEN,
+      anchor,
+      host: "c1",
+    });
+  });
+});
+
+function makeHeldGatewayStore() {
+  const releases: ((result: SessionWriteResult) => void)[] = [];
+  const hold = (): Promise<SessionWriteResult> =>
+    new Promise((resolve) => {
+      releases.push(resolve);
+    });
+  const gateway: SessionWriteGateway = {
+    setRead: hold,
+    dispose: hold,
+    address: hold,
+    reclassify: hold,
+    createComment: () => Promise.resolve({ ok: true, value: "9001" }),
+    updateComment: hold,
+    reanchorComment: hold,
+    deleteComment: hold,
+    setOutcome: hold,
+  };
+  return {
+    store: createReviewSessionStore(deriveInitialState(model), () => gateway),
+    releaseWrites: (result: SessionWriteResult = OK) => {
+      for (const release of releases.splice(0)) {
+        release(result);
+      }
+    },
+  };
+}
+
+function deriveReadWithChunks(...chunkIds: string[]) {
+  return () => ({
+    ...deriveInitialState(model),
+    reviewedChunks: new Set(chunkIds),
+  });
+}
+
+describe("reads the store owns", () => {
+  it("drops a read that began before a write and landed after it", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    store.startRead();
+    store.getState().actions.reviewChunk("c1");
+    releaseWrites();
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+
+    expect(store.applyRead(deriveReadWithChunks())).toBe(false);
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("drops a read that lands while a write is in flight", () => {
+    const { store } = makeHeldGatewayStore();
+    store.getState().actions.reviewChunk("c1");
+    store.startRead();
+
+    expect(store.hasPendingWrite()).toBe(true);
+    expect(store.applyRead(deriveReadWithChunks())).toBe(false);
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("applies a read that began after the write settled", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    store.getState().actions.reviewChunk("c1");
+    releaseWrites();
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+    store.startRead();
+
+    expect(store.applyRead(deriveReadWithChunks("c1", "c2"))).toBe(true);
+    expect(store.getState().reviewedChunks.has("c2")).toBe(true);
+  });
+
+  it("reverts a failed write before it stops counting as pending", async () => {
+    const { store, releaseWrites } = makeHeldGatewayStore();
+    const pendingAtRevert: boolean[] = [];
+    store.getState().actions.reviewChunk("c1");
+    store.subscribe((state) => {
+      if (!state.reviewedChunks.has("c1")) {
+        pendingAtRevert.push(store.hasPendingWrite());
+      }
+    });
+    releaseWrites(FAILED);
+
+    await vi.waitFor(() => expect(store.hasPendingWrite()).toBe(false));
+    expect(pendingAtRevert.length).toBeGreaterThan(0);
+    expect(pendingAtRevert).not.toContain(false);
+  });
+
+  it("counts a tracked publish as a write until it settles", async () => {
+    const store = freshStore();
+    let finishPost: () => void = () => undefined;
+    store.startRead();
+    const posted = store.getState().actions.trackWrite(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPost = resolve;
+        }),
+    );
+
+    expect(store.hasPendingWrite()).toBe(true);
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(false);
+    finishPost();
+    await posted;
+    expect(store.hasPendingWrite()).toBe(false);
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(false);
+
+    store.startRead();
+    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(true);
+  });
+});
+
+describe("deleteMissingDraft", () => {
+  it("writes for a carried draft the Brief renders nowhere", async () => {
+    // The store never held it, no chunk covers its file, so the ordinary
+    // delete has nothing to act on and the attention item could never clear.
+    const { calls, store } = gatewayMock();
+    store.getState().actions.deleteMissingDraft("4001");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toEqual(["deleteComment"]);
+    expect(store.getState().deletedMissingDrafts.has("4001")).toBe(true);
+  });
+
+  it("takes the deletion back when the write fails", async () => {
+    const { store } = gatewayMock(FROZEN);
+    store.getState().actions.deleteMissingDraft("4001");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(store.getState().deletedMissingDrafts.has("4001")).toBe(false);
+  });
+});

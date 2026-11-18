@@ -1,0 +1,24 @@
+@use "functions";
+
+@layer components {
+  .errorState {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- BriefError's 28px inset, copied so the two emit one module */
+    padding: functions.to-rem(28px);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+
+    h1 {
+      margin-block-end: var(--space-3);
+      font-size: var(--font-size-5);
+
+      // Pinned: overrides the base heading defaults.
+      font-weight: 600;
+      line-height: var(--line-height-body);
+    }
+
+    p {
+      color: var(--color-text-2);
+    }
+  }
+}

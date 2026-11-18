@@ -1,0 +1,21 @@
+@layer components {
+  .track {
+    display: flex;
+    block-size: 4px;
+    margin-block-start: var(--space-5);
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+    background: var(--color-surface-3);
+  }
+
+  .fill {
+    min-inline-size: 4px;
+    border-radius: var(--radius-xs);
+    background: var(--color-accent);
+
+    [data-level="near"] > &,
+    [data-level="capped"] > & {
+      background: var(--color-warning);
+    }
+  }
+}

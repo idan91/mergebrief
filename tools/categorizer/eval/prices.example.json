@@ -1,0 +1,7 @@
+{
+  "example-provider:example-model": {
+    "inputPerMTok": 1.23,
+    "outputPerMTok": 4.56,
+    "cacheReadPerMTok": 0.12
+  }
+}

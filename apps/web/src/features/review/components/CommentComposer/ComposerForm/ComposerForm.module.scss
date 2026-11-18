@@ -1,0 +1,64 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .composer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-block: var(--space-3);
+    padding-inline: var(--space-4);
+    font-family: var(--font-sans);
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-5);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .location[data-anchor="line"] {
+    font-family: var(--font-mono);
+  }
+
+  .error {
+    color: var(--color-negative);
+    font-size: var(--font-size-2);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+
+  // Qualified by .actions to outrank Button's own single-class and state
+  // rules, whose module may load after this one.
+  .actions .submit {
+    border-color: var(--color-line-raised);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  // Button's focused dim repaints its own edge, not this raised skin.
+  .actions .submit[aria-disabled="true"]:focus-visible {
+    border-color: functions.dim(var(--color-line-raised));
+    background: functions.dim(var(--color-surface-2));
+  }
+
+  @include mixins.hover {
+    .actions .submit:not([aria-disabled="true"]):hover {
+      border-color: color-mix(
+        in srgb,
+        var(--color-line-raised) 60%,
+        var(--color-text-1)
+      );
+      background: var(--color-surface-3);
+    }
+  }
+}

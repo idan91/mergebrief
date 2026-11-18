@@ -1,0 +1,74 @@
+@layer components {
+  .trigger {
+    /* Tracks IconButton md (32px, 1px border) and the 26px .avatar and
+       .person boxes: the inset that centres them in the cap is (32 - 2 - 26) / 2. */
+    --icon-button-inset-start: var(--space-1);
+
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+  }
+
+  .pendingSlot {
+    display: inline-flex;
+    visibility: hidden;
+  }
+
+  .avatar {
+    inline-size: 26px;
+    block-size: 26px;
+    border-radius: var(--radius-circle);
+    background: var(--color-accent);
+    object-fit: cover;
+  }
+
+  .presence {
+    position: relative;
+    display: inline-flex;
+
+    &[data-presence]::after {
+      position: absolute;
+      inset-block-start: -1px;
+      inset-inline-end: -1px;
+      inline-size: 8px;
+      block-size: 8px;
+      border: 2px solid var(--color-ground);
+      border-radius: var(--radius-pill);
+      background: var(--color-accent);
+      content: "";
+    }
+  }
+
+  .presenceGlyph {
+    display: grid;
+    inline-size: 16px;
+    block-size: 16px;
+    place-items: center;
+
+    &::before {
+      inline-size: 6px;
+      block-size: 6px;
+      border-radius: var(--radius-pill);
+      background: var(--color-accent);
+      content: "";
+    }
+  }
+
+  .person {
+    display: block;
+    box-sizing: border-box;
+    inline-size: 26px;
+    block-size: 26px;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- insets the 16px person glyph in the 26px avatar: icon geometry, so px */
+    padding: 5px;
+    color: var(--color-text-2);
+  }
+
+  .caret {
+    color: var(--color-text-2);
+  }
+
+  .icon {
+    color: var(--color-text-2);
+  }
+}

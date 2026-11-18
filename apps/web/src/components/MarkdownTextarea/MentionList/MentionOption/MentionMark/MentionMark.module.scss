@@ -1,0 +1,21 @@
+@layer components {
+  .avatar,
+  .avatarSlot,
+  .teamMark {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-circle);
+  }
+
+  .avatarSlot {
+    background: var(--color-surface-2);
+  }
+
+  .teamMark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-3);
+  }
+}

@@ -1,0 +1,60 @@
+@use "mixins";
+
+@layer components {
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: var(--space-2-5);
+    padding-block: var(--space-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-chip);
+    background: color-mix(
+      in srgb,
+      var(--badge-color) var(--tint-medium),
+      transparent
+    );
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--badge-color);
+  }
+
+  a.badge {
+    text-decoration: none;
+
+    @include mixins.hover {
+      &:hover {
+        border-color: color-mix(in srgb, var(--badge-color) 35%, transparent);
+        color: color-mix(in srgb, var(--badge-color) 80%, var(--color-text-1));
+      }
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .badge[data-color="neutral"] {
+    --badge-color: var(--color-text-2);
+  }
+
+  .badge[data-color="text"] {
+    --badge-color: var(--color-text-1);
+  }
+
+  .badge[data-color="violet"] {
+    --badge-color: var(--color-merged);
+  }
+
+  .badge[data-color="amber"] {
+    --badge-color: var(--color-warning);
+  }
+
+  .badge[data-color="positive"] {
+    --badge-color: var(--color-positive);
+  }
+
+  .badge[data-color="negative"] {
+    --badge-color: var(--color-negative);
+  }
+}

@@ -1,0 +1,51 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2-5);
+    min-block-size: functions.to-rem(24px);
+    color: var(--color-text-2);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  @include mixins.hover {
+    a.chip:hover {
+      color: var(--color-text-1);
+    }
+  }
+
+  .avatar {
+    display: grid;
+    flex: none;
+    inline-size: 18px;
+    block-size: 18px;
+    border-radius: var(--radius-circle);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-weight: 600;
+    outline: 1px solid var(--color-line-strong);
+    outline-offset: -1px;
+    place-items: center;
+  }
+
+  .chip[data-size="md"] .avatar {
+    inline-size: 24px;
+    block-size: 24px;
+  }
+
+  span.chip {
+    min-block-size: 0;
+  }
+
+  span.chip[data-size="sm"] .avatar {
+    inline-size: 16px;
+    block-size: 16px;
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The string-catalog boundary: en.json + createI18n() with resources baked in. apps/web binds react-i18next on top; the CLI and the worker call t() bare. Locale files are community-owned; the QA gates in this package's suite are the review bar.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate:types": "node scripts/generate-catalog-types.mjs",
+    "generate:types:check": "node scripts/generate-catalog-types.mjs --check",
+    "typecheck": "pnpm generate:types:check && tsc --noEmit",
+    "test": "pnpm generate:types:check && vitest run --coverage"
+  },
+  "dependencies": {
+    "i18next": "^26.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "types": "workspace:*",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

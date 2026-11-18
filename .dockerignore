@@ -1,0 +1,49 @@
+# Keep build contexts lean and deterministic: dependencies are installed
+# inside the image from the lockfile, never copied from the host — and no
+# locally generated artifact may enter a layer. `out` matters beyond size:
+# generation outputs and the worker's failed-generation dumps (cwd-relative
+# `out/`, e.g. apps/worker/out) carry private PR/code context.
+.git
+node_modules
+**/node_modules
+**/dist
+**/.output
+**/tsconfig.tsbuildinfo
+**/.vitepress/cache
+**/.vitepress/.temp
+out
+**/out
+build
+**/build
+coverage
+**/coverage
+docs
+# Local-only output and other checkouts, never part of a release: the image
+# a developer builds must match the one CI builds from a clean checkout.
+# Patterns here anchor at the context root, unlike .gitignore, so every
+# entry carries `**/`. Instance config is mounted, not baked (see the
+# compose files).
+**/mergebrief.config.yaml
+**/logs
+**/*.log
+**/test-results
+**/playwright-report
+**/.playwright-cli
+**/.screenshots
+**/.artifacts
+**/.worktrees
+**/.pnpm-store
+**/.claude
+**/.serena
+**/eval-reports
+**/*.cert
+# Mirror .gitignore's secret patterns — nothing credential-shaped may enter
+# an image layer (COPY . . would otherwise bake it in).
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+**/*.pem
+**/*.key
+secrets

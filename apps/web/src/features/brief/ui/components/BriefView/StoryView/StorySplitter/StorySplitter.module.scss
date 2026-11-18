@@ -1,0 +1,80 @@
+@use "functions";
+@use "layout";
+@use "mixins";
+
+$hit-area: 24px;
+$gap: functions.to-rem(layout.$story-group-gap);
+$line-rest: 3px;
+$line-active: 5px;
+
+@mixin active-line {
+  inline-size: $line-active;
+  background: var(--color-text-2);
+  opacity: 1;
+}
+
+@layer components {
+  // Absolutely placed into the card's grid area so the track list keeps its
+  // two columns: a third track would break the zen animation and the stacked
+  // mixin. The offset centres the hit area on the gap.
+  .splitter {
+    position: absolute;
+    inset-block: 0 functions.to-rem(layout.$chunk-card-gap);
+    inset-inline-start: calc(($hit-area + $gap) / -2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    grid-column: 2;
+    inline-size: $hit-area;
+    cursor: col-resize;
+    touch-action: none;
+
+    // Pinned and capped exactly like the card in StoryView, so the line sits
+    // beside the card wherever the group is scrolled to.
+    &::before {
+      content: "";
+      position: sticky;
+      inset-block-start: var(--sticky-stack-h);
+      flex: none;
+      inline-size: $line-rest;
+      block-size: min(100%, calc(100vh - var(--sticky-stack-h) - 24px));
+      border-radius: var(--radius-sm);
+      background: var(--color-text-3);
+      opacity: 0.05;
+      transition:
+        background-color var(--motion-fast) ease,
+        opacity var(--motion-fast) ease,
+        inline-size var(--motion-fast) ease;
+    }
+
+    &:focus-visible::before,
+    &[data-state="dragging"]::before {
+      @include active-line;
+    }
+
+    @include mixins.hover {
+      &:hover::before {
+        @include active-line;
+      }
+    }
+
+    // The ring wraps the line, not the full-height hit area: a handle-sized
+    // ring is two 8000px edges that read as a second card border.
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:focus-visible::before {
+      @include mixins.focus-ring;
+
+      outline-color: var(--color-text-2);
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .splitter::before {
+      transition: none;
+    }
+  }
+}

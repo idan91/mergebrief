@@ -1,0 +1,130 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .submitBox {
+    inline-size: functions.to-rem(640px);
+    max-block-size: min(
+      #{functions.to-rem(720px)},
+      calc(100dvh - #{functions.to-rem(96px)})
+    );
+    overflow-y: auto;
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      max-block-size: calc(100dvh - #{functions.to-rem(24px)});
+    }
+  }
+
+  .receiptBox {
+    display: flex;
+    flex-direction: column;
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: contain;
+    }
+  }
+
+  .receiptBody {
+    flex: 1 1 auto;
+    min-block-size: functions.to-rem(120px);
+
+    // The scrollport would clip a tab's or the panel's focus ring at its
+    // edges: the padding makes room for it and the margin cancels the shift.
+    padding: var(--space-2-5);
+    margin: calc(-1 * var(--space-2-5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: auto;
+    }
+  }
+
+  .outcomes {
+    display: flex;
+    gap: var(--space-2-5);
+    padding: 0;
+    border: 0;
+    margin-block: var(--space-2) var(--space-4-5);
+
+    legend {
+      padding: 0;
+      margin-block-end: var(--space-2-5);
+      color: var(--color-text-2);
+      font-size: var(--font-size-2);
+    }
+  }
+
+  .outcome {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-text-3);
+    font-size: var(--font-size-2);
+    cursor: pointer;
+
+    input {
+      flex-shrink: 0;
+    }
+
+    &[data-state="active"] {
+      border-color: var(--color-text-3);
+      background: functions.ink-lift(var(--color-line));
+      color: var(--color-text-1);
+
+      @include mixins.forced-selected;
+    }
+  }
+
+  .staleWarning {
+    margin-block-start: var(--space-4-5);
+    padding-block: var(--space-4);
+    padding-inline: var(--space-5);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    p {
+      color: var(--color-warning);
+    }
+  }
+
+  .staleAck {
+    margin-block-start: var(--space-3-5);
+  }
+
+  .submitStatus {
+    max-inline-size: 64ch;
+    margin-block-end: var(--space-3-5);
+    color: var(--color-text-3);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    &[data-kind="error"] {
+      color: var(--color-negative);
+    }
+  }
+
+  @media (width <= 720px) {
+    .outcomes {
+      flex-wrap: wrap;
+    }
+  }
+}

@@ -1,0 +1,58 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tools/*"
+allowBuilds:
+  "@parcel/watcher": true
+  esbuild: true
+
+# Transitive pins for advisories that ARE fixable (unlike the accepted list
+# below): scoped to the affected major so unrelated majors keep their own
+# resolution. Drop an entry once the owning dependency's own range covers it.
+overrides:
+  # GHSA-rgw5-rvv9-x895 + GHSA-mh99-v99m-4gvg (fixed in 1.1.18), then two
+  # recursion DoS advisories (fixed in 1.1.19 and 1.1.20); reached via vite >
+  # stylus > glob > minimatch.
+  "brace-expansion@1": "1.1.21"
+  # js-yaml !!omap quadratic CPU (fixed in 4.3.1) and the unbounded merge-key
+  # CPU advisory (fixed in 4.3.2); reached via @tanstack/react-start's build
+  # plugins and graphile-worker > cosmiconfig.
+  "js-yaml@4": "4.3.2"
+  # Two nanoid generator-loop advisories in the 3.x line, fixed in 3.3.18;
+  # reached via @tanstack/react-start > vite.
+  "nanoid@3": "3.3.18"
+  # Two browserslist advisories (unbounded cache growth, prototype write),
+  # fixed in 4.28.7; reached via @tanstack/react-start > vite.
+  "browserslist@4": "4.28.8"
+  # Quadratic-time DoS, fixed in 7.3.1; reached via vite > less.
+  "probe-image-size@7": "7.4.0"
+  # Event-loop DoS, fixed in 1.2.2; reached via vite > postcss.
+  "source-map-js@1": "1.2.2"
+  # GHSA-p6vx-979v-rg4c (fromJSON thenable assimilation, fixed in 1.6.1), the
+  # unchecked TypedArray memory exhaustion (fixed in 1.6.3), script injection
+  # through RegExp sources (fixed in 1.6.10) and code injection through a typed
+  # array's constructor (fixed in 1.6.11); reached via @tanstack/router-core's
+  # serializer.
+  "seroval@1": "1.6.11"
+  "seroval-plugins@1": "1.6.11"
+  # quote() command injection via a line terminator, fixed in 1.11.0; reached
+  # via concurrently, dev only.
+  "shell-quote@1": "1.12.0"
+  # Host confusion and server-side request forgery advisories, the last fixed
+  # in 3.1.9; reached via stylelint > table > ajv, dev only.
+  "fast-uri@3": "3.1.9"
+  # TLS validation bypass, cache poisoning and DoS advisories, the last fixed
+  # in 7.30.1; reached via jsdom, test only.
+  "undici@7": "7.30.1"
+  # Path traversal through source map auto-loading, fixed in 8.5.18; reached via
+  # tsup, which held an older 8.x than the one the web build resolves.
+  "postcss@8": "8.5.32"
+  # The bundled launch-editor's existence check bypass, fixed in 6.4.4; vitepress
+  # 1.x asks for 5.x and has no stable release on a newer line, so
+  # `pnpm -C apps/docs-site build` is what proves this override holds.
+  "vite@5": "6.4.5"
+  # Memory exhaustion on oversized collections, fixed in 4.6.6. Scoped to knip
+  # so this never moves the zod the product's schemas compile against.
+  "knip>zod": "4.6.6"
+  # List trie overflow and hash-collision DoS, fixed in 5.1.8; reached via sass.
+  "immutable@5": "5.1.9"

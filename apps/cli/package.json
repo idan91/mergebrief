@@ -1,0 +1,62 @@
+{
+  "name": "mergebrief",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Command-line client for MergeBrief, the self-hosted comprehension layer for code review.",
+  "keywords": [
+    "code-review",
+    "pull-requests",
+    "github",
+    "self-hosted",
+    "cli"
+  ],
+  "homepage": "https://github.com/idan91/mergebrief#readme",
+  "bugs": {
+    "url": "https://github.com/idan91/mergebrief/issues"
+  },
+  "license": "FSL-1.1-ALv2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idan91/mergebrief.git",
+    "directory": "apps/cli"
+  },
+  "bin": {
+    "mergebrief": "dist/mergebrief.js"
+  },
+  "engines": {
+    "node": "^24 || >=26"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "build": "tsup",
+    "link-dev": "pnpm build && pnpm add -g link:.",
+    "docs:appendix": "tsx scripts/embed-help.ts",
+    "docs:check": "tsx scripts/embed-help.ts --check",
+    "map:check": "tsx scripts/check-operations-map.ts",
+    "prepublishOnly": "tsx scripts/refuse-sentinel-publish.ts"
+  },
+  "dependencies": {
+    "brief-core": "workspace:*",
+    "commander": "^14.0.2",
+    "contract": "workspace:*",
+    "i18n": "workspace:*",
+    "types": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "persistence": "workspace:*",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,0 +1,11 @@
+@layer components {
+  .image {
+    display: block;
+    inline-size: auto;
+    min-inline-size: 78px;
+    max-inline-size: 248px;
+    block-size: 100%;
+    background: var(--color-surface-2);
+    object-fit: cover;
+  }
+}

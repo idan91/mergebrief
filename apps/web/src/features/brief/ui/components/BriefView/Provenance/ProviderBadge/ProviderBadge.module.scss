@@ -1,0 +1,57 @@
+@layer components {
+  // Keycap-split lockup: bordered cells divided by hairlines. The FIXED
+  // height + middle alignment stop the badge inflating the identity row's
+  // line box. Shrinkable after the title and repoRef — the badge carries
+  // unbounded artifact strings, so it must ellipsize under pressure or a
+  // long id re-opens the identity-row overflow. No own margins: the identity
+  // row's flex gap governs spacing.
+  .badge {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    align-items: stretch;
+
+    // One height with the ⓘ trigger and the warnings chip beside it: the
+    // three meta controls are a set, not three independent boxes.
+    block-size: var(--header-meta-control-h);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-2);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  // Block + line-height centering (not flex) so the model id can ellipsize
+  // — the artifact-controlled string is the badge's one unbounded cell. The
+  // line box is the badge's height less its two 1px borders, derived rather
+  // than restated, so it cannot fall out of step with the box.
+  .modelCell {
+    display: block;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    padding-inline: var(--space-2-5);
+    border-inline-start: 1px solid var(--color-line);
+    color: var(--color-text-1);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+
+    // Centres the text whatever size it is: the line box IS the cell's inner
+    // height, so it stays middled in both states without an optical nudge.
+    line-height: calc(var(--header-meta-control-h) - 2px);
+    text-overflow: ellipsis;
+  }
+
+  // Textual adapter-class end tag. Flex-centred, with no optical nudge: the
+  // 1px translate this used to carry was tuned to an 18px badge and fought
+  // true centring once the box grew.
+  .classTag {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: var(--space-2);
+    border-inline-start: 1px solid var(--color-line);
+    font-size: var(--font-size-1);
+    letter-spacing: 0.08em;
+    line-height: var(--line-height-control);
+  }
+}

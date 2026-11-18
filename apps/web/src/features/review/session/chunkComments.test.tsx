@@ -1,0 +1,230 @@
+// @vitest-environment jsdom
+// The per-chunk comment selector must keep a stable array identity while the
+// chunk's own slice is unchanged. That identity is what lets React.memo on
+// ChunkCard actually skip re-renders.
+import { act, renderHook } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { describe, expect, it } from "vitest";
+
+import { type Brief, buildBriefViewModel } from "@web/features/brief/model";
+import { type CommentAnchor } from "../utils/comments";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
+import {
+  ReviewSessionProvider,
+  useChunkReviewComments,
+  useFileReviewComments,
+  useReviewCommentsForChunks,
+  useReviewSession,
+} from ".";
+
+const brief: Brief = {
+  artifactKind: "brief",
+  pr: {
+    repo: "acme/widgets",
+    number: 7,
+    title: "t",
+    url: "https://example.com/pr/7",
+    sha: "head1234",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "g",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [
+    {
+      id: "chunk-a",
+      changeGroupId: "g1",
+      file: "src/a.ts",
+      concern: "implementation",
+      role: "core",
+      loc: { added: 1, deleted: 0 },
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [],
+      diff: [{ kind: "add", content: "a();", newLine: 11 }],
+    },
+    {
+      id: "chunk-b",
+      changeGroupId: "g1",
+      file: "src/b.ts",
+      concern: "implementation",
+      role: "supporting",
+      loc: { added: 1, deleted: 0 },
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [],
+      diff: [{ kind: "add", content: "b();", newLine: 21 }],
+    },
+  ],
+  concernView: [],
+};
+
+function anchorFor(chunkId: string, line: number): CommentAnchor {
+  return {
+    kind: CommentAnchorKinds.LINE,
+    chunkId,
+    file: `src/${chunkId.slice(-1)}.ts`,
+    side: DiffSides.NEW,
+    startLine: line,
+    endLine: line,
+    rowIds: [`${chunkId}-row-0`],
+    selectedText: "code",
+  };
+}
+
+export interface ReviewSessionTestWrapperProps {
+  children: ReactNode;
+}
+
+function ReviewSessionTestWrapper({ children }: ReviewSessionTestWrapperProps) {
+  return (
+    <ReviewSessionProvider
+      briefId="test-brief"
+      model={buildBriefViewModel(brief)}
+    >
+      {children}
+    </ReviewSessionProvider>
+  );
+}
+
+describe("useChunkReviewComments", () => {
+  it("keeps identity stable across other chunks' comment interactions", () => {
+    const { result } = renderHook(
+      () => ({
+        a: useChunkReviewComments("chunk-a"),
+        b: useChunkReviewComments("chunk-b"),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    // Baseline BEFORE the unrelated save, so identity churn during the save
+    // fails here.
+    const bBeforeSave = result.current.b;
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-a", 11),
+        body: "first",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+    });
+    const aAfterSave = result.current.a;
+    const bAfterSave = result.current.b;
+    expect(aAfterSave).toHaveLength(1);
+    expect(bAfterSave).toBe(bBeforeSave);
+
+    // Edit, toggle, then delete chunk-a's comment: chunk-b's slice must
+    // keep the exact same identity through all three.
+    const commentId = aAfterSave[0]!.id;
+    act(() => {
+      void result.current.actions.updateComment(commentId, "edited");
+    });
+    expect(result.current.b).toBe(bAfterSave);
+    expect(result.current.a).not.toBe(aAfterSave);
+    expect(result.current.a[0]!.body).toBe("edited");
+
+    const aAfterEdit = result.current.a;
+    act(() => result.current.actions.toggleComment(commentId));
+    expect(result.current.b).toBe(bAfterSave);
+    expect(result.current.a).not.toBe(aAfterEdit);
+
+    act(() => result.current.actions.deleteComment(commentId));
+    expect(result.current.b).toBe(bAfterSave);
+    expect(result.current.a).toHaveLength(0);
+  });
+
+  it("selects only the chunk's own comments", () => {
+    const { result } = renderHook(
+      () => ({
+        a: useChunkReviewComments("chunk-a"),
+        b: useChunkReviewComments("chunk-b"),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-a", 11),
+        body: "on a",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-b", 21),
+        body: "on b",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+    });
+    expect(result.current.a.map((comment) => comment.body)).toEqual(["on a"]);
+    expect(result.current.b.map((comment) => comment.body)).toEqual(["on b"]);
+  });
+
+  it("does not include file comments in the chunk slice", () => {
+    const { result } = renderHook(
+      () => ({
+        a: useChunkReviewComments("chunk-a"),
+        file: useFileReviewComments("src/a.ts"),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
+        body: "on the file",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+    });
+    expect(result.current.a).toEqual([]);
+    expect(result.current.file.map((comment) => comment.body)).toEqual([
+      "on the file",
+    ]);
+  });
+});
+
+describe("useReviewCommentsForChunks", () => {
+  it("selects the comments of every listed chunk and nothing else", () => {
+    const { result } = renderHook(
+      () => ({
+        both: useReviewCommentsForChunks(["chunk-a", "chunk-b"]),
+        none: useReviewCommentsForChunks([]),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-a", 11),
+        body: "on a",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-b", 21),
+        body: "on b",
+        collapsed: false,
+        status: DraftCommentStatuses.DRAFT,
+      });
+    });
+    expect(result.current.both.map((comment) => comment.body)).toEqual([
+      "on a",
+      "on b",
+    ]);
+    expect(result.current.none).toEqual([]);
+  });
+});

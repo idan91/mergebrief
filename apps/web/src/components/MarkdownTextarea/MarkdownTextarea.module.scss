@@ -1,0 +1,166 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .markdownTextarea {
+    display: block;
+  }
+
+  // No class weight, so a caller's `labelClassName` wins.
+  :where(.markdownTextarea) > label {
+    display: block;
+    margin-block-end: var(--space-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+  }
+
+  .field {
+    border: 1px solid var(--color-control-edge);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out);
+
+    // A textarea matches :focus-visible on pointer focus too, so this edge and
+    // glow are the one focus indicator for both.
+    &:has(.textarea:focus-visible) {
+      border-color: var(--color-accent);
+      box-shadow: var(--shadow-field-focus);
+    }
+
+    // Increased contrast repaints every border in text colour (base.scss), so
+    // the accent edge alone would leave keyboard focus unmarked there.
+    @media (prefers-contrast: more) {
+      &:has(.textarea:focus-visible) {
+        @include mixins.focus-ring;
+      }
+    }
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding-block: var(--space-2) 0;
+    padding-inline: var(--space-2);
+  }
+
+  .tabs {
+    display: flex;
+    gap: var(--space-1);
+
+    button {
+      min-block-size: functions.to-rem(24px);
+      padding-block: var(--space-1);
+      padding-inline: var(--space-3);
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-text-3);
+      cursor: pointer;
+      font-size: var(--font-size-2);
+      font-weight: 500;
+
+      @include mixins.hover {
+        &:hover {
+          color: var(--color-text-2);
+        }
+      }
+
+      &[data-state="active"] {
+        color: var(--color-text-1);
+
+        @include mixins.forced-selected;
+      }
+
+      @include mixins.focus-visible;
+    }
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Specificity above Modal's `textarea` rule, which reaches every textarea
+  // inside a dialog; the field draws the edge and the glow, not the control.
+  .markdownTextarea .textarea {
+    display: block;
+    inline-size: 100%;
+    min-block-size: functions.to-rem(96px);
+    max-block-size: functions.to-rem(400px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4);
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--color-text-1);
+
+    // Comments are text-first: the body composes in the UI sans; code stays
+    // mono inside fences and the suggestion diff card.
+    font-family: var(--font-sans);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
+    // long comment scrolls instead of swallowing the page; the manual
+    // resize grip stays.
+    field-sizing: content;
+    overflow-y: auto;
+    resize: vertical;
+
+    @include mixins.touch-field-text;
+
+    &::placeholder {
+      color: var(--color-text-3);
+    }
+
+    // Transparent, not none: forced colours paint a transparent outline.
+    &:focus-visible {
+      border: 0;
+      outline: 2px solid transparent;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
+  .hint {
+    padding-block: 0 var(--space-3);
+    padding-inline: var(--space-4);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+
+    code {
+      color: var(--color-text-2);
+    }
+  }
+
+  .fileInput {
+    display: none;
+  }
+
+  .previewPanel {
+    min-block-size: functions.to-rem(96px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .empty {
+    color: var(--color-text-3);
+    font-size: var(--font-size-2);
+  }
+}

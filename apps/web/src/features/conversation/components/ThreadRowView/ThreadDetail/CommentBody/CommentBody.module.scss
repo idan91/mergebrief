@@ -1,0 +1,35 @@
+@use "functions";
+
+@layer components {
+  .body {
+    position: relative;
+    min-inline-size: 0;
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-reading);
+    overflow-wrap: anywhere;
+
+    // Tracks COMMENT_CLAMP_PX in consts.ts.
+    &[data-state="clamped"] {
+      max-block-size: 240px;
+      overflow: hidden;
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset-block-end: 0;
+        inset-inline: 0;
+        block-size: functions.to-rem(40px);
+        background: linear-gradient(transparent, var(--color-surface-1));
+        pointer-events: none;
+      }
+    }
+  }
+
+  .toggle {
+    justify-self: start;
+    margin-block-end: var(--space-3);
+    margin-inline: var(--space-3);
+  }
+}

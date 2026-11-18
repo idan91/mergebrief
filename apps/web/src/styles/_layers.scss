@@ -1,0 +1,68 @@
+@layer tokens, base, layout, components;
+
+/**
+ * Everything pinned to the top of the brief screen, as ONE value: the header,
+ * the focus and re-anchor banner strips (0px while unmounted) and the comparison
+ * toolbar (0px wherever it unmounts). Anything that has to sit clear of the pinned stack —
+ * a sticky offset, a scroll landing, the header's own collapse trigger —
+ * reads this rather than re-adding the parts, which is how the parts drifted
+ * apart and let a group heading land underneath them.
+ *
+ * Registered so it resolves to a real length: an unregistered custom property
+ * would hand JS the literal `calc(...)` text instead of a number.
+ */
+@property --sticky-stack-h {
+  syntax: "<length>";
+  inherits: true;
+  /* stylelint-disable-next-line length-zero-no-unit --
+     @property's initial-value must match the declared <length> syntax; a
+     unitless 0 is rejected by the registration in some engines. */
+  initial-value: 0px;
+}
+
+/** Air between a placed chunk head and the pinned stack, registered so the
+ * scroll engine reads a number whatever unit tokens.scss sets it in. */
+@property --chunk-scroll-gap {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 40px;
+}
+
+/** Where a placed chunk head rests against the stack, registered for the
+ * same reason. */
+@property --chunk-head-gap {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 40px;
+}
+
+/** The side safe-area insets, registered so the height model reads px. */
+@property --safe-area-inset-left {
+  syntax: "<length>";
+  inherits: true;
+  /* stylelint-disable-next-line length-zero-no-unit --
+     @property's initial-value must match the declared <length> syntax. */
+  initial-value: 0px;
+}
+
+@property --safe-area-inset-right {
+  syntax: "<length>";
+  inherits: true;
+  /* stylelint-disable-next-line length-zero-no-unit --
+     @property's initial-value must match the declared <length> syntax. */
+  initial-value: 0px;
+}
+
+@property --main-gutter {
+  inherits: true;
+  /* stylelint-disable-next-line length-zero-no-unit --
+     @property's initial-value must match the declared <length> syntax. */
+  initial-value: 0px;
+  syntax: "<length>";
+}
+
+@property --progress-scale {
+  inherits: false;
+  initial-value: 0;
+  syntax: "<number>";
+}

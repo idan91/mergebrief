@@ -1,0 +1,218 @@
+// Entry-comment operations: the single comment is maintained by
+// delete-and-repost, or edited in place where no notification is wanted. It lives on the issues timeline, so it uses the
+// issues-comments endpoints; for a pull request those are authorized by
+// `Pull requests: write`, so comments need no `Issues` scope. Every failure
+// funnels through `mapRequestError`.
+import type { Octokit } from "octokit";
+import { RequestError } from "octokit";
+import {
+  mapRequestError,
+  unexpectedResponseError,
+  type GitHubApiError,
+} from "../errors";
+import type { Mutable, Result } from "types/utils";
+import { HttpStatuses } from "types/http";
+
+export interface PostEntryCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  readonly prNumber: number;
+  readonly body: string;
+}
+
+export interface DeleteCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  /** The comment id returned by a prior `postEntryComment`. */
+  readonly commentId: bigint;
+}
+
+/** A posted comment's id, the handle a later fetch or delete takes. */
+export interface PostedComment {
+  readonly commentId: bigint;
+}
+
+/** A comment's live body; GitHub's null body reads as empty. */
+export interface FetchedComment {
+  readonly body: string;
+}
+
+/** One comment on a PR's conversation timeline. */
+export interface IssueComment {
+  readonly commentId: bigint;
+  /** GitHub's numeric user id; absent for a deleted account. */
+  readonly authorId?: bigint;
+  readonly body: string;
+}
+
+export interface ListIssueCommentsInput {
+  readonly owner: string;
+  readonly repo: string;
+  readonly prNumber: number;
+}
+
+const COMMENTS_PER_PAGE = 100;
+
+export interface EditCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  /** The comment id returned by a prior `postEntryComment`. */
+  readonly commentId: bigint;
+  readonly body: string;
+}
+
+export interface FetchCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  /** The comment id returned by a prior `postEntryComment`. */
+  readonly commentId: bigint;
+}
+
+/**
+ * Read a previously posted Entry comment's current body. A 404 is an expected
+ * state for the delete-and-repost flow, so it maps to `ok` with `undefined`.
+ */
+export async function fetchComment(
+  octokit: Octokit,
+  input: FetchCommentInput,
+): Promise<Result<FetchedComment | undefined, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.issues.getComment({
+      owner: input.owner,
+      repo: input.repo,
+      comment_id: Number(input.commentId),
+    });
+    return { ok: true, value: { body: response.data.body ?? "" } };
+  } catch (error) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
+      return { ok: true, value: undefined };
+    }
+    return { ok: false, error: mapRequestError(error, "fetch comment") };
+  }
+}
+
+/**
+ * Every comment on a PR's conversation timeline, oldest first, paginated to
+ * exhaustion. A comment whose id is past JavaScript's safe range fails the
+ * read whole, as a post would: a rounded id could delete another comment.
+ */
+export async function listIssueComments(
+  octokit: Octokit,
+  input: ListIssueCommentsInput,
+): Promise<Result<IssueComment[], GitHubApiError>> {
+  try {
+    const listed = await octokit.paginate(octokit.rest.issues.listComments, {
+      owner: input.owner,
+      repo: input.repo,
+      issue_number: input.prNumber,
+      per_page: COMMENTS_PER_PAGE,
+    });
+    const unsafe = listed.some((comment) => !Number.isSafeInteger(comment.id));
+    if (unsafe) {
+      return { ok: false, error: unexpectedResponseError("list comments") };
+    }
+    return { ok: true, value: listed.map(shapeIssueComment) };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "list comments") };
+  }
+}
+
+function shapeIssueComment(comment: {
+  readonly id: number;
+  readonly body?: string | undefined;
+  readonly user: { readonly id: number } | null;
+}): IssueComment {
+  const shaped: Mutable<IssueComment> = {
+    commentId: BigInt(comment.id),
+    body: comment.body ?? "",
+  };
+  if (comment.user !== null) {
+    shaped.authorId = BigInt(comment.user.id);
+  }
+  return shaped;
+}
+
+/**
+ * Post the Entry comment on a PR's conversation timeline and return its id
+ * (branded downstream by persistence, a plain `bigint` here).
+ */
+export async function postEntryComment(
+  octokit: Octokit,
+  input: PostEntryCommentInput,
+): Promise<Result<PostedComment, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.issues.createComment({
+      owner: input.owner,
+      repo: input.repo,
+      issue_number: input.prNumber,
+      body: input.body,
+    });
+    // JSON.parse rounds ints past 2^53 before we see them; a lossy comment id
+    // would silently break the delete-and-repost cycle.
+    if (!Number.isSafeInteger(response.data.id)) {
+      return {
+        ok: false,
+        error: unexpectedResponseError("post entry comment"),
+      };
+    }
+    return { ok: true, value: { commentId: BigInt(response.data.id) } };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "post entry comment") };
+  }
+}
+
+/**
+ * Delete a previously posted Entry comment. Idempotent: a 404 means the comment
+ * is already gone, which is a success for a delete-and-repost flow.
+ */
+export async function deleteComment(
+  octokit: Octokit,
+  input: DeleteCommentInput,
+): Promise<Result<void, GitHubApiError>> {
+  try {
+    await octokit.rest.issues.deleteComment({
+      owner: input.owner,
+      repo: input.repo,
+      comment_id: Number(input.commentId),
+    });
+    return { ok: true, value: undefined };
+  } catch (error) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
+      return { ok: true, value: undefined };
+    }
+    return { ok: false, error: mapRequestError(error, "delete comment") };
+  }
+}
+
+/**
+ * Replace a posted comment's body in place; GitHub notifies nobody of an
+ * edit. `false` when the comment is gone (404), so a caller can post anew.
+ */
+export async function editComment(
+  octokit: Octokit,
+  input: EditCommentInput,
+): Promise<Result<boolean, GitHubApiError>> {
+  try {
+    await octokit.rest.issues.updateComment({
+      owner: input.owner,
+      repo: input.repo,
+      comment_id: Number(input.commentId),
+      body: input.body,
+    });
+    return { ok: true, value: true };
+  } catch (error) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
+      return { ok: true, value: false };
+    }
+    return { ok: false, error: mapRequestError(error, "edit comment") };
+  }
+}

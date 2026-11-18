@@ -1,0 +1,23 @@
+@use "functions";
+
+@layer components {
+  .summary {
+    min-inline-size: 0;
+  }
+
+  .eyebrow {
+    margin-block-end: var(--space-3);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+  }
+
+  // Out-ranks Markdown's own heading scale, which sizes a demoted `##` as a
+  // sub-heading; here Overview and Changelog are the page's section headings.
+  .summary .prose :is(h3, h4) {
+    color: var(--color-text-1);
+    font-size: var(--font-size-5);
+    font-weight: 600;
+    line-height: var(--line-height-heading);
+  }
+}

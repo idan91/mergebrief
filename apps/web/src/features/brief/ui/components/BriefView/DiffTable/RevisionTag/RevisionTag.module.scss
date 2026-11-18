@@ -1,0 +1,25 @@
+@use "mixins";
+
+@layer components {
+  .tag {
+    padding-block: 0;
+    padding-inline: var(--space-2-5);
+
+    // Same as the sign column: the badge text would fuse onto copied code.
+    @include mixins.user-select(none);
+
+    border: 1px solid var(--color-accent-edge);
+    border-radius: var(--radius-pill);
+    margin-inline-start: var(--space-3-5);
+    color: var(--color-accent);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-1);
+    font-weight: 600;
+    vertical-align: 1px;
+
+    &[data-kind="removed"] {
+      border-color: color-mix(in srgb, var(--color-negative) 50%, transparent);
+      color: var(--color-negative);
+    }
+  }
+}

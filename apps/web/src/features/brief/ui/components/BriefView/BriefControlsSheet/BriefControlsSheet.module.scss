@@ -1,0 +1,90 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .body {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-5);
+    overflow-y: auto;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the sheet body's foot room, 4px from 16 and 24 */
+    padding-block: var(--space-2) functions.to-rem(20px);
+    padding-inline: var(--space-5);
+  }
+
+  .account {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-block-size: functions.to-rem(32px);
+  }
+
+  .accountLabel {
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+  }
+
+  .comparison {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .stats {
+    display: grid;
+    margin: 0;
+  }
+
+  .stat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    align-items: center;
+    justify-content: space-between;
+    min-block-size: functions.to-rem(36px);
+    padding-block: var(--space-2);
+    border-block-end: 1px solid var(--color-line);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+
+    dt {
+      white-space: nowrap;
+    }
+
+    dd {
+      min-inline-size: 0;
+      margin: 0;
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+  }
+
+  .actions {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .actionRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+
+    > span:first-child {
+      flex: 1;
+    }
+
+    // Nested to outrank ToolbarButton's own minimum: 44px targets in a sheet.
+    button {
+      min-block-size: functions.to-rem(44px);
+    }
+  }
+
+  .submit > * {
+    inline-size: 100%;
+    min-block-size: functions.to-rem(44px);
+  }
+}

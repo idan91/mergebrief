@@ -1,0 +1,118 @@
+// README flag-appendix generator: runs each command's `--help` through the
+// REAL program and splices the output between the README's marker comments.
+// `--check` rewrites nothing and exits 1 on staleness; the gate judges by
+// exit code.
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { runCli } from "../src/program";
+import type { CliDeps } from "../src/types";
+
+const README = join(fileURLToPath(new URL("..", import.meta.url)), "README.md");
+const BEGIN = "<!-- BEGIN GENERATED FLAG APPENDIX (pnpm docs:appendix) -->";
+const END = "<!-- END GENERATED FLAG APPENDIX -->";
+
+/** One help screen's argv: the command path tokens, then `--help`. */
+type HelpArgv = [...path: string[], help: "--help"];
+
+const COMMANDS: readonly HelpArgv[] = [
+  ["--help"],
+  ["auth", "login", "--help"],
+  ["auth", "status", "--help"],
+  ["auth", "profiles", "--help"],
+  ["auth", "use", "--help"],
+  ["auth", "owners", "--help"],
+  ["repos", "--help"],
+  ["pr", "--help"],
+  ["groups", "--help"],
+  ["product-diff", "--help"],
+  ["conversation", "--help"],
+  ["diff", "--help"],
+  ["delta", "--help"],
+  ["session", "--help"],
+  ["marks", "--help"],
+  ["narrative", "--help"],
+  ["context", "--help"],
+  ["draft", "create", "--help"],
+  ["draft", "update", "--help"],
+  ["draft", "reanchor", "--help"],
+  ["draft", "delete", "--help"],
+  ["draft", "attach", "--help"],
+  ["chunk-read", "--help"],
+  ["risk", "dismiss", "--help"],
+  ["risk", "address", "--help"],
+  ["risk", "reopen", "--help"],
+  ["reclassify", "--help"],
+  ["outcome", "--help"],
+  ["thread", "resolve", "--help"],
+  ["thread", "unresolve", "--help"],
+  ["ready", "--help"],
+  ["generate", "--help"],
+  ["collaborators", "--help"],
+  ["capabilities", "--help"],
+  ["reply", "--help"],
+  ["submit", "--help"],
+];
+
+async function helpText(argv: string[]): Promise<string> {
+  const out: string[] = [];
+  const deps: CliDeps = {
+    fetch: async () => {
+      throw new Error("--help must not fetch");
+    },
+    env: {},
+    configDir: "/nonexistent",
+    cacheDir: "/nonexistent",
+    stdout: (text) => out.push(text),
+    stderr: () => undefined,
+    readStdin: async () => {
+      throw new Error("--help must not read stdin");
+    },
+    gitOriginUrl: () => undefined,
+  };
+  const code = await runCli(argv, deps);
+  if (code !== 0) {
+    throw new Error(`help for "${argv.join(" ")}" exited ${code}`);
+  }
+  return out.join("").trimEnd();
+}
+
+async function buildAppendix(): Promise<string> {
+  const sections: string[] = [];
+  for (const argv of COMMANDS) {
+    const label = argv.slice(0, -1).join(" ") || "mergebrief";
+    sections.push(
+      `### \`${label === "mergebrief" ? "mergebrief" : `mergebrief ${label}`}\`\n\n\`\`\`\n${await helpText(argv)}\n\`\`\``,
+    );
+  }
+  return sections.join("\n\n");
+}
+
+const readme = readFileSync(README, "utf8");
+const beginAt = readme.indexOf(BEGIN);
+const endAt = readme.indexOf(END);
+if (beginAt === -1 || endAt === -1 || endAt < beginAt) {
+  console.error("README.md is missing the generated-appendix markers");
+  process.exit(1);
+}
+
+const appendix = await buildAppendix();
+const next =
+  readme.slice(0, beginAt + BEGIN.length) +
+  "\n\n" +
+  appendix +
+  "\n\n" +
+  readme.slice(endAt);
+
+if (process.argv.includes("--check")) {
+  if (next !== readme) {
+    console.error(
+      "README flag appendix is stale; run: pnpm --dir apps/cli docs:appendix",
+    );
+    process.exit(1);
+  }
+  console.info("README flag appendix is current.");
+} else {
+  writeFileSync(README, next);
+  console.info("README flag appendix regenerated.");
+}

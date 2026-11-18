@@ -1,0 +1,522 @@
+name: Release
+
+# One git tag `vX.Y.Z` (or `vX.Y.Z-rc.N`) publishes a release with nothing
+# committed. `verify` refuses a tag without its notes file; `cli` stamps the
+# version and packs the tarball; `npm` publishes it through trusted
+# publishing, an rc under the `next` dist-tag; `image` pushes
+# `ghcr.io/idan91/mergebrief:X.Y.Z` for linux/amd64 and linux/arm64; and
+# `release` drafts the GitHub Release, uploads the stamped compose files
+# and version.json, then publishes it. `latest` on npm, on ghcr and on the
+# Releases page moves only when the tag is the highest stable version. A
+# run that does not publish (a dispatch, or a tag on any repository but the
+# publishing one) rehearses the same path with `--dry-run`, a `dry-run`
+# image built as `dev` that stays on the runner, and the assets as a
+# workflow artifact.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to rehearse; its notes file must exist. Nothing publishes."
+        required: true
+        default: "0.1.0"
+        type: string
+
+# Fork-safety bundle, same as ci.yml: no ambient scopes, every job re-grants
+# the minimum, no checkout leaves credentials behind, every action pinned.
+permissions: {}
+
+# One queue per trigger: a tag run never cancels a running one, so two tags
+# pushed close together publish in order and the later placement sees the
+# earlier tag. A group holds one running and one pending run (`queue: max`
+# waits for an actionlint that knows it), so push release tags one at a
+# time; a dropped run is re-run from Actions. Rehearsals queue on their own.
+concurrency:
+  group: release-${{ github.event_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/idan91/mergebrief
+
+jobs:
+  verify:
+    name: Check the tag and its notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      publish: ${{ steps.resolve.outputs.publish }}
+      version: ${{ steps.place.outputs.version }}
+      channel: ${{ steps.place.outputs.channel }}
+      latest: ${{ steps.place.outputs.latest }}
+      dist_tag: ${{ steps.place.outputs.dist_tag }}
+      known_tags: ${{ steps.place.outputs.known_tags }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          # A publishing workflow restores no cache: a poisoned entry would
+          # ship in the release.
+          package-manager-cache: false
+
+      - name: Install the release tool
+        run: pnpm install --frozen-lockfile --filter release...
+
+      # Only vX.Y.Z or vX.Y.Z-rc.N publishes. Anything else would otherwise
+      # push an image and move `latest` to it. Only the public repository
+      # publishes: a tag on any other copy runs as a rehearsal. GitHub
+      # reports the owner's casing as stored, so the slug compares
+      # case-insensitively.
+      - name: Resolve the version
+        id: resolve
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REPOSITORY: ${{ github.repository }}
+          PUBLISHING_REPOSITORY: idan91/mergebrief
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            if ! printf '%s\n' "$REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'; then
+              echo "::error::tag $REF_NAME is not vX.Y.Z or vX.Y.Z-rc.N; only a release tag publishes"
+              exit 1
+            fi
+            TAG="$REF_NAME"
+          else
+            TAG="v${INPUT_VERSION#v}"
+          fi
+          PUBLISH=false
+          if [ "$EVENT" = "push" ] && [ "${REPOSITORY,,}" = "${PUBLISHING_REPOSITORY,,}" ]; then
+            PUBLISH=true
+          elif [ "$EVENT" = "push" ]; then
+            echo "publish=false (repository $REPOSITORY is not the publishing repo)"
+          fi
+          {
+            echo "tag=$TAG"
+            echo "publish=$PUBLISH"
+          } >> "$GITHUB_OUTPUT"
+
+      # The tags already published place this one, read through the API so
+      # the checkout stays shallow: a hotfix cut from an older branch must
+      # never become `latest` on npm, on ghcr or on the Releases page (it
+      # publishes as `maintenance`), and an rc older than the newest tag
+      # never takes `next` (it publishes as `superseded`).
+      - name: Check the notes file and place the tag
+        id: place
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          REFS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref')
+          KNOWN=$(printf '%s\n' "$REFS" | sed 's#^refs/tags/##' | { grep -v -x -F -- "$TAG" || true; } | paste -sd, -)
+          pnpm --silent -C tools/release run check --tag "$TAG" --known-tags "$KNOWN" --json > "$RUNNER_TEMP/check.json"
+          CHANNEL=$(jq -r .channel "$RUNNER_TEMP/check.json")
+          LATEST=$(jq -r .isHighestStable "$RUNNER_TEMP/check.json")
+          HIGHEST=$(jq -r .isHighest "$RUNNER_TEMP/check.json")
+          if [ "$CHANNEL" = "rc" ] && [ "$HIGHEST" = "true" ]; then
+            DIST_TAG=next
+          elif [ "$CHANNEL" = "rc" ]; then
+            DIST_TAG=superseded
+          elif [ "$LATEST" = "true" ]; then
+            DIST_TAG=latest
+          else
+            DIST_TAG=maintenance
+          fi
+          {
+            echo "version=$(jq -r .version "$RUNNER_TEMP/check.json")"
+            echo "channel=$CHANNEL"
+            echo "latest=$LATEST"
+            echo "dist_tag=$DIST_TAG"
+            echo "known_tags=$KNOWN"
+          } >> "$GITHUB_OUTPUT"
+
+  cli:
+    name: Build and pack the CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          # A publishing workflow restores no cache: a poisoned entry would
+          # ship in the release.
+          package-manager-cache: false
+
+      # The whole workspace: the CLI bundle takes the i18n catalog in.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Stamp the version
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: pnpm --silent -C tools/release run stamp "$VERSION"
+
+      # The sentinel guard runs here by name: `npm publish <tarball>` runs no
+      # lifecycle script, so `prepublishOnly` would never fire downstream.
+      - name: Build and check the sentinel
+        working-directory: apps/cli
+        run: |
+          set -euo pipefail
+          pnpm build
+          pnpm exec tsx scripts/refuse-sentinel-publish.ts
+
+      # After the last pnpm script in apps/cli: pnpm reinstalls before a
+      # script whose manifest no longer matches the lockfile, and the
+      # pruned manifest no longer lists the bundle's inputs.
+      - name: Prune the manifest for publish
+        run: pnpm --silent -C tools/release run prune-manifest
+
+      - name: Pack
+        working-directory: apps/cli
+        run: |
+          set -euo pipefail
+          npm pack --pack-destination "$RUNNER_TEMP"
+          cp ../../.nvmrc "$RUNNER_TEMP/.nvmrc"
+
+      - name: Keep the tarball for the publish job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cli-tarball
+          path: |
+            ${{ runner.temp }}/*.tgz
+            ${{ runner.temp }}/.nvmrc
+          # The artifact drops dotfiles unless told otherwise; .nvmrc is one.
+          include-hidden-files: true
+          if-no-files-found: error
+
+  npm:
+    name: Publish the CLI to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [verify, cli]
+    permissions:
+      # Trusted publishing: npm exchanges the OIDC token for a publish
+      # session, so no token lives in this repository. This job installs
+      # nothing and runs no build, so nothing else can mint that token.
+      # contents: read is for the tag listing before a `latest` publish.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Fetch the tarball
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: cli-tarball
+          path: ${{ runner.temp }}/cli
+
+      # No checkout here, so `.nvmrc` rides in the artifact: one Node version.
+      # Read into an output because setup-node resolves `node-version-file`
+      # under the workspace, which this job does not have.
+      - name: Read the Node version
+        id: node
+        run: echo "version=$(cat "$RUNNER_TEMP/cli/.nvmrc")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      # A re-run after a failure further down must not trip over the version
+      # it already published, and must never mistake someone else's publish
+      # for its own: only a version whose bytes on npm equal this tarball is
+      # skipped. (`npm view` of a missing version exits 0 with no output once
+      # the package exists, so presence is read from the output, not the
+      # exit code.) A rehearsal skips the check: its dry run publishes
+      # nothing, whatever npm holds.
+      - name: Skip a version these bytes already published
+        id: existing
+        if: needs.verify.outputs.publish == 'true'
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          PUBLISHED=$(npm view "mergebrief@$VERSION" dist.integrity 2>/dev/null || true)
+          LOCAL="sha512-$(openssl dgst -sha512 -binary "$RUNNER_TEMP"/cli/*.tgz | base64 -w0)"
+          if [ -z "$PUBLISHED" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif [ "$PUBLISHED" = "$LOCAL" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::mergebrief@$VERSION is already on npm with different bytes; refusing to continue"
+            exit 1
+          fi
+
+      # No `--provenance`: npm attaches it by itself once the repository is
+      # public, and refuses it while private.
+      # A re-run of this job after a newer tag shipped must not move `latest`
+      # or `next` back: the tags are read again right before the publish.
+      - name: Publish
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
+          PUBLISH: ${{ needs.verify.outputs.publish }}
+        run: |
+          set -euo pipefail
+          TAGS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref' \
+            | sed 's#^refs/tags/v##' | { grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$' || true; })
+          if [ "$DIST_TAG" = "latest" ]; then
+            HIGHEST=$(printf '%s\n%s\n' "$TAGS" "$VERSION" | { grep -v -- '-rc\.' || true; } | sort -V | tail -1)
+            if [ "$HIGHEST" != "$VERSION" ]; then
+              echo "::warning::$HIGHEST shipped after this run was placed; publishing $VERSION as maintenance"
+              DIST_TAG=maintenance
+            fi
+          elif [ "$DIST_TAG" = "next" ]; then
+            # `~rc.` sorts before the release under sort -V; `-rc.` would not.
+            HIGHEST=$(printf '%s\n%s\n' "$TAGS" "$VERSION" | sed '/^$/d; s/-rc\./~rc./' | sort -V | tail -1 | sed 's/~rc\./-rc./')
+            if [ "$HIGHEST" != "$VERSION" ]; then
+              echo "::warning::$HIGHEST was tagged after this run was placed; publishing $VERSION as superseded"
+              DIST_TAG=superseded
+            fi
+          fi
+          ARGS=(--tag "$DIST_TAG")
+          if [ "$PUBLISH" != "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          npm publish "$RUNNER_TEMP"/cli/*.tgz "${ARGS[@]}"
+
+  image:
+    name: Build and push the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: verify
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The install and the web build run on the runner's own platform; only
+      # the final stage runs per target, so QEMU sees no heavy step.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to ghcr
+        if: needs.verify.outputs.publish == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # A re-run of this job after a newer stable tag shipped must not move
+      # `latest` back: the tags are read again right before the push.
+      - name: Place the tag again
+        id: place
+        if: needs.verify.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          LATEST: ${{ needs.verify.outputs.latest }}
+        run: |
+          set -euo pipefail
+          if [ "$LATEST" = "true" ]; then
+            STABLE_TAGS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref' \
+              | sed 's#^refs/tags/v##' | { grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true; })
+            HIGHEST=$(printf '%s\n%s\n' "$STABLE_TAGS" "$VERSION" | sed '/^$/d' | sort -V | tail -1)
+            if [ "$HIGHEST" != "$VERSION" ]; then
+              echo "::warning::$HIGHEST shipped after this run was placed; $VERSION is not latest"
+              LATEST=false
+            fi
+          fi
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+
+      # `X.Y.Z` from the tag (no `v`); `latest` only when `verify` placed the
+      # tag as the highest stable release, never by the action's own rule,
+      # which would move it to any stable tag. A run that does not publish is
+      # named `dry-run` and stays on the runner.
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}},enable=${{ needs.verify.outputs.publish == 'true' }}
+            type=raw,value=latest,enable=${{ needs.verify.outputs.publish == 'true' && steps.place.outputs.latest == 'true' }}
+            type=raw,value=dry-run,enable=${{ needs.verify.outputs.publish != 'true' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ needs.verify.outputs.publish == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MERGEBRIEF_VERSION=${{ needs.verify.outputs.publish == 'true' && needs.verify.outputs.version || 'dev' }}
+            MERGEBRIEF_REVISION=${{ github.sha }}
+          # No Actions cache: entries are scoped to the ref that wrote them,
+          # and no two tags share one, so a release build would upload
+          # gigabytes nobody reads. Build time lives in the Dockerfile.
+
+  release:
+    name: Publish the GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [verify, npm, image]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          # A publishing workflow restores no cache: a poisoned entry would
+          # ship in the release.
+          package-manager-cache: false
+
+      - name: Install the release tool
+        run: pnpm install --frozen-lockfile --filter release...
+
+      # Placement is read again here, before any asset exists: a newer stable
+      # tag pushed while this run was in flight means no version.json and no
+      # `--latest` for this one, so the asset never names a stale latest.
+      - name: Place the tag again
+        id: place
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          LATEST: ${{ needs.verify.outputs.latest }}
+        run: |
+          set -euo pipefail
+          KNOWN=""
+          if [ "$LATEST" = "true" ]; then
+            REFS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref')
+            KNOWN=$(printf '%s\n' "$REFS" | sed 's#^refs/tags/##' | { grep -v -x -F -- "$TAG" || true; } | paste -sd, -)
+            LATEST=$(pnpm --silent -C tools/release run check --tag "$TAG" --known-tags "$KNOWN" --json | jq -r .isHighestStable)
+          fi
+          {
+            echo "latest=$LATEST"
+            echo "known_tags=$KNOWN"
+          } >> "$GITHUB_OUTPUT"
+
+      # The compose files ship with the exact image pin; version.json only
+      # exists for the highest stable release, the one
+      # `releases/latest/download` serves. An rc or an older hotfix gets none.
+      - name: Build the assets
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          LATEST: ${{ steps.place.outputs.latest }}
+          KNOWN: ${{ steps.place.outputs.known_tags }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/release"
+          mkdir -p "$OUT"
+          pnpm --silent -C tools/release run stamp "$VERSION"
+          pnpm --silent -C tools/release run release-body "$TAG" --out "$RUNNER_TEMP/body.md"
+          if [ "$LATEST" = "true" ]; then
+            pnpm --silent -C tools/release run version-json "$TAG" --known-tags "$KNOWN" --out "$OUT/version.json"
+          fi
+          cp docker-compose.yml docker-compose.external-db.yml mergebrief.config.example.yaml "$OUT/"
+          # GitHub renames an asset whose name starts with a period.
+          cp .env.example "$OUT/env.example"
+
+      - name: Keep the rehearsal's assets
+        if: needs.verify.outputs.publish != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ needs.verify.outputs.version }}
+          path: |
+            ${{ runner.temp }}/release
+            ${{ runner.temp }}/body.md
+
+      # Draft first, assets second, publish last: `releases/latest/download`
+      # must never resolve to a Release without its version.json. A re-run
+      # finds the Release it made and finishes it.
+      - name: Create or reuse the draft
+        if: needs.verify.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/body.md"
+          else
+            ARGS=(--draft --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/body.md")
+            if [ "$CHANNEL" = "rc" ]; then
+              ARGS+=(--prerelease)
+            fi
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${ARGS[@]}"
+          fi
+
+      # A demoted re-run also removes the version.json an earlier attempt
+      # uploaded, so a Release that lost `latest` never names a stale one.
+      - name: Upload the assets
+        if: needs.verify.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ASSETS=(docker-compose.yml docker-compose.external-db.yml env.example mergebrief.config.example.yaml)
+          if test -e "$RUNNER_TEMP/release/version.json"; then
+            ASSETS+=(version.json)
+          else
+            gh release delete-asset "$TAG" version.json --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
+          fi
+          cd "$RUNNER_TEMP/release"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${ASSETS[@]}"
+
+      - name: Publish the Release
+        if: needs.verify.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          LATEST: ${{ steps.place.outputs.latest }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$LATEST"

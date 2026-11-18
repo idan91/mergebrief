@@ -1,0 +1,67 @@
+@use "functions";
+
+@layer components {
+  .row > td {
+    --under-row-inset: calc(
+      var(--diff-gutter-w) + var(--diff-unified-number-w)
+    );
+
+    vertical-align: top;
+    padding-block: 0 var(--space-4);
+    padding-inline: var(--under-row-inset) var(--space-4-5);
+    font-family: var(--font-sans);
+    line-height: var(--line-height-body);
+    white-space: normal;
+
+    // The colSpan cell is as wide as the table, so the composer pins to the
+    // scrollport width (100cqw minus this cell's padding) instead of
+    // stretching with it.
+    > * {
+      position: sticky;
+      inset-inline-start: var(--under-row-inset);
+      max-inline-size: calc(
+        100cqw - var(--under-row-inset) - functions.to-rem(14px)
+      );
+    }
+  }
+
+  // A card under one side: no sticky pinning, it scrolls with its side, and
+  // the inset clears the gutter and the number that side's cells span, so
+  // the card's edge meets its own code column.
+  .row[data-placement] > td {
+    padding-inline: calc(var(--diff-gutter-w) + var(--diff-number-w))
+      var(--space-4-5);
+
+    > * {
+      position: static;
+      max-inline-size: none;
+    }
+  }
+
+  .row[data-placement] > td.gap {
+    padding: 0;
+  }
+
+  /* Inset ring, not an outer box-shadow: one on a table row clips against
+     adjacent rows. */
+  .row[data-scroll-flash] > td > * {
+    animation: conversation-row-flash var(--motion-flash) ease-out 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row[data-scroll-flash] > td > * {
+      animation: none;
+      box-shadow: var(--shadow-ring-accent);
+    }
+  }
+}
+
+@keyframes conversation-row-flash {
+  0% {
+    box-shadow: var(--shadow-ring-accent);
+  }
+
+  100% {
+    box-shadow: var(--shadow-ring-clear);
+  }
+}

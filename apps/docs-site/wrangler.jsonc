@@ -1,0 +1,12 @@
+// The docs site as a Cloudflare Worker serving static assets only, on its own
+// hostname. The workers.dev URL is off.
+{
+  "name": "mergebrief-docs",
+  "compatibility_date": "2026-11-11",
+  "workers_dev": false,
+  "routes": [{ "pattern": "docs.mergebrief.com", "custom_domain": true }],
+  "assets": {
+    "directory": "./.vitepress/dist",
+    "not_found_handling": "404-page",
+  },
+}

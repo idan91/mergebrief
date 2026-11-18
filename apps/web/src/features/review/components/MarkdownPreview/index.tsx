@@ -1,0 +1,59 @@
+import { useTranslation } from "react-i18next";
+import { MARKDOWN_REMARK_PLUGINS } from "brief-core/sanitized-markdown";
+import ReactMarkdown from "react-markdown";
+
+import { MENTION_AWARE_COMPONENTS } from "@web/components/Markdown/consts";
+import { useMarkdownRehypePlugins } from "@web/components/Markdown/useMarkdownRehypePlugins";
+import { SuggestionCard } from "@web/components/Markdown/SuggestionCard";
+import { TokenizeModes } from "@web/utils/diffTokens/types";
+import {
+  parseSuggestionBlocks,
+  stripSuggestionBlocks,
+} from "@web/components/Markdown/utils";
+import {
+  buildSuggestionDiffRows,
+  type CommentAnchor,
+} from "../../utils/comments";
+import styles from "./MarkdownPreview.module.scss";
+
+export interface MarkdownPreviewProps {
+  anchor: CommentAnchor;
+  body: string;
+}
+
+/**
+ * The ANCHORED preview: drafts know the diff lines they sit on, so the
+ * shared SuggestionCard gets full del+add rows with line numbers. The
+ * anchor-less path lives in the shared Markdown renderer.
+ */
+export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
+  const { t } = useTranslation();
+  // A draft is written for GitHub, which parses its HTML and its mentions.
+  const rehypePlugins = useMarkdownRehypePlugins(true, true);
+  const suggestions = parseSuggestionBlocks(body);
+  const markdown = stripSuggestionBlocks(body);
+  return (
+    // dir="auto": RTL-first content right-aligns, matching the composer.
+    <div className={styles["preview"]} dir="auto">
+      {markdown ? (
+        <ReactMarkdown
+          components={MENTION_AWARE_COMPONENTS}
+          rehypePlugins={rehypePlugins}
+          remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+        >
+          {markdown}
+        </ReactMarkdown>
+      ) : (
+        <p className={styles["empty"]}>{t("review.comment.previewEmpty")}</p>
+      )}
+      {suggestions.map((suggestion) => (
+        <SuggestionCard
+          filePath={anchor.file}
+          key={suggestion.index}
+          mode={TokenizeModes.HUNK}
+          rows={buildSuggestionDiffRows(anchor, suggestion.body)}
+        />
+      ))}
+    </div>
+  );
+}

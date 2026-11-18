@@ -1,0 +1,169 @@
+// The spend command over the real api process: the Operator's verbatim JSON,
+// the one TTY line, and the refusal a non-Operator gets.
+import { createHash, randomBytes } from "node:crypto";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createTokenAuth, isReviewerId } from "persistence";
+import { seedGrant } from "persistence/testing";
+import { AccessLevels } from "types/access-levels";
+import { afterEach, describe, expect, it } from "vitest";
+import { createApiClient } from "../src/client";
+import { ExitCodes } from "../src/exit";
+import { runCli } from "../src/program";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
+import { runCliOffline } from "./harness/offline";
+
+const REVIEWER_ID = 555;
+const DAILY_CAP = 50;
+
+function makeTempDir(prefix: string): string {
+  const template = join(tmpdir(), prefix);
+  return mkdtempSync(template);
+}
+
+function writeConfig(operatorId: number): string {
+  const dir = makeTempDir("mb-spend-config-");
+  const path = join(dir, "mergebrief.config.yaml");
+  writeFileSync(
+    path,
+    `operators:\n  - ${operatorId}\nspend:\n  maxGenerationsPerDay: ${DAILY_CAP}\n`,
+  );
+  return path;
+}
+
+describe("spend command over the real api app", () => {
+  let world: CliApiHarness | undefined;
+
+  afterEach(async () => {
+    await world?.close();
+  });
+
+  async function startWorld(operatorId: number): Promise<CliApiHarness> {
+    world = await startCliApiHarness({ configPath: writeConfig(operatorId) });
+    return world;
+  }
+
+  async function seedToken(started: CliApiHarness): Promise<string> {
+    const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+    const userId = BigInt(REVIEWER_ID);
+    if (!isReviewerId(userId)) {
+      throw new Error("bad reviewer id");
+    }
+    const grant = await seedGrant(started.harness.handle, {
+      userId,
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: started.keyProvider,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+    const hash = createHash("sha256").update(plaintext);
+    const tokenHash = hash.digest("hex");
+    await createTokenAuth(started.harness.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId,
+      name: "ci-token",
+      tokenHash,
+      grantId: grant.id,
+      expiresAt: null,
+    });
+    return plaintext;
+  }
+
+  interface OperatorProfile {
+    readonly configDir: string;
+    readonly cacheDir: string;
+    readonly token: string;
+  }
+
+  async function loginAsOperator(
+    started: CliApiHarness,
+  ): Promise<OperatorProfile> {
+    const token = await seedToken(started);
+    const configDir = makeTempDir("mb-config-");
+    const cacheDir = makeTempDir("mb-cache-");
+    const login = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      {
+        fetch: started.fetch,
+        env: {},
+        configDir,
+        cacheDir,
+        stdout: () => undefined,
+        stderr: () => undefined,
+        readStdin: async () => `${token}\n`,
+        gitOriginUrl: () => undefined,
+      },
+    );
+    expect(login).toBe(ExitCodes.OK);
+    return { configDir, cacheDir, token };
+  }
+
+  async function runSpend(
+    started: CliApiHarness,
+    profile: OperatorProfile,
+    argv: string[],
+  ) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await runCli(argv, {
+      fetch: started.fetch,
+      env: {},
+      configDir: profile.configDir,
+      cacheDir: profile.cacheDir,
+      stdout: (text) => out.push(text),
+      stderr: (line) => err.push(line),
+      readStdin: async () => {
+        throw new Error("stdin not expected");
+      },
+      gitOriginUrl: () => undefined,
+    });
+    const stdout = out.join("");
+    return { code, out: stdout, err };
+  }
+
+  it("spend --json is the Operator's body verbatim; the TTY arm is one line", async () => {
+    const started = await startWorld(REVIEWER_ID);
+    const profile = await loginAsOperator(started);
+
+    const json = await runSpend(started, profile, ["spend", "--json"]);
+    const reference = await createApiClient({
+      fetch: started.fetch,
+      baseUrl: BASE_URL,
+      token: profile.token,
+    }).request({ path: "/api/spend" });
+
+    expect(json.code).toBe(ExitCodes.OK);
+    expect(json.out).toBe(reference.bodyText);
+
+    const tty = await runSpend(started, profile, ["spend"]);
+
+    expect(tty.code).toBe(ExitCodes.OK);
+    expect(tty.out).toBe(
+      `0 of ${DAILY_CAP} runs started today · resets at 00:00 UTC\n`,
+    );
+  });
+});
+
+describe("spend command over a scripted answer", () => {
+  it("prints the large-run breakdown the body carries", async () => {
+    const body = JSON.stringify({
+      startedRuns: 17,
+      cap: DAILY_CAP,
+      largeRuns: { runs: 2, units: 12 },
+      dayStartedAt: "2026-10-28T00:00:00.000Z",
+      resetsAt: "2026-10-29T00:00:00.000Z",
+    });
+
+    const run = await runCliOffline(["spend"], {
+      routes: [{ method: "GET", path: "/api/spend", body }],
+    });
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.out).toBe(
+      `17 of ${DAILY_CAP} runs started today · 2 runs briefed in parts took 12 of them · resets at 00:00 UTC\n`,
+    );
+  });
+});

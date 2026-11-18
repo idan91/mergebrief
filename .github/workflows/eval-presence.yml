@@ -1,0 +1,100 @@
+name: Eval presence
+
+# Mechanical enforcement of the eval-harness convention (root CLAUDE.md,
+# Changing the generation surface without running
+# `pnpm -C tools/categorizer eval` is how output quality regresses silently,
+# but the harness costs live API spend — so this job NEVER runs the eval. It
+# only checks that the PR body says what was run, or says why nothing was.
+#
+# Trigger paths are the generation surface named in root CLAUDE.md:
+# the prompt, the output schema, validators/salvage, the anchored plan and
+# stitch, repo-config injection, and output-affecting adapter defaults.
+on:
+  pull_request:
+    # `edited` matters: adding the eval report to the body is exactly how an
+    # author fixes a red run, and without it the check would never re-run.
+    # (Re-running the job from the Actions tab replays the stored payload,
+    # so it would re-read the OLD body — a new event is the only way.) The
+    # `paths` filter below stays satisfied on an `edited` event because a
+    # `pull_request` path filter is evaluated against the whole base..head
+    # diff, not against the commits of the triggering push.
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - "packages/brief-core/src/generation/**"
+      - "packages/brief-core/src/types.ts"
+      - "packages/brief-core/src/anchoring/**"
+      - "packages/brief-core/src/diff/**"
+      - "packages/generators/src/validation/**"
+      - "packages/generators/src/adapters/**"
+      # Zero-config provider selection + per-provider option schemas:
+      # changing the default provider/model changes generation output just
+      # as surely as an adapter default.
+      - "packages/generators/src/config/**"
+      - "packages/repo-config/src/**"
+      - ".github/workflows/eval-presence.yml"
+
+permissions: {}
+
+concurrency:
+  group: eval-presence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  eval-presence:
+    name: PR body records an eval run
+    runs-on: ubuntu-latest
+
+    steps:
+      # No checkout, no token, no API call: the pull_request payload already
+      # carries the body. The body is attacker-controlled text, so it is read
+      # out of the event file into a file and only ever matched — never
+      # interpolated into the script.
+      - name: Check the PR body for an eval report or a skip justification
+        run: |
+          set -euo pipefail
+
+          body="$RUNNER_TEMP/pr-body.md"
+          jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH" > "$body"
+
+          # Accepted markers, in the order an author is likely to reach for:
+          #   1. a heading that starts with "Eval" — `### Eval`,
+          #      `## Eval report`, `### Eval harness`
+          #   2. a line opening `Eval-harness gate:` — the skip form, e.g.
+          #      `Eval-harness gate: skipped — comment-only change`
+          heading='^[[:space:]]*#{1,6}[[:space:]]*Eval'
+          gate_line='^[[:space:]]*Eval-harness gate:'
+
+          if grep -qE "$heading" "$body" || grep -qE "$gate_line" "$body"; then
+            {
+              echo "### Eval presence: OK"
+              echo
+              echo "The PR body records an eval run or an explicit skip."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "### Eval presence: missing"
+            echo
+            echo "This PR touches the generation surface, so the PR body must"
+            echo "record what the eval harness did. Add **one** of:"
+            echo
+            echo "- a heading that starts with \`Eval\` — e.g. \`### Eval\`,"
+            echo "  \`### Eval report\` — followed by the report from"
+            echo "  \`pnpm -C tools/categorizer eval\` (scoped runs: name the"
+            echo "  cases and justify the selection);"
+            echo "- a line starting \`Eval-harness gate:\` explaining why no"
+            echo "  eval was needed — e.g."
+            echo "  \`Eval-harness gate: skipped — types-only change, no"
+            echo "  output-affecting behaviour.\`"
+            echo
+            echo "Editing the PR body re-triggers this check. If it does not"
+            echo "re-run, push a commit — re-running the job from the Actions"
+            echo "tab replays the old body and will fail again."
+            echo
+            echo "This job never runs the eval itself — the harness costs live"
+            echo "API spend. See \`tools/categorizer/eval/README.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::PR body has no eval report and no 'Eval-harness gate:' justification; see the job summary for the accepted markers."
+          exit 1

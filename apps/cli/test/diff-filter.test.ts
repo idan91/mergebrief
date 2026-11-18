@@ -1,0 +1,305 @@
+// Table-driven hunk-filter units: the `--group` filter keeps WHOLE hunks only
+// (a trimmed hunk would not `git apply`), joins brief chunk ranges with
+// `addedRanges` against the hunk's NEW side and `removedRanges` against its
+// OLD side, and reports chunk files missing from the diff so the command can
+// fail loud.
+import { describe, expect, it } from "vitest";
+import {
+  filterDiffByChunks,
+  type ChunkSpan,
+} from "../src/commands/read/diff-filter";
+
+function buildDiff(...sections: string[]): string {
+  return sections.join("");
+}
+
+function fileSection(path: string, hunks: string[]): string {
+  return (
+    `diff --git a/${path} b/${path}\n` +
+    `index 1111111..2222222 100644\n` +
+    `--- a/${path}\n` +
+    `+++ b/${path}\n` +
+    hunks.join("")
+  );
+}
+
+/** A hunk with `count` context/add lines starting at old/new line numbers. */
+function hunk(
+  oldStart: number,
+  oldCount: number,
+  newStart: number,
+  newCount: number,
+  lines: string[],
+): string {
+  return (
+    `@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n` +
+    lines.map((l) => `${l}\n`).join("")
+  );
+}
+
+const CHUNK_A: ChunkSpan = {
+  file: "src/a.ts",
+  addedRanges: [{ start: 10, end: 12 }],
+  removedRanges: [],
+};
+
+describe("filterDiffByChunks", () => {
+  it("keeps a whole hunk whose new side intersects an addedRange", () => {
+    const input = buildDiff(
+      fileSection("src/a.ts", [
+        hunk(8, 3, 8, 5, [" ctx", "+added one", "+added two", " ctx", " ctx"]),
+        hunk(40, 2, 42, 2, [" ctx", " ctx"]),
+      ]),
+    );
+    const { diff, missingFiles } = filterDiffByChunks(input, [CHUNK_A]);
+    expect(missingFiles).toEqual([]);
+    // First hunk (new side 8..12) intersects 10..12 → kept whole.
+    expect(diff).toContain("@@ -8,3 +8,5 @@");
+    expect(diff).toContain("+added two");
+    // Second hunk (42..43) does not → dropped.
+    expect(diff).not.toContain("@@ -40,2 +42,2 @@");
+    // File headers survive for the kept file.
+    expect(diff).toContain("diff --git a/src/a.ts b/src/a.ts");
+    expect(diff).toContain("+++ b/src/a.ts");
+  });
+
+  it("matches removedRanges against the OLD side for pure deletions", () => {
+    const chunk: ChunkSpan = {
+      file: "src/b.ts",
+      addedRanges: [],
+      removedRanges: [{ start: 5, end: 6 }],
+    };
+    const input = fileSection("src/b.ts", [
+      // Pure deletion hunk: old 5..6 removed, new side empty (count 0).
+      hunk(5, 2, 4, 0, ["-gone one", "-gone two"]),
+      hunk(30, 2, 28, 2, [" ctx", " ctx"]),
+    ]);
+    const { diff } = filterDiffByChunks(input, [chunk]);
+    expect(diff).toContain("@@ -5,2 +4,0 @@");
+    expect(diff).not.toContain("@@ -30,2 +28,2 @@");
+  });
+
+  it("drops files with no intersecting hunk and never trims a kept hunk", () => {
+    const input = buildDiff(
+      fileSection("src/a.ts", [
+        hunk(9, 4, 9, 4, [" ctx", "-old", "+new", " ctx"]),
+      ]),
+      fileSection("src/unrelated.ts", [
+        hunk(1, 2, 1, 3, [" ctx", "+x", " ctx"]),
+      ]),
+    );
+    const { diff } = filterDiffByChunks(input, [CHUNK_A]);
+    expect(diff).not.toContain("unrelated");
+    // The kept hunk arrives byte-identical: every line, both sides.
+    expect(diff).toContain(" ctx\n-old\n+new\n ctx\n");
+  });
+
+  it("joins multiple chunks across files and hunks", () => {
+    const chunks: ChunkSpan[] = [
+      CHUNK_A,
+      {
+        file: "src/c.ts",
+        addedRanges: [{ start: 1, end: 2 }],
+        removedRanges: [],
+      },
+    ];
+    const input = buildDiff(
+      fileSection("src/a.ts", [hunk(10, 1, 10, 2, [" ctx", "+in-range"])]),
+      fileSection("src/c.ts", [hunk(1, 1, 1, 2, [" ctx", "+also"])]),
+    );
+    const { diff, missingFiles } = filterDiffByChunks(input, chunks);
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain("b/src/a.ts");
+    expect(diff).toContain("b/src/c.ts");
+  });
+
+  it("boundary lines count: touching exactly the range edge keeps the hunk", () => {
+    // Hunk new side 12..14; chunk addedRange ends at 12, a single-line overlap.
+    const input = fileSection("src/a.ts", [
+      hunk(12, 3, 12, 3, [" ctx", " ctx", " ctx"]),
+    ]);
+    const { diff } = filterDiffByChunks(input, [CHUNK_A]);
+    expect(diff).toContain("@@ -12,3 +12,3 @@");
+  });
+
+  it("reports chunk files entirely absent from the diff", () => {
+    const chunks: ChunkSpan[] = [
+      CHUNK_A,
+      {
+        file: "src/gone.ts",
+        addedRanges: [{ start: 1, end: 1 }],
+        removedRanges: [],
+      },
+    ];
+    const input = fileSection("src/a.ts", [hunk(10, 1, 10, 1, [" ctx"])]);
+    const { missingFiles } = filterDiffByChunks(input, chunks);
+    expect(missingFiles).toEqual(["src/gone.ts"]);
+  });
+
+  it("matches a renamed file by its new-side path", () => {
+    const input =
+      "diff --git a/src/old-name.ts b/src/a.ts\n" +
+      "similarity index 90%\n" +
+      "rename from src/old-name.ts\n" +
+      "rename to src/a.ts\n" +
+      "--- a/src/old-name.ts\n" +
+      "+++ b/src/a.ts\n" +
+      hunk(10, 2, 10, 3, [" ctx", "+added", " ctx"]);
+    const { diff, missingFiles } = filterDiffByChunks(input, [CHUNK_A]);
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain("rename to src/a.ts");
+  });
+
+  it.each([
+    [
+      "a binary file",
+      "docs/shot.png",
+      "diff --git a/docs/shot.png b/docs/shot.png\n" +
+        "new file mode 100644\n" +
+        "index 0000000..d508b91\n" +
+        "Binary files /dev/null and b/docs/shot.png differ\n",
+      "Binary files /dev/null and b/docs/shot.png differ",
+    ],
+    [
+      "a pure rename",
+      "src/new-name.ts",
+      "diff --git a/src/old-name.ts b/src/new-name.ts\n" +
+        "similarity index 100%\n" +
+        "rename from src/old-name.ts\n" +
+        "rename to src/new-name.ts\n",
+      "rename to src/new-name.ts",
+    ],
+    [
+      "a mode change",
+      "bin/run.sh",
+      "diff --git a/bin/run.sh b/bin/run.sh\n" +
+        "old mode 100644\n" +
+        "new mode 100755\n",
+      "new mode 100755",
+    ],
+  ])("keeps the header of %s, which has no hunks", (_, file, section, line) => {
+    const chunk: ChunkSpan = { file, addedRanges: [], removedRanges: [] };
+    const input = buildDiff(
+      section,
+      fileSection("src/a.ts", [hunk(10, 1, 10, 1, [" ctx"])]),
+    );
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain(line);
+    expect(diff).not.toContain("src/a.ts");
+  });
+
+  it("drops a file with no hunks that no chunk names", () => {
+    const input = buildDiff(
+      "diff --git a/docs/shot.png b/docs/shot.png\n" +
+        "index 1111111..2222222 100644\n" +
+        "Binary files a/docs/shot.png and b/docs/shot.png differ\n",
+      fileSection("src/a.ts", [hunk(10, 2, 10, 3, [" ctx", "+added", " ctx"])]),
+    );
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [CHUNK_A]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).not.toContain("docs/shot.png");
+    expect(diff).toContain("+added");
+  });
+
+  it("matches a git-quoted path by the path it encodes", () => {
+    const spelling =
+      "packages/kit/test/apps/basics/src/routes/encoded/\\345\\217\\215\\345\\272\\224/+page.js";
+    const chunk: ChunkSpan = {
+      file: "packages/kit/test/apps/basics/src/routes/encoded/反应/+page.js",
+      addedRanges: [{ start: 2, end: 2 }],
+      removedRanges: [],
+    };
+    const input =
+      `diff --git "a/${spelling}" "b/${spelling}"\n` +
+      `--- "a/${spelling}"\n` +
+      `+++ "b/${spelling}"\n` +
+      hunk(1, 2, 1, 2, [
+        " export function load() {",
+        "-  return 1;",
+        "+  return 2;",
+      ]);
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain(`+++ "b/${spelling}"`);
+    expect(diff).toContain("+  return 2;");
+  });
+
+  it("matches a deleted git-quoted file by its old-side path", () => {
+    const chunk: ChunkSpan = {
+      file: "docs/反应.md",
+      addedRanges: [],
+      removedRanges: [{ start: 1, end: 1 }],
+    };
+    const input =
+      'diff --git "a/docs/\\345\\217\\215\\345\\272\\224.md" "b/docs/\\345\\217\\215\\345\\272\\224.md"\n' +
+      '--- "a/docs/\\345\\217\\215\\345\\272\\224.md"\n' +
+      "+++ /dev/null\n" +
+      hunk(1, 1, 0, 0, ["-gone"]);
+
+    const { missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+  });
+
+  it("keeps git's spelling for a quoted name that decodes to a control", () => {
+    const chunk: ChunkSpan = {
+      file: '"b/x\\ny"',
+      addedRanges: [{ start: 1, end: 1 }],
+      removedRanges: [],
+    };
+    const input =
+      'diff --git "a/x\\ny" "b/x\\ny"\n' +
+      '--- "a/x\\ny"\n' +
+      '+++ "b/x\\ny"\n' +
+      hunk(1, 1, 1, 1, ["-one", "+two"]);
+
+    const { missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+  });
+
+  it.each([
+    ["a control", "x\\ny"],
+    ["a bidi override", "src/\\342\\200\\256txt.exe"],
+    ["a byte that is no UTF-8", "docs/caf\\351.txt"],
+  ])("matches a deleted file whose quoted name holds %s", (_, spelling) => {
+    const chunk: ChunkSpan = {
+      file: `"b/${spelling}"`,
+      addedRanges: [],
+      removedRanges: [{ start: 1, end: 1 }],
+    };
+    const input =
+      `diff --git "a/${spelling}" "b/${spelling}"\n` +
+      `--- "a/${spelling}"\n` +
+      "+++ /dev/null\n" +
+      hunk(1, 1, 0, 0, ["-gone"]);
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain("-gone");
+  });
+
+  it("parses single-line hunks whose counts are omitted", () => {
+    const chunk: ChunkSpan = {
+      file: "src/d.ts",
+      addedRanges: [{ start: 7, end: 7 }],
+      removedRanges: [],
+    };
+    const input =
+      "diff --git a/src/d.ts b/src/d.ts\n" +
+      "--- a/src/d.ts\n" +
+      "+++ b/src/d.ts\n" +
+      "@@ -5 +7 @@\n" +
+      "+one\n";
+    const { diff } = filterDiffByChunks(input, [chunk]);
+    expect(diff).toContain("@@ -5 +7 @@");
+  });
+});

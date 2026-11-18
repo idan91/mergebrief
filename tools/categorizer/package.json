@@ -1,0 +1,34 @@
+{
+  "name": "categorizer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dev CLIs + the generation-quality eval harness on top of brief-core (the Brief domain core lives there).",
+  "license": "FSL-1.1-ALv2",
+  "scripts": {
+    "categorize": "tsx src/cli/categorize.ts",
+    "delta": "tsx src/cli/delta.ts",
+    "eval": "tsx eval/cli.ts",
+    "capture-pair": "tsx scripts/capture-pair.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "probe:enum": "tsx scripts/probe-enum-enforcement.ts",
+    "smoke:schemas": "tsx scripts/smoke-wire-schemas.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "brief-core": "workspace:*",
+    "generators": "workspace:*",
+    "i18n": "workspace:*",
+    "types": "workspace:*",
+    "yaml": "^2.9.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

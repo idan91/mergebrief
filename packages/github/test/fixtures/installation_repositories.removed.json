@@ -1,0 +1,20 @@
+{
+  "action": "removed",
+  "installation": {
+    "id": 2
+  },
+  "repository_selection": "selected",
+  "repositories_added": [],
+  "repositories_removed": [
+    {
+      "id": 1296269,
+      "name": "Hello-World",
+      "full_name": "octocat/Hello-World"
+    }
+  ],
+  "sender": {
+    "id": 1,
+    "login": "octocat",
+    "type": "User"
+  }
+}

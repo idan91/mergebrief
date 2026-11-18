@@ -1,0 +1,46 @@
+import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
+import { Markdown } from "@web/components/Markdown";
+import type { AddressedReviewComment } from "@web/features/brief/model";
+import { addressedCommentRange } from "../AddressedComments";
+import styles from "./AddressedDiffComment.module.scss";
+
+export interface AddressedDiffCommentProps {
+  comment: AddressedReviewComment;
+  label: string;
+}
+
+export function AddressedDiffComment({
+  comment,
+  label,
+}: AddressedDiffCommentProps) {
+  const { t } = useTranslation();
+  const displayFile = formatDisplayPath(comment.file);
+  return (
+    <details className={styles["comment"]}>
+      <summary className={styles["head"]}>
+        <span>
+          @{comment.author} {label}
+        </span>
+        <span className={styles["location"]}>
+          {displayFile}
+          {addressedCommentRange(comment)}
+        </span>
+      </summary>
+      <div className={styles["preview"]}>
+        <Markdown
+          content={comment.body}
+          filePath={comment.file}
+          renderHtml
+          renderMentions
+          renderSuggestions
+        />
+      </div>
+      {comment.inReplyToId ? (
+        <div className={styles["replyNote"]}>
+          {t("review.comment.replyTo", { id: comment.inReplyToId })}
+        </div>
+      ) : null}
+    </details>
+  );
+}

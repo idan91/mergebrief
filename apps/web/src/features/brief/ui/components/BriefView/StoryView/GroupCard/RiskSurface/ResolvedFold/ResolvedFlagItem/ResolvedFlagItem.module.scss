@@ -1,0 +1,33 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .resolvedItem {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2-5);
+  }
+
+  .resolvedChip {
+    opacity: 0.62;
+  }
+
+  .resolvedState {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+
+  .reopen {
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    text-decoration: none;
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
+    }
+  }
+}

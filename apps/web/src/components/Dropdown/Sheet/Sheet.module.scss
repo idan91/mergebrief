@@ -1,0 +1,17 @@
+@use "functions";
+
+@layer components {
+  .list {
+    flex: 1;
+    min-block-size: 0;
+    padding: var(--space-2);
+    padding-block-end: calc(var(--space-2) + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    outline: none;
+    touch-action: pan-y pinch-zoom;
+
+    [role="option"] {
+      min-block-size: functions.to-rem(44px);
+    }
+  }
+}

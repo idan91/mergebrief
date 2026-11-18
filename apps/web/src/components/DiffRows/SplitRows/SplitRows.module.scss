@@ -1,0 +1,144 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // The pair stays transparent; each side's cells carry the kind and hue.
+  .pair {
+    --row-hue: var(--color-text-1);
+    --row-hover-tint: 6%;
+
+    background: transparent;
+
+    // Earned: the same 2px edge DiffRows paints, declared on the cell so
+    // it resolves against the cell's hue, not the row's text colour.
+    > td[data-line-kind="add"] {
+      --row-hue: var(--color-positive);
+      --row-hover-tint: var(--tint-medium);
+      --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
+
+      background: var(--color-positive-tint-faint);
+    }
+
+    > td[data-line-kind="del"] {
+      --row-hue: var(--color-negative);
+      --row-hover-tint: var(--tint-medium);
+      --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
+
+      background: var(--color-negative-tint-faint);
+    }
+
+    > td[data-line-kind="add"][class*="code"] {
+      color: var(--color-diff-add-text);
+      box-shadow: var(--change-edge-bar);
+    }
+
+    > td[data-line-kind="del"][class*="code"] {
+      color: var(--color-diff-del-text);
+      box-shadow: var(--change-edge-bar);
+    }
+
+    > td[data-line-kind="add"][data-line-number] {
+      color: color-mix(in srgb, var(--color-positive) 75%, transparent);
+    }
+
+    > td[data-line-kind="del"][data-line-number] {
+      color: var(--color-negative);
+    }
+
+    > td[data-selected][data-line-number] {
+      color: var(--color-text-1);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-gutter-tint),
+        var(--color-well)
+      );
+
+      @include mixins.forced-selected($inset-ring: true);
+    }
+
+    > td[data-side][data-line-number][data-state="covered"] {
+      color: transparent;
+    }
+
+    > td[data-selected][data-line-number][data-state="covered"] {
+      @include mixins.forced-covered("> span > *");
+    }
+
+    > td[data-select-anchor][data-line-number] {
+      cursor: pointer;
+    }
+
+    > td[data-pick="available"][data-line-number],
+    > td[data-pick="available"] [data-comment-anchor] {
+      cursor: cell;
+    }
+
+    > td[data-pick="unavailable"][data-line-number],
+    > td[data-pick="unavailable"] [data-comment-anchor] {
+      cursor: not-allowed;
+    }
+
+    // :not([data-selected]) keeps the selection tint on a row the drag passes.
+    @include mixins.hover {
+      &:has(> td[data-side="left"][data-commentable]:hover)
+        > td[data-side="left"]:not([data-selected]),
+      &:has(> td[data-side="right"][data-commentable]:hover)
+        > td[data-side="right"]:not([data-selected]) {
+        background: color-mix(
+          in srgb,
+          var(--row-hue) var(--row-hover-tint),
+          transparent
+        );
+      }
+    }
+
+    @include mixins.hover {
+      &:has(> td[data-side="left"][data-pick="available"]:hover)
+        > td[data-side="left"][data-pick="available"],
+      &:has(> td[data-side="right"][data-pick="available"]:hover)
+        > td[data-side="right"][data-pick="available"] {
+        background: var(--diff-selected-fill);
+      }
+    }
+
+    > td[data-pick="available"]:focus-visible,
+    > td[data-selected] {
+      background: var(--diff-selected-fill);
+    }
+
+    > td[data-selected][class*="code"] {
+      box-shadow: var(--diff-selected-edge-bar);
+    }
+
+    > td:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: -2px;
+    }
+
+    > td[data-rev="added"] {
+      background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-accent) 10%, transparent),
+        color-mix(in srgb, var(--color-accent) 1.5%, transparent) 60%
+      );
+    }
+
+    // The two washes never stack: a selected cell shows the selection alone.
+    > td[data-selected][data-rev="added"] {
+      background: var(--diff-selected-fill);
+    }
+  }
+
+  .filler {
+    background: color-mix(
+      in srgb,
+      var(--color-ground) 70%,
+      var(--color-surface-1)
+    );
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--color-line-strong) 55%, transparent) 6px 7px
+    );
+  }
+}

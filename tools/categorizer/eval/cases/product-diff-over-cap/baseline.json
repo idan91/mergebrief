@@ -1,0 +1,12 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "at-most-eight": 5,
+    "has-more-set": 5,
+    "latest-revision-default-listed": 5,
+    "product-change-groups-real": 5,
+    "product-diff-available": 5,
+    "revision-flag-listed": 5
+  }
+}

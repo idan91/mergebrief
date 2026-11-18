@@ -1,0 +1,58 @@
+@use "functions";
+
+@layer components {
+  .kbd {
+    --kbd-shade-w: 2px;
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own bevel: the lit top lip */
+    --kbd-lip: inset 0 1px 0 rgb(255 255 255 / 14%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own bevel: the shaded bottom lip */
+    --kbd-shade: inset 0 calc(-1 * var(--kbd-shade-w)) 0 rgb(0 0 0 / 55%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- a key cap's own hairline drop; every elevation token is a soft float */
+    --kbd-drop: 0 1px 0 rgb(0 0 0 / 45%);
+
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: functions.to-rem(24px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-3);
+    box-shadow: var(--kbd-lip), var(--kbd-shade), var(--kbd-drop);
+    color: var(--color-text-2);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    font-weight: 600;
+    line-height: var(--line-height-control);
+    white-space: nowrap;
+  }
+
+  .kbd[data-size="sm"] {
+    --kbd-shade-w: 1px;
+
+    min-inline-size: functions.to-rem(18px);
+    min-block-size: functions.to-rem(18px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2-5);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+  }
+
+  .group {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .join {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    line-height: var(--line-height-control);
+  }
+}

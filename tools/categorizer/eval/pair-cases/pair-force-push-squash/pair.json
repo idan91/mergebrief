@@ -1,0 +1,431 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9012
+      },
+      "meta": {
+        "title": "Rate-limit requests per client",
+        "body": "Adds a per-client rate limiter: a client past `REQUESTS_PER_MINUTE` (default 120) requests in the window gets a 429, and `GET /api/limits` reports the limit. `MAX_CONNECTIONS` now sets the connection cap.",
+        "url": "https://github.com/acme/mergebrief/pull/9012",
+        "sha": "673a84a651b44afd00621c537b1d3a6b048de550",
+        "baseSha": "731a64e94666a29b3500c05c2cd01370efc2f72d",
+        "commitCount": 3,
+        "files": [
+          {
+            "path": "packages/api/src/config.ts",
+            "additions": 2,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/rate-limit.ts",
+            "additions": 17,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes.ts",
+            "additions": 5,
+            "deletions": 1
+          },
+          {
+            "path": "packages/api/src/server.ts",
+            "additions": 8,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/api/src/config.ts b/packages/api/src/config.ts\nindex 6845f7a..e509e75 100644\n--- a/packages/api/src/config.ts\n+++ b/packages/api/src/config.ts\n@@ -1,11 +1,13 @@\n export interface ServerConfig {\n   port: number;\n   maxConnections: number;\n+  requestsPerMinute: number;\n }\n \n export function readConfig(env: Record<string, string | undefined>): ServerConfig {\n   return {\n     port: Number(env.PORT ?? 8080),\n     maxConnections: 100,\n+    requestsPerMinute: Number(env.REQUESTS_PER_MINUTE ?? 120),\n   };\n }\ndiff --git a/packages/api/src/rate-limit.ts b/packages/api/src/rate-limit.ts\nnew file mode 100644\nindex 0000000..c12824c\n--- /dev/null\n+++ b/packages/api/src/rate-limit.ts\n@@ -0,0 +1,17 @@\n+export interface RateLimiter {\n+  allow(key: string, now: number): boolean;\n+}\n+\n+const WINDOW_MS = 60_000;\n+\n+export function createRateLimiter(limit: number): RateLimiter {\n+  const hits = new Map<string, number[]>();\n+  return {\n+    allow(key, now) {\n+      const recent = (hits.get(key) ?? []).filter((at) => now - at < WINDOW_MS);\n+      recent.push(now);\n+      hits.set(key, recent);\n+      return recent.length <= limit;\n+    },\n+  };\n+}\ndiff --git a/packages/api/src/routes.ts b/packages/api/src/routes.ts\nindex e4edc6d..67836a7 100644\n--- a/packages/api/src/routes.ts\n+++ b/packages/api/src/routes.ts\n@@ -10,8 +10,12 @@ function sendJson(response: ServerResponse, body: unknown): void {\n   response.end(JSON.stringify(body));\n }\n \n-export function routes(): Route[] {\n+export function routes(limits: { requestsPerMinute: number }): Route[] {\n   return [\n     { path: \"/api/ping\", handle: (_request, response) => sendJson(response, { ok: true }) },\n+    {\n+      path: \"/api/limits\",\n+      handle: (_request, response) => sendJson(response, { requestsPerMinute: limits.requestsPerMinute }),\n+    },\n   ];\n }\ndiff --git a/packages/api/src/server.ts b/packages/api/src/server.ts\nindex a5b21a6..00e8e81 100644\n--- a/packages/api/src/server.ts\n+++ b/packages/api/src/server.ts\n@@ -1,12 +1,19 @@\n import { createServer, type IncomingMessage, type ServerResponse } from \"node:http\";\n import { readConfig } from \"./config\";\n+import { createRateLimiter } from \"./rate-limit\";\n import { routes } from \"./routes\";\n \n export function startServer(env: Record<string, string | undefined>): void {\n   const config = readConfig(env);\n-  const table = routes();\n+  const table = routes(config);\n+  const limiter = createRateLimiter(config.requestsPerMinute);\n \n   const server = createServer((request: IncomingMessage, response: ServerResponse) => {\n+    const client = request.socket.remoteAddress ?? \"unknown\";\n+    if (!limiter.allow(client, Date.now())) {\n+      response.writeHead(429).end();\n+      return;\n+    }\n     const route = table.find((entry) => entry.path === request.url);\n     if (route === undefined) {\n       response.writeHead(404).end();\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "731a64e94666a29b3500c05c2cd01370efc2f72d",
+      "head": "673a84a651b44afd00621c537b1d3a6b048de550",
+      "commitCount": 3
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9012
+      },
+      "meta": {
+        "title": "Rate-limit requests per client",
+        "body": "Adds a per-client rate limiter: a client past `REQUESTS_PER_MINUTE` (default 120) requests in the window gets a 429, and `GET /api/limits` reports the limit. `MAX_CONNECTIONS` now sets the connection cap.",
+        "url": "https://github.com/acme/mergebrief/pull/9012",
+        "sha": "ef5ca3c403ce9f9d0f545ec4a320bd5f8c10844a",
+        "baseSha": "731a64e94666a29b3500c05c2cd01370efc2f72d",
+        "commitCount": 1,
+        "files": [
+          {
+            "path": "packages/api/src/config.ts",
+            "additions": 2,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/rate-limit.ts",
+            "additions": 17,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes.ts",
+            "additions": 5,
+            "deletions": 1
+          },
+          {
+            "path": "packages/api/src/server.ts",
+            "additions": 8,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/api/src/config.ts b/packages/api/src/config.ts\nindex 6845f7a..e509e75 100644\n--- a/packages/api/src/config.ts\n+++ b/packages/api/src/config.ts\n@@ -1,11 +1,13 @@\n export interface ServerConfig {\n   port: number;\n   maxConnections: number;\n+  requestsPerMinute: number;\n }\n \n export function readConfig(env: Record<string, string | undefined>): ServerConfig {\n   return {\n     port: Number(env.PORT ?? 8080),\n     maxConnections: 100,\n+    requestsPerMinute: Number(env.REQUESTS_PER_MINUTE ?? 120),\n   };\n }\ndiff --git a/packages/api/src/rate-limit.ts b/packages/api/src/rate-limit.ts\nnew file mode 100644\nindex 0000000..c12824c\n--- /dev/null\n+++ b/packages/api/src/rate-limit.ts\n@@ -0,0 +1,17 @@\n+export interface RateLimiter {\n+  allow(key: string, now: number): boolean;\n+}\n+\n+const WINDOW_MS = 60_000;\n+\n+export function createRateLimiter(limit: number): RateLimiter {\n+  const hits = new Map<string, number[]>();\n+  return {\n+    allow(key, now) {\n+      const recent = (hits.get(key) ?? []).filter((at) => now - at < WINDOW_MS);\n+      recent.push(now);\n+      hits.set(key, recent);\n+      return recent.length <= limit;\n+    },\n+  };\n+}\ndiff --git a/packages/api/src/routes.ts b/packages/api/src/routes.ts\nindex e4edc6d..67836a7 100644\n--- a/packages/api/src/routes.ts\n+++ b/packages/api/src/routes.ts\n@@ -10,8 +10,12 @@ function sendJson(response: ServerResponse, body: unknown): void {\n   response.end(JSON.stringify(body));\n }\n \n-export function routes(): Route[] {\n+export function routes(limits: { requestsPerMinute: number }): Route[] {\n   return [\n     { path: \"/api/ping\", handle: (_request, response) => sendJson(response, { ok: true }) },\n+    {\n+      path: \"/api/limits\",\n+      handle: (_request, response) => sendJson(response, { requestsPerMinute: limits.requestsPerMinute }),\n+    },\n   ];\n }\ndiff --git a/packages/api/src/server.ts b/packages/api/src/server.ts\nindex a5b21a6..00e8e81 100644\n--- a/packages/api/src/server.ts\n+++ b/packages/api/src/server.ts\n@@ -1,12 +1,19 @@\n import { createServer, type IncomingMessage, type ServerResponse } from \"node:http\";\n import { readConfig } from \"./config\";\n+import { createRateLimiter } from \"./rate-limit\";\n import { routes } from \"./routes\";\n \n export function startServer(env: Record<string, string | undefined>): void {\n   const config = readConfig(env);\n-  const table = routes();\n+  const table = routes(config);\n+  const limiter = createRateLimiter(config.requestsPerMinute);\n \n   const server = createServer((request: IncomingMessage, response: ServerResponse) => {\n+    const client = request.socket.remoteAddress ?? \"unknown\";\n+    if (!limiter.allow(client, Date.now())) {\n+      response.writeHead(429).end();\n+      return;\n+    }\n     const route = table.find((entry) => entry.path === request.url);\n     if (route === undefined) {\n       response.writeHead(404).end();\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "731a64e94666a29b3500c05c2cd01370efc2f72d",
+      "head": "ef5ca3c403ce9f9d0f545ec4a320bd5f8c10844a",
+      "commitCount": 1
+    }
+  },
+  "increment": {
+    "filteredSpan": "",
+    "unfilteredSpan": "",
+    "span": {
+      "changedFiles": [],
+      "unchangedFiles": [
+        "packages/api/src/config.ts",
+        "packages/api/src/rate-limit.ts",
+        "packages/api/src/routes.ts",
+        "packages/api/src/server.ts"
+      ],
+      "unpairableFiles": [],
+      "hop": [
+        {
+          "file": "packages/api/src/config.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/rate-limit.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/routes.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/server.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        }
+      ],
+      "oldSideHop": [
+        {
+          "file": "packages/api/src/config.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/rate-limit.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/routes.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "packages/api/src/server.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        }
+      ],
+      "isUnchanged": true
+    }
+  },
+  "baseBrief": {
+    "pr": {
+      "repo": "acme/mergebrief",
+      "number": 9012,
+      "title": "Rate-limit requests per client",
+      "url": "https://github.com/acme/mergebrief/pull/9012",
+      "sha": "673a84a651b44afd00621c537b1d3a6b048de550",
+      "description": "Adds a per-client rate limiter: a client past `REQUESTS_PER_MINUTE` (default 120) requests in the window gets a 429, and `GET /api/limits` reports the limit. `MAX_CONNECTIONS` now sets the connection cap."
+    },
+    "index": 1,
+    "commitRange": {
+      "base": "731a64e94666a29b3500c05c2cd01370efc2f72d",
+      "head": "673a84a651b44afd00621c537b1d3a6b048de550",
+      "commitCount": 3
+    },
+    "generation": {
+      "provider": "fixture",
+      "model": "hand-written",
+      "effort": "medium"
+    },
+    "summary": "Adds a per-client rate limiter to the API: a client past the configured requests per minute gets a 429, and GET /api/limits reports the limit.",
+    "changeGroups": [
+      {
+        "id": "g1",
+        "title": "Configure the request limit",
+        "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "id": "g2",
+        "title": "Add a sliding-window rate limiter",
+        "summary": "createRateLimiter counts each key's requests in the last 60 s and refuses one past the limit.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "id": "g3",
+        "title": "Report the limit at /api/limits",
+        "summary": "routes() takes the limits and serves them as JSON at GET /api/limits.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "id": "g4",
+        "title": "Refuse clients past the limit",
+        "summary": "startServer builds a limiter from the config and answers 429 before routing when a client is over it.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "id": "c1",
+        "changeGroupId": "g1",
+        "file": "packages/api/src/config.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 2,
+          "deleted": 0
+        },
+        "addedRanges": [
+          {
+            "start": 4,
+            "end": 4
+          },
+          {
+            "start": 11,
+            "end": 11
+          }
+        ],
+        "removedRanges": [],
+        "riskSurface": []
+      },
+      {
+        "id": "c2",
+        "changeGroupId": "g2",
+        "file": "packages/api/src/rate-limit.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 17,
+          "deleted": 0
+        },
+        "addedRanges": [
+          {
+            "start": 1,
+            "end": 17
+          }
+        ],
+        "removedRanges": [],
+        "riskSurface": []
+      },
+      {
+        "id": "c3",
+        "changeGroupId": "g3",
+        "file": "packages/api/src/routes.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 5,
+          "deleted": 1
+        },
+        "addedRanges": [
+          {
+            "start": 13,
+            "end": 13
+          },
+          {
+            "start": 16,
+            "end": 19
+          }
+        ],
+        "removedRanges": [
+          {
+            "start": 13,
+            "end": 13
+          }
+        ],
+        "riskSurface": []
+      },
+      {
+        "id": "c4",
+        "changeGroupId": "g4",
+        "file": "packages/api/src/server.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 8,
+          "deleted": 1
+        },
+        "addedRanges": [
+          {
+            "start": 3,
+            "end": 3
+          },
+          {
+            "start": 8,
+            "end": 9
+          },
+          {
+            "start": 12,
+            "end": 16
+          }
+        ],
+        "removedRanges": [
+          {
+            "start": 7,
+            "end": 7
+          }
+        ],
+        "riskSurface": []
+      }
+    ],
+    "concernView": [
+      {
+        "concern": "implementation",
+        "added": 32,
+        "deleted": 2
+      }
+    ],
+    "unattributed": [],
+    "diffTotals": {
+      "added": 32,
+      "deleted": 2
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "defines the limiter the other groups wire in"
+      },
+      {
+        "groupId": "g1",
+        "why": "adds the limit the server reads"
+      },
+      {
+        "groupId": "g4",
+        "why": "applies the limiter before routing"
+      },
+      {
+        "groupId": "g3",
+        "why": "reports the configured limit"
+      }
+    ],
+    "intentCheck": {
+      "ticketUrls": [],
+      "ticketTitles": [],
+      "specificity": "precise",
+      "scopeNote": "",
+      "accomplished": [
+        {
+          "intent": "a client past the request limit gets a 429",
+          "quote": "a client past `REQUESTS_PER_MINUTE` (default 120) requests in the window gets a 429",
+          "sourceUrl": "",
+          "groupIds": ["g2", "g1", "g4"],
+          "acknowledged": false
+        },
+        {
+          "intent": "GET /api/limits reports the limit",
+          "quote": "`GET /api/limits` reports the limit",
+          "sourceUrl": "",
+          "groupIds": ["g3"],
+          "acknowledged": false
+        }
+      ],
+      "statedButMissing": [
+        {
+          "intent": "MAX_CONNECTIONS sets the connection cap",
+          "quote": "`MAX_CONNECTIONS` now sets the connection cap",
+          "sourceUrl": "",
+          "groupIds": [],
+          "acknowledged": false
+        }
+      ],
+      "doneButUnstated": [],
+      "deviations": [],
+      "maskedFixes": []
+    },
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901"
+  },
+  "reviewComments": []
+}

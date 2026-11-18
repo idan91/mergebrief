@@ -1,0 +1,33 @@
+@use "mixins";
+
+@layer components {
+  .heading {
+    margin: 0;
+    margin-block-end: var(--space-2);
+    padding-inline: var(--space-3);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    line-height: var(--line-height-body);
+  }
+
+  .count {
+    margin-inline-start: var(--space-1);
+    color: var(--color-text-1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    > li {
+      @include mixins.single-column-grid;
+    }
+
+    > li + li {
+      border-block-start: 1px solid var(--color-line);
+    }
+  }
+}

@@ -1,0 +1,251 @@
+{
+  "address-risk": {
+    "command": "mergebrief risk address <number>"
+  },
+  "archive-pull": {
+    "webOnly": {
+      "reason": "Archiving is a Home affordance over the Inbox list; the CLI has no list to archive from",
+      "owner": "maintainer"
+    }
+  },
+  "create-draft-comment": {
+    "command": "mergebrief draft create <number>"
+  },
+  "create-inline-comment": {
+    "webOnly": {
+      "reason": "Deliberately no command: an agent drives the draft flow (draft create \u2192 submit) so inline comments ride a reviewed submit; direct inline posting is the web's affordance",
+      "owner": "maintainer"
+    }
+  },
+  "delete-draft-comment": {
+    "command": "mergebrief draft delete <number>"
+  },
+  "delete-own-pull": {
+    "webOnly": {
+      "reason": "Erasing the viewer's own pasted row is a Home affordance behind a confirm; the CLI has no list to delete from",
+      "owner": "maintainer"
+    }
+  },
+  "delete-pull": {
+    "webOnly": {
+      "reason": "Deleting a pull request's briefs is a Home affordance behind a confirm; the CLI has no list to delete from",
+      "owner": "maintainer"
+    }
+  },
+  "dismiss-risk": {
+    "command": "mergebrief risk dismiss <number>"
+  },
+  "dismiss-version-notice": {
+    "webOnly": {
+      "reason": "A per-user banner preference; the CLI has no banner",
+      "owner": "maintainer"
+    }
+  },
+  "generate-brief": {
+    "command": "mergebrief generate <url>"
+  },
+  "list-collaborators": {
+    "command": "mergebrief collaborators"
+  },
+  "list-inbox": {
+    "command": "mergebrief pr"
+  },
+  "list-local-briefs": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "maintainer"
+    }
+  },
+  "list-repos": {
+    "command": "mergebrief repos"
+  },
+  "list-tokens": {
+    "webOnly": {
+      "reason": "Token management is cookie-only: /api/auth/* ignores Bearer headers, so a token can never list tokens",
+      "owner": "maintainer"
+    }
+  },
+  "list-video-assets": {
+    "webOnly": {
+      "reason": "Tells the browser which bare pasted-asset lines GitHub plays as a video, so the page renders a player; the CLI prints the markdown with the GitHub URL in it",
+      "owner": "maintainer"
+    }
+  },
+  "mark-chunk-read": {
+    "command": "mergebrief chunk-read <number>"
+  },
+  "mark-chunk-unread": {
+    "command": "mergebrief chunk-read <number>"
+  },
+  "mark-ready": {
+    "command": "mergebrief ready <number>"
+  },
+  "mint-token": {
+    "webOnly": {
+      "reason": "Creating a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot create another",
+      "owner": "maintainer"
+    }
+  },
+  "purge-attachments": {
+    "webOnly": {
+      "reason": "Deleting a repository's attachment branch is a Home affordance behind a typed confirm, and the route is cookie-only; a token cannot sign the reviewer's confirmation",
+      "owner": "maintainer"
+    }
+  },
+  "read-attachment": {
+    "webOnly": {
+      "reason": "An image the browser loads inline from a comment body; the CLI prints the body's markdown with the GitHub URL in it",
+      "owner": "maintainer"
+    }
+  },
+  "read-brief": {
+    "command": "mergebrief groups <number>"
+  },
+  "read-brief-context": {
+    "command": "mergebrief context <number>"
+  },
+  "read-brief-layout": {
+    "webOnly": {
+      "reason": "Per-chunk row counts the review page reserves card heights from before the code lands; the CLI relays the brief and draws no cards",
+      "owner": "maintainer"
+    }
+  },
+  "read-capabilities": {
+    "command": "mergebrief capabilities"
+  },
+  "read-committed-file": {
+    "webOnly": {
+      "reason": "An image the browser loads inline from a committed file in the pull request's own repository; the CLI prints the markdown with the GitHub URL in it",
+      "owner": "maintainer"
+    }
+  },
+  "read-conversation": {
+    "command": "mergebrief conversation <number>"
+  },
+  "read-delta": {
+    "command": "mergebrief delta <number>"
+  },
+  "read-diff": {
+    "command": "mergebrief diff <number>"
+  },
+  "read-file-range": {
+    "webOnly": {
+      "reason": "The hunk-edge expander is a diff-viewer affordance; the CLI has no rendered diff to expand around",
+      "owner": "maintainer"
+    }
+  },
+  "read-generation-claims": {
+    "command": "mergebrief generation <number>"
+  },
+  "read-local-brief": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "maintainer"
+    }
+  },
+  "read-local-brief-diffs": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "maintainer"
+    }
+  },
+  "read-local-comparison-marks": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "maintainer"
+    }
+  },
+  "read-local-revision-narrative": {
+    "webOnly": {
+      "reason": "dev file surface, no CLI",
+      "owner": "maintainer"
+    }
+  },
+  "read-marks": {
+    "command": "mergebrief marks <number>"
+  },
+  "read-narrative": {
+    "command": "mergebrief narrative <number>"
+  },
+  "read-pull": {
+    "command": "mergebrief pr <number>"
+  },
+  "read-review-session": {
+    "command": "mergebrief session <number>"
+  },
+  "read-spend": {
+    "command": "mergebrief spend"
+  },
+  "read-stack": {
+    "webOnly": {
+      "reason": "The live stack feeds the header's neighbour links; the CLI renders no brief header to navigate from",
+      "owner": "maintainer"
+    }
+  },
+  "reanchor-draft-comment": {
+    "command": "mergebrief draft reanchor <number>"
+  },
+  "reclassify-group": {
+    "command": "mergebrief reclassify <number>"
+  },
+  "regenerate-brief": {
+    "webOnly": {
+      "reason": "Regenerating is the brief page's recovery affordance; the CLI has no failed-card surface",
+      "owner": "maintainer"
+    }
+  },
+  "reopen-risk": {
+    "command": "mergebrief risk reopen <number>"
+  },
+  "reply-to-comment": {
+    "command": "mergebrief reply <commentId>"
+  },
+  "resolve-mention-targets": {
+    "webOnly": {
+      "reason": "Feeds the mention links in rendered comments; the CLI prints bodies as GitHub wrote them",
+      "owner": "maintainer"
+    }
+  },
+  "resolve-thread": {
+    "command": "mergebrief thread resolve <number>"
+  },
+  "revoke-sessions": {
+    "webOnly": {
+      "reason": "Signing out everywhere is cookie-only like creating a token: /api/auth/* ignores Bearer headers so a stolen token cannot sign its owner out",
+      "owner": "maintainer"
+    }
+  },
+  "revoke-token": {
+    "webOnly": {
+      "reason": "Revocation is cookie-only for the same reason as creating a token: a stolen token must not be able to revoke the owner's tokens",
+      "owner": "maintainer"
+    }
+  },
+  "search-mention-suggestions": {
+    "webOnly": {
+      "reason": "Feeds the @ suggestions list while typing in a composer; an agent writing a comment types the login itself",
+      "owner": "maintainer"
+    }
+  },
+  "set-review-outcome": {
+    "command": "mergebrief outcome <number>"
+  },
+  "submit-review": {
+    "command": "mergebrief submit <number>"
+  },
+  "unarchive-pull": {
+    "webOnly": {
+      "reason": "Unarchiving is a Home affordance over the archived view; the CLI has no list to restore to",
+      "owner": "maintainer"
+    }
+  },
+  "unresolve-thread": {
+    "command": "mergebrief thread unresolve <number>"
+  },
+  "update-draft-comment": {
+    "command": "mergebrief draft update <number>"
+  },
+  "upload-attachment": {
+    "command": "mergebrief draft attach <number> <file>"
+  }
+}

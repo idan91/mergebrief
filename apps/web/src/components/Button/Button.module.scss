@@ -1,0 +1,191 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-1);
+    cursor: pointer;
+    font-size: var(--font-size-2);
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast),
+      transform var(--motion-fast) var(--ease-out);
+    white-space: nowrap;
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:not([aria-disabled="true"]):active {
+        transform: scale(0.97);
+      }
+    }
+
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        border-color: color-mix(
+          in srgb,
+          var(--color-line-strong) 60%,
+          var(--color-text-1)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-surface-1) 88%,
+          var(--color-text-1)
+        );
+      }
+    }
+
+    &[data-variant="primary"] {
+      border-color: var(--color-brand);
+      background: var(--color-brand);
+      color: var(--color-on-brand);
+      font-weight: 600;
+
+      @include mixins.hover {
+        &:not([aria-disabled="true"]):hover {
+          border-color: var(--color-brand-strong);
+          background: var(--color-brand-strong);
+        }
+      }
+
+      &:not([aria-disabled="true"]):active {
+        border-color: color-mix(
+          in srgb,
+          var(--color-brand-strong) 88%,
+          var(--color-ground)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-brand-strong) 88%,
+          var(--color-ground)
+        );
+      }
+    }
+
+    &[data-variant="danger"] {
+      border-color: color-mix(
+        in srgb,
+        var(--color-negative) 55%,
+        var(--color-line-strong)
+      );
+      color: var(--color-negative);
+
+      @include mixins.hover {
+        &:not([aria-disabled="true"]):hover {
+          border-color: var(--color-negative);
+          background: var(--color-negative-tint-medium);
+        }
+      }
+    }
+
+    /* The row mini-action grammar (ghost bordered, 24px floor), distinct
+       from RowButton, which is whole-row-as-target. */
+    &[data-variant="quiet"] {
+      min-height: functions.to-rem(24px);
+      padding-block: var(--space-2);
+      padding-inline: var(--space-3-5);
+      border-color: var(--color-line);
+      font-size: var(--font-size-2);
+      font-weight: 400;
+      text-decoration: none;
+
+      /* Row labels wrap rather than overflow their unwrapped flex rows. */
+      white-space: normal;
+
+      @include mixins.hover {
+        &:not([aria-disabled="true"]):hover {
+          border-color: var(--color-line);
+          background: none;
+        }
+      }
+    }
+
+    /* For in-flow control rows (filter bars, toolbars) rather than the modal
+       footers md is sized for: same grammar, tightened to sit beside chips. */
+    &[data-size="sm"] {
+      padding-block: var(--space-2);
+      padding-inline: var(--space-3-5);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-2);
+      font-weight: 500;
+    }
+
+    &[data-variant="ghost"],
+    &[data-variant="ghost-danger"] {
+      border-color: transparent;
+      border-radius: var(--radius-md);
+      color: var(--color-text-2);
+      font-weight: 500;
+
+      @include mixins.hover {
+        &:not([aria-disabled="true"]):hover {
+          border-color: transparent;
+          background: var(--color-surface-3);
+          color: var(--color-text-1);
+        }
+      }
+    }
+
+    &[data-variant="ghost-danger"] {
+      color: var(--color-negative);
+
+      @include mixins.hover {
+        &:not([aria-disabled="true"]):hover {
+          background: var(--color-negative-tint-medium);
+          color: var(--color-negative);
+        }
+      }
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-line-strong));
+      }
+
+      &[data-variant="primary"]:focus-visible {
+        border-color: functions.dim(var(--color-brand));
+        background: functions.dim(var(--color-brand));
+      }
+
+      &[data-variant="danger"]:focus-visible {
+        border-color: functions.dim(
+          color-mix(
+            in srgb,
+            var(--color-negative) 55%,
+            var(--color-line-strong)
+          )
+        );
+      }
+
+      &[data-variant="quiet"]:focus-visible {
+        border-color: functions.dim(var(--color-line));
+      }
+
+      &[data-variant="ghost"]:focus-visible {
+        border-color: transparent;
+      }
+
+      &[data-variant="ghost-danger"]:focus-visible {
+        border-color: transparent;
+      }
+    }
+  }
+
+  /* The 44px AIM lands where fingers do; desktop keeps the 24px floor. */
+  @media (pointer: coarse) {
+    .button[data-variant="quiet"] {
+      min-height: functions.to-rem(44px);
+    }
+  }
+}

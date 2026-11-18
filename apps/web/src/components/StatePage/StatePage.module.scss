@@ -1,0 +1,35 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .page {
+    flex: 1;
+  }
+
+  .main {
+    padding-block: var(--space-8) var(--space-9);
+    padding-inline: var(--page-gutter);
+
+    h1 {
+      margin-block-end: var(--space-2);
+      text-wrap: balance;
+    }
+
+    p {
+      max-inline-size: functions.to-rem(632px);
+      font-size: var(--font-size-4);
+      line-height: var(--line-height-body);
+      text-wrap: pretty;
+    }
+  }
+
+  .action {
+    margin-block-start: var(--space-4);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .main {
+      padding-block-start: var(--space-6);
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "ingest-briefs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One-shot ingest of CLI brief artifacts (.brief.json + sidecars) into database rows — the test on-ramp and the file-path retirement migration.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "ingest": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "brief-core": "workspace:*",
+    "persistence": "workspace:*",
+    "types": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,0 +1,805 @@
+// @vitest-environment jsdom
+// Submitted comments are read-only records: GitHub holds the posted text and
+// a re-submit ships drafts only, so Edit/Delete must not be offered once a
+// comment has been posted.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render as renderBare,
+  renderHook,
+  screen,
+  within,
+} from "@testing-library/react";
+import { useState, type ReactElement, type ReactNode } from "react";
+import { RequestBounds } from "contract";
+import { describe, expect, it, vi } from "vitest";
+
+import { ButtonVariants } from "@web/components/Button";
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
+import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
+import { type ReviewComment } from "../../utils/comments";
+import { createReviewFlowStore, ReviewFlowProvider } from "../../session";
+import { appI18n } from "../../../../i18n/I18nProvider";
+import { CommentThread } from ".";
+import { useCommentThreadFacade } from "./useCommentThreadFacade";
+import {
+  CommentAnchorKinds,
+  DiffSides,
+  DraftCommentStatuses,
+} from "types/comments";
+
+function makeFlowStore() {
+  return createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
+    },
+    appI18n.t,
+  );
+}
+
+/** The editor reads the flow's announcer and the mention search's query client. */
+function FlowWrapper({ children }: { children: ReactNode }) {
+  const [store] = useState(makeFlowStore);
+  const [client] = useState(() => new QueryClient());
+  return (
+    <QueryClientProvider client={client}>
+      <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>
+    </QueryClientProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return renderBare(ui, { wrapper: FlowWrapper });
+}
+
+function comment(status: ReviewComment["status"]): ReviewComment {
+  return {
+    id: "c1",
+    anchor: {
+      kind: CommentAnchorKinds.LINE,
+      chunkId: "chunk-a",
+      file: "src/a.ts",
+      side: DiffSides.NEW,
+      startLine: 3,
+      endLine: 3,
+      rowIds: ["chunk-a:0"],
+      selectedText: "x",
+    },
+    body: "note",
+    status,
+    collapsed: false,
+  };
+}
+
+function renderThread(status: ReviewComment["status"]) {
+  return render(
+    <CommentThread
+      comment={comment(status)}
+      deleteComment={vi.fn()}
+      toggle={vi.fn()}
+      update={vi.fn()}
+    />,
+  );
+}
+
+describe("CommentThread", () => {
+  it("moves focus into the editor when Edit opens it", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
+  });
+
+  it("registers a diverged edit with the navigation guard; Cancel releases", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(hasUnsavedComposerText()).toBe(false);
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "note, amended" },
+    });
+    expect(hasUnsavedComposerText()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(hasUnsavedComposerText()).toBe(false);
+  });
+
+  it("Delete asks for confirmation; Keep aborts, Delete draft proceeds", () => {
+    const deleteComment = vi.fn();
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={deleteComment}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(deleteComment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(screen.queryByText("Delete this draft?")).toBeNull();
+    expect(deleteComment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
+    expect(deleteComment).toHaveBeenCalledWith("c1");
+  });
+
+  it("the draft delete confirm offers Keep before Delete draft", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    const alert = screen.getByRole("alert");
+    const buttons = within(alert).getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Keep",
+      "Delete draft",
+    ]);
+  });
+
+  it("Keep closes the delete confirm and returns focus to Delete", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    const deleteTrigger = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(deleteTrigger);
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.activeElement).toBe(deleteTrigger);
+  });
+
+  it("Cmd+Enter must not save while a Post is in flight", () => {
+    // The Save button disables while posting, but Cmd+Enter reaches
+    // saveEdit directly. The guard lives in the handler, not the button
+    // (capture-at-initiation rule: a mid-flight save would flip the record
+    // to `submitted` with a body the request never shipped).
+    const update = vi.fn();
+    const props = {
+      comment: comment(DraftCommentStatuses.DRAFT),
+      deleteComment: vi.fn(),
+      post: vi.fn(),
+      toggle: vi.fn(),
+      update,
+    };
+    const view = render(<CommentThread {...props} posting={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    view.rerender(<CommentThread {...props} posting />);
+    fireEvent.keyDown(screen.getByLabelText("Edit comment"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(update).not.toHaveBeenCalled();
+    view.rerender(<CommentThread {...props} posting={false} />);
+    fireEvent.keyDown(screen.getByLabelText("Edit comment"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(update).toHaveBeenCalledWith("c1", "note");
+  });
+
+  it("Save holds while the body still carries an upload placeholder", () => {
+    const update = vi.fn();
+    const held = comment(DraftCommentStatuses.DRAFT);
+    render(
+      <CommentThread
+        comment={{ ...held, body: "note\n![Uploading shot.png…]()" }}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={update}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "An image is still uploading; wait for it to land before submitting.",
+    );
+  });
+
+  it("Save holds a body over the bound and keeps the editor open", () => {
+    const update = vi.fn();
+    const held = comment(DraftCommentStatuses.DRAFT);
+    render(
+      <CommentThread
+        comment={held}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={update}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const editor = screen.getByLabelText("Edit comment");
+    fireEvent.change(editor, {
+      target: { value: "x".repeat(RequestBounds.BODY_LENGTH + 1) },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "This comment is longer than the 65,536-character limit. Shorten it to save.",
+    );
+    expect(screen.getByLabelText("Edit comment")).toBeDefined();
+  });
+
+  it("is read-only and unlabelled under a status it predates", () => {
+    renderThread("unknown");
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.queryByText(/posted to GitHub/i)).toBeNull();
+    expect(screen.queryByText(/pending/i)).toBeNull();
+  });
+
+  it.each([
+    ["unknown", "Comment on +3"],
+    [DraftCommentStatuses.DRAFT, "Draft comment on +3"],
+  ] as const)(
+    "a collapsed %s comment's toggle reads %s",
+    (status, toggleText) => {
+      render(
+        <CommentThread
+          comment={{ ...comment(status), collapsed: true }}
+          deleteComment={vi.fn()}
+          toggle={vi.fn()}
+          update={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("button").textContent).toBe(toggleText);
+    },
+  );
+
+  it("is read-only once submitted with a posted label", () => {
+    renderThread(DraftCommentStatuses.SUBMITTED);
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.getByText(/posted to GitHub/i)).toBeDefined();
+  });
+
+  it("leaves the primary to the header's Submit", () => {
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        post={vi.fn()}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const post = screen.getByRole("button", { name: "Post" });
+    expect(post.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.dataset["variant"]).toBe(ButtonVariants.SECONDARY);
+  });
+
+  it("offers Post on a draft when the post action is injected, and calls it", () => {
+    const post = vi.fn();
+    const draft = comment(DraftCommentStatuses.DRAFT);
+    render(
+      <CommentThread
+        comment={draft}
+        deleteComment={vi.fn()}
+        post={post}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Post" });
+    button.click();
+    expect(post).toHaveBeenCalledWith(draft);
+  });
+
+  it("disables Post/Edit/Delete with a pending label while posting", () => {
+    // In flight: mutating controls disable so a mid-flight edit cannot
+    // produce a submitted record whose body was never posted; Collapse (a
+    // pure view toggle) stays live.
+    const post = vi.fn();
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        post={post}
+        posting
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const postButton = screen.getByRole("button", {
+      name: "Posting…",
+    }) as HTMLButtonElement;
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
+    postButton.click();
+    expect(post).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByRole("button", { name: "Edit" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Delete" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Collapse" })
+        .getAttribute("aria-disabled"),
+    ).toBeNull();
+  });
+
+  it("blocks Post while the inline editor is open, re-enabling on cancel", async () => {
+    // Post ships the last SAVED body. With unsaved text in the editor, a
+    // post would silently discard the amendment when the success flip lands.
+    const post = vi.fn();
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        post={post}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(await screen.findByRole("textbox")).toBeDefined();
+
+    const postButton = screen.getByRole("button", {
+      name: "Post",
+    }) as HTMLButtonElement;
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(postButton);
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText(/Save or cancel your edit first/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Post" })
+        .getAttribute("aria-disabled"),
+    ).toBeNull();
+  });
+
+  it("blocks Post with recoverable copy when the body exceeds the route cap", () => {
+    // Deterministic-400 mirror: an over-cap body would
+    // 400 at the route and the UI would resubmit the same draft. The
+    // affordance must block client-side with a reason instead.
+    const post = vi.fn();
+    const overlong = {
+      ...comment(DraftCommentStatuses.DRAFT),
+      body: "x".repeat(65_537),
+    };
+    render(
+      <CommentThread
+        comment={overlong}
+        deleteComment={vi.fn()}
+        post={post}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const postButton = screen.getByRole("button", {
+      name: "Post",
+    }) as HTMLButtonElement;
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
+    postButton.click();
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText(/65,536-character limit/)).toBeDefined();
+  });
+
+  it("blocks Post when the path exceeds the route cap", () => {
+    // Route path-bound mirror: an over-long path is a deterministic 400
+    // no edit can fix. The only recovery is deleting the draft.
+    const post = vi.fn();
+    const base = comment(DraftCommentStatuses.DRAFT);
+    const overlongPath = {
+      ...base,
+      anchor: { ...base.anchor, file: `src/${"x".repeat(1_025)}.ts` },
+    };
+    render(
+      <CommentThread
+        comment={overlongPath}
+        deleteComment={vi.fn()}
+        post={post}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const postButton = screen.getByRole("button", {
+      name: "Post",
+    }) as HTMLButtonElement;
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(postButton);
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText(/path is too long to post/)).toBeDefined();
+  });
+
+  it("blocks Post with the wait reason while a review is submitting", () => {
+    // The reverse race: a Submit review in flight already CAPTURED this draft.
+    // Posting it mid-submit would double-post it when the review lands.
+    const post = vi.fn();
+    const reason =
+      "A review is being submitted. Wait for it to finish before posting this comment.";
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        post={post}
+        postBlockedExternally={reason}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const postButton = screen.getByRole("button", {
+      name: "Post",
+    }) as HTMLButtonElement;
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(postButton);
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText(reason)).toBeDefined();
+  });
+
+  it("keeps posting lockdown when the post action is gone", () => {
+    // The own-draft state can exit while a post is settling (same span → no
+    // remount). The ACTION vanishes, but Edit/Delete must stay locked on the
+    // still-posting draft. Re-enabled controls could flip a submitted record
+    // whose edited body never posted, or orphan the GitHub comment on delete.
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        posting
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    // No Post affordance (action gone with the own-draft plan)…
+    expect(screen.queryByRole("button", { name: /Post/ })).toBeNull();
+    // …but the mutating controls stay locked while the request settles.
+    expect(
+      screen
+        .getByRole("button", { name: "Edit" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Delete" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("never offers Post on an already-submitted comment", () => {
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.SUBMITTED)}
+        deleteComment={vi.fn()}
+        post={vi.fn()}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
+  });
+
+  it("closes an open editor when the draft is submitted mid-edit", async () => {
+    // Edit open → the submit lands (status flips via a rerender) → the
+    // posted record must render read-only, not a live Save/Cancel editor.
+    const { rerender } = render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    screen.getByRole("button", { name: "Edit" }).click();
+    expect(await screen.findByRole("textbox")).toBeDefined();
+
+    rerender(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.SUBMITTED)}
+        deleteComment={vi.fn()}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+});
+
+describe("CommentThread mention source hand-off", () => {
+  it("offers the source's participants in the draft editor", () => {
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        mentionSource={{
+          participants: [{ kind: MentionCandidateKinds.USER, login: "carol" }],
+        }}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "@" },
+    });
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@carol"]);
+  });
+});
+
+interface DeferredUpdate {
+  update: (commentId: string, body: string) => Promise<boolean>;
+  land: (updated: boolean) => void;
+}
+
+function makeDeferredUpdate(): DeferredUpdate {
+  let land: (updated: boolean) => void = () => undefined;
+  const update = vi.fn(
+    () =>
+      new Promise<boolean>((resolve) => {
+        land = resolve;
+      }),
+  );
+  return { update, land: (updated) => land(updated) };
+}
+
+function openEditorWith(
+  update: (commentId: string, body: string) => Promise<boolean>,
+  body: string,
+) {
+  const view = render(
+    <CommentThread
+      comment={comment(DraftCommentStatuses.DRAFT)}
+      deleteComment={vi.fn()}
+      toggle={vi.fn()}
+      update={update}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  fireEvent.change(screen.getByLabelText("Edit comment"), {
+    target: { value: body },
+  });
+  return view;
+}
+
+describe("CommentThread edit write", () => {
+  it("closes the editor only once the update lands", async () => {
+    const pending = makeDeferredUpdate();
+    openEditorWith(pending.update, "note, amended");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByLabelText("Edit comment")).toBeTruthy();
+    await act(async () => {
+      pending.land(true);
+    });
+
+    expect(screen.queryByLabelText("Edit comment")).toBeNull();
+  });
+
+  it("hands focus to Edit when a landed save closes the editor", async () => {
+    const pending = makeDeferredUpdate();
+    openEditorWith(pending.update, "note, amended");
+    const save = screen.getByRole("button", { name: "Save" });
+    save.focus();
+
+    fireEvent.click(save);
+    await act(async () => {
+      pending.land(true);
+    });
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Edit" }),
+    );
+  });
+
+  it("keeps the editor holding its text when the update fails", async () => {
+    const pending = makeDeferredUpdate();
+    openEditorWith(pending.update, "note, amended");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await act(async () => {
+      pending.land(false);
+    });
+
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("Edit comment");
+    expect(editor.value).toBe("note, amended");
+    expect(editor.readOnly).toBe(false);
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  });
+
+  it("reopens the editor holding its text when the update throws", async () => {
+    const quiet = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    openEditorWith(
+      vi.fn(() => Promise.reject(new Error("network"))),
+      "note, amended",
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("Edit comment");
+    expect(editor.value).toBe("note, amended");
+    expect(editor.readOnly).toBe(false);
+    quiet.mockRestore();
+  });
+
+  it("refuses an empty body and keeps the editor open", () => {
+    const update = vi.fn(() => Promise.resolve(true));
+    openEditorWith(update, "   ");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Comment cannot be empty.",
+    );
+    expect(screen.getByLabelText("Edit comment")).toBeTruthy();
+  });
+
+  it("ties the edit error to the editor it is about", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "   ",
+    );
+    const editor = screen.getByLabelText("Edit comment");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(editor.getAttribute("aria-describedby")).toBe(
+      screen.getByRole("alert").id,
+    );
+    expect(editor.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("drops the editor's tie to its error once the text changes", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "   ",
+    );
+    const editor = screen.getByLabelText("Edit comment");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    fireEvent.change(editor, { target: { value: "note, amended" } });
+
+    expect(editor.hasAttribute("aria-describedby")).toBe(false);
+    expect(editor.hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("holds Save, Cancel and Escape while the update is in flight", () => {
+    const pending = makeDeferredUpdate();
+    openEditorWith(pending.update, "note, amended");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("Edit comment");
+    fireEvent.keyDown(editor, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Saving…" }));
+
+    expect(pending.update).toHaveBeenCalledTimes(1);
+    expect(editor.readOnly).toBe(true);
+    expect(editor.value).toBe("note, amended");
+    expect(
+      screen
+        .getByRole("button", { name: "Saving…" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Cancel" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("keeps one edit in flight when Edit is pressed mid-save", async () => {
+    const pending = makeDeferredUpdate();
+    openEditorWith(pending.update, "note, amended");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Saving…" }));
+
+    expect(pending.update).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>("Edit comment").value,
+    ).toBe("note, amended");
+    await act(async () => {
+      pending.land(true);
+    });
+    expect(screen.queryByLabelText("Edit comment")).toBeNull();
+  });
+
+  it("keeps typed text when Edit is pressed with the editor open", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "note, amended",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    const editor = screen.getByLabelText<HTMLTextAreaElement>("Edit comment");
+    expect(editor.value).toBe("note, amended");
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("holds Delete while the editor is open", () => {
+    openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "note, amended",
+    );
+
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(deleteButton);
+
+    expect(deleteButton.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByText("Delete this draft?")).toBeNull();
+  });
+
+  it("keeps the edit open across a collapse", () => {
+    const view = openEditorWith(
+      vi.fn(() => Promise.resolve(true)),
+      "note, amended",
+    );
+    const collapsed = {
+      ...comment(DraftCommentStatuses.DRAFT),
+      collapsed: true,
+    };
+    const props = {
+      deleteComment: vi.fn(),
+      toggle: vi.fn(),
+      update: vi.fn(() => Promise.resolve(true)),
+    };
+
+    view.rerender(<CommentThread comment={collapsed} {...props} />);
+    view.rerender(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        {...props}
+      />,
+    );
+
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>("Edit comment").value,
+    ).toBe("note, amended");
+  });
+});
+
+describe("useCommentThreadFacade edit settle", () => {
+  it("keeps a mode set mid-save when the older edit save lands", async () => {
+    const pending = makeDeferredUpdate();
+    const draft = comment(DraftCommentStatuses.DRAFT);
+    const hook = renderHook(
+      ({ readOnly }: { readOnly: boolean }) =>
+        useCommentThreadFacade({
+          comment: draft,
+          readOnly,
+          posting: false,
+          update: pending.update,
+        }),
+      { initialProps: { readOnly: false }, wrapper: FlowWrapper },
+    );
+    act(() => hook.result.current.openEditor());
+    act(() => hook.result.current.editBody("note, amended"));
+    act(() => hook.result.current.saveEdit());
+
+    hook.rerender({ readOnly: true });
+    act(() => hook.result.current.requestDelete());
+    hook.rerender({ readOnly: false });
+    expect(hook.result.current.confirmDeleteOpen).toBe(true);
+    await act(async () => {
+      pending.land(true);
+    });
+
+    expect(hook.result.current.confirmDeleteOpen).toBe(true);
+  });
+});

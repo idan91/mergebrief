@@ -1,0 +1,12 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "cursor-follows-row-listed": 5,
+    "inbox-poll-before-from-diff": 5,
+    "inbox-poll-before-shown": 5,
+    "inbox-poll-listed": 5,
+    "product-change-groups-real": 5,
+    "product-diff-available": 5
+  }
+}

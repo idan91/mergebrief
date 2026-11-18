@@ -1,0 +1,455 @@
+@use "sass:list";
+@use "functions" as functions;
+
+// ONE focus ring, app-wide. No geometry parameters on purpose — a parameter
+// is how per-site drift regrows. `focus-ring` omits the state selector for
+// sites that paint the ring on a SIBLING of the focused control
+// (`.input:focus-visible + .track`); everything else uses `focus-visible`.
+@mixin focus-ring {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+
+  @media (prefers-contrast: more) {
+    outline-width: 3px;
+  }
+}
+
+@mixin focus-visible {
+  &:focus-visible {
+    @include focus-ring;
+    @content;
+  }
+}
+
+// Element opacity dims the element's own outline, so a dimmed control that
+// stays focusable undims while it shows the ring: its own text dims through
+// the text fill, each child through its own opacity, and the caller's
+// content dims the edge and fill with `functions.dim`, never `color`, which
+// children inherit. No transition: opacity and paint must swap in the same
+// frame or the control flashes enabled.
+@mixin dimmed($focused: "&:focus-visible") {
+  opacity: var(--opacity-disabled);
+  transition: none;
+
+  @if $focused {
+    #{$focused} {
+      opacity: 1;
+      -webkit-text-fill-color: functions.dim(currentcolor);
+      @content;
+    }
+
+    :where(#{$focused}) > * {
+      opacity: var(--opacity-disabled);
+      -webkit-text-fill-color: currentcolor;
+    }
+  }
+}
+
+// A touch screen holds :hover after a tap, until the next tap elsewhere. Every
+// rule naming :hover sits inside this.
+@mixin hover {
+  @media (hover: hover) {
+    @content;
+  }
+}
+
+// Forced colours repaint every author fill and edge in one ink, so a bar or a
+// state drawn by colour alone disappears. System colours survive the mode.
+@mixin forced-colors {
+  @media (forced-colors: active) {
+    @content;
+  }
+}
+
+// A bar that exists only as a background.
+@mixin forced-fill($ink: CanvasText) {
+  @include forced-colors {
+    background: $ink;
+  }
+}
+
+// The selected or pressed one of a set of controls. The mode backs text with
+// a plate of the page colour, which would cover the fill, so the control opts
+// out and restates every colour inside it, its own ring however triggered.
+// The opt-out is inherited, so a child's hover fill would paint its theme
+// colour too. Important: opted out, a hover or focus variant would otherwise
+// paint over the fill. A child's ring is inset to stay on the fill. Pass
+// `$inset-ring` where the control's own ring sits inside its edge; an outset
+// ring sits on Canvas, where HighlightText can match the page.
+@mixin forced-selected($inset-ring: false) {
+  @include forced-colors {
+    forced-color-adjust: none;
+    border-color: Highlight !important;
+    background: Highlight !important;
+    color: HighlightText !important;
+    outline-color: Highlight !important;
+
+    * {
+      background: transparent !important;
+      color: inherit !important;
+    }
+
+    :focus-visible {
+      outline-color: HighlightText !important;
+      outline-offset: -2px !important;
+    }
+
+    @if $inset-ring {
+      &:focus-visible {
+        outline-color: HighlightText !important;
+      }
+    }
+  }
+}
+
+// A number cell under `forced-selected` whose digits something else covers:
+// the digits stay hidden on the plate, and the stand-in drawn over them, when
+// the cell holds it, takes the plate's ink. Hiding the digits rests on
+// `forced-selected` giving every descendant `color: inherit`.
+@mixin forced-covered($stand-in: null) {
+  @include forced-colors {
+    color: transparent !important;
+
+    @if $stand-in {
+      #{$stand-in} {
+        color: HighlightText !important;
+      }
+    }
+  }
+}
+
+// The row the reader is on, where the fill would hide what the row holds.
+// Dashed, so it never reads as the solid focus ring; a focused current row
+// shows the ring.
+@mixin forced-current {
+  @include forced-colors {
+    outline: 2px dashed Highlight;
+    outline-offset: -2px;
+
+    &:focus-visible {
+      outline-style: solid;
+    }
+  }
+}
+
+@mixin user-select($value) {
+  /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed user-select, and the build has no autoprefixer */
+  -webkit-user-select: $value;
+  user-select: $value;
+}
+
+// Grows a small control's hit area to the 24px floor and leaves its box alone.
+// An ancestor's overflow clips the area with it.
+@mixin hit-area {
+  position: relative;
+
+  &::after {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 100%;
+    min-inline-size: functions.to-rem(24px);
+    block-size: 100%;
+    min-block-size: functions.to-rem(24px);
+    content: "";
+    transform: translate(-50%, -50%);
+  }
+}
+
+@mixin for-size($size, $limit-type: min, $size-type: width) {
+  @if $size-type == width {
+    @media (#{$limit-type}-width: $size) {
+      @content;
+    }
+  } @else if $size-type == height {
+    @media (#{$limit-type}-height: $size) {
+      @content;
+    }
+  }
+}
+
+@mixin for-breakpoint($name, $limit-type: min) {
+  $size: functions.get-breakpoint($name);
+
+  @if list.index(("<", "<=", ">", ">="), $limit-type) {
+    @media (width #{$limit-type} #{$size}) {
+      @content;
+    }
+  } @else {
+    @include for-size($size, $limit-type) {
+      @content;
+    }
+  }
+}
+
+// A phone held sideways: short, no wider than a tablet, and touched. Height
+// keys it because a large phone lands past the mobile width; the coarse
+// pointer keeps a short desktop window out. hooks/useMobileViewport.ts reads
+// the same query; styles/breakpoints.test.ts holds them equal.
+@mixin for-landscape-phone {
+  @media (orientation: landscape) and (height <= #{functions.get-breakpoint("landscape-height")}) and (width <= #{functions.get-breakpoint("tablet")}) and (pointer: coarse) {
+    @content;
+  }
+}
+
+// Any phone: the portrait width or the landscape shape. hooks/useMobileViewport.ts
+// reads the same pair.
+@mixin for-phone {
+  @media (width <= #{functions.get-breakpoint("mobile")}),
+    ((orientation: landscape) and (height <= #{functions.get-breakpoint("landscape-height")}) and (width <= #{functions.get-breakpoint("tablet")}) and (pointer: coarse)) {
+    @content;
+  }
+}
+
+// iOS Safari zooms the page into a focused field under 16px.
+@mixin touch-field-text {
+  @media (pointer: coarse) {
+    font-size: var(--font-size-touch-field);
+  }
+}
+
+// A one-column grid whose track may shrink below its content. The implicit
+// auto track sizes to a nowrap descendant's min-content and widens every
+// ancestor grid with it, so each grid between the scrollport and that line
+// takes this.
+@mixin single-column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+// Vertical scroll region inside a sticky rail. Horizontal scrolling is hard-
+// disabled: the styled scrollbar consumes inline space, which would otherwise
+// trip overflow-x: auto into a horizontal bar. The shadows sit at the viewport
+// edges (attachment: scroll) while the solid covers scroll with the content
+// (attachment: local), so each shadow shows only past that edge.
+// The host the scroller sits in sets --scroller-bg to its own surface.
+@mixin rail-scroller {
+  min-block-size: 0;
+  overflow: hidden auto;
+  background:
+    linear-gradient(var(--scroller-bg) 30%, transparent) center top / 100% 36px,
+    linear-gradient(transparent, var(--scroller-bg) 70%) center bottom / 100%
+      36px,
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 60%), rgb(0 0 0 / 0%))
+      center top / 100% 12px,
+    radial-gradient(
+        farthest-side at 50% 100%,
+        rgb(0 0 0 / 60%),
+        rgb(0 0 0 / 0%)
+      )
+      center bottom / 100% 12px;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--scroller-bg);
+  background-repeat: no-repeat;
+  scrollbar-color: var(--color-line-strong) transparent;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    inline-size: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: var(--radius-pill);
+    background: var(--color-line-strong);
+  }
+}
+
+// A fenced code block: one panel, its code unstyled inside it. Inline code's
+// fill on the `code` would otherwise paint one strip per wrapped line.
+@mixin code-block {
+  margin-block: 0 var(--space-4);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+  color: var(--color-text-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2);
+  line-height: var(--line-height-body);
+  white-space: pre-wrap;
+
+  > code {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+
+// The type a rendered comment body is set in. The shared renderer and the
+// draft preview both include it, so a draft reads as it will once posted.
+// Headings arrive demoted (h1 to h3, h2 to h4), and a demoted h1 cannot be
+// told from an authored h3, so each level carries one style serving both.
+@mixin markdown-type {
+  color: var(--color-text-soft);
+  font-size: var(--font-size-3);
+  line-height: var(--line-height-reading);
+
+  img {
+    max-inline-size: 100%;
+    block-size: auto;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-block: var(--space-5) var(--space-3);
+    color: var(--color-text-1);
+    font-weight: 600;
+    line-height: var(--line-height-reading);
+  }
+
+  h3 {
+    font-size: var(--font-size-4);
+  }
+
+  h4 {
+    font-size: var(--font-size-3);
+  }
+
+  h5,
+  h6 {
+    font-size: var(--font-size-2);
+  }
+
+  h3:first-child,
+  h4:first-child,
+  h5:first-child,
+  h6:first-child {
+    margin-block-start: 0;
+  }
+
+  code {
+    font-size: var(--font-size-2);
+  }
+
+  :is(h3, h4, h5, h6) code {
+    font-size: inherit;
+  }
+
+  a {
+    color: var(--color-accent);
+    text-underline-offset: functions.to-rem(3px);
+
+    @include hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
+    }
+  }
+
+  strong {
+    color: var(--color-text-1);
+    font-weight: 600;
+  }
+}
+
+@mixin markdown-lists {
+  // Native markers cannot be left-aligned at a fixed width: outside ones
+  // right-align, so "2." misses a bullet's edge, and inside ones vary in
+  // width, so wrapped lines miss the text edge. A zero-width marker keeps the
+  // list semantics that Safari drops on list-style: none.
+  ul,
+  ol {
+    padding-inline-start: 0;
+    list-style-type: "\200B";
+  }
+
+  li {
+    position: relative;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the hanging indent the list marker sits in */
+    padding-inline-start: functions.to-rem(28px);
+
+    &::before {
+      position: absolute;
+      inset-inline-start: 0;
+    }
+  }
+
+  ul > li::before {
+    content: "\2022";
+  }
+
+  ol > li::before {
+    content: counter(list-item) ".";
+  }
+
+  li:has(> input[type="checkbox"]),
+  li:has(> p:first-child > input[type="checkbox"]) {
+    &::before {
+      content: none;
+    }
+  }
+
+  // An absolute box's static position is the line top, not its baseline.
+  li input[type="checkbox"] {
+    position: absolute;
+    inset-inline-start: 0;
+    translate: 0 calc(0.5lh - 50%);
+  }
+}
+
+// The element's concern mark colour as --concern-color, read from its
+// data-concern; anything else, the Unattributed remainder included, takes the
+// neutral.
+@mixin concern-color {
+  --concern-color: var(--color-concern-unattributed);
+
+  &[data-concern="implementation"] {
+    --concern-color: var(--color-concern-implementation);
+  }
+
+  &[data-concern="test"] {
+    --concern-color: var(--color-concern-test);
+  }
+
+  &[data-concern="doc"] {
+    --concern-color: var(--color-concern-doc);
+  }
+
+  &[data-concern="spec"] {
+    --concern-color: var(--color-concern-spec);
+  }
+
+  &[data-concern="config"] {
+    --concern-color: var(--color-concern-config);
+  }
+
+  &[data-concern="generated"] {
+    --concern-color: var(--color-concern-generated);
+  }
+}
+
+@mixin bottom-sheet-chrome {
+  --scroller-bg: var(--color-surface-1);
+
+  border-block-start: 1px solid var(--color-line-strong);
+  border-start-start-radius: var(--radius-lg);
+  border-start-end-radius: var(--radius-lg);
+  background: var(--color-surface-1);
+  box-shadow: var(--shadow-sheet);
+}
+
+@mixin safe-area-bleed($edge, $bleed, $needs-inline-size: false) {
+  #{$edge}: max(
+    var(--space-2),
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
+  #{$bleed}: max(0px, calc(var(--main-gutter) - var(#{$edge})));
+
+  @if $needs-inline-size {
+    inline-size: calc(100% + 2 * var(#{$bleed}));
+  }
+
+  margin-inline: calc(-1 * var(#{$bleed}));
+}

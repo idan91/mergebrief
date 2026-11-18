@@ -1,0 +1,11 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "app-callsite-outside-rounded-group": 5,
+    "at-least-two-groups": 5,
+    "no-per-hunk-oversplit": 5,
+    "no-scss-only-group": 5,
+    "refactor-group-before-rounded-group": 5
+  }
+}

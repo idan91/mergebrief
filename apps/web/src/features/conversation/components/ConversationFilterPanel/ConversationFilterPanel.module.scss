@@ -1,0 +1,69 @@
+@layer components {
+  /* Panel CONTENT only — the anchored surface (border, fill, shadow,
+     positioning) belongs to the disclosure wrapper in the toolbar. */
+  .body {
+    display: grid;
+    gap: var(--space-3-5);
+  }
+
+  /* Label ABOVE its chip run, both flush left: an inline fixed gutter left a
+     dead gap after short labels and misaligned wrapped chip runs. */
+  .rowLabel {
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+  }
+
+  .row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2-5);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Bot dimming on Chip's chrome. */
+  .chip[data-bot] {
+    color: var(--color-text-2);
+
+    &[aria-pressed="true"] {
+      color: var(--color-text-1);
+    }
+  }
+
+  .count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /* Separates humans from bots inside the one reviewer list — presentational,
+     so it is aria-hidden at the call site. */
+  .divider {
+    width: 1px;
+    height: 16px;
+    margin-inline: var(--space-1);
+    background: var(--color-line);
+  }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3-5);
+  }
+
+  .links {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2-5);
+    margin-inline-start: auto;
+  }
+}

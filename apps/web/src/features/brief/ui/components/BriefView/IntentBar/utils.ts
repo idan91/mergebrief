@@ -1,0 +1,120 @@
+import type { IntentCheck, IntentItem } from "brief-core/types";
+import type { TranslationKey } from "i18n";
+
+/**
+ * Scheme allowlist for a model-produced URL before it becomes an href. A
+ * non-http(s) value renders as plain text.
+ */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+type IntentCountField = keyof Pick<
+  IntentCheck,
+  | "accomplished"
+  | "maskedFixes"
+  | "deviations"
+  | "statedButMissing"
+  | "doneButUnstated"
+>;
+
+/** One count on the bar's head: the intent check's list and its plural label. */
+export interface IntentCountSpec {
+  field: IntentCountField;
+  labelKey: `brief.intent.${IntentCountField}`;
+}
+
+/** One bucket the split body renders: locale-free key, label, contents. */
+export interface IntentBucketSpec {
+  key: string;
+  labelKey: TranslationKey;
+  items: IntentItem[];
+  /** Alarm-class: neutral glyph on the label + one caution line beneath. */
+  alarm: boolean;
+}
+
+/** The counts worth stating: a clean run omits its zeros, the legend names them all. */
+export function listNonZeroIntentCounts(
+  intentCheck: IntentCheck,
+  counts: readonly IntentCountSpec[],
+): IntentCountSpec[] {
+  return counts.filter(({ field }) => intentCheck[field].length > 0);
+}
+
+function hasItems(bucket: IntentBucketSpec): boolean {
+  return bucket.items.length > 0;
+}
+
+/**
+ * The split partition: left = nothing pending (accomplished + acknowledged
+ * deviations), right = everything still needing the reader. Bucket order is
+ * STATIC within each side, never model-ordered, never severity-sorted,
+ * and the DOM must ship in this split order (the accessibility tree and
+ * focus order depend on it). Empty buckets are omitted.
+ */
+export function partitionIntentCheck(intentCheck: IntentCheck): {
+  checksOut: IntentBucketSpec[];
+  needsALook: IntentBucketSpec[];
+} {
+  // Acknowledged deviations are quiet receipts, not alarms: partitioned
+  // rather than sorted, because the halves carry different labels,
+  // cautions, and weight.
+  const unacknowledged = intentCheck.deviations.filter(
+    (item) => !item.acknowledged,
+  );
+  const acknowledged = intentCheck.deviations.filter(
+    (item) => item.acknowledged,
+  );
+
+  const checksOut: IntentBucketSpec[] = [
+    {
+      key: "accomplished",
+      labelKey: "brief.intent.bucketAccomplished",
+      items: intentCheck.accomplished,
+      alarm: false,
+    },
+    {
+      key: "acknowledgedDeviations",
+      labelKey: "brief.intent.bucketAcknowledgedDeviations",
+      items: acknowledged,
+      alarm: false,
+    },
+  ];
+
+  const needsALook: IntentBucketSpec[] = [
+    {
+      key: "maskedFixes",
+      labelKey: "brief.intent.bucketMaskedFixes",
+      items: intentCheck.maskedFixes,
+      alarm: true,
+    },
+    {
+      key: "deviations",
+      labelKey: "brief.intent.bucketDeviations",
+      items: unacknowledged,
+      alarm: true,
+    },
+    {
+      key: "statedButMissing",
+      labelKey: "brief.intent.bucketStatedButMissing",
+      items: intentCheck.statedButMissing,
+      alarm: false,
+    },
+    {
+      key: "doneButUnstated",
+      labelKey: "brief.intent.bucketDoneButUnstated",
+      items: intentCheck.doneButUnstated,
+      alarm: false,
+    },
+  ];
+
+  return {
+    checksOut: checksOut.filter(hasItems),
+    needsALook: needsALook.filter(hasItems),
+  };
+}

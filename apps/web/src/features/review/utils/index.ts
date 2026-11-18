@@ -1,0 +1,46 @@
+// Curated utils entry: the review vocabulary other features read. Internal
+// review files import the modules directly, never this index.
+export {
+  countAnchorLines,
+  resolveJumpChunkId,
+  createCommentAnchor,
+  createSideAnchor,
+  createFileCommentAnchor,
+  findDraftComment,
+  isFileCommentAnchor,
+  isLineCommentAnchor,
+  postCommentBlockedReason,
+  rowId,
+  type ChunkLocator,
+  type CommentAnchor,
+  type FileCommentAnchor,
+  type LineCommentAnchor,
+  type LineLinkTarget,
+  type LineSelection,
+  type ReviewComment,
+} from "./comments";
+export { resolveChunkForLine } from "./chunk-for-line";
+export {
+  makeSessionReadDriver,
+  type SessionReadDriver,
+} from "./session-read-driver";
+export { buildReceipt, type Receipt } from "./receipt";
+export {
+  commentLocation,
+  deriveCarriedItems,
+  deriveUnresolvedItems,
+  riskEvidenceLabel,
+  type CarriedItem,
+  type RiskEvidence,
+  type UnresolvedItem,
+} from "./state";
+export {
+  buildSubmitPayload,
+  type SubmitDraftInput,
+  type SubmitReviewAction,
+} from "./submit";
+export {
+  SubmitReviewResultKinds,
+  type SubmitReviewResult,
+  type SubmitReviewResultKind,
+} from "./types";

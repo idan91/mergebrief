@@ -1,0 +1,50 @@
+@use "mixins";
+
+@layer components {
+  .item {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3-5);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--color-text-1);
+    cursor: pointer;
+    font-size: var(--font-size-2);
+    text-align: start;
+
+    @include mixins.hover {
+      &:hover {
+        background: color-mix(
+          in srgb,
+          var(--color-line-strong) 40%,
+          transparent
+        );
+      }
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed;
+    }
+  }
+
+  .check,
+  .glyph {
+    display: grid;
+    flex: none;
+    place-items: center;
+    inline-size: 16px;
+    block-size: 16px;
+    color: var(--color-accent);
+  }
+
+  .label {
+    min-inline-size: 0;
+  }
+}

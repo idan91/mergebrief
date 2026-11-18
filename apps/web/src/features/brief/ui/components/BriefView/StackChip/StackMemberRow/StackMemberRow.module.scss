@@ -1,0 +1,108 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    --stack-current-edge: #{functions.edge-bar(var(--color-accent))};
+
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- the stuck row's own edge shadow; --shadow-float is sized for a panel */
+    --stack-stuck-shadow-down: 0 8px 14px -8px rgb(0 0 0 / 80%);
+    /* stylelint-disable-next-line house/custom-property-no-raw-value -- the stuck row's own edge shadow, cast upward */
+    --stack-stuck-shadow-up: 0 -8px 14px -8px rgb(0 0 0 / 80%);
+
+    display: grid;
+    grid-template-columns: functions.to-rem(28px) minmax(0, 1fr) 16px;
+    gap: var(--space-3-5);
+    align-items: center;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4) var(--space-4-5);
+    color: var(--color-text-1);
+    text-decoration: none;
+    transition: background-color var(--motion-fast) var(--ease-out);
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @include mixins.hover {
+      &:is(a):hover {
+        background: color-mix(in srgb, var(--color-text-1) 6%, transparent);
+      }
+    }
+
+    &:is(a):active {
+      background: color-mix(in srgb, var(--color-text-1) 9%, transparent);
+    }
+
+    &[aria-current] {
+      background: var(--color-surface-3);
+      box-shadow: var(--stack-current-edge);
+      cursor: default;
+      transition: box-shadow var(--motion-base) var(--ease-out);
+
+      @include mixins.forced-current;
+
+      .title {
+        font-weight: 600;
+      }
+
+      .position {
+        color: var(--color-accent);
+      }
+
+      @container scroll-state(stuck: top) {
+        box-shadow: var(--stack-current-edge), var(--stack-stuck-shadow-down);
+      }
+
+      @container scroll-state(stuck: bottom) {
+        box-shadow: var(--stack-current-edge), var(--stack-stuck-shadow-up);
+      }
+    }
+  }
+
+  .position {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-inline-size: 0;
+  }
+
+  .title {
+    overflow: hidden;
+    font-size: var(--font-size-3);
+    line-height: var(--line-height-compact);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    overflow: hidden;
+    color: var(--color-text-3);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .state {
+    display: grid;
+    grid-column: 3;
+    place-items: center;
+    color: var(--color-text-3);
+
+    &[data-state="open"] {
+      color: var(--color-positive);
+    }
+  }
+}

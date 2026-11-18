@@ -1,0 +1,179 @@
+{
+  "summary": "## Overview\nA fixture brief for the browser suite: two change groups over three files, with a risk surface, a diff per chunk, and a second revision to compare against.\n\n## What it does\n- **Accessibility & brand:** lifts the faint text token to a passing contrast ratio and adds a skip-to-content link.\n- **Keyboard navigation:** J/K step through chunks; `?` opens the shortcuts modal.\n",
+  "changeGroups": [
+    {
+      "id": "g1",
+      "title": "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
+      "summary": "Introduces a `useKeyboardShortcuts` hook (with a pure, unit-tested `resolveShortcut` decision function) wiring J/K chunk stepping, Z focus mode, ? shortcuts modal, and Esc layering into BriefPage; adds a CSS-only focus mode (`data-zen`) that isolates the active group/chunk and renders a collapsible FocusGroupRail in StoryView, plus a new ShortcutsModal and supporting styles. Characterization and test-setup stubs back the new behavior.",
+      "dominantCategory": "new-feature",
+      "secondaryCategories": [],
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "id": "g2",
+      "title": "Front-door accessibility and brand metadata fixes",
+      "summary": "Fixes WCAG AA gaps: lifts `--faint` contrast, adds a skip-to-content link and shared `#main-content` landmark, promotes the PR title to `<h1>`, makes the toast an aria-live status region, and adds an SVG favicon with description/OG/twitter meta.",
+      "dominantCategory": "bugfix",
+      "secondaryCategories": ["new-feature"],
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "id": "c1",
+      "changeGroupId": "g1",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 201,
+        "deleted": 42
+      },
+      "addedRanges": [
+        {
+          "start": 45,
+          "end": 91
+        },
+        {
+          "start": 230,
+          "end": 231
+        },
+        {
+          "start": 297,
+          "end": 297
+        },
+        {
+          "start": 303,
+          "end": 303
+        },
+        {
+          "start": 335,
+          "end": 424
+        },
+        {
+          "start": 596,
+          "end": 597
+        },
+        {
+          "start": 599,
+          "end": 660
+        },
+        {
+          "start": 671,
+          "end": 671
+        },
+        {
+          "start": 762,
+          "end": 782
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 257,
+          "end": 257
+        },
+        {
+          "start": 295,
+          "end": 306
+        },
+        {
+          "start": 478,
+          "end": 516
+        }
+      ],
+      "riskSurface": ["hot-path", "dense-logic"]
+    },
+    {
+      "id": "c2",
+      "changeGroupId": "g2",
+      "file": "apps/web/src/features/brief/components/Header/Header.tsx",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "addedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "riskSurface": []
+    },
+    {
+      "id": "c3",
+      "changeGroupId": "g2",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "addedRanges": [
+        {
+          "start": 785,
+          "end": 787
+        }
+      ],
+      "removedRanges": [],
+      "riskSurface": []
+    }
+  ],
+  "concernView": [
+    {
+      "concern": "implementation",
+      "added": 206,
+      "deleted": 43
+    }
+  ],
+  "pr": {
+    "repo": "mergebrief/e2e-fixture",
+    "number": 1,
+    "title": "feat: front-door accessibility and keyboard navigation",
+    "url": "https://github.com/mergebrief/e2e-fixture/pull/1",
+    "sha": "11111111aaaa2222bbbb3333cccc4444dddd5555",
+    "description": "## Summary\n- Fix WCAG AA contrast on the faint text token and add a skip-to-content link.\n- Add J/K chunk navigation and a `?` shortcuts modal to the brief screen.\n\n## Test plan\n- [x] `pnpm test`\n- [x] `pnpm lint`\n"
+  },
+  "index": 1,
+  "commitRange": {
+    "base": "0000000099998888777766665555444433332222",
+    "head": "11111111aaaa2222bbbb3333cccc4444dddd5555",
+    "commitCount": 1
+  },
+  "generation": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "effort": "medium"
+  },
+  "unattributed": [
+    {
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 598,
+          "end": 598
+        },
+        {
+          "start": 784,
+          "end": 784
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 263,
+          "end": 263
+        }
+      ]
+    }
+  ]
+}

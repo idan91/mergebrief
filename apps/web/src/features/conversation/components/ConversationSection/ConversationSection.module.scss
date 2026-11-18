@@ -1,0 +1,31 @@
+@use "mixins";
+
+@layer components {
+  .headingToggle {
+    // The WHOLE pinned stack, not just the header: landing on the header's
+    // height alone leaves the target under the toolbar beneath it.
+    scroll-margin-block-start: var(--sticky-stack-h);
+  }
+
+  .body {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-4-5);
+  }
+
+  .verdicts {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .verdict {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    font-size: var(--font-size-2);
+  }
+}

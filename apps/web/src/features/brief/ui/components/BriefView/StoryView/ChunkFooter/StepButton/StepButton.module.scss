@@ -1,0 +1,13 @@
+@layer components {
+  .button {
+    gap: var(--space-3);
+  }
+
+  .key {
+    display: inline-flex;
+
+    @media (hover: none) {
+      display: none;
+    }
+  }
+}

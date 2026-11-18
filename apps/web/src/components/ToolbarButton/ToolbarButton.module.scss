@@ -1,0 +1,96 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .toolbarButton {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-block-size: functions.to-rem(24px);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--color-text-1);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-2);
+    white-space: nowrap;
+    transition:
+      background var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast);
+
+    &[aria-expanded="true"] {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.hover {
+      &:where(:not([aria-disabled="true"])):hover {
+        background: var(--color-surface-2);
+      }
+    }
+
+    &:where(:not([aria-disabled="true"])):active {
+      background: var(--color-surface-3);
+    }
+
+    &[aria-pressed="true"],
+    &[data-state="active"] {
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-subtle);
+      color: var(--color-accent);
+
+      @include mixins.forced-selected;
+    }
+
+    /* Mixed: the dashed edge carries the half state without colour. */
+    &[aria-pressed="mixed"] {
+      border-color: var(--color-accent-edge);
+      border-style: dashed;
+      background: var(--color-accent-tint-subtle);
+      color: var(--color-accent);
+    }
+
+    // :where keeps the resting ghost at one class, so a call-site class can
+    // restate its label colour without out-ranking the states below.
+    &:where([data-variant="ghost"]) {
+      gap: var(--space-3);
+      min-block-size: functions.to-rem(32px);
+      padding-block: 0;
+      padding-inline: var(--space-4);
+      border-color: transparent;
+      color: var(--color-text-2);
+    }
+
+    &[data-variant="ghost"] {
+      @include mixins.hover {
+        &:where(:not([aria-disabled="true"])):hover {
+          color: var(--color-text-1);
+        }
+      }
+
+      &:is(
+        [aria-expanded="true"],
+        [aria-pressed="true"],
+        [aria-pressed="mixed"],
+        [data-state="active"]
+      ) {
+        color: var(--color-text-1);
+      }
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-line-strong));
+      }
+
+      &[data-variant="ghost"]:focus-visible {
+        border-color: transparent;
+      }
+    }
+  }
+}

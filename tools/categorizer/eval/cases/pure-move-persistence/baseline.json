@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 5,
+    "move-category-present": 5,
+    "no-behavior-categories": 5,
+    "no-new-abstraction": 5
+  }
+}

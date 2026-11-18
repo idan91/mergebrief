@@ -1,0 +1,95 @@
+@use "functions";
+
+@layer components {
+  .box {
+    container-type: inline-size;
+    inline-size: functions.to-rem(640px);
+  }
+
+  .sections {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .preference {
+    display: grid;
+    gap: var(--space-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-compact);
+  }
+
+  .preferenceHint {
+    color: var(--color-text-2);
+  }
+
+  .sectionHeading {
+    margin-block-end: var(--space-3);
+    color: var(--color-text-1);
+    font-size: var(--font-size-3);
+    font-weight: 600;
+    line-height: var(--line-height-body);
+  }
+
+  .list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-2);
+
+    dt {
+      order: 2;
+      flex: none;
+    }
+
+    dd {
+      order: 1;
+      flex: 1;
+      min-inline-size: 0;
+      color: var(--color-text-1);
+      font-size: var(--font-size-2);
+      line-height: var(--line-height-compact);
+    }
+  }
+
+  .marks {
+    display: grid;
+    gap: var(--space-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .mark {
+    display: flex;
+    gap: var(--space-3-5);
+    align-items: center;
+    padding-block: var(--space-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-compact);
+
+    svg {
+      inline-size: 14px;
+      block-size: 14px;
+      color: var(--color-accent);
+    }
+
+    &[data-mark="reviewed"] svg {
+      color: var(--color-text-2);
+    }
+  }
+
+  @container (min-width: 520px) {
+    .list {
+      grid-template-columns: 1fr 1fr;
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the gutter between the two shortcut columns, 4px from 24 and 32 */
+      column-gap: functions.to-rem(28px);
+    }
+  }
+}

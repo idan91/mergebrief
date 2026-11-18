@@ -1,0 +1,7 @@
+@layer components {
+  .count {
+    color: var(--color-text-1);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+}

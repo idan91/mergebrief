@@ -1,0 +1,19 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "base-lacks-the-edited-ask": 5,
+    "coverage-exactly-one-group": 5,
+    "delta-comments-from-input": 5,
+    "delta-covers-span": 5,
+    "delta-grounded": 5,
+    "delta-no-change": 5,
+    "delta-no-replay": 5,
+    "edited-ask-fresh-verdict": 5,
+    "narrative-covers-span": 5,
+    "narrative-grounded": 5,
+    "narrative-no-change": 5,
+    "narrative-no-replay": 5,
+    "untouched-survives-redact.ts": 5
+  }
+}

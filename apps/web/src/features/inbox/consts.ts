@@ -1,0 +1,14 @@
+/** The first segment of every Inbox query key; invalidating it re-reads the list. */
+export const INBOX_QUERY_ROOT = "inbox";
+
+/** A pending or running row re-reads its status at the Brief page's cadence. */
+export const ROW_POLL_MS = 4_000;
+
+/** The last staggered row has landed by now; the arming attribute leaves after it. */
+export const FIRST_LOAD_SETTLE_MS = 720;
+
+/** Requests a bulk action keeps in flight at once. */
+export const BULK_CONCURRENCY = 4;
+
+/** The most rows a matching-wide action takes: eight pages read in turn, then the fan-out. */
+export const MATCHING_CAP = 200;

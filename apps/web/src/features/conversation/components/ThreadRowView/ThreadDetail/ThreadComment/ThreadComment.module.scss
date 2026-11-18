@@ -1,0 +1,37 @@
+@use "mixins";
+
+@layer components {
+  .comment {
+    @include mixins.single-column-grid;
+
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
+    border-block-end: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+  }
+
+  .quoteAction {
+    margin-inline-start: auto;
+  }
+
+  .avatar {
+    flex-shrink: 0;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-circle);
+  }
+}

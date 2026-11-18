@@ -1,0 +1,106 @@
+// oxlint 1.72 exports no plugin types (only `RuleTester`), so the rules
+// declare the slice of the ESLint-compatible API they use.
+// The rules read syntax only, so one loose node shape covers every field they
+// touch; a missing field is undefined, never a cast.
+export interface RuleNode {
+  readonly type: string;
+  readonly name?: string;
+  readonly value?: unknown;
+  readonly kind?: string;
+  readonly callee?: RuleNode;
+  readonly arguments?: readonly RuleNode[];
+  readonly object?: RuleNode;
+  readonly property?: RuleNode;
+  readonly id?: RuleNode;
+  readonly init?: RuleNode | null;
+  readonly expression?: RuleNode;
+  readonly typeAnnotation?: RuleNode;
+  readonly typeName?: RuleNode;
+  readonly left?: RuleNode;
+  readonly right?: RuleNode;
+  readonly key?: RuleNode;
+  readonly consequent?: RuleNode;
+  readonly alternate?: RuleNode;
+  // Array holes arrive as `null`.
+  readonly elements?: readonly (RuleNode | null)[];
+  readonly exprName?: RuleNode;
+  readonly moduleReference?: RuleNode;
+  readonly extends?: readonly RuleNode[];
+  // Absent sub-nodes arrive as `null` from the parser, so a field a rule
+  // tests for presence is typed to carry it.
+  readonly typeArguments?: RuleNode | null;
+  readonly typeParameters?: RuleNode | null;
+  // A statement list on `Program`, a block node on `TSInterfaceDeclaration`.
+  readonly body?: readonly RuleNode[] | RuleNode;
+  readonly source?: RuleNode | null;
+  readonly specifiers?: readonly RuleNode[];
+  readonly local?: RuleNode;
+  readonly declaration?: RuleNode | null;
+  readonly declarations?: readonly RuleNode[];
+  readonly properties?: readonly RuleNode[];
+  readonly expressions?: readonly RuleNode[];
+  readonly quasis?: readonly {
+    readonly value: { readonly cooked: string | null };
+  }[];
+}
+
+export interface RulePosition {
+  readonly line: number;
+  readonly column: number;
+}
+
+export interface RuleLocation {
+  readonly start: RulePosition;
+  readonly end: RulePosition;
+}
+
+export interface RuleComment {
+  // `Line` or `Block` today; typed loosely like `RuleNode.type` so a kind the
+  // parser adds later reaches the rules as data rather than a cast.
+  readonly type: string;
+  readonly value: string;
+  readonly loc: RuleLocation;
+}
+
+export interface RuleSourceCode {
+  readonly lines: readonly string[];
+  getAllComments(): readonly RuleComment[];
+}
+
+export type RuleReport =
+  | {
+      node: RuleNode;
+      messageId: string;
+      data?: Readonly<Record<string, string>>;
+    }
+  | {
+      loc: RuleLocation;
+      messageId: string;
+      data?: Readonly<Record<string, string>>;
+    };
+
+export interface RuleContext {
+  readonly filename: string;
+  readonly options: readonly unknown[];
+  readonly sourceCode: RuleSourceCode;
+  report(descriptor: RuleReport): void;
+}
+
+export interface RuleMeta {
+  readonly type: "problem" | "suggestion" | "layout";
+  readonly docs: { readonly description: string };
+  readonly messages: Readonly<Record<string, string>>;
+  readonly schema?: readonly unknown[];
+}
+
+export type RuleVisitor = Record<string, (node: RuleNode) => void>;
+
+export interface RuleDefinition {
+  readonly meta: RuleMeta;
+  create(context: RuleContext): RuleVisitor;
+}
+
+export interface HousePlugin {
+  readonly meta: { readonly name: "house" };
+  readonly rules: Readonly<Record<string, RuleDefinition>>;
+}

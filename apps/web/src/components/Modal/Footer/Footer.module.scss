@@ -1,0 +1,22 @@
+@use "functions";
+
+@layer components {
+  // Pinned to the box's scrollport, which runs to the box's own edge: the
+  // negative end margin and padding reach across the box's bottom padding.
+  .footer {
+    position: sticky;
+    inset-block-end: functions.to-rem(-24px);
+    z-index: 1;
+    flex: none;
+    margin-block: var(--space-5) calc(-1 * var(--space-6));
+    padding-block: var(--space-4) var(--space-6);
+    background: var(--color-surface-3);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-3-5);
+  }
+}

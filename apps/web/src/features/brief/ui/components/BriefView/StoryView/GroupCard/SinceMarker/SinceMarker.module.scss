@@ -1,0 +1,27 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .marker {
+    color: var(--color-text-2);
+
+    &[data-state="changed"] {
+      // Only this state is underlined, and a wrapped underline reads as a
+      // stray link — so only this state refuses to break. The unchanged
+      // string is the longer one and stays wrappable: the eyebrow's
+      // ancestor clips on overflow-x rather than scrolling.
+      flex: none;
+      color: var(--color-accent);
+      white-space: nowrap;
+    }
+  }
+
+  /* LinkButton's grammar; only the hover token differs. */
+  .deltaLink {
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
+    }
+  }
+}

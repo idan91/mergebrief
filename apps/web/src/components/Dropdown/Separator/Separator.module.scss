@@ -1,0 +1,7 @@
+@layer components {
+  .separator {
+    border: 0;
+    border-block-start: 1px solid var(--color-line);
+    margin-block: var(--space-2);
+  }
+}

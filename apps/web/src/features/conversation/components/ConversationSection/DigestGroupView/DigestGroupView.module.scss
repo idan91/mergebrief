@@ -1,0 +1,50 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .group {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2-5);
+  }
+
+  .groupLabel {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    line-height: var(--line-height-body);
+  }
+
+  /* Heading-jump deltas on LinkButton's grammar: dim run with a real
+     target floor. */
+  .groupJump {
+    display: inline-flex;
+    max-inline-size: 100%;
+    align-items: center;
+    overflow-wrap: anywhere;
+    text-align: start;
+    min-height: functions.to-rem(24px);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-1);
+    color: var(--color-text-2);
+    font-family: var(--font-mono);
+
+    &:focus-visible {
+      color: var(--color-text-1);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
+    }
+  }
+
+  /* Touch targets: 24px floor everywhere, 44px where fingers do the aiming. */
+  @media (pointer: coarse) {
+    .groupJump {
+      min-height: functions.to-rem(44px);
+    }
+  }
+}

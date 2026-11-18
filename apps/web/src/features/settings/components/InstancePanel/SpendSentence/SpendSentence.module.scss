@@ -1,0 +1,15 @@
+@layer components {
+  .sentence {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: var(--font-size-3);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--line-height-reading);
+
+    b {
+      color: var(--color-text-1);
+      font-weight: 500;
+    }
+  }
+}

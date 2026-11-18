@@ -1,0 +1,9 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coverage-exactly-one-group": 5,
+    "restructure-ids-descend": 5,
+    "untouched-survives-redact.ts": 5
+  }
+}

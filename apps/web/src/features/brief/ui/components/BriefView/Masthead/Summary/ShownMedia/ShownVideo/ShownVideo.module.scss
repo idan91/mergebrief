@@ -1,0 +1,10 @@
+@layer components {
+  .video {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: var(--shown-media-max-height);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-ground);
+  }
+}

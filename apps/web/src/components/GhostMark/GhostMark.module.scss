@@ -1,0 +1,9 @@
+@layer components {
+  .ghost {
+    display: block;
+    flex: none;
+    inline-size: 64px;
+    block-size: 64px;
+    color: var(--color-surface-3);
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coverage-exactly-one-group": 5,
+    "risk-attr-fired-on-base": 5,
+    "stale-risk-attr-drops": 5,
+    "untouched-survives-redact.ts": 5
+  }
+}

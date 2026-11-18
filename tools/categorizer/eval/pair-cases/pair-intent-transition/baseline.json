@@ -1,0 +1,9 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "base-reports-missing-health": 5,
+    "coverage-exactly-one-group": 5,
+    "delivered-ask-leaves-missing": 5
+  }
+}

@@ -1,0 +1,15 @@
+@use "functions";
+
+@layer components {
+  .stepper {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  // Nested to outrank IconButton's own size rule: 44px targets on a phone bar.
+  .stepper .step {
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(44px);
+  }
+}

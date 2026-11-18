@@ -1,0 +1,512 @@
+{
+  "summary": "## Overview\nA fixture brief for the browser suite: two change groups over three files, with a risk surface, a diff per chunk, and a second revision to compare against. The accessibility pass lifts the faint text token, adds a skip-to-content link and promotes the PR title to the page's only `h1`, while the keyboard work wires J/K chunk stepping and a `?` shortcuts modal.\n\n## Changelog\n- **Accessibility & brand:** lifts the faint text token to a passing contrast ratio and adds a skip-to-content link.\n- **Keyboard navigation:** J/K step through chunks; `?` opens the shortcuts modal.\n- **Landmarks:** the brief body becomes `#main-content`, focused on load so screen readers start at the summary.\n- **Risk flags:** `addressFlags` is indexed by chunk id, so the perf helpers no longer rescan every flag per row.\n- **Metadata:** favicon, description and OG/Twitter tags for shared links.",
+  "changeGroups": [
+    {
+      "id": "g1",
+      "title": "Front-door accessibility and brand metadata fixes",
+      "summary": "Raises `--faint` to AA contrast, adds a skip-to-content link and shared #main-content landmark, promotes the PR title to an h1, makes the toast an aria-live region, and adds a favicon plus description/OG/Twitter meta.",
+      "dominantCategory": "bugfix",
+      "secondaryCategories": ["new-feature"],
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "id": "g4",
+      "title": "Index risk flags and rework addressFlags/perf helpers",
+      "summary": "Builds flagsById/flagsByGroup lookup maps and a Map-based concern rank, changes the addressFlags store action to take a pre-resolved evidence map, and refactors BriefPage handlers into memoized callbacks using the new indexes; removes the focus-mode :has() hot path via data-attribute CSS.",
+      "dominantCategory": "logic-refactor",
+      "secondaryCategories": [],
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "id": "c1",
+      "changeGroupId": "g1",
+      "file": "apps/web/src/features/brief/components/Header/Header.tsx",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "addedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "riskSurface": []
+    },
+    {
+      "id": "c2",
+      "changeGroupId": "g1",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "test",
+      "role": "core",
+      "loc": {
+        "added": 8,
+        "deleted": 3
+      },
+      "addedRanges": [
+        {
+          "start": 395,
+          "end": 395
+        },
+        {
+          "start": 717,
+          "end": 719
+        },
+        {
+          "start": 876,
+          "end": 878
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 395,
+          "end": 395
+        },
+        {
+          "start": 716,
+          "end": 716
+        }
+      ],
+      "riskSurface": []
+    },
+    {
+      "id": "c3",
+      "changeGroupId": "g4",
+      "file": "apps/web/src/features/brief/viewModel.ts",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 38,
+        "deleted": 15
+      },
+      "addedRanges": [
+        {
+          "start": 37,
+          "end": 38
+        },
+        {
+          "start": 131,
+          "end": 158
+        },
+        {
+          "start": 180,
+          "end": 182
+        },
+        {
+          "start": 190,
+          "end": 198
+        },
+        {
+          "start": 207,
+          "end": 208
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 129,
+          "end": 146
+        },
+        {
+          "start": 166,
+          "end": 166
+        },
+        {
+          "start": 166,
+          "end": 168
+        },
+        {
+          "start": 185,
+          "end": 185
+        }
+      ],
+      "riskSurface": ["hot-path"]
+    },
+    {
+      "id": "c4",
+      "changeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "implementation",
+      "role": "core",
+      "loc": {
+        "added": 90,
+        "deleted": 57
+      },
+      "addedRanges": [
+        {
+          "start": 38,
+          "end": 38
+        },
+        {
+          "start": 42,
+          "end": 42
+        },
+        {
+          "start": 539,
+          "end": 557
+        },
+        {
+          "start": 578,
+          "end": 578
+        },
+        {
+          "start": 631,
+          "end": 690
+        },
+        {
+          "start": 822,
+          "end": 848
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 539,
+          "end": 549
+        },
+        {
+          "start": 561,
+          "end": 561
+        },
+        {
+          "start": 578,
+          "end": 578
+        },
+        {
+          "start": 822,
+          "end": 864
+        }
+      ],
+      "riskSurface": ["dense-logic"]
+    }
+  ],
+  "concernView": [
+    {
+      "concern": "implementation",
+      "added": 129,
+      "deleted": 73
+    },
+    {
+      "concern": "test",
+      "added": 8,
+      "deleted": 3
+    }
+  ],
+  "pr": {
+    "repo": "mergebrief/e2e-fixture",
+    "number": 1,
+    "title": "feat: front-door accessibility and keyboard navigation",
+    "url": "https://github.com/mergebrief/e2e-fixture/pull/1",
+    "sha": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+    "description": "## Summary\n- Fix WCAG AA contrast on the faint text token and add a skip-to-content link.\n- Add J/K chunk navigation and a `?` shortcuts modal to the brief screen.\n\n## Test plan\n- [x] `pnpm test`\n- [x] `pnpm lint`\n"
+  },
+  "index": 2,
+  "commitRange": {
+    "base": "0000000099998888777766665555444433332222",
+    "head": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+    "commitCount": 2
+  },
+  "generation": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "effort": "medium"
+  },
+  "unattributed": [
+    {
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 2,
+          "end": 9
+        },
+        {
+          "start": 39,
+          "end": 39
+        },
+        {
+          "start": 43,
+          "end": 43
+        },
+        {
+          "start": 54,
+          "end": 54
+        },
+        {
+          "start": 61,
+          "end": 61
+        },
+        {
+          "start": 65,
+          "end": 180
+        },
+        {
+          "start": 287,
+          "end": 295
+        },
+        {
+          "start": 303,
+          "end": 303
+        },
+        {
+          "start": 325,
+          "end": 329
+        },
+        {
+          "start": 401,
+          "end": 403
+        },
+        {
+          "start": 433,
+          "end": 458
+        },
+        {
+          "start": 460,
+          "end": 490
+        },
+        {
+          "start": 691,
+          "end": 691
+        },
+        {
+          "start": 716,
+          "end": 716
+        },
+        {
+          "start": 720,
+          "end": 726
+        },
+        {
+          "start": 728,
+          "end": 744
+        },
+        {
+          "start": 746,
+          "end": 770
+        },
+        {
+          "start": 772,
+          "end": 774
+        },
+        {
+          "start": 776,
+          "end": 776
+        },
+        {
+          "start": 791,
+          "end": 791
+        },
+        {
+          "start": 854,
+          "end": 855
+        },
+        {
+          "start": 857,
+          "end": 872
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 2,
+          "end": 2
+        },
+        {
+          "start": 167,
+          "end": 170
+        },
+        {
+          "start": 257,
+          "end": 257
+        },
+        {
+          "start": 263,
+          "end": 265
+        },
+        {
+          "start": 295,
+          "end": 295
+        },
+        {
+          "start": 297,
+          "end": 306
+        },
+        {
+          "start": 355,
+          "end": 361
+        },
+        {
+          "start": 363,
+          "end": 363
+        },
+        {
+          "start": 365,
+          "end": 365
+        },
+        {
+          "start": 368,
+          "end": 368
+        },
+        {
+          "start": 371,
+          "end": 371
+        },
+        {
+          "start": 392,
+          "end": 392
+        },
+        {
+          "start": 478,
+          "end": 478
+        },
+        {
+          "start": 481,
+          "end": 496
+        },
+        {
+          "start": 498,
+          "end": 509
+        },
+        {
+          "start": 511,
+          "end": 512
+        },
+        {
+          "start": 514,
+          "end": 514
+        },
+        {
+          "start": 516,
+          "end": 516
+        },
+        {
+          "start": 562,
+          "end": 570
+        },
+        {
+          "start": 577,
+          "end": 577
+        },
+        {
+          "start": 584,
+          "end": 592
+        },
+        {
+          "start": 598,
+          "end": 598
+        },
+        {
+          "start": 606,
+          "end": 619
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/brief/viewModel.ts",
+      "addedRanges": [],
+      "removedRanges": [
+        {
+          "start": 174,
+          "end": 176
+        }
+      ]
+    }
+  ],
+  "generationWarnings": [
+    "Salvaged 1 chunk narrative after a schema retry.",
+    "Served model differs from the requested one."
+  ],
+  "intentCheck": {
+    "ticketUrls": [],
+    "ticketTitles": [],
+    "specificity": "precise",
+    "scopeNote": "",
+    "accomplished": [
+      {
+        "intent": "Raise the faint text token to AA contrast",
+        "quote": "lift the faint token to a passing contrast ratio",
+        "sourceUrl": "",
+        "groupIds": ["g1"],
+        "acknowledged": false
+      },
+      {
+        "intent": "Add a skip-to-content link",
+        "quote": "add a skip link",
+        "sourceUrl": "",
+        "groupIds": ["g1"],
+        "acknowledged": false
+      },
+      {
+        "intent": "J/K step through chunks",
+        "quote": "J/K should step through chunks",
+        "sourceUrl": "",
+        "groupIds": ["g4"],
+        "acknowledged": false
+      }
+    ],
+    "statedButMissing": [],
+    "doneButUnstated": [
+      {
+        "intent": "Index risk flags by chunk id",
+        "quote": "",
+        "sourceUrl": "",
+        "groupIds": ["g4"],
+        "acknowledged": false
+      }
+    ],
+    "deviations": [],
+    "maskedFixes": []
+  },
+  "productDiff": {
+    "availability": "available",
+    "changes": [
+      {
+        "when": "a keyboard user opens the brief page",
+        "before": "Focus started at the top of the document, ahead of the header.",
+        "after": "A skip-to-content link is the first stop, and the brief body takes focus on load.",
+        "affects": "user-flow",
+        "beforeSource": "diff",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a reader presses `J`, `K` or `?`",
+        "before": "The brief page had no keyboard shortcuts.",
+        "after": "`J` and `K` step through chunks, and `?` opens the shortcuts modal.",
+        "affects": "user-flow",
+        "beforeSource": "did-not-exist",
+        "groupIds": ["g1", "g4"]
+      },
+      {
+        "when": "faint text is drawn on the front door",
+        "before": "The faint text token failed the contrast ratio.",
+        "after": "The token is lifted to a passing contrast ratio.",
+        "affects": "user-flow",
+        "beforeSource": "pr-text",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a link to the app is shared",
+        "after": "The link unfurls with a favicon, a description and OG/Twitter tags.",
+        "affects": "integration",
+        "beforeSource": "did-not-exist",
+        "groupIds": ["g1"]
+      },
+      {
+        "when": "a screen reader user lands on the brief page",
+        "after": "Reading starts at the brief summary, inside the `#main-content` landmark.",
+        "affects": "user-flow",
+        "beforeSource": "not-shown",
+        "groupIds": ["g1"]
+      }
+    ],
+    "hasMore": false
+  }
+}

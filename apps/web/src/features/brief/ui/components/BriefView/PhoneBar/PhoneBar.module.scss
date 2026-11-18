@@ -1,0 +1,33 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .bar {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: functions.get-z-index("phone-bar");
+    display: none;
+    gap: var(--space-2);
+    align-items: center;
+    block-size: var(--sidebar-bar-h);
+    padding-block-end: env(safe-area-inset-bottom);
+    padding-inline: var(--space-2);
+    border-block-start: 1px solid var(--color-line);
+    background: var(--color-ground);
+
+    @include mixins.for-breakpoint("mobile", max) {
+      display: flex;
+    }
+
+    @include mixins.for-landscape-phone {
+      display: none;
+    }
+  }
+
+  // Nested to outrank IconButton's own size rule: a 44px target.
+  .bar .controls {
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(44px);
+  }
+}

@@ -1,0 +1,11 @@
+@layer components {
+  .group {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-card);
+
+    > * + * {
+      border-block-start: 1px solid var(--color-line);
+    }
+  }
+}

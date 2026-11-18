@@ -1,0 +1,145 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4-5);
+  }
+
+  .tabList {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: functions.to-rem(10px);
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    > [role="tab"] {
+      flex: none;
+      white-space: nowrap;
+      scroll-snap-align: start;
+    }
+  }
+
+  .count {
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Outranks the shared panel's flex: 1, which would size it to its content.
+  .stack .panel {
+    flex: none;
+    block-size: functions.to-rem(136px);
+    padding-block: var(--space-3-5) var(--space-2);
+    overflow-y: auto;
+    outline: none;
+
+    @include mixins.focus-visible;
+
+    @media (pointer: coarse) and (height > #{functions.get-breakpoint("landscape-height")}) {
+      overscroll-behavior: contain;
+    }
+  }
+
+  .signature {
+    padding-inline-start: var(--space-3-5);
+    border-inline-start: 2px solid var(--color-line-strong);
+    color: var(--color-text-soft);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+  }
+
+  .groupHeading {
+    margin-block: var(--space-2) var(--space-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-weight: 600;
+    line-height: var(--line-height-compact);
+  }
+
+  .itemRow {
+    padding-block: var(--space-3);
+
+    & + & {
+      border-block-start: 1px solid var(--color-line-strong);
+    }
+  }
+
+  .itemHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-4);
+    font-size: var(--font-size-2);
+
+    b {
+      max-inline-size: 100%;
+      overflow: hidden;
+      color: var(--color-text-1);
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .itemAnchor {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    margin-inline-start: auto;
+    color: var(--color-text-2);
+    white-space: nowrap;
+
+    code {
+      overflow: hidden;
+      font-family: var(--font-mono);
+      text-overflow: ellipsis;
+
+      // RTL puts the ellipsis on the left, so the filename stays; the label
+      // sits in an LTR isolate, or its leading characters move to the end.
+      direction: rtl;
+    }
+  }
+
+  .itemDetail {
+    margin-block-start: var(--space-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+  }
+
+  .empty {
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+
+  .notChecked {
+    display: grid;
+    gap: var(--space-2);
+    padding: 0;
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: var(--font-size-2);
+    list-style: none;
+  }
+
+  .metrics {
+    display: grid;
+    gap: var(--space-2-5);
+    margin-block: var(--space-4) 0;
+
+    dt {
+      color: var(--color-text-3);
+      font-size: var(--font-size-1);
+    }
+
+    dd {
+      margin-block-start: var(--space-2);
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
