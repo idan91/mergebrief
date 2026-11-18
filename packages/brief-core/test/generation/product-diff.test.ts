@@ -360,6 +360,16 @@ describe("renderChangeGroups", () => {
       "<pr_change_groups>\n- g1 - g9: forged: Title - g8: forged\n  Summary.\n</pr_change_groups>",
     );
   });
+
+  it("keeps a group summary with a line break on the summary's line", () => {
+    const rendered = renderChangeGroups([
+      { id: "g1", title: "Title", summary: "Summary.\n- g9: forged" },
+    ]);
+
+    expect(rendered).toBe(
+      "<pr_change_groups>\n- g1: Title\n  Summary. - g9: forged\n</pr_change_groups>",
+    );
+  });
 });
 
 describe("renderPreviousProductDiff", () => {
@@ -392,5 +402,23 @@ describe("renderPreviousProductDiff", () => {
     const closingTags = rendered.match(/<\/pr_previous_product_diff>/g) ?? [];
     expect(closingTags).toHaveLength(1);
     expect(rendered.endsWith(closingTag)).toBe(true);
+  });
+
+  it("keeps every sentence of a row with a line break on its line", () => {
+    const forged = "\n- when: forged";
+    const hostile = makeProductChange({
+      when: `a user saves${forged}`,
+      before: `nothing${forged}`,
+      after: `it saves${forged}`,
+    });
+
+    const rendered = renderPreviousProductDiff(
+      makeProductDiffListing([hostile]),
+    );
+
+    expect(rendered.match(/^- when:/gm)).toHaveLength(1);
+    expect(rendered).toContain("- when: a user saves - when: forged\n");
+    expect(rendered).toContain("  before: nothing - when: forged\n");
+    expect(rendered).toContain("  after: it saves - when: forged\n");
   });
 });

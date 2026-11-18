@@ -9,10 +9,7 @@ import {
   type ProductDiff,
   type ProductDiffGeneration,
 } from "../../types";
-import {
-  sanitizeUntrustedLine,
-  sanitizeUntrustedText,
-} from "../untrusted-text";
+import { sanitizeUntrustedLine } from "../untrusted-text";
 import { ISSUE_QUOTE_MAX_CHARS, PRODUCT_CHANGE_TEXT_LIMIT } from "./consts";
 import type {
   CheckedProductDiff,
@@ -263,12 +260,12 @@ function renderPreviousChange(change: ProductChange): string {
   const before =
     change.before === undefined
       ? ABSENT_BEFORE
-      : sanitizeUntrustedText(change.before);
+      : sanitizeUntrustedLine(change.before);
   return [
-    `- when: ${sanitizeUntrustedText(change.when)}`,
+    `- when: ${sanitizeUntrustedLine(change.when)}`,
     `  before: ${before}`,
     `  beforeSource: ${change.beforeSource}`,
-    `  after: ${sanitizeUntrustedText(change.after)}`,
+    `  after: ${sanitizeUntrustedLine(change.after)}`,
     `  affects: ${change.affects}`,
   ].join("\n");
 }
@@ -290,7 +287,7 @@ export function renderPreviousProductDiff(
 
 function renderChangeGroupLine(group: ListedChangeGroup): string {
   const title = sanitizeUntrustedLine(group.title);
-  const summary = sanitizeUntrustedText(group.summary);
+  const summary = sanitizeUntrustedLine(group.summary);
   // The id is model-written like the title: a brief call that read a hostile
   // PR could have put a fence tag in it.
   const id = sanitizeUntrustedLine(group.id);

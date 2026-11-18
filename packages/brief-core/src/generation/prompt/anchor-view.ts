@@ -3,6 +3,7 @@ import { stripKnownProseFences } from "../fences";
 import {
   removeHiddenCharacters,
   sanitizeUntrustedLine,
+  sanitizeUntrustedSummary,
   sanitizeUntrustedText,
 } from "../untrusted-text";
 import type { AnchorViewInput } from "./types";
@@ -41,7 +42,7 @@ function renderIntentBucketLines(
 ): string[] {
   return items.map((item) => {
     const groupIds = item.groupIds.map(sanitizeUntrustedLine).join(", ");
-    return `- [${label}] ${sanitizeUntrustedText(item.intent)}${item.quote ? ` — "${sanitizeUntrustedText(item.quote)}"` : ""}${item.groupIds.length > 0 ? ` (groups: ${groupIds})` : ""}`;
+    return `- [${label}] ${sanitizeUntrustedLine(item.intent)}${item.quote ? ` — "${sanitizeUntrustedLine(item.quote)}"` : ""}${item.groupIds.length > 0 ? ` (groups: ${groupIds})` : ""}`;
   });
 }
 
@@ -53,7 +54,7 @@ function renderAlignmentLine(
     return [];
   }
   return [
-    `- [alignment] ${sanitizeUntrustedText(alignment.read)} — "${sanitizeUntrustedText(alignment.goal)}" — ${sanitizeUntrustedText(alignment.response)}`,
+    `- [alignment] ${sanitizeUntrustedLine(alignment.read)} — "${sanitizeUntrustedLine(alignment.goal)}" — ${sanitizeUntrustedLine(alignment.response)}`,
   ];
 }
 
@@ -84,7 +85,7 @@ export function renderAnchorView(input: AnchorViewInput): string {
     const attrsPart = attrs.length > 0 ? `; attrs: ${attrs.join(", ")}` : "";
     const id = sanitizeUntrustedLine(group.id);
     const title = sanitizeUntrustedLine(group.title);
-    const summary = sanitizeUntrustedText(group.summary);
+    const summary = sanitizeUntrustedLine(group.summary);
     const paths = files.map(sanitizeUntrustedText).join(", ") || "(none)";
     return `- ${id} [${categories}] ${title} — ${summary}\n  files: ${paths}${attrsPart}`;
   }
@@ -97,7 +98,7 @@ export function renderAnchorView(input: AnchorViewInput): string {
     `## Anchor — previous brief (revision _${previousBrief.index})`,
     `### Frozen groups (carried verbatim by the pipeline — do NOT re-emit; their ids are claim targets only)\n${frozen || "(none)"}`,
     `### Groups to re-examine (previous take — keep what still holds)\n${reLook || "(none)"}`,
-    `### Previous summary (verbatim — the base for your minimal edit)\n${sanitizeUntrustedText(previousBrief.summary)}`,
+    `### Previous summary (verbatim — the base for your minimal edit)\n${sanitizeUntrustedSummary(previousBrief.summary)}`,
   ];
 
   sections.push(
@@ -172,7 +173,7 @@ export function renderGroupingAnchorView(input: AnchorViewInput): string {
     return `- ${id} [${categories}] ${sanitizeUntrustedLine(group.title)}\n  files: ${paths}`;
   }
   function describeReLook(group: Brief["changeGroups"][number]): string {
-    const summary = sanitizeUntrustedText(group.summary);
+    const summary = sanitizeUntrustedLine(group.summary);
     return `${describeFrozen(group)}\n  previous summary: ${summary}`;
   }
 
@@ -184,7 +185,7 @@ export function renderGroupingAnchorView(input: AnchorViewInput): string {
     `## Anchor, previous brief (revision _${previousBrief.index})`,
     `### Frozen groups (carried verbatim by the pipeline; never list them in changeGroups or map a hunk to them)\n${frozen || "(none)"}`,
     `### Groups to re-examine (previous take; keep what still holds)\n${reLook || "(none)"}`,
-    `### Previous summary (verbatim, the base for your minimal edit)\n${sanitizeUntrustedText(previousBrief.summary)}`,
+    `### Previous summary (verbatim, the base for your minimal edit)\n${sanitizeUntrustedSummary(previousBrief.summary)}`,
     ...renderPreviousIntentSection(previousBrief),
     ...renderPreviousReadingOrderSection(previousBrief),
   ];

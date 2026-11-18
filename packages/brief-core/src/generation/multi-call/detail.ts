@@ -23,7 +23,7 @@ import { estimateTokens } from "../size";
 import { BYTES_PER_TOKEN } from "../size/consts";
 import {
   sanitizeUntrustedLine,
-  sanitizeUntrustedText,
+  sanitizeUntrustedSummary,
 } from "../untrusted-text";
 import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "./consts";
 import type {
@@ -39,7 +39,7 @@ function renderGroupLine(group: ChangeGroup, hunkCount: number): string {
   const categories = [group.dominantCategory, ...group.secondaryCategories];
   const id = sanitizeUntrustedLine(group.id);
   const title = sanitizeUntrustedLine(group.title);
-  const summary = sanitizeUntrustedText(group.summary);
+  const summary = sanitizeUntrustedLine(group.summary);
   return `- ${id} [${categories.join(", ")}] ${title}: ${summary} (${hunkCount} hunks)`;
 }
 
@@ -49,7 +49,7 @@ function renderGroupLine(group: ChangeGroup, hunkCount: number): string {
  * like PR text, inside one fence.
  */
 function renderGrouping(input: DetailPrefixInput): string {
-  const summary = sanitizeUntrustedText(input.summary);
+  const summary = sanitizeUntrustedSummary(input.summary);
   const groups = input.groups
     .map((group) => {
       const hunkCount = input.hunksByGroup.get(group.id)?.length ?? 0;

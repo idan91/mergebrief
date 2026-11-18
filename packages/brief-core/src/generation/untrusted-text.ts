@@ -223,6 +223,29 @@ export function sanitizeUntrustedLine(text: string): string {
   return sanitizeUntrustedText(text).replace(LINE_BREAK, " ");
 }
 
+/** The heading the summary rule allows. */
+export const ALLOWED_SUMMARY_HEADING = "## Changelog";
+
+/** A Markdown ATX heading line: up to three spaces, one to six `#`, then a space, a tab or the line's end. */
+const HEADING_LINE = /^( {0,3})(#{1,6}(?:[ \t][^\n]*)?)$/gm;
+
+function escapeHeadingLine(
+  line: string,
+  indent: string,
+  heading: string,
+): string {
+  if (line.trim() === ALLOWED_SUMMARY_HEADING) {
+    return line;
+  }
+  return `${indent}\\${heading}`;
+}
+
+/** For a PR summary sharing a fence with other sections: every heading but the allowed one is escaped, so none starts a section. */
+export function sanitizeUntrustedSummary(text: string): string {
+  const newlineSplit = sanitizeUntrustedText(text).replace(LINE_BREAK, "\n");
+  return newlineSplit.replace(HEADING_LINE, escapeHeadingLine);
+}
+
 /** For a diff: escapes and redaction markers stay on their line so ranges hold; HTML comments are code here. */
 export function sanitizeUntrustedDiff(diff: string): string {
   const redacted = redactDiffSecrets(diff, escapeHiddenCharacters);

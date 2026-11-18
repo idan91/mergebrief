@@ -992,7 +992,7 @@ function renderContextGroup(
     group.dominantCategory,
     ...group.secondaryCategories,
   ].join(", ");
-  return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedText(group.summary)}`;
+  return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedLine(group.summary)}`;
 }
 
 function renderContextChunk(chunk: Chunk): string {
