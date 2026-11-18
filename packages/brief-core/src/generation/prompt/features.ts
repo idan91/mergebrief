@@ -11,12 +11,7 @@ import type {
   SummaryMediaText,
 } from "./types";
 
-/**
- * One record per feature a call may later run without. A record holds every
- * block and whole sentence whose subject is the feature, and each builder
- * interpolates the pieces where the text reads. The Product diff is its own
- * call and keeps its text in `product-diff.ts`.
- */
+/** One record per switchable feature: it holds every block and whole sentence whose subject is the feature. */
 
 const RISK_DESCRIPTIONS: Record<ModelRiskSurfaceAttribute, string> = {
   // about the CODE
