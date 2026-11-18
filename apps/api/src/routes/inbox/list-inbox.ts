@@ -58,6 +58,9 @@ function shapeFilters(query: InboxQuery): InboxFilters {
   if (query.installation !== undefined) {
     filters.installationIds = query.installation;
   }
+  if (query.q !== undefined) {
+    filters.searchText = query.q;
+  }
   return filters;
 }
 

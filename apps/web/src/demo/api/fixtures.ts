@@ -186,6 +186,7 @@ export const inboxAnswer: InboxResponse = {
   pageSize: InboxQueryBounds.PAGE_SIZE,
   total: 1,
   archivedTotal: 0,
+  searchMatchTotal: 0,
   counts: { new: 1, inProgress: 0, reviewed: 0, updated: 0 },
   viewer,
   reachableInstallations: [

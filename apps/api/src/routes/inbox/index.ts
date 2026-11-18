@@ -39,6 +39,7 @@ function parseInboxQuery(c: Context<AuthzEnv>): InboxQuery {
     [InboxQueryKeys.AUTHOR]: c.req.query(InboxQueryKeys.AUTHOR),
     [InboxQueryKeys.INSTALLATION]: c.req.queries(InboxQueryKeys.INSTALLATION),
     [InboxQueryKeys.ARCHIVED]: c.req.query(InboxQueryKeys.ARCHIVED),
+    [InboxQueryKeys.SEARCH_TEXT]: c.req.query(InboxQueryKeys.SEARCH_TEXT),
   });
   if (!query.success) {
     throw new BadRequest();

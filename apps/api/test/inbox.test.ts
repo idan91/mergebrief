@@ -21,6 +21,7 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import { InboxQueryBounds } from "contract";
 import { PrStates } from "types/pull-requests";
 import type { Mutable } from "types/utils";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -218,6 +219,7 @@ interface InboxBody {
   page: number;
   pageSize: number;
   total: number;
+  searchMatchTotal: number;
   counts: Record<string, number>;
   viewer: Record<string, unknown>;
   reachableInstallations: Array<Record<string, unknown>>;
@@ -544,6 +546,90 @@ describe("GET /api/inbox", () => {
     expect(badPage.status).toBe(400);
     expect(badRepo.status).toBe(400);
     expect(badInstallation.status).toBe(400);
+  });
+
+  it("search text narrows the list by title and by number", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const anchors = {
+      ctx: TENANT,
+      repoId: REPO_A,
+      title: "Sanitize anchor ids",
+    };
+    await seedPr(harness.handle, { ...anchors, prNumber: 1412 });
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 2 });
+
+    const byWord = await readBody(await get("/api/inbox?q=ANCHOR", cookie));
+    const byNumber = await readBody(await get("/api/inbox?q=%23141", cookie));
+    const padded = await readBody(
+      await get("/api/inbox?q=%20anchor%20", cookie),
+    );
+
+    expect(byWord.items.map((i) => i["prNumber"])).toEqual([1412]);
+    expect(byWord.searchMatchTotal).toBe(1);
+    expect(byNumber.items.map((i) => i["prNumber"])).toEqual([1412]);
+    expect(padded.items.map((i) => i["prNumber"])).toEqual([1412]);
+  });
+
+  it("empty search text narrows nothing and counts no match", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
+
+    const blank = await readBody(await get("/api/inbox?q=%20%20", cookie));
+    const absent = await readBody(await get("/api/inbox", cookie));
+
+    expect(blank.total).toBe(1);
+    expect(blank.searchMatchTotal).toBe(0);
+    expect(absent.searchMatchTotal).toBe(0);
+  });
+
+  it("search text past the bound is cut, never refused", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const longTitle = "a".repeat(InboxQueryBounds.MAX_SEARCH_TEXT_LENGTH);
+    const row = { ctx: TENANT, repoId: REPO_A, prNumber: 1, title: longTitle };
+    await seedPr(harness.handle, row);
+
+    const res = await get(`/api/inbox?q=${longTitle}zzz`, cookie);
+
+    expect(res.status).toBe(200);
+    expect((await readBody(res)).total).toBe(1);
+  });
+
+  it("the cut never splits a character in two", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const filler = "a".repeat(InboxQueryBounds.MAX_SEARCH_TEXT_LENGTH - 1);
+    const row = { ctx: TENANT, repoId: REPO_A, prNumber: 1 };
+    await seedPr(harness.handle, { ...row, title: `${filler}\u{1F680}` });
+
+    const query = encodeURIComponent(`${filler}\u{1F680}zzz`);
+    const body = await readBody(await get(`/api/inbox?q=${query}`, cookie));
+
+    expect(body.total).toBe(1);
+  });
+
+  it("search text counts the matches the status filter hides", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const merged = await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 1412,
+      title: "Sanitize anchor ids",
+    });
+    await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
+      repoId: merged.repoId,
+      prNumber: merged.prNumber,
+      state: PrStates.MERGED,
+      closedAt: new Date(),
+    });
+
+    const body = await readBody(await get("/api/inbox?q=anchor", cookie));
+
+    expect(body.total).toBe(0);
+    expect(body.searchMatchTotal).toBe(1);
   });
 
   it("no state key on the wire reads as open and draft", async () => {
