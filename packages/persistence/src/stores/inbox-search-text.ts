@@ -42,5 +42,6 @@ export function buildSearchTextPredicate(
     .replaceAll(NUL, "")
     .split(WORD_SEPARATOR)
     .filter((word) => word !== "");
-  return and(...words.map((word) => buildWordPredicate(word, columns)));
+  const wordPredicates = words.map((word) => buildWordPredicate(word, columns));
+  return and(...wordPredicates);
 }
