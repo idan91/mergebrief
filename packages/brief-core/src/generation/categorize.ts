@@ -3,6 +3,7 @@ import {
   DeltaBriefGenerationSchema,
   RevisionNarrativeGenerationSchema,
   type Brief,
+  type BriefGeneration,
   type ChangeGroup,
   type Chunk,
   type CommitRange,
@@ -84,8 +85,13 @@ import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
+  createGroupIdRestorer,
+  restoreEscapedHeadings,
+  restoreGroupReferences,
+  restoreRawGroupIds,
   restoreRawPaths,
   sanitizeUntrustedDiff,
+  sanitizeUntrustedLine,
   sanitizeUntrustedText,
 } from "./untrusted-text";
 import { createWarningCollector, formatGenerationWarnings } from "./warnings";
@@ -418,7 +424,7 @@ export function renderPrDiff(diff: string): string {
 function renderFileList(files: PrMetadata["files"]): string {
   return files
     .map((f) => {
-      const path = sanitizeUntrustedText(f.path);
+      const path = sanitizeUntrustedLine(f.path);
       return `- ${path} (+${f.additions} -${f.deletions})`;
     })
     .join("\n");
@@ -574,6 +580,28 @@ function renderDraftPrompt(options: DraftBriefOptions): DraftPrompt {
 }
 
 /**
+ * An anchored answer with what it copied off the Anchor spelled as stored:
+ * each summary heading shown escaped, and each group id shown on one line.
+ */
+function restoreAnchorSpellings(
+  generated: BriefGeneration,
+  anchor: AnchorViewInput | undefined,
+): BriefGeneration {
+  if (anchor === undefined) {
+    return generated;
+  }
+  const { previousBrief } = anchor;
+  const rawGroupIds = previousBrief.changeGroups.map((group) => group.id);
+
+  return {
+    ...generated,
+    ...restoreGroupReferences(generated, rawGroupIds),
+    summary: restoreEscapedHeadings(generated.summary, previousBrief.summary),
+    chunks: restoreRawGroupIds(generated.chunks, rawGroupIds),
+  };
+}
+
+/**
  * One model call and the mechanical shaping a stitch needs to read its output:
  * snapped ranges, derived loc, the stored intent buckets. Nothing here
  * validates; `validateFinalBrief` runs once over the final chunk set.
@@ -585,7 +613,7 @@ export async function generateDraftBrief(
   const { effectiveContext, primaryText, user } = renderDraftPrompt(options);
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
-  const generated = await generator.generate({
+  const answer = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt({
       repoContext: effectiveContext,
@@ -599,6 +627,7 @@ export async function generateDraftBrief(
     log,
     onWarning: warnings.recordGeneratorWarning,
   });
+  const generated = restoreAnchorSpellings(answer, anchor);
 
   // Counts never come from the model: ranges move onto and clip to the
   // changed lines, snap over the statement tails the model left to the
@@ -731,7 +760,7 @@ function renderComments(comments: ReviewComment[]): string {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
       const loc = commentLocation(c);
       const safeBody = sanitizeUntrustedText(c.body);
-      const safeFile = sanitizeUntrustedText(c.file);
+      const safeFile = sanitizeUntrustedLine(c.file);
       return `<review_comment>\nid:${c.id} ${safeFile}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
     })
     .join("\n\n");
@@ -981,8 +1010,8 @@ function renderContextGroup(
   group: ChangeGroup,
   includesSummary: boolean,
 ): string {
-  const id = sanitizeUntrustedText(group.id);
-  const title = sanitizeUntrustedText(group.title);
+  const id = sanitizeUntrustedLine(group.id);
+  const title = sanitizeUntrustedLine(group.title);
   if (!includesSummary) {
     return `- ${id} ${title}`;
   }
@@ -991,7 +1020,7 @@ function renderContextGroup(
     group.dominantCategory,
     ...group.secondaryCategories,
   ].join(", ");
-  return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedText(group.summary)}`;
+  return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedLine(group.summary)}`;
 }
 
 function renderContextChunk(chunk: Chunk): string {
@@ -1003,9 +1032,9 @@ function renderContextChunk(chunk: Chunk): string {
     chunk.removedRanges
       .map((range) => `-${range.start}-${range.end}`)
       .join(",") || "none";
-  const id = sanitizeUntrustedText(chunk.id);
-  const groupId = sanitizeUntrustedText(chunk.changeGroupId);
-  return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(chunk.file)} added:${added} removed:${removed}`;
+  const id = sanitizeUntrustedLine(chunk.id);
+  const groupId = sanitizeUntrustedLine(chunk.changeGroupId);
+  return `- ${id} (group ${groupId}) ${sanitizeUntrustedLine(chunk.file)} added:${added} removed:${removed}`;
 }
 
 /**
@@ -1124,7 +1153,13 @@ export async function categorizeRevisionNarrative(
     ...input.brief.chunks.map((chunk) => chunk.file),
     ...spanPaths,
   ];
-  const restored = restoreRawPaths(generated.chunks, rawPaths);
+  const restoreGroupId = createGroupIdRestorer(
+    input.brief.changeGroups.map((group) => group.id),
+  );
+  const restored = restoreRawPaths(generated.chunks, rawPaths).map((chunk) => ({
+    ...chunk,
+    briefChangeGroupId: restoreGroupId(chunk.briefChangeGroupId),
+  }));
   const chunks = alignAndSnapChunkRanges(
     restored,
     fileDiffs,

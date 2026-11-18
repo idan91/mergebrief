@@ -2,6 +2,12 @@ import { insertSlipSteps } from "../../anchoring";
 import type { FileId, IndexedFile } from "../../diff/hunk-index/types";
 import type { ChangeGroup, HunkMapEntry, StoredGrouping } from "../../types";
 import type { AnchorViewInput } from "../prompt";
+import {
+  createGroupIdRestorer,
+  restoreEscapedHeadings,
+  restoreGroupReferences,
+  sanitizeUntrustedLine,
+} from "../untrusted-text";
 import type { WarningCollector } from "../warnings/types";
 import type { MultiCallAnchor } from "./types";
 
@@ -18,6 +24,32 @@ export function readAnchorView(
   return {
     previousBrief: anchor.previousBrief,
     frozenGroupIds: anchor.plan.frozen.map((carry) => carry.group.id),
+  };
+}
+
+/**
+ * The grouping with what it copied off the Anchor spelled as stored: each
+ * summary heading shown escaped, and each group id shown on one line.
+ */
+export function restoreAnchorSpellings(
+  grouping: StoredGrouping,
+  anchor: MultiCallAnchor | undefined,
+): StoredGrouping {
+  if (anchor === undefined) {
+    return grouping;
+  }
+  const { previousBrief } = anchor;
+  const rawGroupIds = previousBrief.changeGroups.map((group) => group.id);
+  const restoreGroupId = createGroupIdRestorer(rawGroupIds);
+
+  return {
+    ...grouping,
+    ...restoreGroupReferences(grouping, rawGroupIds),
+    summary: restoreEscapedHeadings(grouping.summary, previousBrief.summary),
+    hunkMap: grouping.hunkMap.map((entry) => ({
+      ...entry,
+      groupId: restoreGroupId(entry.groupId),
+    })),
   };
 }
 
@@ -100,10 +132,15 @@ export function renameListedFrozenGroups(
     return grouping;
   }
 
-  const takenIds = new Set([
+  // A stored id is shown on one line, so that spelling is taken too.
+  const knownIds = [
     ...frozenIds,
     ...anchor.plan.previousGroupIds,
     ...listedIds,
+  ];
+  const takenIds = new Set([
+    ...knownIds,
+    ...knownIds.map(sanitizeUntrustedLine),
   ]);
   const renames = mintTemporaryIds(slipIds, takenIds);
   warnings.reportIssues(

@@ -3,7 +3,12 @@ import type { GenerateRequest, Generation, Generator } from "generators";
 import type { z } from "zod/v4";
 import { buildFastForwardSpan } from "../../src/diff/pr-span";
 import { generateBrief } from "../../src/generation/brief";
+import {
+  renameListedFrozenGroups,
+  restoreAnchorSpellings,
+} from "../../src/generation/multi-call/anchor";
 import type {
+  MultiCallAnchor,
   MultiCallHooks,
   PartKey,
   PlannedDetailCalls,
@@ -13,12 +18,16 @@ import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "../../src/generation/multi-call/co
 import { BYTES_PER_TOKEN } from "../../src/generation/size/consts";
 import { SUMMARY_MEDIA_LABEL } from "../../src/generation/summary-media/consts";
 import { CallPlanKinds } from "../../src/generation/size/types";
-import { GenerationWarningKinds } from "../../src/generation/warnings/types";
+import {
+  GenerationWarningKinds,
+  type WarningCollector,
+} from "../../src/generation/warnings/types";
 import { buildMermaidMediaKey } from "../../src/media";
 import {
   GroupingGenerationSchema,
   type Brief,
   type DetailGeneration,
+  type StoredGrouping,
 } from "../../src/types";
 import { FakeGenerator, type RecordedRequest } from "../helpers";
 import {
@@ -1223,6 +1232,64 @@ function readOutline(user: string | undefined): string {
   return text.slice(text.indexOf("<pr_diff>"), text.indexOf("</pr_diff>"));
 }
 
+describe("renameListedFrozenGroups", () => {
+  it("mints no temporary id a stored id is shown as", () => {
+    const anchor = {
+      previousBrief: { summary: "s", changeGroups: [] },
+      plan: {
+        frozen: [{ group: { id: "g1" } }],
+        previousGroupIds: ["g1", "t1<!---->"],
+      },
+    } as unknown as MultiCallAnchor;
+    const answer = {
+      ...grouping,
+      changeGroups: [makeGroup("g1"), makeGroup("t1<!---->")],
+      hunkMap: [],
+      readingOrder: undefined,
+    } as unknown as StoredGrouping;
+    const warnings = { reportIssues: () => {} } as unknown as WarningCollector;
+
+    const renamed = renameListedFrozenGroups(answer, anchor, warnings);
+
+    expect(renamed.changeGroups.map((group) => group.id)).toEqual([
+      "t2",
+      "t1<!---->",
+    ]);
+  });
+});
+
+describe("restoreAnchorSpellings", () => {
+  it("reads one-line group ids of the Anchor back as stored ids", () => {
+    const stored = "g1\nx";
+    const anchor = {
+      previousBrief: {
+        summary: "s",
+        changeGroups: [makeGroup(stored), makeGroup("g2")],
+      },
+    } as MultiCallAnchor;
+    const answer = {
+      ...grouping,
+      changeGroups: [makeGroup("g1 x")],
+      hunkMap: [{ groupId: "g1 x", hunks: ["f3"] }],
+      readingOrder: [{ groupId: "g1 x", why: "the main change" }],
+    } as StoredGrouping;
+
+    const restored = restoreAnchorSpellings(answer, anchor);
+
+    expect(restored.changeGroups.map((group) => group.id)).toEqual([stored]);
+    expect(restored.hunkMap.map((entry) => entry.groupId)).toEqual([stored]);
+    expect(restored.readingOrder?.map((step) => step.groupId)).toEqual([
+      stored,
+    ]);
+  });
+
+  it("returns a fresh run's grouping untouched", () => {
+    const answer = grouping as StoredGrouping;
+
+    expect(restoreAnchorSpellings(answer, undefined)).toBe(answer);
+  });
+});
+
 describe("generateBrief, a multi-call run over a previous brief", () => {
   async function runRevision() {
     const first = await generateBrief(
@@ -1263,6 +1330,32 @@ describe("generateBrief, a multi-call run over a previous brief", () => {
     expect(detailRequests.map((request) => request.label)).toEqual([
       "detail:1",
     ]);
+  });
+
+  it("stores a copied escaped summary heading as the heading it was", async () => {
+    const headed = "Lede.\n### Notes\nBody.";
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const generator = new FakeGenerator((request) => {
+      const answer = answerReLook(request);
+      return request.label === "grouping"
+        ? { ...(answer as object), summary: "Lede.\n\\### Notes\nBody." }
+        : answer;
+    });
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous: {
+          brief: { ...first.brief, summary: headed },
+          span: makeCSpan(),
+        },
+      }),
+    );
+
+    expect(generator.requests[0]?.user).toContain("Lede.\n\\### Notes\nBody.");
+    expect(brief.summary).toBe(headed);
   });
 
   it("picks Media after the anchored multi-call stitch", async () => {

@@ -1,6 +1,11 @@
 import { stripKnownFences, stripKnownProseFences } from "./fences";
 import { escapeHiddenCharacters, HIDDEN_CHARS } from "../hidden-chars";
 import { redactDiffSecrets, redactProseSecrets } from "./redaction";
+import type {
+  ChangeGroup,
+  IntentCheckGeneration,
+  ReadingOrderStep,
+} from "../types";
 
 /** Up to the block a construct sits in, nested: block-quote markers, list markers, indent. */
 export const CONTAINER_PREFIX = String.raw`(?:[ \t>]|[-+*][ \t]|\d{1,9}[.)][ \t])*`;
@@ -215,10 +220,102 @@ export function sanitizeUntrustedText(text: string): string {
   return stripKnownProseFences(redacted.text);
 }
 
+/** Unicode's mandatory line breaks; a `\r` is already `\n` after `normalizeLineBreaks`. */
+const LINE_BREAK = /[\n\v\f\u0085\u2028\u2029]/g;
+
+/** For a field the prompt shows on one line, an id, a title or a path: a line break in it becomes a space, so it never starts a line. */
+export function sanitizeUntrustedLine(text: string): string {
+  return sanitizeUntrustedText(text).replace(LINE_BREAK, " ");
+}
+
+/** The one heading the summary rule allows, as the page's `splitBriefSummary` reads it: depth two, any case, an optional closing sequence. */
+const CHANGELOG_HEADING_LINE = /^ {0,3}##[ \t]+changelog(?:[ \t]+#+)?[ \t]*$/i;
+
+/** A Markdown ATX heading line, at any indent and inside any block quote or list item: one to six `#`, then a space, a tab or the line's end. */
+const HEADING_LINE = new RegExp(
+  String.raw`^(${CONTAINER_PREFIX})(#{1,6}(?:[ \t][^\n]*)?)$`,
+);
+
+/** A setext underline in the same places, which turns the text line above it into a heading. */
+const SETEXT_UNDERLINE = new RegExp(
+  String.raw`^(${CONTAINER_PREFIX})((?:=+|-+)[ \t]*)$`,
+);
+
+function escapeHeadingLine(
+  line: string,
+  prefix: string,
+  heading: string,
+): string {
+  if (CHANGELOG_HEADING_LINE.test(line)) {
+    return line;
+  }
+  return `${prefix}\\${heading}`;
+}
+
+/** A summary's prose-sanitized text, every line break a `\n`. */
+function splitSummaryLines(text: string): string[] {
+  return sanitizeUntrustedText(text).replace(LINE_BREAK, "\n").split("\n");
+}
+
+/** One summary line with the heading it would open escaped; `previousLine` decides a setext underline. */
+function escapeSummaryLine(
+  line: string,
+  previousLine: string | undefined,
+): string {
+  const followsText = (previousLine ?? "").trim() !== "";
+  if (followsText && SETEXT_UNDERLINE.test(line)) {
+    return line.replace(SETEXT_UNDERLINE, "$1\\$2");
+  }
+  return line.replace(HEADING_LINE, escapeHeadingLine);
+}
+
+/** Each line of `lines` as the prompt shows it. */
+function escapeSummaryLines(lines: readonly string[]): string[] {
+  return lines.map((line, index) => escapeSummaryLine(line, lines[index - 1]));
+}
+
+/** For a PR summary sharing a fence with other sections: every heading but the allowed one is escaped, so none starts a section. */
+export function sanitizeUntrustedSummary(text: string): string {
+  return escapeSummaryLines(splitSummaryLines(text)).join("\n");
+}
+
+/**
+ * The model copies a summary line as the prompt spelled it, backslash
+ * included where `sanitizeUntrustedSummary` escaped a heading of
+ * `shownSummary`. Maps each such line back to its heading; a spelling the
+ * shown summary also held unescaped stays as written.
+ */
+export function restoreEscapedHeadings(
+  summary: string,
+  shownSummary: string,
+): string {
+  const plainLines = splitSummaryLines(shownSummary);
+  const plain = new Set(plainLines);
+  const headings = new Map<string, string>();
+  escapeSummaryLines(plainLines).forEach((escaped, index) => {
+    const line = plainLines[index];
+    if (line !== undefined && escaped !== line && !plain.has(escaped)) {
+      headings.set(escaped, line);
+    }
+  });
+  if (headings.size === 0) {
+    return summary;
+  }
+
+  const lines = summary.split("\n");
+  return lines.map((line) => headings.get(line) ?? line).join("\n");
+}
+
 /** For a diff: escapes and redaction markers stay on their line so ranges hold; HTML comments are code here. */
 export function sanitizeUntrustedDiff(diff: string): string {
   const redacted = redactDiffSecrets(diff, escapeHiddenCharacters);
   return stripKnownFences(redacted.text);
+}
+
+/** For a path a diff-derived title shows on one line: a line break in it becomes a space, so it never starts a line. */
+export function sanitizeUntrustedDiffLine(text: string): string {
+  const sanitized = sanitizeUntrustedDiff(normalizeLineBreaks(text));
+  return sanitized.replace(LINE_BREAK, " ");
 }
 
 /**
@@ -256,6 +353,8 @@ export function restoreRawPaths<FileChunk extends { readonly file: string }>(
   const shown = indexShownSpellings(rawPaths, [
     sanitizeUntrustedText,
     sanitizeUntrustedDiff,
+    sanitizeUntrustedLine,
+    sanitizeUntrustedDiffLine,
   ]);
 
   return chunks.map((chunk) => {
@@ -264,19 +363,69 @@ export function restoreRawPaths<FileChunk extends { readonly file: string }>(
   });
 }
 
-/** The same for a group id a detail call read in its sanitized spelling. */
+/**
+ * Reads a group id back: the one-line spelling a prompt showed maps to the
+ * stored id, and a stored id, an unknown one or a spelling two stored ids
+ * share stays as written.
+ */
+export function createGroupIdRestorer(
+  rawGroupIds: readonly string[],
+): (groupId: string) => string {
+  const raw = new Set(rawGroupIds);
+  const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedLine]);
+
+  return (groupId) => {
+    if (raw.has(groupId)) {
+      return groupId;
+    }
+    return shown.get(groupId) ?? groupId;
+  };
+}
+
+/** The same for the group each chunk names. */
 export function restoreRawGroupIds<
   GroupChunk extends { readonly changeGroupId: string },
 >(chunks: readonly GroupChunk[], rawGroupIds: readonly string[]): GroupChunk[] {
-  const raw = new Set(rawGroupIds);
-  const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedText]);
+  const restoreGroupId = createGroupIdRestorer(rawGroupIds);
 
   return chunks.map((chunk) => {
-    const restored = raw.has(chunk.changeGroupId)
-      ? undefined
-      : shown.get(chunk.changeGroupId);
-    return restored === undefined
+    const restored = restoreGroupId(chunk.changeGroupId);
+    return restored === chunk.changeGroupId
       ? chunk
       : { ...chunk, changeGroupId: restored };
   });
+}
+
+/** The fields of a brief or grouping answer that name a group by id. */
+export interface GroupReferences {
+  changeGroups: ChangeGroup[];
+  readingOrder?: ReadingOrderStep[] | undefined;
+  intentCheck: IntentCheckGeneration;
+}
+
+/** The same for an answer's groups, reading order and intent items. */
+export function restoreGroupReferences(
+  answer: GroupReferences,
+  rawGroupIds: readonly string[],
+): GroupReferences {
+  const restoreGroupId = createGroupIdRestorer(rawGroupIds);
+  const items = answer.intentCheck.items.map((item) => ({
+    ...item,
+    groupIds: item.groupIds.map(restoreGroupId),
+  }));
+
+  const restored: GroupReferences = {
+    changeGroups: answer.changeGroups.map((group) => ({
+      ...group,
+      id: restoreGroupId(group.id),
+    })),
+    intentCheck: { ...answer.intentCheck, items },
+  };
+  if (answer.readingOrder !== undefined) {
+    restored.readingOrder = answer.readingOrder.map((step) => ({
+      ...step,
+      groupId: restoreGroupId(step.groupId),
+    }));
+  }
+  return restored;
 }

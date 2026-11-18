@@ -9,7 +9,10 @@ import {
   type ProductDiff,
   type ProductDiffGeneration,
 } from "../../types";
-import { sanitizeUntrustedText } from "../untrusted-text";
+import {
+  createGroupIdRestorer,
+  sanitizeUntrustedLine,
+} from "../untrusted-text";
 import { ISSUE_QUOTE_MAX_CHARS, PRODUCT_CHANGE_TEXT_LIMIT } from "./consts";
 import type {
   CheckedProductDiff,
@@ -225,12 +228,14 @@ export function validateProductDiff(
   groups: readonly Pick<ChangeGroup, "id">[],
 ): CheckedProductDiff {
   const issues: string[] = [];
-  const knownIds = new Set(groups.map((group) => group.id));
-  const { kept, leftOut } = takeListedChanges(
-    written.changes,
-    knownIds,
-    issues,
-  );
+  const groupIds = groups.map((group) => group.id);
+  const knownIds = new Set(groupIds);
+  const restoreGroupId = createGroupIdRestorer(groupIds);
+  const changes = written.changes.map((change) => ({
+    ...change,
+    groupIds: change.groupIds.map(restoreGroupId),
+  }));
+  const { kept, leftOut } = takeListedChanges(changes, knownIds, issues);
 
   // The call may claim more only past the bound it lists to; below it, every
   // change it found is in the answer and the cut alone decides.
@@ -260,12 +265,12 @@ function renderPreviousChange(change: ProductChange): string {
   const before =
     change.before === undefined
       ? ABSENT_BEFORE
-      : sanitizeUntrustedText(change.before);
+      : sanitizeUntrustedLine(change.before);
   return [
-    `- when: ${sanitizeUntrustedText(change.when)}`,
+    `- when: ${sanitizeUntrustedLine(change.when)}`,
     `  before: ${before}`,
     `  beforeSource: ${change.beforeSource}`,
-    `  after: ${sanitizeUntrustedText(change.after)}`,
+    `  after: ${sanitizeUntrustedLine(change.after)}`,
     `  affects: ${change.affects}`,
   ].join("\n");
 }
@@ -286,11 +291,11 @@ export function renderPreviousProductDiff(
 }
 
 function renderChangeGroupLine(group: ListedChangeGroup): string {
-  const title = sanitizeUntrustedText(group.title);
-  const summary = sanitizeUntrustedText(group.summary);
+  const title = sanitizeUntrustedLine(group.title);
+  const summary = sanitizeUntrustedLine(group.summary);
   // The id is model-written like the title: a brief call that read a hostile
   // PR could have put a fence tag in it.
-  const id = sanitizeUntrustedText(group.id);
+  const id = sanitizeUntrustedLine(group.id);
   return `- ${id}: ${title}\n  ${summary}`;
 }
 

@@ -407,6 +407,53 @@ describe("generateBrief, an anchored run", () => {
     expect(brief.anchorWarnings).toEqual([AnchorWarnings.SPAN_UNAVAILABLE]);
   });
 
+  it("stores a copied escaped summary heading as the heading it was", async () => {
+    const headed = "Lede.\n### Notes\nBody.";
+    const previousBrief = { ...(await makePreviousBrief()), summary: headed };
+    const generator = makeQueuedGenerator([
+      { ...revisedOutput, summary: "Lede.\n\\### Notes\nBody." },
+    ]);
+
+    const { brief } = await runAnchored(revisedOutput, previousBrief, {
+      generator,
+    });
+
+    expect(generator.requests[0]?.user).toContain("Lede.\n\\### Notes\nBody.");
+    expect(brief.summary).toBe(headed);
+  });
+
+  it("reads a frozen group's one-line id back as the stored id", async () => {
+    const stored = "g1\nx";
+    const base = await makePreviousBrief();
+    const previousBrief: Brief = {
+      ...base,
+      changeGroups: base.changeGroups.map((group) =>
+        group.id === "g1" ? { ...group, id: stored } : group,
+      ),
+      chunks: base.chunks.map((chunk) =>
+        chunk.changeGroupId === "g1"
+          ? { ...chunk, changeGroupId: stored }
+          : chunk,
+      ),
+    };
+    const generator = makeQueuedGenerator([
+      {
+        ...revisedOutput,
+        readingOrder: [
+          { groupId: "g1 x", why: "the base it builds on" },
+          { groupId: "t1", why: "the reworked file" },
+        ],
+      },
+    ]);
+
+    const { brief } = await runAnchored(revisedOutput, previousBrief, {
+      generator,
+    });
+
+    expect(generator.requests[0]?.user).toContain("- g1 x [");
+    expect(brief.readingOrder?.map((step) => step.groupId)).toContain(stored);
+  });
+
   it("stores no warning on a brief whose span paired every hunk", async () => {
     const { brief } = await runAnchored(revisedOutput);
 
