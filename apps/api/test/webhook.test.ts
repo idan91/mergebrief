@@ -160,6 +160,7 @@ function pullRequestPayload(input: {
   baseSha?: string;
   /** GitHub's `pull_request.updated_at`, the late-event guard's key. */
   updatedAt?: string;
+  createdAt?: string;
   closedAt?: string | null;
   /** GitHub's `changes` block on an `edited` event. */
   changes?: Record<string, unknown>;
@@ -191,6 +192,9 @@ function pullRequestPayload(input: {
   }
   if (input.updatedAt !== undefined) {
     pullRequest["updated_at"] = input.updatedAt;
+  }
+  if (input.createdAt !== undefined) {
+    pullRequest["created_at"] = input.createdAt;
   }
   if (input.closedAt !== undefined) {
     pullRequest["closed_at"] = input.closedAt;
@@ -1825,6 +1829,46 @@ describe("POST /api/webhooks/github", () => {
     const prs = await harness.raw("select state, closed_at from pull_request");
     expect(prs[0]?.["state"]).toBe("open");
     expect(prs[0]?.["closed_at"]).toBeNull();
+  });
+
+  describe("GitHub's creation time", () => {
+    const OPENED_AT = "2026-09-01T08:00:00Z";
+
+    async function readCreatedAt(): Promise<unknown> {
+      const rows = await harness.raw(
+        "select github_created_at from pull_request",
+      );
+      expect(rows).toHaveLength(1);
+      return rows[0]?.["github_created_at"];
+    }
+
+    it("an opened event stores it and a later event without it keeps it", async () => {
+      const opened = pullRequestPayload({
+        action: "opened",
+        createdAt: OPENED_AT,
+      });
+      await deliver(app, "pull_request", opened);
+      const edited = pullRequestPayload({ action: "edited", changes: {} });
+      await deliver(app, "pull_request", edited);
+
+      expect(epochMs(await readCreatedAt())).toBe(Date.parse(OPENED_AT));
+    });
+
+    it("a close fills it on a row stored without one", async () => {
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "opened" }),
+      );
+      const closed = pullRequestPayload({
+        action: "closed",
+        merged: false,
+        createdAt: OPENED_AT,
+      });
+      await deliver(app, "pull_request", closed);
+
+      expect(epochMs(await readCreatedAt())).toBe(Date.parse(OPENED_AT));
+    });
   });
 
   describe("the late event guard", () => {

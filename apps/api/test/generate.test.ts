@@ -210,9 +210,11 @@ describe("POST /api/generate: the url-box door", () => {
     expect(generations).toEqual([{ status: "pending", head_sha: HEAD }]);
     // The paste is the row's first live read.
     const stamps = await harness.raw(
-      "select github_head_sha, github_read_at is not null as read from pull_request",
+      "select github_head_sha, github_read_at is not null as read, github_created_at is not null as dated from pull_request",
     );
-    expect(stamps).toEqual([{ github_head_sha: HEAD, read: true }]);
+    expect(stamps).toEqual([
+      { github_head_sha: HEAD, read: true, dated: true },
+    ]);
 
     const jobs = await harness.raw(
       "select payload, run_at from graphile_worker.jobs where task_identifier = 'generate'",

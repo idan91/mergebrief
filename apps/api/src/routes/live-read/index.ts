@@ -534,6 +534,7 @@ function shapeFacts(facts: PullRequestFacts, now: Date): LiveReadFacts {
     title: facts.title,
     draft: facts.draft,
     githubUpdatedAt: facts.updatedAt,
+    githubCreatedAt: facts.createdAt,
     lifecycle: deriveLifecycle(facts, now),
   };
   if (facts.authorLogin !== null) {
