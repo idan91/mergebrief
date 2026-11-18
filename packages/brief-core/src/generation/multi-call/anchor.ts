@@ -6,6 +6,7 @@ import {
   createGroupIdRestorer,
   restoreEscapedHeadings,
   restoreGroupReferences,
+  sanitizeUntrustedLine,
 } from "../untrusted-text";
 import type { WarningCollector } from "../warnings/types";
 import type { MultiCallAnchor } from "./types";
@@ -131,10 +132,15 @@ export function renameListedFrozenGroups(
     return grouping;
   }
 
-  const takenIds = new Set([
+  // A stored id is shown on one line, so that spelling is taken too.
+  const knownIds = [
     ...frozenIds,
     ...anchor.plan.previousGroupIds,
     ...listedIds,
+  ];
+  const takenIds = new Set([
+    ...knownIds,
+    ...knownIds.map(sanitizeUntrustedLine),
   ]);
   const renames = mintTemporaryIds(slipIds, takenIds);
   warnings.reportIssues(

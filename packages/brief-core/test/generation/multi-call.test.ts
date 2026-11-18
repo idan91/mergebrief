@@ -3,7 +3,10 @@ import type { GenerateRequest, Generation, Generator } from "generators";
 import type { z } from "zod/v4";
 import { buildFastForwardSpan } from "../../src/diff/pr-span";
 import { generateBrief } from "../../src/generation/brief";
-import { restoreAnchorSpellings } from "../../src/generation/multi-call/anchor";
+import {
+  renameListedFrozenGroups,
+  restoreAnchorSpellings,
+} from "../../src/generation/multi-call/anchor";
 import type {
   MultiCallAnchor,
   MultiCallHooks,
@@ -15,7 +18,10 @@ import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "../../src/generation/multi-call/co
 import { BYTES_PER_TOKEN } from "../../src/generation/size/consts";
 import { SUMMARY_MEDIA_LABEL } from "../../src/generation/summary-media/consts";
 import { CallPlanKinds } from "../../src/generation/size/types";
-import { GenerationWarningKinds } from "../../src/generation/warnings/types";
+import {
+  GenerationWarningKinds,
+  type WarningCollector,
+} from "../../src/generation/warnings/types";
 import { buildMermaidMediaKey } from "../../src/media";
 import {
   GroupingGenerationSchema,
@@ -1225,6 +1231,32 @@ function readOutline(user: string | undefined): string {
   const text = user ?? "";
   return text.slice(text.indexOf("<pr_diff>"), text.indexOf("</pr_diff>"));
 }
+
+describe("renameListedFrozenGroups", () => {
+  it("mints no temporary id a stored id is shown as", () => {
+    const anchor = {
+      previousBrief: { summary: "s", changeGroups: [] },
+      plan: {
+        frozen: [{ group: { id: "g1" } }],
+        previousGroupIds: ["g1", "t1<!---->"],
+      },
+    } as unknown as MultiCallAnchor;
+    const answer = {
+      ...grouping,
+      changeGroups: [makeGroup("g1"), makeGroup("t1<!---->")],
+      hunkMap: [],
+      readingOrder: undefined,
+    } as unknown as StoredGrouping;
+    const warnings = { reportIssues: () => {} } as unknown as WarningCollector;
+
+    const renamed = renameListedFrozenGroups(answer, anchor, warnings);
+
+    expect(renamed.changeGroups.map((group) => group.id)).toEqual([
+      "t2",
+      "t1<!---->",
+    ]);
+  });
+});
 
 describe("restoreAnchorSpellings", () => {
   it("reads one-line group ids of the Anchor back as stored ids", () => {
