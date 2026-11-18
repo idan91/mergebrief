@@ -407,6 +407,21 @@ describe("generateBrief, an anchored run", () => {
     expect(brief.anchorWarnings).toEqual([AnchorWarnings.SPAN_UNAVAILABLE]);
   });
 
+  it("stores a copied escaped summary heading as the heading it was", async () => {
+    const headed = "Lede.\n### Notes\nBody.";
+    const previousBrief = { ...(await makePreviousBrief()), summary: headed };
+    const generator = makeQueuedGenerator([
+      { ...revisedOutput, summary: "Lede.\n\\### Notes\nBody." },
+    ]);
+
+    const { brief } = await runAnchored(revisedOutput, previousBrief, {
+      generator,
+    });
+
+    expect(generator.requests[0]?.user).toContain("Lede.\n\\### Notes\nBody.");
+    expect(brief.summary).toBe(headed);
+  });
+
   it("stores no warning on a brief whose span paired every hunk", async () => {
     const { brief } = await runAnchored(revisedOutput);
 

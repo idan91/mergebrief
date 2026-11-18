@@ -2,6 +2,7 @@ import { insertSlipSteps } from "../../anchoring";
 import type { FileId, IndexedFile } from "../../diff/hunk-index/types";
 import type { ChangeGroup, HunkMapEntry, StoredGrouping } from "../../types";
 import type { AnchorViewInput } from "../prompt";
+import { restoreEscapedHeadings } from "../untrusted-text";
 import type { WarningCollector } from "../warnings/types";
 import type { MultiCallAnchor } from "./types";
 
@@ -19,6 +20,21 @@ export function readAnchorView(
     previousBrief: anchor.previousBrief,
     frozenGroupIds: anchor.plan.frozen.map((carry) => carry.group.id),
   };
+}
+
+/** The grouping with each summary heading the Anchor showed escaped spelled as stored. */
+export function restoreGroupingSummary(
+  grouping: StoredGrouping,
+  anchor: MultiCallAnchor | undefined,
+): StoredGrouping {
+  if (anchor === undefined) {
+    return grouping;
+  }
+  const summary = restoreEscapedHeadings(
+    grouping.summary,
+    anchor.previousBrief.summary,
+  );
+  return { ...grouping, summary };
 }
 
 /** The files a run groups and details: all of them, or with an anchor only those outside its frozen groups. */

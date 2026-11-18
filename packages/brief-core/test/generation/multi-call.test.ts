@@ -1265,6 +1265,32 @@ describe("generateBrief, a multi-call run over a previous brief", () => {
     ]);
   });
 
+  it("stores a copied escaped summary heading as the heading it was", async () => {
+    const headed = "Lede.\n### Notes\nBody.";
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const generator = new FakeGenerator((request) => {
+      const answer = answerReLook(request);
+      return request.label === "grouping"
+        ? { ...(answer as object), summary: "Lede.\n\\### Notes\nBody." }
+        : answer;
+    });
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous: {
+          brief: { ...first.brief, summary: headed },
+          span: makeCSpan(),
+        },
+      }),
+    );
+
+    expect(generator.requests[0]?.user).toContain("Lede.\n\\### Notes\nBody.");
+    expect(brief.summary).toBe(headed);
+  });
+
   it("picks Media after the anchored multi-call stitch", async () => {
     const first = await generateBrief(
       makeOptions(new FakeGenerator(makeAnswer())),

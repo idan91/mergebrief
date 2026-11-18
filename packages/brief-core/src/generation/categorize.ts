@@ -84,6 +84,7 @@ import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
+  restoreEscapedHeadings,
   restoreRawPaths,
   sanitizeUntrustedDiff,
   sanitizeUntrustedLine,
@@ -574,6 +575,17 @@ function renderDraftPrompt(options: DraftBriefOptions): DraftPrompt {
   return { effectiveContext, primaryText, user };
 }
 
+/** An anchored answer's summary with each heading the Anchor showed escaped spelled as stored. */
+function restoreAnchoredSummary(
+  summary: string,
+  anchor: AnchorViewInput | undefined,
+): string {
+  if (anchor === undefined) {
+    return summary;
+  }
+  return restoreEscapedHeadings(summary, anchor.previousBrief.summary);
+}
+
 /**
  * One model call and the mechanical shaping a stitch needs to read its output:
  * snapped ranges, derived loc, the stored intent buckets. Nothing here
@@ -627,6 +639,7 @@ export async function generateDraftBrief(
   const { readingOrder, intentCheck, ...rest } = generated;
   const brief: Brief = {
     ...rest,
+    summary: restoreAnchoredSummary(generated.summary, anchor),
     chunks,
     concernView: buildConcernView(chunks),
     // Exact whole-diff totals: per-chunk sums double-count overlap lines

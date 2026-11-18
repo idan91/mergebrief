@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SUMMARY_FIELD_RULE } from "../../src/generation/prompt/sections";
 import {
   ALLOWED_SUMMARY_HEADING,
+  restoreEscapedHeadings,
   restoreRawPaths,
   sanitizeUntrustedDiff,
   sanitizeUntrustedDiffLine,
@@ -297,6 +298,50 @@ describe("sanitizeUntrustedSummary", () => {
 
   it("allows only the heading the summary rule names", () => {
     expect(SUMMARY_FIELD_RULE).toContain(`"${ALLOWED_SUMMARY_HEADING}"`);
+  });
+});
+
+describe("restoreEscapedHeadings", () => {
+  const previous = "Lede.\n### Notes\nBody.\n\n## Changelog\n- caps retries";
+  const shown = sanitizeUntrustedSummary(previous);
+
+  it("maps a copied escaped heading back to the heading it showed", () => {
+    expect(shown).toContain("\\### Notes");
+
+    expect(restoreEscapedHeadings(shown, previous)).toBe(previous);
+  });
+
+  it("restores the copied line inside an edited summary", () => {
+    const answer = "New lede.\n\\### Notes\nBody, reworded.";
+
+    expect(restoreEscapedHeadings(answer, previous)).toBe(
+      "New lede.\n### Notes\nBody, reworded.",
+    );
+  });
+
+  it("keeps an escaped heading the previous summary never showed", () => {
+    const answer = "Lede.\n\\### Other\nBody.";
+
+    expect(restoreEscapedHeadings(answer, previous)).toBe(answer);
+  });
+
+  it("keeps a line the previous summary held in both spellings", () => {
+    const both = "\\### Notes\n### Notes";
+
+    expect(restoreEscapedHeadings("\\### Notes", both)).toBe("\\### Notes");
+  });
+
+  it("returns a restored summary unchanged when run again", () => {
+    const restored = restoreEscapedHeadings(shown, previous);
+
+    expect(restoreEscapedHeadings(restored, previous)).toBe(restored);
+  });
+
+  it("keeps a summary written against a well-formed previous one", () => {
+    const wellFormed = "Lede.\n\n## Changelog\n- caps retries";
+    const answer = "Lede.\n\\### Notes";
+
+    expect(restoreEscapedHeadings(answer, wellFormed)).toBe(answer);
   });
 });
 

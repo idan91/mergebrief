@@ -240,10 +240,45 @@ function escapeHeadingLine(
   return `${indent}\\${heading}`;
 }
 
+/** A summary's prose-sanitized text, every line break a `\n`. */
+function splitSummaryLines(text: string): string[] {
+  return sanitizeUntrustedText(text).replace(LINE_BREAK, "\n").split("\n");
+}
+
+function escapeSummaryLine(line: string): string {
+  return line.replace(HEADING_LINE, escapeHeadingLine);
+}
+
 /** For a PR summary sharing a fence with other sections: every heading but the allowed one is escaped, so none starts a section. */
 export function sanitizeUntrustedSummary(text: string): string {
-  const newlineSplit = sanitizeUntrustedText(text).replace(LINE_BREAK, "\n");
-  return newlineSplit.replace(HEADING_LINE, escapeHeadingLine);
+  return splitSummaryLines(text).map(escapeSummaryLine).join("\n");
+}
+
+/**
+ * The model copies a summary line as the prompt spelled it, backslash
+ * included where `sanitizeUntrustedSummary` escaped a heading of
+ * `shownSummary`. Maps each such line back to its heading; a spelling the
+ * shown summary also held unescaped stays as written.
+ */
+export function restoreEscapedHeadings(
+  summary: string,
+  shownSummary: string,
+): string {
+  const plainLines = splitSummaryLines(shownSummary);
+  const plain = new Set(plainLines);
+  const headings = new Map<string, string>();
+  for (const line of plainLines) {
+    const escaped = escapeSummaryLine(line);
+    if (escaped !== line && !plain.has(escaped)) {
+      headings.set(escaped, line);
+    }
+  }
+  if (headings.size === 0) {
+    return summary;
+  }
+
+  const lines = summary.split("\n");
+  return lines.map((line) => headings.get(line) ?? line).join("\n");
 }
 
 /** For a diff: escapes and redaction markers stay on their line so ranges hold; HTML comments are code here. */

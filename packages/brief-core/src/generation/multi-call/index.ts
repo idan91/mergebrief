@@ -69,6 +69,7 @@ import {
   listReLookFiles,
   readAnchorView,
   renameListedFrozenGroups,
+  restoreGroupingSummary,
 } from "./anchor";
 import { buildGroupingRequest } from "./grouping";
 import { resolveHunkMap } from "./hunk-map";
@@ -346,11 +347,8 @@ async function runGroupingCall(
     GroupingGenerationSchema,
   );
   const generated = stored ?? (await generateGrouping(options, request));
-  const grouping = renameListedFrozenGroups(
-    generated,
-    options.anchor,
-    warnings,
-  );
+  const renamed = renameListedFrozenGroups(generated, options.anchor, warnings);
+  const grouping = restoreGroupingSummary(renamed, options.anchor);
   if (stored === undefined) {
     await hooks?.onPartDone?.(PART_KEY_GROUPING, grouping);
   } else {
