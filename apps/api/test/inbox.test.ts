@@ -673,9 +673,9 @@ describe("GET /api/inbox", () => {
     );
     const sideways = await get(`${created}&direction=sideways`, cookie);
 
-    expect(newest.items.map((i) => i["prNumber"])).toEqual([1, 2, 3]);
-    expect(oldest.items.map((i) => i["prNumber"])).toEqual([2, 1, 3]);
-    expect(newest.items.map((i) => i["githubCreatedAt"])).toEqual([
+    expect(newest.items.map((item) => item["prNumber"])).toEqual([1, 2, 3]);
+    expect(oldest.items.map((item) => item["prNumber"])).toEqual([2, 1, 3]);
+    expect(newest.items.map((item) => item["githubCreatedAt"])).toEqual([
       "2026-09-03T00:00:00.000Z",
       "2026-09-01T00:00:00.000Z",
       null,

@@ -695,8 +695,8 @@ describe("createInboxStore.list, fold and sort", () => {
 });
 
 describe("createInboxStore.list, the created sort and the direction", () => {
-  const day = (date: number): Date =>
-    new Date(`2026-09-${String(date).padStart(2, "0")}T00:00:00Z`);
+  const makeSeptemberDay = (dayOfMonth: number): Date =>
+    new Date(`2026-09-${String(dayOfMonth).padStart(2, "0")}T00:00:00Z`);
   const MIXED_BY_CREATED: Partial<InboxListInput> = {
     sort: InboxSorts.CREATED,
     layout: InboxLayouts.MIXED,
@@ -705,10 +705,22 @@ describe("createInboxStore.list, the created sort and the direction", () => {
   /** Created 1 newest, then 3, then 2; 4 has no creation time. Updated 2 newest, then 4, 3, 1. */
   async function seedCreatedFixture(handle: AppDatabase): Promise<void> {
     const rows = [
-      { prNumber: 1, createdAt: day(3), updatedAt: day(1) },
-      { prNumber: 2, createdAt: day(1), updatedAt: day(9) },
-      { prNumber: 3, createdAt: day(2), updatedAt: day(5) },
-      { prNumber: 4, updatedAt: day(7) },
+      {
+        prNumber: 1,
+        createdAt: makeSeptemberDay(3),
+        updatedAt: makeSeptemberDay(1),
+      },
+      {
+        prNumber: 2,
+        createdAt: makeSeptemberDay(1),
+        updatedAt: makeSeptemberDay(9),
+      },
+      {
+        prNumber: 3,
+        createdAt: makeSeptemberDay(2),
+        updatedAt: makeSeptemberDay(5),
+      },
+      { prNumber: 4, updatedAt: makeSeptemberDay(7) },
     ];
     for (const row of rows) {
       await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, ...row });
@@ -753,7 +765,7 @@ describe("createInboxStore.list, the created sort and the direction", () => {
       ctx: CTX_ACME,
       repoId: REPO_A,
       prNumber: 1,
-      createdAt: day(1),
+      createdAt: makeSeptemberDay(1),
     });
     const reviewedBrief = await seedBrief(handle, CTX_ACME, reviewed, "h1");
     await openSession(handle, CTX_ACME, reviewedBrief, VIEWER, true);
@@ -762,7 +774,7 @@ describe("createInboxStore.list, the created sort and the direction", () => {
         ctx: CTX_ACME,
         repoId: REPO_A,
         prNumber,
-        createdAt: day(prNumber),
+        createdAt: makeSeptemberDay(prNumber),
       });
       await seedBrief(handle, CTX_ACME, fresh, `h${prNumber}`);
     }
@@ -784,7 +796,7 @@ describe("createInboxStore.list, the created sort and the direction", () => {
         ctx: CTX_ACME,
         repoId: REPO_A,
         prNumber,
-        createdAt: day(1),
+        createdAt: makeSeptemberDay(1),
       });
     }
     const ascending: Partial<InboxListInput> = {
