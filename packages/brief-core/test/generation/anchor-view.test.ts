@@ -575,14 +575,22 @@ describe("anchored system prompt", () => {
 
     for (const prompt of [anchored, grouping]) {
       expect(prompt).toContain(
-        "our own earlier output, written from this PR's text",
+        "our own earlier output, written from this PR's text and linked sources",
       );
+      expect(prompt).toContain("a reference, not a source of truth");
+      expect(prompt).toContain("wherever the diff disagrees");
       expect(prompt).not.toContain("trusted reference");
       expect(prompt).not.toContain("prior artifact");
       expect(prompt).not.toMatch(/[Pp]resume it right|right wherever/);
     }
     expect(anchored).toContain(
-      "Keep what it says wherever the diff is silent; override it wherever the diff disagrees.",
+      "Keep its wording wherever the facts behind it still hold; override it wherever the diff disagrees.",
+    );
+    expect(grouping).toContain(
+      "A previous claim about the PR's intent or background that the current title, description, Primary ticket and Linked context no longer back is dropped or corrected",
+    );
+    expect(grouping).toContain(
+      "A claim about code is never dropped because this outline does not show it",
     );
   });
 

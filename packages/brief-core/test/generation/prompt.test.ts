@@ -232,8 +232,20 @@ describe("text length caps", () => {
       "a previous title or summary that exceeds its length cap",
     );
     expect(anchored).toContain(
-      "The ONE exception: previous text that exceeds its length cap",
+      "One exception: previous text that exceeds its length cap",
     );
+  });
+
+  it("carves a claim no current input backs out of the minimal-edit rule", () => {
+    const anchored = buildSystemPrompt({ anchored: true });
+
+    expect(anchored).toContain(
+      "The other exception: a previous claim that nothing in this run's inputs backs.",
+    );
+    expect(anchored).toContain(
+      "check each claim you keep against the current diff, title, description, Primary ticket and Linked context",
+    );
+    expect(anchored).not.toContain("The ONE exception");
   });
 });
 
