@@ -98,35 +98,43 @@ export function renderAnchorView(input: AnchorViewInput): string {
     `### Previous summary (verbatim — the base for your minimal edit)\n${sanitizeUntrustedText(previousBrief.summary)}`,
   ];
 
-  sections.push(...listPreviousOrderSections(previousBrief));
+  sections.push(
+    ...renderPreviousIntentSection(previousBrief),
+    ...renderPreviousReadingOrderSection(previousBrief),
+  );
   return wrapAnchorSections(previousBrief, sections);
 }
 
-/** The previous intent verdicts and reading order, as every anchored call reads them. */
-function listPreviousOrderSections(previousBrief: Brief): string[] {
-  const sections: string[] = [];
+/** The previous intent verdicts, as every anchored call reads them; none when the brief held no intent check. */
+function renderPreviousIntentSection(previousBrief: Brief): string[] {
   const intent = previousBrief.intentCheck;
-  if (intent !== undefined) {
-    const verdictLines = [
-      `specificity: ${intent.specificity}`,
-      ...renderIntentBucketLines("accomplished", intent.accomplished),
-      ...renderIntentBucketLines("statedButMissing", intent.statedButMissing),
-      ...renderIntentBucketLines("doneButUnstated", intent.doneButUnstated),
-      ...renderIntentBucketLines("deviations", intent.deviations),
-      ...renderIntentBucketLines("maskedFixes", intent.maskedFixes),
-      ...renderAlignmentLine(intent.alignment),
-    ];
-    sections.push(
-      `### Previous intent verdicts (re-judge against the CURRENT ask; anchor wording only)\n${verdictLines.join("\n")}`,
-    );
+  if (intent === undefined) {
+    return [];
   }
 
-  if (previousBrief.readingOrder !== undefined) {
-    sections.push(
-      `### Previous reading order (id sequence)\n${previousBrief.readingOrder.map((step) => step.groupId).join(", ")}`,
-    );
+  const verdictLines = [
+    `specificity: ${intent.specificity}`,
+    ...renderIntentBucketLines("accomplished", intent.accomplished),
+    ...renderIntentBucketLines("statedButMissing", intent.statedButMissing),
+    ...renderIntentBucketLines("doneButUnstated", intent.doneButUnstated),
+    ...renderIntentBucketLines("deviations", intent.deviations),
+    ...renderIntentBucketLines("maskedFixes", intent.maskedFixes),
+    ...renderAlignmentLine(intent.alignment),
+  ];
+  return [
+    `### Previous intent verdicts (re-judge against the CURRENT ask; anchor wording only)\n${verdictLines.join("\n")}`,
+  ];
+}
+
+/** The previous reading order as an id sequence; none when the brief held no order. */
+function renderPreviousReadingOrderSection(previousBrief: Brief): string[] {
+  if (previousBrief.readingOrder === undefined) {
+    return [];
   }
-  return sections;
+
+  return [
+    `### Previous reading order (id sequence)\n${previousBrief.readingOrder.map((step) => step.groupId).join(", ")}`,
+  ];
 }
 
 function wrapAnchorSections(
@@ -173,7 +181,8 @@ export function renderGroupingAnchorView(input: AnchorViewInput): string {
     `### Frozen groups (carried verbatim by the pipeline; never list them in changeGroups or map a hunk to them)\n${frozen || "(none)"}`,
     `### Groups to re-examine (previous take; keep what still holds)\n${reLook || "(none)"}`,
     `### Previous summary (verbatim, the base for your minimal edit)\n${sanitizeUntrustedText(previousBrief.summary)}`,
-    ...listPreviousOrderSections(previousBrief),
+    ...renderPreviousIntentSection(previousBrief),
+    ...renderPreviousReadingOrderSection(previousBrief),
   ];
   return wrapAnchorSections(previousBrief, sections);
 }
