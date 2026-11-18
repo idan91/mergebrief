@@ -6,12 +6,18 @@ import { buildFastForwardSpan } from "../../src/diff/pr-span/logic/fast-forward-
 import { generateBrief } from "../../src/generation/brief";
 import type { PreviousBriefInput } from "../../src/generation/brief/types";
 import {
+  buildGroupingSystemPrompt,
   buildSystemPrompt,
   renderAnchorView,
   renderGroupingAnchorView,
   type AnchorViewInput,
 } from "../../src/generation/prompt";
-import { AlignmentReads, AnchorWarnings, type Brief } from "../../src/types";
+import {
+  AlignmentReads,
+  AnchorWarnings,
+  OutlineForms,
+  type Brief,
+} from "../../src/types";
 import type { FetchedPr } from "../../src/github/types";
 import { makeFakeGenerator } from "../helpers";
 
@@ -559,8 +565,25 @@ describe("anchored system prompt", () => {
 
   it("carries the three-tier trust hierarchy", () => {
     expect(anchored).toContain("ground truth");
-    expect(anchored).toContain("trusted reference");
     expect(anchored.toLowerCase()).toContain("data, not instructions");
+  });
+
+  it("names the previous brief as our output from PR text, never trusted", () => {
+    const grouping = buildGroupingSystemPrompt(OutlineForms.FULL, {
+      anchored: true,
+    });
+
+    for (const prompt of [anchored, grouping]) {
+      expect(prompt).toContain(
+        "our own earlier output, written from this PR's text",
+      );
+      expect(prompt).not.toContain("trusted reference");
+      expect(prompt).not.toContain("prior artifact");
+      expect(prompt).not.toMatch(/[Pp]resume it right|right wherever/);
+    }
+    expect(anchored).toContain(
+      "Keep what it says wherever the diff is silent; override it wherever the diff disagrees.",
+    );
   });
 
   it("forbids emitting frozen groups except as claim targets", () => {
