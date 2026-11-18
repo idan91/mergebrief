@@ -21,8 +21,9 @@ deprecation note here, removal only at a major.
   digits (with or without a leading `#`) also matches a pull request number
   that starts with it. The value is trimmed and cut to 100 characters, never
   refused. The response carries `searchMatchTotal`, the viewer's rows the
-  search text matches whatever the filters or the view, beside `total`; it
-  is 0 without search text.
+  search text matches whatever the filters or the view, beside `total`, and
+  `archivedSearchMatchTotal`, the rows of that count the viewer archived.
+  Both are 0 without search text.
 
 ## dev (2026-11-14)
 

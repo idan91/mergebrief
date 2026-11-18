@@ -126,6 +126,8 @@ export interface InboxPage {
   readonly archivedTotal: number;
   /** The viewable rows the search text matches, whatever the filters or the view; 0 without search text. */
   readonly searchMatchTotal: number;
+  /** The rows of `searchMatchTotal` the viewer archived. */
+  readonly archivedSearchMatchTotal: number;
   /** The four review-state totals over the open, non-draft, unarchived viewable rows, whatever the filters or the view. */
   readonly counts: InboxCounts;
   /** The repositories the rows in view name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
@@ -151,6 +153,8 @@ interface ViewableGroup {
   readonly archived: number;
   /** Matching the search text, in either view. */
   readonly searchMatches: number;
+  /** Matching the search text and archived by the viewer. */
+  readonly archivedSearchMatches: number;
 }
 
 /** The four totals summed over the open, non-draft, unarchived rows of each group; the viewer's own rows carry none. */
@@ -618,6 +622,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
           inView: sql<number>`count(*) filter (where ${inView})::int`,
           archived: sql<number>`count(*) filter (where ${viewable.archived})::int`,
           searchMatches: sql<number>`count(*) filter (where ${matchesSearch})::int`,
+          archivedSearchMatches: sql<number>`count(*) filter (where ${matchesSearch} and ${viewable.archived})::int`,
         })
         .from(viewable)
         .groupBy(viewable.reviewState, viewable.repoId);
@@ -632,6 +637,10 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         (sum, group) => sum + group.searchMatches,
         0,
       );
+      const archivedSearchMatchTotal = grouped.reduce(
+        (sum, group) => sum + group.archivedSearchMatches,
+        0,
+      );
 
       return {
         items: rows.map((row) => shapeRow(row)),
@@ -640,6 +649,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         total,
         archivedTotal,
         searchMatchTotal,
+        archivedSearchMatchTotal,
         counts: shapeCounts(grouped),
         repositories: shapeRepositories(grouped),
       };

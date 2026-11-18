@@ -111,6 +111,8 @@ export interface InboxResponse extends Page<InboxItem> {
   readonly archivedTotal: number;
   /** The viewer's rows the search text matches, whatever the filters or the view, so an empty page can say how many they hide; 0 without search text. */
   readonly searchMatchTotal: number;
+  /** The rows of `searchMatchTotal` the viewer archived, so a miss can say which view holds the matches. */
+  readonly archivedSearchMatchTotal: number;
   readonly counts: InboxCountsView;
   readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];

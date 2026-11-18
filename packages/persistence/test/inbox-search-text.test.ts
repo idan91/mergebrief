@@ -215,6 +215,25 @@ describe("createInboxStore.list, matches the filters hide", () => {
     expect(readNumbers(page)).toEqual([1400]);
     expect(page.total).toBe(1);
     expect(page.searchMatchTotal).toBe(3);
+    expect(page.archivedSearchMatchTotal).toBe(1);
+  });
+
+  it("counts the archived matches the same from the archived view", async () => {
+    const handle = shared.handle;
+    const archived = await seedTitled(handle, 1375, "Anchor plan refactor");
+    await seedTitled(handle, 1400, "Anchor view cleanup");
+    await seedTitled(handle, 1401, "Bump the node version");
+    await createTenantRepository(handle, CTX).archives.set(archived, VIEWER);
+    const archivedView = {
+      ...DEFAULT_FILTERS,
+      archived: InboxArchivedFilters.ONLY,
+    };
+
+    const page = await searchInbox(handle, "anchor", archivedView);
+
+    expect(readNumbers(page)).toEqual([1375]);
+    expect(page.searchMatchTotal).toBe(2);
+    expect(page.archivedSearchMatchTotal).toBe(1);
   });
 
   it("an empty page still carries the matches outside the view", async () => {
@@ -233,6 +252,7 @@ describe("createInboxStore.list, matches the filters hide", () => {
 
     expect(page.total).toBe(1);
     expect(page.searchMatchTotal).toBe(0);
+    expect(page.archivedSearchMatchTotal).toBe(0);
   });
 
   it("leaves the review-state counts as they are without a search", async () => {
