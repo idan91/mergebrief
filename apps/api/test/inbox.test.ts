@@ -597,6 +597,18 @@ describe("GET /api/inbox", () => {
     expect((await readBody(res)).total).toBe(1);
   });
 
+  it("a NUL character in the search text is dropped, never a 500", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const row = { ctx: TENANT, repoId: REPO_A, prNumber: 1 };
+    await seedPr(harness.handle, { ...row, title: "Sanitize anchor ids" });
+
+    const res = await get("/api/inbox?q=an%00chor", cookie);
+
+    expect(res.status).toBe(200);
+    expect((await readBody(res)).total).toBe(1);
+  });
+
   it("the cut never splits a character in two", async () => {
     arrangeGitHub(fake);
     const { cookie } = await seedSignIn(harness.handle, kp);

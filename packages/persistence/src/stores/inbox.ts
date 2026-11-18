@@ -15,7 +15,7 @@ import {
   type SQL,
   type SQLWrapper,
 } from "drizzle-orm";
-import { buildSearchPredicate } from "./inbox-search";
+import { buildSearchTextPredicate } from "./inbox-search-text";
 import { traceStore } from "./trace-store";
 import {
   InboxArchivedFilters,
@@ -416,7 +416,7 @@ function buildRowFilters(input: InboxListInput, facts: RowFacts): SQL[] {
       filters.push(chosen);
     }
   }
-  const matchesSearch = buildSearchPredicate(input.filters.searchText, {
+  const matchesSearch = buildSearchTextPredicate(input.filters.searchText, {
     title: pullRequest.title,
     prNumber: pullRequest.prNumber,
   });
@@ -600,10 +600,13 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         inView,
       );
       const open = sql`${buildOpenPredicate(viewable.state, viewable.draft)} and not ${viewable.archived}`;
-      const searchPredicate = buildSearchPredicate(input.filters.searchText, {
-        title: viewable.title,
-        prNumber: viewable.prNumber,
-      });
+      const searchPredicate = buildSearchTextPredicate(
+        input.filters.searchText,
+        {
+          title: viewable.title,
+          prNumber: viewable.prNumber,
+        },
+      );
       const matchesSearch = searchPredicate ?? sql`false`;
       const groupsQuery = db
         .select({

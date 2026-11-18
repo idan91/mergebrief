@@ -141,6 +141,15 @@ describe("createInboxStore.list, search text on the title", () => {
     expect(readNumbers(page)).toEqual([7]);
   });
 
+  it("drops a NUL character, which Postgres text cannot hold", async () => {
+    await seedTitled(shared.handle, 7, "Sanitize anchor ids");
+    await seedTitled(shared.handle, 8, "Bump the node version");
+
+    const page = await searchInbox(shared.handle, "an\u0000chor");
+
+    expect(readNumbers(page)).toEqual([7]);
+  });
+
   it("blank search text narrows nothing", async () => {
     await seedTitled(shared.handle, 7, "Sanitize anchor ids");
     await seedTitled(shared.handle, 8, "Bump the node version");
