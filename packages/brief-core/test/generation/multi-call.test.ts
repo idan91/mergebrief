@@ -3,7 +3,9 @@ import type { GenerateRequest, Generation, Generator } from "generators";
 import type { z } from "zod/v4";
 import { buildFastForwardSpan } from "../../src/diff/pr-span";
 import { generateBrief } from "../../src/generation/brief";
+import { restoreAnchorSpellings } from "../../src/generation/multi-call/anchor";
 import type {
+  MultiCallAnchor,
   MultiCallHooks,
   PartKey,
   PlannedDetailCalls,
@@ -19,6 +21,7 @@ import {
   GroupingGenerationSchema,
   type Brief,
   type DetailGeneration,
+  type StoredGrouping,
 } from "../../src/types";
 import { FakeGenerator, type RecordedRequest } from "../helpers";
 import {
@@ -1222,6 +1225,38 @@ function readOutline(user: string | undefined): string {
   const text = user ?? "";
   return text.slice(text.indexOf("<pr_diff>"), text.indexOf("</pr_diff>"));
 }
+
+describe("restoreAnchorSpellings", () => {
+  it("reads one-line group ids of the Anchor back as stored ids", () => {
+    const stored = "g1\nx";
+    const anchor = {
+      previousBrief: {
+        summary: "s",
+        changeGroups: [makeGroup(stored), makeGroup("g2")],
+      },
+    } as MultiCallAnchor;
+    const answer = {
+      ...grouping,
+      changeGroups: [makeGroup("g1 x")],
+      hunkMap: [{ groupId: "g1 x", hunks: ["f3"] }],
+      readingOrder: [{ groupId: "g1 x", why: "the main change" }],
+    } as StoredGrouping;
+
+    const restored = restoreAnchorSpellings(answer, anchor);
+
+    expect(restored.changeGroups.map((group) => group.id)).toEqual([stored]);
+    expect(restored.hunkMap.map((entry) => entry.groupId)).toEqual([stored]);
+    expect(restored.readingOrder?.map((step) => step.groupId)).toEqual([
+      stored,
+    ]);
+  });
+
+  it("returns a fresh run's grouping untouched", () => {
+    const answer = grouping as StoredGrouping;
+
+    expect(restoreAnchorSpellings(answer, undefined)).toBe(answer);
+  });
+});
 
 describe("generateBrief, a multi-call run over a previous brief", () => {
   async function runRevision() {

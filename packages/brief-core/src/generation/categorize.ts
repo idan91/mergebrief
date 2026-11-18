@@ -3,6 +3,7 @@ import {
   DeltaBriefGenerationSchema,
   RevisionNarrativeGenerationSchema,
   type Brief,
+  type BriefGeneration,
   type ChangeGroup,
   type Chunk,
   type CommitRange,
@@ -84,7 +85,10 @@ import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
+  createGroupIdRestorer,
   restoreEscapedHeadings,
+  restoreGroupReferences,
+  restoreRawGroupIds,
   restoreRawPaths,
   sanitizeUntrustedDiff,
   sanitizeUntrustedLine,
@@ -575,15 +579,26 @@ function renderDraftPrompt(options: DraftBriefOptions): DraftPrompt {
   return { effectiveContext, primaryText, user };
 }
 
-/** An anchored answer's summary with each heading the Anchor showed escaped spelled as stored. */
-function restoreAnchoredSummary(
-  summary: string,
+/**
+ * An anchored answer with what it copied off the Anchor spelled as stored:
+ * each summary heading shown escaped, and each group id shown on one line.
+ */
+function restoreAnchorSpellings(
+  generated: BriefGeneration,
   anchor: AnchorViewInput | undefined,
-): string {
+): BriefGeneration {
   if (anchor === undefined) {
-    return summary;
+    return generated;
   }
-  return restoreEscapedHeadings(summary, anchor.previousBrief.summary);
+  const { previousBrief } = anchor;
+  const rawGroupIds = previousBrief.changeGroups.map((group) => group.id);
+
+  return {
+    ...generated,
+    ...restoreGroupReferences(generated, rawGroupIds),
+    summary: restoreEscapedHeadings(generated.summary, previousBrief.summary),
+    chunks: restoreRawGroupIds(generated.chunks, rawGroupIds),
+  };
 }
 
 /**
@@ -598,7 +613,7 @@ export async function generateDraftBrief(
   const { effectiveContext, primaryText, user } = renderDraftPrompt(options);
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
-  const generated = await generator.generate({
+  const answer = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt({
       repoContext: effectiveContext,
@@ -612,6 +627,7 @@ export async function generateDraftBrief(
     log,
     onWarning: warnings.recordGeneratorWarning,
   });
+  const generated = restoreAnchorSpellings(answer, anchor);
 
   // Counts never come from the model: ranges move onto and clip to the
   // changed lines, snap over the statement tails the model left to the
@@ -639,7 +655,6 @@ export async function generateDraftBrief(
   const { readingOrder, intentCheck, ...rest } = generated;
   const brief: Brief = {
     ...rest,
-    summary: restoreAnchoredSummary(generated.summary, anchor),
     chunks,
     concernView: buildConcernView(chunks),
     // Exact whole-diff totals: per-chunk sums double-count overlap lines
@@ -1138,7 +1153,13 @@ export async function categorizeRevisionNarrative(
     ...input.brief.chunks.map((chunk) => chunk.file),
     ...spanPaths,
   ];
-  const restored = restoreRawPaths(generated.chunks, rawPaths);
+  const restoreGroupId = createGroupIdRestorer(
+    input.brief.changeGroups.map((group) => group.id),
+  );
+  const restored = restoreRawPaths(generated.chunks, rawPaths).map((chunk) => ({
+    ...chunk,
+    briefChangeGroupId: restoreGroupId(chunk.briefChangeGroupId),
+  }));
   const chunks = alignAndSnapChunkRanges(
     restored,
     fileDiffs,

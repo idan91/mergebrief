@@ -81,6 +81,17 @@ describe("validateProductDiff", () => {
     expect(checked.issues[0]).toContain("g9");
   });
 
+  it("reads a group id back in the one-line spelling the prompt showed", () => {
+    const productDiff = makeProductDiffListing([
+      makeProductChange({ groupIds: ["g1 x"] }),
+    ]);
+
+    const checked = validateProductDiff(productDiff, [{ id: "g1\nx" }]);
+
+    expect(checked.productDiff.changes[0]?.groupIds).toEqual(["g1\nx"]);
+    expect(checked.issues).toEqual([]);
+  });
+
   it("drops a change left with no known group", () => {
     const productDiff = makeProductDiffListing([
       makeProductChange({ groupIds: ["g9"] }),

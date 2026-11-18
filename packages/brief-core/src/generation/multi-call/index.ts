@@ -69,7 +69,7 @@ import {
   listReLookFiles,
   readAnchorView,
   renameListedFrozenGroups,
-  restoreGroupingSummary,
+  restoreAnchorSpellings,
 } from "./anchor";
 import { buildGroupingRequest } from "./grouping";
 import { resolveHunkMap } from "./hunk-map";
@@ -347,8 +347,8 @@ async function runGroupingCall(
     GroupingGenerationSchema,
   );
   const generated = stored ?? (await generateGrouping(options, request));
-  const renamed = renameListedFrozenGroups(generated, options.anchor, warnings);
-  const grouping = restoreGroupingSummary(renamed, options.anchor);
+  const restored = restoreAnchorSpellings(generated, options.anchor);
+  const grouping = renameListedFrozenGroups(restored, options.anchor, warnings);
   if (stored === undefined) {
     await hooks?.onPartDone?.(PART_KEY_GROUPING, grouping);
   } else {

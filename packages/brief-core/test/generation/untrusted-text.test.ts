@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { SUMMARY_FIELD_RULE } from "../../src/generation/prompt/sections";
 import {
+  createGroupIdRestorer,
   restoreEscapedHeadings,
+  restoreGroupReferences,
   restoreRawPaths,
   sanitizeUntrustedDiff,
   sanitizeUntrustedDiffLine,
@@ -11,6 +13,7 @@ import {
 } from "../../src/generation/untrusted-text";
 import { SecretKinds } from "../../src/generation/redaction/types";
 import { splitBriefSummary } from "../../src/sanitized-markdown/brief-summary";
+import { makeGroup, noneIntentCheck } from "./fixtures/two-file-pr";
 import { FAKE_SECRETS, makeFakePemBlock } from "../secret-fixtures";
 import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
@@ -372,6 +375,67 @@ describe("restoreEscapedHeadings", () => {
     const answer = "Lede.\n\\### Notes";
 
     expect(restoreEscapedHeadings(answer, wellFormed)).toBe(answer);
+  });
+});
+
+describe("createGroupIdRestorer", () => {
+  const restoreGroupId = createGroupIdRestorer(["g1\nx", "g2"]);
+
+  it("maps the one-line spelling a prompt showed back to the stored id", () => {
+    expect(restoreGroupId("g1 x")).toBe("g1\nx");
+  });
+
+  it("keeps a stored id and an id no prompt showed as written", () => {
+    expect(restoreGroupId("g2")).toBe("g2");
+    expect(restoreGroupId("g1\nx")).toBe("g1\nx");
+    expect(restoreGroupId("g9")).toBe("g9");
+  });
+
+  it("keeps a spelling two stored ids share", () => {
+    const restoreShared = createGroupIdRestorer(["g1\nx", "g1 x"]);
+
+    expect(restoreShared("g1 x")).toBe("g1 x");
+  });
+});
+
+describe("restoreGroupReferences", () => {
+  const intentItem = {
+    bucket: "accomplished",
+    intent: "caps retries",
+    quote: "cap the retries",
+    sourceUrl: "",
+    groupIds: ["g1 x", "g2"],
+    acknowledged: false,
+  };
+  const answer = {
+    changeGroups: [makeGroup("g1 x"), makeGroup("g2")],
+    readingOrder: [
+      { groupId: "g2", why: "the main change" },
+      { groupId: "g1 x", why: "builds on it" },
+    ],
+    intentCheck: { ...noneIntentCheck, items: [intentItem] },
+  } as Parameters<typeof restoreGroupReferences>[0];
+
+  it("maps every reference to a group back to its stored id", () => {
+    const restored = restoreGroupReferences(answer, ["g1\nx", "g2"]);
+
+    expect(restored.changeGroups.map((group) => group.id)).toEqual([
+      "g1\nx",
+      "g2",
+    ]);
+    expect(restored.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g2",
+      "g1\nx",
+    ]);
+    expect(restored.intentCheck.items[0]?.groupIds).toEqual(["g1\nx", "g2"]);
+  });
+
+  it("adds no reading order to an answer that holds none", () => {
+    const { readingOrder: _dropped, ...unordered } = answer;
+
+    const restored = restoreGroupReferences(unordered, ["g1\nx", "g2"]);
+
+    expect(Object.hasOwn(restored, "readingOrder")).toBe(false);
   });
 });
 

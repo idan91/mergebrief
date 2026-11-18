@@ -474,6 +474,25 @@ describe("categorizeRevisionNarrative", () => {
     expect(narrative.chunks.map((chunk) => chunk.file)).toEqual([raw]);
   });
 
+  it("reads a group id back in the spelling the brief context showed", async () => {
+    const stored = "g1<!---->";
+    const brief: Brief = {
+      ...input.brief,
+      changeGroups: input.brief.changeGroups.map((group) => ({
+        ...group,
+        id: stored,
+      })),
+    };
+
+    const narrative = await categorizeRevisionNarrative(
+      { ...input, brief },
+      makeLabelRoutedGenerator(),
+    );
+
+    expect(narrative.chunks[0]?.briefChangeGroupId).toBe(stored);
+    expect(narrative.generationWarnings).toBeUndefined();
+  });
+
   it("warns without throwing on an unknown briefChangeGroupId reference", async () => {
     const brief: Brief = { ...input.brief, changeGroups: [] };
     const logs: string[] = [];

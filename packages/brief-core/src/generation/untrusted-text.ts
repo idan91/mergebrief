@@ -1,6 +1,11 @@
 import { stripKnownFences, stripKnownProseFences } from "./fences";
 import { escapeHiddenCharacters, HIDDEN_CHARS } from "../hidden-chars";
 import { redactDiffSecrets, redactProseSecrets } from "./redaction";
+import type {
+  ChangeGroup,
+  IntentCheckGeneration,
+  ReadingOrderStep,
+} from "../types";
 
 /** Up to the block a construct sits in, nested: block-quote markers, list markers, indent. */
 export const CONTAINER_PREFIX = String.raw`(?:[ \t>]|[-+*][ \t]|\d{1,9}[.)][ \t])*`;
@@ -338,19 +343,69 @@ export function restoreRawPaths<FileChunk extends { readonly file: string }>(
   });
 }
 
-/** The same for a group id a detail call read in its sanitized spelling. */
-export function restoreRawGroupIds<
-  GroupChunk extends { readonly changeGroupId: string },
->(chunks: readonly GroupChunk[], rawGroupIds: readonly string[]): GroupChunk[] {
+/**
+ * Reads a group id back: the one-line spelling a prompt showed maps to the
+ * stored id, and a stored id, an unknown one or a spelling two stored ids
+ * share stays as written.
+ */
+export function createGroupIdRestorer(
+  rawGroupIds: readonly string[],
+): (groupId: string) => string {
   const raw = new Set(rawGroupIds);
   const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedLine]);
 
+  return (groupId) => {
+    if (raw.has(groupId)) {
+      return groupId;
+    }
+    return shown.get(groupId) ?? groupId;
+  };
+}
+
+/** The same for the group each chunk names. */
+export function restoreRawGroupIds<
+  GroupChunk extends { readonly changeGroupId: string },
+>(chunks: readonly GroupChunk[], rawGroupIds: readonly string[]): GroupChunk[] {
+  const restoreGroupId = createGroupIdRestorer(rawGroupIds);
+
   return chunks.map((chunk) => {
-    const restored = raw.has(chunk.changeGroupId)
-      ? undefined
-      : shown.get(chunk.changeGroupId);
-    return restored === undefined
+    const restored = restoreGroupId(chunk.changeGroupId);
+    return restored === chunk.changeGroupId
       ? chunk
       : { ...chunk, changeGroupId: restored };
   });
+}
+
+/** The fields of a brief or grouping answer that name a group by id. */
+export interface GroupReferences {
+  changeGroups: ChangeGroup[];
+  readingOrder?: ReadingOrderStep[] | undefined;
+  intentCheck: IntentCheckGeneration;
+}
+
+/** The same for an answer's groups, reading order and intent items. */
+export function restoreGroupReferences(
+  answer: GroupReferences,
+  rawGroupIds: readonly string[],
+): GroupReferences {
+  const restoreGroupId = createGroupIdRestorer(rawGroupIds);
+  const items = answer.intentCheck.items.map((item) => ({
+    ...item,
+    groupIds: item.groupIds.map(restoreGroupId),
+  }));
+
+  const restored: GroupReferences = {
+    changeGroups: answer.changeGroups.map((group) => ({
+      ...group,
+      id: restoreGroupId(group.id),
+    })),
+    intentCheck: { ...answer.intentCheck, items },
+  };
+  if (answer.readingOrder !== undefined) {
+    restored.readingOrder = answer.readingOrder.map((step) => ({
+      ...step,
+      groupId: restoreGroupId(step.groupId),
+    }));
+  }
+  return restored;
 }
