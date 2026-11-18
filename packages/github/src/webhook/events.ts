@@ -136,6 +136,8 @@ export interface ParsedPullRequestEvent {
   readonly merged?: boolean;
   /** GitHub's `pull_request.updated_at`; orders late deliveries at ingest. */
   readonly updatedAt?: Date;
+  /** GitHub's `pull_request.created_at`, the Inbox's created sort key. */
+  readonly createdAt?: Date;
   /** GitHub's `pull_request.closed_at`; null while open. */
   readonly closedAt?: Date;
   /** Present on `edited`: whether the edit retargeted the base branch. */
@@ -283,6 +285,7 @@ const pullRequestEventSchema = z.object({
       .object({ login: z.string().min(1), type: accountTypeSchema })
       .nullish(),
     updated_at: githubTimestampSchema.optional(),
+    created_at: githubTimestampSchema.optional(),
     closed_at: githubTimestampSchema.nullish(),
   }),
 });
@@ -435,9 +438,16 @@ function parsePullRequest(
   if (action === PullRequestActions.CLOSED && merged !== undefined) {
     event.merged = merged;
   }
-  const { updated_at: updatedAt, closed_at: closedAt } = data.pull_request;
+  const {
+    updated_at: updatedAt,
+    created_at: createdAt,
+    closed_at: closedAt,
+  } = data.pull_request;
   if (updatedAt !== undefined) {
     event.updatedAt = updatedAt;
+  }
+  if (createdAt !== undefined) {
+    event.createdAt = createdAt;
   }
   if (closedAt !== undefined && closedAt !== null) {
     event.closedAt = closedAt;

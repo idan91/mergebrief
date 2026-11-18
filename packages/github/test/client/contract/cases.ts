@@ -35,6 +35,7 @@ export function defineCase<Client, Value>(
 }
 
 const UPDATED_AT = new Date("2026-10-01T10:00:00Z");
+const CREATED_AT = new Date("2026-09-01T08:00:00Z");
 
 export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
   defineCase({
@@ -62,6 +63,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
       authorIsBot: false,
       closedAt: null,
       updatedAt: UPDATED_AT,
+      createdAt: CREATED_AT,
       baseRepo: { owner: "acme", repo: "widgets" },
     },
   }),
@@ -174,6 +176,7 @@ export const ACCOUNT_READER_CASES: readonly ContractCase<GitHubReader>[] = [
           title: "Add widgets",
           closedAt: null,
           updatedAt: UPDATED_AT,
+          createdAt: CREATED_AT,
           headSha: HEAD_SHA,
           authorLogin: "octocat",
         },

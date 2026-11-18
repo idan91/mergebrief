@@ -37,6 +37,7 @@ export interface PullRequestFacts {
   readonly title: string;
   readonly closedAt: Date | null;
   readonly updatedAt: Date;
+  readonly createdAt: Date;
   readonly headSha: string;
   /** Null when the account is gone. */
   readonly authorLogin: string | null;
@@ -62,6 +63,7 @@ const wirePullRequestSchema = z.object({
   title: z.string(),
   closedAt: z.string().nullable(),
   updatedAt: z.string(),
+  createdAt: z.string(),
   headRefOid: z.string().min(1),
   author: z.object({ login: z.string() }).nullable(),
 });
@@ -84,7 +86,7 @@ function buildQuery(count: number): string {
       `$o${index}: String!, $r${index}: String!, $n${index}: Int!`,
     );
     selections.push(
-      `p${index}: repository(owner: $o${index}, name: $r${index}) { databaseId nameWithOwner pullRequest(number: $n${index}) { state isDraft title closedAt updatedAt headRefOid author { login } } }`,
+      `p${index}: repository(owner: $o${index}, name: $r${index}) { databaseId nameWithOwner pullRequest(number: $n${index}) { state isDraft title closedAt updatedAt createdAt headRefOid author { login } } }`,
     );
   }
   return `query LiveRead(${declarations.join(", ")}) { ${selections.join(" ")} }`;
@@ -115,6 +117,7 @@ function mapFacts(
     title: wire.title,
     closedAt: wire.closedAt === null ? null : new Date(wire.closedAt),
     updatedAt: new Date(wire.updatedAt),
+    createdAt: new Date(wire.createdAt),
     headSha: wire.headRefOid,
     authorLogin: wire.author?.login ?? null,
   };

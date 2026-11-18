@@ -66,6 +66,7 @@ export function makeFakePullRequestInfo(
     authorIsBot: false,
     closedAt: null,
     updatedAt: new Date("2026-01-01T00:00:00Z"),
+    createdAt: new Date("2025-12-01T00:00:00Z"),
   };
 }
 

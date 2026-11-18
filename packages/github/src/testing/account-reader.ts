@@ -24,6 +24,7 @@ function shapeFacts(info: PullRequestInfo): PullRequestFacts {
     title: info.title,
     closedAt: info.closedAt,
     updatedAt: info.updatedAt,
+    createdAt: info.createdAt,
     headSha: info.headSha,
     authorLogin: info.authorLogin,
   };

@@ -48,6 +48,7 @@ function makeGitHubWithPullRequest(
       authorIsBot: false,
       closedAt: null,
       updatedAt: new Date("2026-10-01T10:00:00Z"),
+      createdAt: new Date("2026-09-01T08:00:00Z"),
     },
   });
   return github;

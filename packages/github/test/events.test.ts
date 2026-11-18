@@ -398,6 +398,33 @@ describe("parseWebhookEvent, pull_request", () => {
     }
   });
 
+  it("carries created_at when the payload sends it", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: {
+          action: "opened",
+          number: 2,
+          installation: { id: 1 },
+          repository: { id: 1, full_name: "a/b" },
+          pull_request: {
+            title: "t",
+            head: { sha: "x" },
+            base: { sha: "y" },
+            draft: false,
+            user: null,
+            created_at: "2026-09-01T08:00:00Z",
+          },
+        },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+
+    expect(event.createdAt?.toISOString()).toBe("2026-09-01T08:00:00.000Z");
+  });
+
   it("carries updated_at and closed_at when the payload sends them", () => {
     const event = expectOk(
       parseWebhookEvent({
