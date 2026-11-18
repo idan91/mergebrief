@@ -49,7 +49,7 @@ that case and leaves the others' specimens from the last full run.
 ## When to run (convention gate, not CI)
 
 Run before merging any change to the generation surface:
-`packages/brief-core/src/generation/prompt.ts`, the output schema
+`packages/brief-core/src/generation/prompt/`, the output schema
 (`packages/brief-core/src/types.ts`), validators/salvage, the anchored
 plan and stitch (`packages/brief-core/src/anchoring/`) with the diff
 parsers that decide them (`packages/brief-core/src/diff/`),

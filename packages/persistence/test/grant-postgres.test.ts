@@ -30,7 +30,6 @@ import {
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const ROTATION_BOUND_MS = 1_000;
-const LOCK_HOLD_MS = 4_000;
 const WAITER_COUNT = 3;
 const POOL_SIZE = 2;
 const WAITERS_POOL_SIZE = WAITER_COUNT + 1;
@@ -140,18 +139,28 @@ describe.skipIf(databaseUrl === undefined)(
         const lockHeld = new Promise<void>((resolve) => {
           signalLockHeld = resolve;
         });
-        const hold = stubHungRotation(LOCK_HOLD_MS);
+        // Held until every waiter settles, never for a set time: a queued
+        // waiter's `lock_timeout` starts over when the waiter ahead gives up,
+        // so it can outlast any hold near twice the bound.
+        let releaseRotation = (): void => {};
+        const rotationReleased = new Promise<void>((resolve) => {
+          releaseRotation = resolve;
+        });
 
         const holder = auth.refreshGrant(
           grant.id,
           grant.ghTokenCiphertext,
           async () => {
             signalLockHeld();
-            return hold();
+            await rotationReleased;
+            return {
+              ok: false,
+              error: { reason: "github-unavailable" },
+            } as const;
           },
         );
         await lockHeld;
-        const waiters = await Promise.all(
+        const settling = Promise.all(
           Array.from({ length: WAITER_COUNT }, () =>
             auth.refreshGrant(grant.id, grant.ghTokenCiphertext, async () => {
               waiterRotations += 1;
@@ -159,6 +168,7 @@ describe.skipIf(databaseUrl === undefined)(
             }),
           ),
         );
+        const waiters = await settling.finally(releaseRotation);
 
         expect(waiters.map((result) => result.ok || result.error.code)).toEqual(
           Array.from(

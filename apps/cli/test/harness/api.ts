@@ -67,6 +67,37 @@ function throwawayPrivateKey(): string {
   return cachedPrivateKey;
 }
 
+type PortlessApiOptions = Omit<ApiProcessOptions, "port">;
+
+/** How many ports one api start may try. */
+const API_START_ATTEMPTS = 3;
+/** What node reports when the port was bound by someone else first. */
+const PORT_TAKEN_CODE = "EADDRINUSE";
+
+/**
+ * The api on a free port. Another process can take the probed port before the
+ * api binds it, so that one failure gets a fresh port instead of the test.
+ */
+async function startApiOnFreePort(
+  options: PortlessApiOptions,
+): Promise<ApiProcess> {
+  let failure: unknown;
+  for (let attempt = 0; attempt < API_START_ATTEMPTS; attempt += 1) {
+    const port = await findFreePort();
+    try {
+      return await startApiProcess({ ...options, port });
+    } catch (error) {
+      const portTaken =
+        error instanceof Error && error.message.includes(PORT_TAKEN_CODE);
+      if (!portTaken) {
+        throw error;
+      }
+      failure = error;
+    }
+  }
+  throw failure;
+}
+
 /**
  * A whole world for one test: fresh database, fresh API process, fresh stub.
  * Per test rather than per file on purpose, because the API's own caches (the
@@ -83,8 +114,7 @@ export async function startCliApiHarness(
   let api: ApiProcess | undefined;
   try {
     served = await serveTestDatabase(await findFreePort());
-    const processOptions: Mutable<ApiProcessOptions> = {
-      port: await findFreePort(),
+    const processOptions: Mutable<PortlessApiOptions> = {
       databaseUrl: served.databaseUrl,
       sessionKey,
       publicBaseUrl: BASE_URL,
@@ -97,7 +127,7 @@ export async function startCliApiHarness(
     if (options.configPath !== undefined) {
       processOptions.configPath = options.configPath;
     }
-    api = await startApiProcess(processOptions);
+    api = await startApiOnFreePort(processOptions);
   } catch (error) {
     await api?.close();
     await served?.close();
