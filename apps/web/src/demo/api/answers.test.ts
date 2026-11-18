@@ -68,6 +68,32 @@ async function readDiffFiles(
   return splitUnifiedDiffByFile(await response.text());
 }
 
+const HUNK_NEW_START = /^@@ -\d+(?:,\d+)? \+(\d+)/;
+
+/** The new-side line numbers of the rows a patch adds. */
+function readAddedLines(patch: string): ReadonlySet<number> {
+  const added = new Set<number>();
+  let nextLine: number | undefined;
+
+  for (const row of patch.split("\n")) {
+    const start = HUNK_NEW_START.exec(row)?.[1];
+    if (start !== undefined) {
+      nextLine = Number(start);
+      continue;
+    }
+    const isOutsideHunk = nextLine === undefined || row.startsWith("-");
+    if (isOutsideHunk || nextLine === undefined) {
+      continue;
+    }
+    if (row.startsWith("+")) {
+      added.add(nextLine);
+    }
+    nextLine += 1;
+  }
+
+  return added;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -239,6 +265,27 @@ describe("answerDemoRequest reads", () => {
       ),
     ).toBe(true);
     expect(conversation.reviews).toHaveLength(2);
+  });
+
+  it("anchors every placed thread on a line its revision adds", async () => {
+    const conversation = prConversationSchema.parse(
+      await readPullOperation(ProductQueryIds.READ_CONVERSATION).json(),
+    );
+    const latest = await readDiffFiles(REV2_SPAN);
+    const placed = conversation.threads.filter(
+      (thread) => thread.line !== undefined,
+    );
+
+    const offDiff = placed.filter((thread) => {
+      const addedLines = readAddedLines(latest.get(thread.path) ?? "");
+      return !addedLines.has(thread.line ?? Number.NaN);
+    });
+
+    expect(placed.length).toBeGreaterThan(0);
+    expect(placed.every((thread) => thread.anchorSha === DEMO_REV2_HEAD)).toBe(
+      true,
+    );
+    expect(offDiff.map((thread) => thread.rootCommentId)).toEqual([]);
   });
 
   it("serves a bot reviewer's threads, some open and some resolved", async () => {

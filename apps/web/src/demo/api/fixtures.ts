@@ -327,7 +327,7 @@ export const conversationAnswer: ConversationResponse = {
         {
           commentId: DOUBLE_CLICK_REPLY_ID,
           author: author,
-          body: "Yes. Both act on the caller's own rows, and the second answers `revoked: 0`.",
+          body: "Yes. Each ends only the caller's own sessions, so the second has none left to end, and by then the first has left for Home.",
           createdAt: BOT_REPLIED_AT,
           url: `${PR_URL}#discussion_r${String(DOUBLE_CLICK_REPLY_ID)}`,
         },
