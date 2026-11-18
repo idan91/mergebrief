@@ -223,8 +223,8 @@ export function sanitizeUntrustedLine(text: string): string {
   return sanitizeUntrustedText(text).replace(LINE_BREAK, " ");
 }
 
-/** The heading the summary rule allows. */
-export const ALLOWED_SUMMARY_HEADING = "## Changelog";
+/** The one heading the summary rule allows, as the page's `splitBriefSummary` reads it: depth two, any case, an optional closing sequence. */
+const CHANGELOG_HEADING_LINE = /^ {0,3}##[ \t]+changelog(?:[ \t]+#+)?[ \t]*$/i;
 
 /** A Markdown ATX heading line: up to three spaces, one to six `#`, then a space, a tab or the line's end. */
 const HEADING_LINE = /^( {0,3})(#{1,6}(?:[ \t][^\n]*)?)$/gm;
@@ -234,7 +234,7 @@ function escapeHeadingLine(
   indent: string,
   heading: string,
 ): string {
-  if (line.trim() === ALLOWED_SUMMARY_HEADING) {
+  if (CHANGELOG_HEADING_LINE.test(line)) {
     return line;
   }
   return `${indent}\\${heading}`;

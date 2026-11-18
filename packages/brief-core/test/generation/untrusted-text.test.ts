@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SUMMARY_FIELD_RULE } from "../../src/generation/prompt/sections";
 import {
-  ALLOWED_SUMMARY_HEADING,
   restoreEscapedHeadings,
   restoreRawPaths,
   sanitizeUntrustedDiff,
@@ -11,6 +10,7 @@ import {
   sanitizeUntrustedText,
 } from "../../src/generation/untrusted-text";
 import { SecretKinds } from "../../src/generation/redaction/types";
+import { splitBriefSummary } from "../../src/sanitized-markdown/brief-summary";
 import { FAKE_SECRETS, makeFakePemBlock } from "../secret-fixtures";
 import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
@@ -296,8 +296,38 @@ describe("sanitizeUntrustedSummary", () => {
     ).toBe("Lede.\uFFFD>");
   });
 
+  it.each([
+    ["lower case", "## changelog"],
+    ["upper case", "## CHANGELOG"],
+    ["two spaces after the marker", "##  Changelog"],
+    ["a closing sequence", "## Changelog ##"],
+    ["a tab after the marker", "##\tChangelog"],
+  ])("keeps the changelog heading the page reads, in %s", (_label, line) => {
+    const summary = `Lede.\n\n${line}\n- caps retries`;
+
+    expect(splitBriefSummary(summary).changelog).toBeDefined();
+    expect(sanitizeUntrustedSummary(summary)).toBe(summary);
+  });
+
+  it.each([
+    ["a first-level changelog", "# Changelog"],
+    ["a third-level changelog", "### Changelog"],
+    ["a longer title", "## Changelog and rules"],
+    ["a closing sequence with no space", "## Changelog##"],
+  ])("escapes %s, which the page reads as no changelog", (_label, line) => {
+    const summary = `Lede.\n\n${line}\n- caps retries`;
+
+    expect(splitBriefSummary(summary).changelog).toBeUndefined();
+    expect(sanitizeUntrustedSummary(summary)).toBe(
+      `Lede.\n\n\\${line}\n- caps retries`,
+    );
+  });
+
   it("allows only the heading the summary rule names", () => {
-    expect(SUMMARY_FIELD_RULE).toContain(`"${ALLOWED_SUMMARY_HEADING}"`);
+    const allowed = "## Changelog";
+
+    expect(SUMMARY_FIELD_RULE).toContain(`"${allowed}"`);
+    expect(sanitizeUntrustedSummary(allowed)).toBe(allowed);
   });
 });
 
