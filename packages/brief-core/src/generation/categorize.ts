@@ -587,11 +587,11 @@ export async function generateDraftBrief(
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
   const generated = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
-    system: buildSystemPrompt(
-      effectiveContext,
-      anchor !== undefined,
-      options.holdsMedia,
-    ),
+    system: buildSystemPrompt({
+      repoContext: effectiveContext,
+      anchored: anchor !== undefined,
+      holdsMedia: options.holdsMedia,
+    }),
     user,
     effort,
     label: "brief",

@@ -25,6 +25,7 @@ import {
   repoCustomAttributesSection,
   repoInstructionsSection,
 } from "./sections";
+import type { BriefPromptOptions } from "./types";
 
 /**
  * Appended ONLY to an anchored grouping call, so a fresh run's grouping
@@ -125,10 +126,9 @@ function renderGroupingRepoSections(
  */
 export function buildGroupingSystemPrompt(
   form: OutlineForm,
-  repoContext?: RepoContext,
-  holdsMedia = false,
-  anchored = false,
+  options: BriefPromptOptions = {},
 ): string {
+  const { repoContext, anchored = false, holdsMedia = false } = options;
   const media = holdsMedia ? MEDIA_NOTE_SECTION : "";
   const anchor = anchored ? GROUPING_ANCHORED_SECTION : "";
   return `${ROLE_INTRO}

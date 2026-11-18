@@ -23,6 +23,7 @@ import {
   repoCustomAttributesSection,
   repoInstructionsSection,
 } from "./sections";
+import type { BriefPromptOptions } from "./types";
 
 /**
  * System prompt builder. Generation surface: any edit here is eval-gated.
@@ -83,11 +84,8 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 
 **Reading order — whole, over ALL ids (frozen ids included):** emit the ordering across every group in the final brief, using frozen ids from the Anchor index alongside your own group ids. Preserve the previous order, insert new groups where they belong, drop removed ids.`;
 
-export function buildSystemPrompt(
-  repoContext?: RepoContext,
-  anchored = false,
-  holdsMedia = false,
-): string {
+export function buildSystemPrompt(options: BriefPromptOptions = {}): string {
+  const { repoContext, anchored = false, holdsMedia = false } = options;
   const media = holdsMedia ? MEDIA_NOTE_SECTION : "";
   return `${buildFreshSystemPrompt(repoContext)}${media}${anchored ? ANCHORED_SECTION : ""}`;
 }

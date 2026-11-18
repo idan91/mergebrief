@@ -1,4 +1,5 @@
 import { MAX_ANSWERED_PRODUCT_CHANGES, MAX_PRODUCT_CHANGES } from "../../types";
+import type { ProductDiffPromptOptions } from "./types";
 
 /**
  * Appended ONLY when the previous revision listed Product changes, so every
@@ -19,7 +20,10 @@ This run updates the Product diff of an earlier revision of the same PR. The use
  * The Product diff call, run after a brief that ran as one call. Generation
  * surface: eval-gated like `buildSystemPrompt`.
  */
-export function buildProductDiffSystemPrompt(anchored = false): string {
+export function buildProductDiffSystemPrompt(
+  options: ProductDiffPromptOptions = {},
+): string {
+  const { anchored = false } = options;
   return `${PRODUCT_DIFF_FRESH_PROMPT}${anchored ? PRODUCT_DIFF_ANCHORED_SECTION : ""}`;
 }
 

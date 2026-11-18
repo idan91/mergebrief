@@ -66,12 +66,11 @@ Every \`[hunk <id>]\` marker above names one hunk (${hunkCount} in all) and a fi
 ${DATA_REMINDER}${repoBlocks === "" ? "" : REPO_REMINDER}`;
 
   return {
-    system: buildGroupingSystemPrompt(
-      outline.form,
-      accepted.context,
+    system: buildGroupingSystemPrompt(outline.form, {
+      repoContext: accepted.context,
+      anchored: anchor !== undefined,
       holdsMedia,
-      anchor !== undefined,
-    ),
+    }),
     user,
     primaryText,
   };

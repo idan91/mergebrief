@@ -4,16 +4,7 @@ import {
   removeHiddenCharacters,
   sanitizeUntrustedText,
 } from "../untrusted-text";
-
-/**
- * The previous brief plus the mechanical frozen/re-look partition the worker
- * computed. The renderer trims it to ids, definitions, verbatim
- * summary/verdicts and ordering sequences: never code, which the diff carries.
- */
-export interface AnchorViewInput {
-  readonly previousBrief: Brief;
-  readonly frozenGroupIds: readonly string[];
-}
+import type { AnchorViewInput } from "./types";
 
 /** Union of a group's chunk files and risk attributes, order-stable. */
 function groupFacts(
