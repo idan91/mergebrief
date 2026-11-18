@@ -218,7 +218,7 @@ export function sanitizeUntrustedText(text: string): string {
 /** Unicode's mandatory line breaks; a `\r` is already `\n` after `normalizeLineBreaks`. */
 const LINE_BREAK = /[\n\v\f\u0085\u2028\u2029]/g;
 
-/** For a field the prompt shows on one line, an id or a title: a line break in it becomes a space, so it never starts a line. */
+/** For a field the prompt shows on one line, an id, a title or a path: a line break in it becomes a space, so it never starts a line. */
 export function sanitizeUntrustedLine(text: string): string {
   return sanitizeUntrustedText(text).replace(LINE_BREAK, " ");
 }
@@ -250,6 +250,12 @@ export function sanitizeUntrustedSummary(text: string): string {
 export function sanitizeUntrustedDiff(diff: string): string {
   const redacted = redactDiffSecrets(diff, escapeHiddenCharacters);
   return stripKnownFences(redacted.text);
+}
+
+/** For a path a diff-derived title shows on one line: a line break in it becomes a space, so it never starts a line. */
+export function sanitizeUntrustedDiffLine(text: string): string {
+  const sanitized = sanitizeUntrustedDiff(normalizeLineBreaks(text));
+  return sanitized.replace(LINE_BREAK, " ");
 }
 
 /**
@@ -287,6 +293,8 @@ export function restoreRawPaths<FileChunk extends { readonly file: string }>(
   const shown = indexShownSpellings(rawPaths, [
     sanitizeUntrustedText,
     sanitizeUntrustedDiff,
+    sanitizeUntrustedLine,
+    sanitizeUntrustedDiffLine,
   ]);
 
   return chunks.map((chunk) => {

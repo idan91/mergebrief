@@ -4,7 +4,6 @@ import {
   removeHiddenCharacters,
   sanitizeUntrustedLine,
   sanitizeUntrustedSummary,
-  sanitizeUntrustedText,
 } from "../untrusted-text";
 import type { AnchorViewInput } from "./types";
 
@@ -86,7 +85,7 @@ export function renderAnchorView(input: AnchorViewInput): string {
     const id = sanitizeUntrustedLine(group.id);
     const title = sanitizeUntrustedLine(group.title);
     const summary = sanitizeUntrustedLine(group.summary);
-    const paths = files.map(sanitizeUntrustedText).join(", ") || "(none)";
+    const paths = files.map(sanitizeUntrustedLine).join(", ") || "(none)";
     return `- ${id} [${categories}] ${title} — ${summary}\n  files: ${paths}${attrsPart}`;
   }
 
@@ -168,7 +167,7 @@ export function renderGroupingAnchorView(input: AnchorViewInput): string {
       ...group.secondaryCategories,
     ].join(", ");
     const { files } = collectGroupFacts(previousBrief, group.id);
-    const paths = files.map(sanitizeUntrustedText).join(", ") || "(none)";
+    const paths = files.map(sanitizeUntrustedLine).join(", ") || "(none)";
     const id = sanitizeUntrustedLine(group.id);
     return `- ${id} [${categories}] ${sanitizeUntrustedLine(group.title)}\n  files: ${paths}`;
   }

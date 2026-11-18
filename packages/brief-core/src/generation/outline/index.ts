@@ -10,7 +10,7 @@ import {
   listPatchLines,
   redactIndexedFile,
 } from "../redacted-diff";
-import { sanitizeUntrustedDiff } from "../untrusted-text";
+import { sanitizeUntrustedDiffLine } from "../untrusted-text";
 import {
   OUTLINE_LADDER,
   OUTLINE_LIMITS,
@@ -39,12 +39,12 @@ function renderMarker(hunk: IndexedHunk): string {
 
 /** Paths are the one title text the patch pass never saw. */
 function renderFileTitle(file: IndexedFile): string {
-  const path = sanitizeUntrustedDiff(file.path);
+  const path = sanitizeUntrustedDiffLine(file.path);
   const title = `### ${file.id} ${path} (${file.status}, +${file.added} -${file.removed})`;
   if (file.previousPath === undefined) {
     return title;
   }
-  return `${title} renamed from ${sanitizeUntrustedDiff(file.previousPath)}`;
+  return `${title} renamed from ${sanitizeUntrustedDiffLine(file.previousPath)}`;
 }
 
 function renderFullHunk(file: IndexedFile, hunk: IndexedHunk): string[] {
@@ -104,7 +104,7 @@ function renderShortenedLines(
   form: OutlineForm,
 ): string[] {
   const [title = "", ...details] = renderShortenedFile(shortened).map(
-    sanitizeUntrustedDiff,
+    sanitizeUntrustedDiffLine,
   );
   const titled = `### ${shortened.file.id} ${title}`;
   if (form !== OutlineForms.FULL) {

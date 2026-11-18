@@ -419,7 +419,7 @@ export function renderPrDiff(diff: string): string {
 function renderFileList(files: PrMetadata["files"]): string {
   return files
     .map((f) => {
-      const path = sanitizeUntrustedText(f.path);
+      const path = sanitizeUntrustedLine(f.path);
       return `- ${path} (+${f.additions} -${f.deletions})`;
     })
     .join("\n");
@@ -732,7 +732,7 @@ function renderComments(comments: ReviewComment[]): string {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
       const loc = commentLocation(c);
       const safeBody = sanitizeUntrustedText(c.body);
-      const safeFile = sanitizeUntrustedText(c.file);
+      const safeFile = sanitizeUntrustedLine(c.file);
       return `<review_comment>\nid:${c.id} ${safeFile}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
     })
     .join("\n\n");
@@ -1006,7 +1006,7 @@ function renderContextChunk(chunk: Chunk): string {
       .join(",") || "none";
   const id = sanitizeUntrustedLine(chunk.id);
   const groupId = sanitizeUntrustedLine(chunk.changeGroupId);
-  return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(chunk.file)} added:${added} removed:${removed}`;
+  return `- ${id} (group ${groupId}) ${sanitizeUntrustedLine(chunk.file)} added:${added} removed:${removed}`;
 }
 
 /**
