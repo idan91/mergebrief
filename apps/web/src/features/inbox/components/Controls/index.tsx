@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LinkButton } from "@web/components/LinkButton";
@@ -25,6 +26,8 @@ export interface ControlsProps {
   onSearch: (text: string) => void;
   /** The reviewer typed past a search whose list is still loading. */
   onDropPendingSearch: () => void;
+  /** The search input, for a caller that hands focus to it. */
+  searchFieldRef?: RefObject<HTMLInputElement | null>;
   onClear: () => void;
 }
 
@@ -43,6 +46,7 @@ export function Controls({
   searchTextOverride,
   onSearch,
   onDropPendingSearch,
+  searchFieldRef,
   onClear,
 }: ControlsProps) {
   const { t } = useTranslation();
@@ -60,6 +64,7 @@ export function Controls({
     >
       <div className={styles["search"]}>
         <SearchField
+          fieldRef={searchFieldRef}
           override={searchTextOverride}
           resultCount={total}
           value={searchText}

@@ -2,10 +2,11 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { SearchMissKinds, type SearchMiss } from "../../types";
+import { SearchMissKinds, type SearchMissReason } from "../../types";
 
 export interface SearchMissProps {
-  miss: SearchMiss;
+  /** Why the search shows no rows, with the count it names. */
+  reason: SearchMissReason;
   /** The search text, named when nothing matches it anywhere. */
   searchText: string;
   /** The archived view is on screen, so the other view is the Inbox. */
@@ -24,7 +25,7 @@ export interface SearchMissProps {
  * out of the search.
  */
 export function SearchMiss({
-  miss,
+  reason,
   searchText,
   archivedView,
   onShowAllMatches,
@@ -33,7 +34,7 @@ export function SearchMiss({
 }: SearchMissProps) {
   const { t } = useTranslation();
 
-  if (miss.kind === SearchMissKinds.NOWHERE) {
+  if (reason.kind === SearchMissKinds.NOWHERE) {
     return (
       <EmptyBlock
         action={
@@ -49,7 +50,7 @@ export function SearchMiss({
   }
 
   const heading = <h3>{t("home.search.miss.inViewHeading")}</h3>;
-  if (miss.kind === SearchMissKinds.HIDDEN_BY_FILTERS) {
+  if (reason.kind === SearchMissKinds.HIDDEN_BY_FILTERS) {
     return (
       <EmptyBlock
         action={
@@ -57,15 +58,15 @@ export function SearchMiss({
             {t("home.search.miss.showAllMatches")}
           </Button>
         }
-        detail={t("home.search.miss.hiddenDetail", { count: miss.count })}
+        detail={t("home.search.miss.hiddenDetail", { count: reason.count })}
         heading={heading}
       />
     );
   }
 
   const detail = archivedView
-    ? t("home.search.miss.inboxDetail", { count: miss.count })
-    : t("home.search.miss.archivedDetail", { count: miss.count });
+    ? t("home.search.miss.inboxDetail", { count: reason.count })
+    : t("home.search.miss.archivedDetail", { count: reason.count });
   const actionLabel = archivedView
     ? t("home.search.miss.showInboxMatches")
     : t("home.search.miss.showArchivedMatches");

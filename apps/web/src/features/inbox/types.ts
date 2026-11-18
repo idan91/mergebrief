@@ -150,7 +150,7 @@ export const SearchMissKinds = {
 } as const;
 export type SearchMissKind = ValueOf<typeof SearchMissKinds>;
 
-export interface SearchMiss {
+export interface SearchMissReason {
   readonly kind: SearchMissKind;
   /** The matching rows the kind names; 0 for nowhere. */
   readonly count: number;

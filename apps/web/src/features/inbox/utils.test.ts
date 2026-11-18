@@ -17,7 +17,7 @@ import {
   splitTitleCode,
   readFailedReadCode,
   readInboxEmptiness,
-  readSearchMiss,
+  readSearchMissReason,
 } from "./utils";
 import { InboxEmptinesses, SearchMissKinds, type InboxItem } from "./types";
 
@@ -290,7 +290,7 @@ describe("readFailedReadCode", () => {
   });
 });
 
-describe("readSearchMiss", () => {
+describe("readSearchMissReason", () => {
   const HIDE = InboxArchivedFilters.HIDE;
   const ONLY = InboxArchivedFilters.ONLY;
 
@@ -299,36 +299,36 @@ describe("readSearchMiss", () => {
   }
 
   it("is nothing without search text or while rows show", () => {
-    expect(readSearchMiss(makeCounts(0), "", HIDE)).toBeUndefined();
+    expect(readSearchMissReason(makeCounts(0), "", HIDE)).toBeUndefined();
     expect(
-      readSearchMiss({ ...makeCounts(4), total: 2 }, "anchor", HIDE),
+      readSearchMissReason({ ...makeCounts(4), total: 2 }, "anchor", HIDE),
     ).toBeUndefined();
   });
 
   it("counts the matches the filters hide in the view on screen", () => {
-    expect(readSearchMiss(makeCounts(3, 1), "anchor", HIDE)).toEqual({
+    expect(readSearchMissReason(makeCounts(3, 1), "anchor", HIDE)).toEqual({
       kind: SearchMissKinds.HIDDEN_BY_FILTERS,
       count: 2,
     });
-    expect(readSearchMiss(makeCounts(3, 1), "anchor", ONLY)).toEqual({
+    expect(readSearchMissReason(makeCounts(3, 1), "anchor", ONLY)).toEqual({
       kind: SearchMissKinds.HIDDEN_BY_FILTERS,
       count: 1,
     });
   });
 
   it("points at the other view when only it holds a match", () => {
-    expect(readSearchMiss(makeCounts(2, 2), "anchor", HIDE)).toEqual({
+    expect(readSearchMissReason(makeCounts(2, 2), "anchor", HIDE)).toEqual({
       kind: SearchMissKinds.IN_OTHER_VIEW,
       count: 2,
     });
-    expect(readSearchMiss(makeCounts(2, 0), "anchor", ONLY)).toEqual({
+    expect(readSearchMissReason(makeCounts(2, 0), "anchor", ONLY)).toEqual({
       kind: SearchMissKinds.IN_OTHER_VIEW,
       count: 2,
     });
   });
 
   it("says nowhere when no row the reviewer reaches matches", () => {
-    expect(readSearchMiss(makeCounts(0), "anchor", HIDE)).toEqual({
+    expect(readSearchMissReason(makeCounts(0), "anchor", HIDE)).toEqual({
       kind: SearchMissKinds.NOWHERE,
       count: 0,
     });

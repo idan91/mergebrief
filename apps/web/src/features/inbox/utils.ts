@@ -25,7 +25,7 @@ import {
   type InboxPage,
   type InboxQueryParams,
   SearchMissKinds,
-  type SearchMiss,
+  type SearchMissReason,
   type TitleSegmentKind,
 } from "./types";
 
@@ -228,14 +228,14 @@ export function readInboxEmptiness(
  * is not looking: behind the other filters of this view first, in the other
  * view second.
  */
-export function readSearchMiss(
+export function readSearchMissReason(
   page: Pick<
     InboxPage,
     "total" | "searchMatchTotal" | "archivedSearchMatchTotal"
   >,
   searchText: string,
   archived: InboxArchivedFilter,
-): SearchMiss | undefined {
+): SearchMissReason | undefined {
   if (searchText === "" || page.total > 0) {
     return undefined;
   }

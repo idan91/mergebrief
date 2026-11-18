@@ -53,6 +53,8 @@ test("search text narrows the Inbox and explains a miss", async ({ page }) => {
   );
   await expect(page).toHaveURL(/q=payout/);
   await expect(page).not.toHaveURL(/review=/);
+  // The button left with the miss; focus moved to the field, not the page.
+  await expect(field).toBeFocused();
 
   // Nothing matches anywhere: the miss names the text and clears it.
   await field.fill("kubernetes");
@@ -65,6 +67,7 @@ test("search text narrows the Inbox and explains a miss", async ({ page }) => {
   const clearSearch = page.getByRole("button", { name: "Clear search" });
   await clearSearch.filter({ hasText: "Clear search" }).click();
   await expect(field).toHaveValue("");
+  await expect(field).toBeFocused();
   await expect(titles).not.toHaveCount(0);
 
   expect(faults).toEqual([]);

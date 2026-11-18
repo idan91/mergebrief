@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SearchMissKinds, type SearchMiss as Miss } from "../../types";
+import { SearchMissKinds, type SearchMissReason } from "../../types";
 import { SearchMiss } from ".";
 
 afterEach(cleanup);
@@ -13,7 +13,7 @@ interface Handlers {
   onClearSearch: () => void;
 }
 
-function mountMiss(miss: Miss, archivedView = false): Handlers {
+function mountMiss(reason: SearchMissReason, archivedView = false): Handlers {
   const handlers: Handlers = {
     onShowAllMatches: vi.fn(),
     onShowOtherView: vi.fn(),
@@ -22,7 +22,7 @@ function mountMiss(miss: Miss, archivedView = false): Handlers {
   render(
     <SearchMiss
       archivedView={archivedView}
-      miss={miss}
+      reason={reason}
       searchText="anchor"
       onClearSearch={handlers.onClearSearch}
       onShowAllMatches={handlers.onShowAllMatches}
@@ -34,8 +34,8 @@ function mountMiss(miss: Miss, archivedView = false): Handlers {
 
 describe("SearchMiss", () => {
   it("counts the matches the filters hide and offers them all", () => {
-    const miss = { kind: SearchMissKinds.HIDDEN_BY_FILTERS, count: 3 };
-    const handlers = mountMiss(miss);
+    const reason = { kind: SearchMissKinds.HIDDEN_BY_FILTERS, count: 3 };
+    const handlers = mountMiss(reason);
 
     expect(
       screen.getByRole("heading", {
@@ -56,8 +56,8 @@ describe("SearchMiss", () => {
   });
 
   it("points at the archive when only archived rows match", () => {
-    const miss = { kind: SearchMissKinds.IN_OTHER_VIEW, count: 2 };
-    const handlers = mountMiss(miss);
+    const reason = { kind: SearchMissKinds.IN_OTHER_VIEW, count: 2 };
+    const handlers = mountMiss(reason);
 
     expect(screen.getByText("2 archived pull requests match.")).toBeTruthy();
     fireEvent.click(
@@ -67,8 +67,8 @@ describe("SearchMiss", () => {
   });
 
   it("points back at the Inbox from the archived view", () => {
-    const miss = { kind: SearchMissKinds.IN_OTHER_VIEW, count: 1 };
-    const handlers = mountMiss(miss, true);
+    const reason = { kind: SearchMissKinds.IN_OTHER_VIEW, count: 1 };
+    const handlers = mountMiss(reason, true);
 
     expect(
       screen.getByText("1 pull request outside the archive matches."),

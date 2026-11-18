@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type CompositionEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
 } from "react";
 
 import { useFocusOnKey } from "../../../hooks/useFocusOnKey";
@@ -35,8 +36,10 @@ export function useSearchFieldFacade(
   urlText: string,
   override: SearchTextOverride,
   { onSearch, onDropPendingSearch }: SearchFieldActions,
+  fieldRef?: RefObject<HTMLInputElement | null>,
 ) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const ownRef = useRef<HTMLInputElement>(null);
+  const inputRef = fieldRef ?? ownRef;
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** The text the running timer will write; absent while none runs. */
   const scheduledRef = useRef<string>(undefined);
