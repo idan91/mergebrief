@@ -1,40 +1,108 @@
 import { describe, expect, it } from "vitest";
 
-import { dropLandedWrites, isOutsideChange, rememberOwnWrite } from "./utils";
+import type { SearchFieldState } from "./types";
+import {
+  reconcileUrlText,
+  recordWrite,
+  startSearchField,
+  typeText,
+} from "./utils";
 
-describe("isOutsideChange", () => {
-  it("is false when the URL lands on what the field holds, trimmed", () => {
-    expect(isOutsideChange("anchor", " anchor ", [])).toBe(false);
+function makeState(overrides: Partial<SearchFieldState>): SearchFieldState {
+  return { ...startSearchField(""), ...overrides };
+}
+
+describe("reconcileUrlText", () => {
+  it("hands back the same state while the URL has not moved", () => {
+    const state = makeState({ text: "anchor" });
+
+    expect(reconcileUrlText(state, "")).toBe(state);
   });
 
-  it("is false when the URL lands on a write the field made", () => {
-    expect(isOutsideChange("anc", "anchor", ["anc"])).toBe(false);
+  it("keeps the typing when the URL lands on the field's text, trimmed", () => {
+    const state = makeState({
+      text: " anchor ",
+      ownWrites: ["anchor"],
+      awaitsLanding: true,
+    });
+
+    expect(reconcileUrlText(state, "anchor")).toEqual({
+      text: " anchor ",
+      seenUrlText: "anchor",
+      ownWrites: [],
+      awaitsLanding: false,
+    });
   });
 
-  it("is true when the URL holds text the field never wrote", () => {
-    expect(isOutsideChange("", "anchor", ["anc", "anchor"])).toBe(true);
+  it("an earlier write landing still awaits the later one", () => {
+    const state = makeState({
+      text: "anchor",
+      ownWrites: ["", "anc", "anchor"],
+      awaitsLanding: true,
+    });
+
+    expect(reconcileUrlText(state, "anc")).toEqual({
+      text: "anchor",
+      seenUrlText: "anc",
+      ownWrites: ["anchor"],
+      awaitsLanding: true,
+    });
+  });
+
+  it("takes the URL's text when the field never wrote it", () => {
+    const state = makeState({
+      text: "anchor",
+      seenUrlText: "anchor",
+      ownWrites: [],
+    });
+
+    expect(reconcileUrlText(state, "")).toEqual(startSearchField(""));
   });
 });
 
-describe("rememberOwnWrite", () => {
-  it("keeps the newest four writes", () => {
-    const writes = ["a", "ab", "abc", "abcd"];
+describe("typeText", () => {
+  it("moves the text on and stops awaiting the list for older text", () => {
+    const state = makeState({
+      text: "fo",
+      ownWrites: ["fo"],
+      awaitsLanding: true,
+    });
 
-    expect(rememberOwnWrite(writes, "abcde")).toEqual([
+    expect(typeText(state, "foo")).toEqual({
+      text: "foo",
+      seenUrlText: "",
+      ownWrites: ["fo"],
+      awaitsLanding: false,
+    });
+  });
+});
+
+describe("recordWrite", () => {
+  it("remembers the write and awaits its list", () => {
+    const state = makeState({ text: "fo" });
+
+    expect(recordWrite(state, "fo")).toEqual({
+      text: "fo",
+      seenUrlText: "",
+      ownWrites: ["fo"],
+      awaitsLanding: true,
+    });
+  });
+
+  it("records nothing for a text the URL already shows", () => {
+    const state = makeState({ text: "anchor ", seenUrlText: "anchor" });
+
+    expect(recordWrite(state, "anchor")).toBe(state);
+  });
+
+  it("keeps the newest four writes", () => {
+    const state = makeState({ ownWrites: ["a", "ab", "abc", "abcd"] });
+
+    expect(recordWrite(state, "abcde").ownWrites).toEqual([
       "ab",
       "abc",
       "abcd",
       "abcde",
     ]);
-  });
-});
-
-describe("dropLandedWrites", () => {
-  it("drops the write that landed and every write before it", () => {
-    expect(dropLandedWrites(["", "anc", "anchor"], "anc")).toEqual(["anchor"]);
-  });
-
-  it("keeps every write when the URL holds none of them", () => {
-    expect(dropLandedWrites(["anc"], "other")).toEqual(["anc"]);
   });
 });

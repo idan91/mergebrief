@@ -16,6 +16,8 @@ export interface SearchFieldProps {
   /** Rows the list holds for that text, across every page. */
   resultCount: number;
   onSearch: (text: string) => void;
+  /** The reviewer typed past a write whose list is still loading; stop waiting for it. */
+  onDropPendingSearch: () => void;
 }
 
 /**
@@ -27,9 +29,10 @@ export function SearchField({
   value,
   resultCount,
   onSearch,
+  onDropPendingSearch,
 }: SearchFieldProps) {
   const { t } = useTranslation();
-  const facade = useSearchFieldFacade(value, onSearch);
+  const facade = useSearchFieldFacade(value, { onSearch, onDropPendingSearch });
   const searching = value !== "";
   const state: FilterState = searching
     ? FilterStates.CHANGED

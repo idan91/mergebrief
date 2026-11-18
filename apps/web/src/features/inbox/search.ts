@@ -311,6 +311,35 @@ export function writeInboxSearch(
   return parseInboxSearch(merged);
 }
 
+/** The keys a search write leaves alone; `q` and the page it restarts are the rest. */
+const KEYS_BESIDE_SEARCH_TEXT: readonly (keyof InboxSearch)[] = [
+  "sort",
+  "layout",
+  "state",
+  "repo",
+  "review",
+  "author",
+  "installation",
+  "archived",
+  "error",
+];
+
+/**
+ * The address still loading with its search text put back to the one on
+ * screen. Nothing else loading means the list on screen, page included; a
+ * filter change loading beside it stays, on the page that change asked for.
+ */
+export function dropPendingSearchText(
+  loading: InboxSearch,
+  shown: InboxSearch,
+): InboxSearch {
+  const onlySearchLoading = KEYS_BESIDE_SEARCH_TEXT.every(
+    (key) => loading[key] === shown[key],
+  );
+  const page = onlySearchLoading ? shown.page : loading.page;
+  return parseInboxSearch({ ...loading, q: shown.q, page });
+}
+
 /** Every filter back to its default; the sort and the layout stay. */
 export function clearInboxFilters(current: InboxSearch): InboxSearch {
   const kept: Record<string, unknown> = {};

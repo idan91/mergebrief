@@ -11,29 +11,38 @@ import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 import { isTypingTarget } from "@web/utils/typingTarget";
 import { shapeSearchText } from "../../../search";
 import { SEARCH_DEBOUNCE_MS, SEARCH_FOCUS_KEY } from "./consts";
-import { dropLandedWrites, isOutsideChange, rememberOwnWrite } from "./utils";
+import {
+  reconcileUrlText,
+  recordWrite,
+  startSearchField,
+  typeText,
+} from "./utils";
+
+export interface SearchFieldActions {
+  onSearch: (text: string) => void;
+  /** The reviewer typed past a write whose list is still loading. */
+  onDropPendingSearch: () => void;
+}
 
 /**
  * The field's own text, ahead of the URL while the reviewer types: a pause
  * writes it, Enter writes it at once, and the URL moving on its own (Clear,
- * Back) replaces it. Escape empties the field, then leaves it.
+ * Back) replaces it. A keystroke drops the list still loading for older
+ * text. Escape empties the field, then leaves it.
  */
 export function useSearchFieldFacade(
   urlText: string,
-  onSearch: (text: string) => void,
+  { onSearch, onDropPendingSearch }: SearchFieldActions,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [text, setText] = useState(urlText);
-  const [seenUrlText, setSeenUrlText] = useState(urlText);
-  const [ownWrites, setOwnWrites] = useState<readonly string[]>([]);
+  /** The text the running timer will write; absent while none runs. */
+  const scheduledRef = useRef<string>(undefined);
+  const [held, setHeld] = useState(() => startSearchField(urlText));
 
-  if (urlText !== seenUrlText) {
-    setSeenUrlText(urlText);
-    setOwnWrites(dropLandedWrites(ownWrites, urlText));
-    if (isOutsideChange(urlText, text, ownWrites)) {
-      setText(urlText);
-    }
+  const state = reconcileUrlText(held, urlText);
+  if (state !== held) {
+    setHeld(state);
   }
 
   useEffect(() => {
@@ -57,35 +66,51 @@ export function useSearchFieldFacade(
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
+  // The URL replaced the text from outside: a pause still counting down
+  // would write the older text back.
+  useEffect(() => {
+    const scheduled = scheduledRef.current;
+    if (scheduled !== undefined && scheduled !== state.text) {
+      clearTimeout(timerRef.current);
+      scheduledRef.current = undefined;
+    }
+  }, [state.text]);
+
   function write(next: string): void {
     clearTimeout(timerRef.current);
+    scheduledRef.current = undefined;
     const written = shapeSearchText(next);
-    setOwnWrites((previous) => rememberOwnWrite(previous, written));
+    setHeld((previous) => recordWrite(previous, written));
     onSearch(written);
   }
 
   function change(event: ChangeEvent<HTMLInputElement>): void {
     const next = event.target.value;
-    setText(next);
+    if (state.awaitsLanding) {
+      onDropPendingSearch();
+    }
+    setHeld((previous) => typeText(previous, next));
+
     clearTimeout(timerRef.current);
+    scheduledRef.current = next;
     timerRef.current = setTimeout(() => write(next), SEARCH_DEBOUNCE_MS);
   }
 
   function clear(): void {
-    setText("");
+    setHeld((previous) => typeText(previous, ""));
     write("");
     inputRef.current?.focus();
   }
 
   function pressKey(event: ReactKeyboardEvent<HTMLInputElement>): void {
     if (event.key === "Enter") {
-      write(text);
+      write(state.text);
       return;
     }
     if (event.key !== "Escape") {
       return;
     }
-    if (text === "") {
+    if (state.text === "") {
       inputRef.current?.blur();
       return;
     }
@@ -93,5 +118,5 @@ export function useSearchFieldFacade(
     clear();
   }
 
-  return { inputRef, text, change, clear, pressKey };
+  return { inputRef, text: state.text, change, clear, pressKey };
 }

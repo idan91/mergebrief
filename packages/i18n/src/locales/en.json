@@ -1761,8 +1761,8 @@
       "ariaLabel": "Search briefs by title or number",
       "placeholder": "Search title or number",
       "clear": "Clear search",
-      "results_one": "{{count}} pull request matches {{text}}",
-      "results_other": "{{count}} pull requests match {{text}}"
+      "results_one": "{{count}} pull request matches “{{text}}”",
+      "results_other": "{{count}} pull requests match “{{text}}”"
     },
     "urlBox": {
       "ariaLabel": "Pull request URL",

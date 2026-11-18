@@ -92,4 +92,23 @@ describe("useInboxSearchState", () => {
       },
     );
   });
+
+  it("dropping the pending search text keeps a filter loading beside it", () => {
+    const shown = parseInboxSearch({ review: "new" });
+    const { result } = renderHook(() => useInboxSearchState(shown, 30, 25));
+
+    result.current.dropPendingSearchText();
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock.mock.calls[0]?.[0]).toMatchObject({
+      resetScroll: false,
+    });
+    expect(readWrite(0, { review: "new", q: "fo" })).toEqual({
+      review: "new",
+    });
+    expect(readWrite(0, { review: "new", author: "mine", q: "fo" })).toEqual({
+      review: "new",
+      author: "mine",
+    });
+  });
 });

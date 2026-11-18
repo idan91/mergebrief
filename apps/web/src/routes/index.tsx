@@ -357,6 +357,7 @@ function SignedInHome({
                 searchText={state.choices.searchText}
                 total={page.total}
                 onClear={state.clear}
+                onDropPendingSearch={state.dropPendingSearchText}
                 onSearch={writeSearchText}
               />
             }

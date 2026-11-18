@@ -403,8 +403,8 @@ export type Catalog = typeof en & {
       partInProgress_other: "{{count}} in progress";
     };
     search: (typeof en)["home"]["search"] & {
-      results_one: "{{count}} pull request matches {{text}}";
-      results_other: "{{count}} pull requests match {{text}}";
+      results_one: "{{count}} pull request matches “{{text}}”";
+      results_other: "{{count}} pull requests match “{{text}}”";
     };
     inbox: (typeof en)["home"]["inbox"] & {
       filters: (typeof en)["home"]["inbox"]["filters"] & {

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import {
   clearInboxFilters,
+  dropPendingSearchText,
   parseInboxSearch,
   readInboxChoices,
   readLastPage,
@@ -66,6 +67,20 @@ export function useInboxSearchState(
   return {
     choices,
     write,
+    /**
+     * Put the search text back to the one on screen. The search still
+     * loading is dropped and the loader cancels its read; a filter change
+     * loading beside it stays.
+     */
+    dropPendingSearchText: () => {
+      void navigate({
+        to: HOME_PATH,
+        replace: true,
+        resetScroll: false,
+        search: (previous: InboxSearch) =>
+          dropPendingSearchText(parseInboxSearch({ ...previous }), search),
+      });
+    },
     clear: () => {
       void navigate({
         to: HOME_PATH,

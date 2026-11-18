@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearInboxFilters,
   countChangedFilters,
+  dropPendingSearchText,
   EVERY_STATUS_PARAM,
   hasDefaultStatus,
   hasEveryStatus,
@@ -284,5 +285,28 @@ describe("the search text", () => {
 
   it("an emptied field removes the key", () => {
     expect(writeInboxSearch({ q: "anchor" }, { q: "" })).toEqual({});
+  });
+});
+
+describe("dropPendingSearchText", () => {
+  it("goes back to the list on screen when only the search was loading", () => {
+    const shown = parseInboxSearch({ page: 3, review: "new", q: "fo" });
+    const loading = parseInboxSearch({ review: "new", q: "foo" });
+
+    expect(dropPendingSearchText(loading, shown)).toEqual(shown);
+  });
+
+  it("keeps a filter change that was loading too", () => {
+    const shown = parseInboxSearch({ page: 3, review: "new" });
+    const loading = parseInboxSearch({
+      review: "new",
+      author: "mine",
+      q: "fo",
+    });
+
+    expect(dropPendingSearchText(loading, shown)).toEqual({
+      review: "new",
+      author: "mine",
+    });
   });
 });

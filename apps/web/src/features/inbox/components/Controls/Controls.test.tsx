@@ -55,6 +55,7 @@ describe("Controls", () => {
         searchText=""
         total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
         onSearch={vi.fn()}
       />,
     );
@@ -87,6 +88,7 @@ describe("Controls", () => {
         searchText=""
         total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
         onSearch={vi.fn()}
       />,
     );
@@ -114,6 +116,7 @@ describe("Controls", () => {
         searchText=""
         total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
         onSearch={vi.fn()}
       />,
     );
@@ -134,6 +137,7 @@ describe("Controls", () => {
         searchText="anchor"
         total={3}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
         onSearch={vi.fn()}
       />,
     );

@@ -20,6 +20,8 @@ export interface ControlsProps {
   /** Rows the list holds for the current filters and search text. */
   total: number;
   onSearch: (text: string) => void;
+  /** The reviewer typed past a search whose list is still loading. */
+  onDropPendingSearch: () => void;
   onClear: () => void;
 }
 
@@ -36,6 +38,7 @@ export function Controls({
   searchText,
   total,
   onSearch,
+  onDropPendingSearch,
   onClear,
 }: ControlsProps) {
   const { t } = useTranslation();
@@ -55,6 +58,7 @@ export function Controls({
         <SearchField
           resultCount={total}
           value={searchText}
+          onDropPendingSearch={onDropPendingSearch}
           onSearch={onSearch}
         />
       </div>
