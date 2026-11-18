@@ -8,6 +8,7 @@ import {
 } from "@web/components/Button";
 import { Icon } from "@web/components/Icon";
 import { IconNames } from "@web/components/Icon/types";
+import { Kbd, KbdSizes } from "@web/components/Kbd";
 import styles from "./UrlBox.module.scss";
 import { UrlBoxStates } from "./types";
 import { useUrlBoxFacade } from "./useUrlBoxFacade";
@@ -59,9 +60,9 @@ export function UrlBox({
         <span aria-live="polite" className={styles["progress"]} role="status">
           {facade.submitting ? t("home.urlBox.reading") : null}
         </span>
-        <kbd aria-hidden="true" className={styles["hint"]}>
-          U
-        </kbd>
+        <span aria-hidden="true" className={styles["hint"]}>
+          <Kbd size={KbdSizes.SM}>U</Kbd>
+        </span>
         <Button
           className={styles["submit"]}
           disabled={facade.submitting}
