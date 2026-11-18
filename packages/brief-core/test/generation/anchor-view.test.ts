@@ -304,7 +304,7 @@ describe("renderAnchorView", () => {
 });
 
 describe("anchored system prompt", () => {
-  const anchored = buildSystemPrompt(undefined, true);
+  const anchored = buildSystemPrompt({ anchored: true });
   const fresh = buildSystemPrompt();
 
   it("appends the anchored section only when asked, fresh prompt unchanged", () => {

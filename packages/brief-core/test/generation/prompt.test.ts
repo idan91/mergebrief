@@ -77,14 +77,16 @@ describe("repo-context prompt sections", () => {
   };
 
   it("keeps the prompt byte-identical without repo context", () => {
-    expect(buildSystemPrompt()).toBe(buildSystemPrompt(undefined));
-    expect(buildSystemPrompt({ customAttributes: [] })).toBe(
+    expect(buildSystemPrompt()).toBe(
+      buildSystemPrompt({ repoContext: undefined }),
+    );
+    expect(buildSystemPrompt({ repoContext: { customAttributes: [] } })).toBe(
       buildSystemPrompt(),
     );
   });
 
   it("renders every instruction-class line verbatim when present", () => {
-    const text = buildSystemPrompt(instructionsOnly);
+    const text = buildSystemPrompt({ repoContext: instructionsOnly });
     for (const line of REPO_INSTRUCTION_CLASSES.MAY_FOLLOW) {
       expect(text).toContain(`- ${line}`);
     }
@@ -97,7 +99,7 @@ describe("repo-context prompt sections", () => {
   });
 
   it("adds the custom-attribute contract only when custom attributes exist", () => {
-    const withAttrs = buildSystemPrompt(attributesOnly);
+    const withAttrs = buildSystemPrompt({ repoContext: attributesOnly });
     expect(withAttrs).toContain(
       "## Repo-defined risk attributes (validated policy)",
     );
@@ -107,7 +109,7 @@ describe("repo-context prompt sections", () => {
     expect(withAttrs).not.toContain(
       "## Repo instructions (semi-trusted, bounded)",
     );
-    expect(buildSystemPrompt(instructionsOnly)).not.toContain(
+    expect(buildSystemPrompt({ repoContext: instructionsOnly })).not.toContain(
       "## Repo-defined risk attributes (validated policy)",
     );
   });
@@ -212,7 +214,7 @@ describe("text length caps", () => {
   });
 
   it("states the anchored minimal-edit hard rule", () => {
-    const anchored = buildSystemPrompt(undefined, true);
+    const anchored = buildSystemPrompt({ anchored: true });
     expect(anchored).toContain("**Summary — minimal edit (HARD RULE):**");
     expect(anchored).toContain(
       "Changed wording without changed facts is WRONG OUTPUT",
@@ -223,7 +225,7 @@ describe("text length caps", () => {
   });
 
   it("carves over-cap previous text out of the minimal-edit rule", () => {
-    const anchored = buildSystemPrompt(undefined, true);
+    const anchored = buildSystemPrompt({ anchored: true });
     // Both statements of the carve-out: the re-examined-groups bullet and
     // the minimal-edit hard-rule block.
     expect(anchored).toContain(

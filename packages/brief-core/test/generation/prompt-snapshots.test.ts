@@ -34,23 +34,29 @@ describe("system prompts are byte-pinned", () => {
   });
 
   it("brief, with instructions + custom attributes sections", () => {
-    expect(buildSystemPrompt(bothRepoSections)).toMatchSnapshot();
+    expect(
+      buildSystemPrompt({ repoContext: bothRepoSections }),
+    ).toMatchSnapshot();
   });
 
   it("brief, anchored regeneration", () => {
-    expect(buildSystemPrompt(undefined, true)).toMatchSnapshot();
+    expect(buildSystemPrompt({ anchored: true })).toMatchSnapshot();
   });
 
   it("brief, anchored with repo-context sections in pinned order", () => {
-    expect(buildSystemPrompt(bothRepoSections, true)).toMatchSnapshot();
+    expect(
+      buildSystemPrompt({ repoContext: bothRepoSections, anchored: true }),
+    ).toMatchSnapshot();
   });
 
   it("brief, with the Media note", () => {
-    expect(buildSystemPrompt(undefined, false, true)).toMatchSnapshot();
+    expect(buildSystemPrompt({ holdsMedia: true })).toMatchSnapshot();
   });
 
   it("brief, anchored with the Media note", () => {
-    expect(buildSystemPrompt(undefined, true, true)).toMatchSnapshot();
+    expect(
+      buildSystemPrompt({ anchored: true, holdsMedia: true }),
+    ).toMatchSnapshot();
   });
 
   it("delta", () => {
@@ -62,10 +68,9 @@ describe("system prompts are byte-pinned", () => {
   });
 
   it("grouping, with instructions and without the attributes section", () => {
-    const prompt = buildGroupingSystemPrompt(
-      OutlineForms.LINES_40,
-      bothRepoSections,
-    );
+    const prompt = buildGroupingSystemPrompt(OutlineForms.LINES_40, {
+      repoContext: bothRepoSections,
+    });
 
     expect(prompt).toContain("## Repo instructions (semi-trusted, bounded)");
     expect(prompt).not.toContain("## Repo-defined risk attributes");
@@ -74,7 +79,13 @@ describe("system prompts are byte-pinned", () => {
 
   it("grouping, with the Media note", () => {
     expect(
-      buildGroupingSystemPrompt(OutlineForms.FULL, undefined, true),
+      buildGroupingSystemPrompt(OutlineForms.FULL, { holdsMedia: true }),
+    ).toMatchSnapshot();
+  });
+
+  it("grouping, anchored regeneration", () => {
+    expect(
+      buildGroupingSystemPrompt(OutlineForms.FULL, { anchored: true }),
     ).toMatchSnapshot();
   });
 
@@ -87,7 +98,7 @@ describe("system prompts are byte-pinned", () => {
   });
 
   it("product diff, over a previous Product diff", () => {
-    expect(buildProductDiffSystemPrompt(true)).toMatchSnapshot();
+    expect(buildProductDiffSystemPrompt({ anchored: true })).toMatchSnapshot();
   });
 
   it("detail, without repo context", () => {

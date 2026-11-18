@@ -22,9 +22,10 @@ import {
   SUMMARY_FIELD_RULE,
   renderCategorySection,
   renderConcernSection,
-  repoCustomAttributesSection,
-  repoInstructionsSection,
+  renderRepoCustomAttributesSection,
+  renderRepoInstructionsSection,
 } from "./sections";
+import type { BriefPromptOptions } from "./types";
 
 /**
  * Appended ONLY to an anchored grouping call, so a fresh run's grouping
@@ -115,7 +116,7 @@ function renderGroupingRepoSections(
   if (repoContext?.instructions === undefined) {
     return "";
   }
-  return `\n\n${repoInstructionsSection()}`;
+  return `\n\n${renderRepoInstructionsSection()}`;
 }
 
 /**
@@ -125,10 +126,9 @@ function renderGroupingRepoSections(
  */
 export function buildGroupingSystemPrompt(
   form: OutlineForm,
-  repoContext?: RepoContext,
-  holdsMedia = false,
-  anchored = false,
+  options: BriefPromptOptions = {},
 ): string {
+  const { repoContext, anchored = false, holdsMedia = false } = options;
   const media = holdsMedia ? MEDIA_NOTE_SECTION : "";
   const anchor = anchored ? GROUPING_ANCHORED_SECTION : "";
   return `${ROLE_INTRO}
@@ -179,7 +179,7 @@ function renderDetailRepoSections(
   if (repoContext === undefined || repoContext.customAttributes.length === 0) {
     return "";
   }
-  return `\n\n${repoCustomAttributesSection()}`;
+  return `\n\n${renderRepoCustomAttributesSection()}`;
 }
 
 /**

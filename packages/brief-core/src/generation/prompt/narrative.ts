@@ -4,7 +4,7 @@ import {
   LINE_RANGE_COMPUTE,
   LINE_RANGE_SIDES,
   PR_TEXT_RULE,
-  bullets,
+  renderVocabularyBullets,
 } from "./sections";
 
 /**
@@ -39,7 +39,7 @@ The PR's title, description, and linked context; the previous head SHA and curre
 
 ## Categories (context only — already assigned on the full Brief; you never assign one)
 
-${bullets(ChangeGroupCategories, CATEGORY_DESCRIPTIONS)}
+${renderVocabularyBullets(ChangeGroupCategories, CATEGORY_DESCRIPTIONS)}
 
 ## Chunk granularity
 

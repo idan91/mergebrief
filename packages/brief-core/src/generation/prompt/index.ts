@@ -1,8 +1,4 @@
-export {
-  renderAnchorView,
-  renderGroupingAnchorView,
-  type AnchorViewInput,
-} from "./anchor-view";
+export { renderAnchorView, renderGroupingAnchorView } from "./anchor-view";
 export { buildSystemPrompt } from "./brief";
 export { buildDeltaSystemPrompt } from "./delta";
 export {
@@ -12,3 +8,4 @@ export {
 export { buildRevisionNarrativeSystemPrompt } from "./narrative";
 export { buildProductDiffSystemPrompt } from "./product-diff";
 export { buildSummaryMediaSystemPrompt } from "./summary-media";
+export type { AnchorViewInput } from "./types";

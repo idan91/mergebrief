@@ -56,7 +56,7 @@ async function requestProductDiffAnswer(
   try {
     return await generator.generate({
       schema: ProductDiffAnswerSchema,
-      system: buildProductDiffSystemPrompt(isAnchored),
+      system: buildProductDiffSystemPrompt({ anchored: isAnchored }),
       user: renderProductDiffUser(request, previousBlock, isAnchored),
       effort,
       label: PRODUCT_DIFF_LABEL,
