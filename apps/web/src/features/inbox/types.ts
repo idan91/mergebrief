@@ -97,6 +97,10 @@ export interface InboxPage {
   pageSize: number;
   total: number;
   archivedTotal: number;
+  /** Rows the search text matches, whatever the filters or the view; 0 without search text. */
+  searchMatchTotal: number;
+  /** The rows of `searchMatchTotal` the viewer archived. */
+  archivedSearchMatchTotal: number;
   counts: InboxCounts;
   viewer: InboxViewer;
   reachableInstallations: ReachableInstallation[];
@@ -134,6 +138,23 @@ export const InboxEmptinesses = {
   ALL_ARCHIVED: "all-archived",
 } as const;
 export type InboxEmptiness = ValueOf<typeof InboxEmptinesses>;
+
+/** Why a search shows no rows. */
+export const SearchMissKinds = {
+  /** Rows of the view on screen match; the other filters hide them. */
+  HIDDEN_BY_FILTERS: "hidden-by-filters",
+  /** Only the other view, archived or not, holds a match. */
+  IN_OTHER_VIEW: "in-other-view",
+  /** No row the reviewer reaches matches. */
+  NOWHERE: "nowhere",
+} as const;
+export type SearchMissKind = ValueOf<typeof SearchMissKinds>;
+
+export interface SearchMiss {
+  readonly kind: SearchMissKind;
+  /** The matching rows the kind names; 0 for nowhere. */
+  readonly count: number;
+}
 
 export type InboxState =
   | { readonly kind: typeof InboxStates.READY; readonly page: InboxPage }

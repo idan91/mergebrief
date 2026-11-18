@@ -405,6 +405,15 @@ export type Catalog = typeof en & {
     search: (typeof en)["home"]["search"] & {
       results_one: "{{count}} pull request matches “{{text}}”";
       results_other: "{{count}} pull requests match “{{text}}”";
+      miss: (typeof en)["home"]["search"]["miss"] & {
+        hiddenDetail_one: "{{count}} more matches with the filters off.";
+        hiddenDetail_other: "{{count}} more match with the filters off.";
+        archivedDetail_one: "{{count}} archived pull request matches.";
+        archivedDetail_other: "{{count}} archived pull requests match.";
+        inboxDetail_one: "{{count}} pull request outside the archive matches.";
+        inboxDetail_other: "{{count}} pull requests outside the archive match.";
+        nowhereHeading: "No pull requests match “{{text}}”";
+      };
     };
     inbox: (typeof en)["home"]["inbox"] & {
       filters: (typeof en)["home"]["inbox"]["filters"] & {

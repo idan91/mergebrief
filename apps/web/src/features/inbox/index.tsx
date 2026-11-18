@@ -19,6 +19,7 @@ export {
 } from "./components/NoInstallationLine";
 export { useControlsFacade } from "./components/Controls/useControlsFacade";
 export { Pager, type PagerProps } from "./components/Pager";
+export { SearchMiss, type SearchMissProps } from "./components/SearchMiss";
 export { UrlBox } from "./components/UrlBox";
 export { useInboxSearchState } from "./hooks/useInboxSearchState";
 export { useHomeShortcuts } from "./hooks/useHomeShortcuts";

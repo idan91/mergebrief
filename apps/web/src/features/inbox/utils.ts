@@ -24,6 +24,8 @@ import {
   type InboxItem,
   type InboxPage,
   type InboxQueryParams,
+  SearchMissKinds,
+  type SearchMiss,
   type TitleSegmentKind,
 } from "./types";
 
@@ -219,6 +221,37 @@ export function readInboxEmptiness(
     return InboxEmptinesses.ALL_ARCHIVED;
   }
   return InboxEmptinesses.EMPTY;
+}
+
+/**
+ * Why a search shows no rows, and how many matches sit where the reviewer
+ * is not looking: behind the other filters of this view first, in the other
+ * view second.
+ */
+export function readSearchMiss(
+  page: Pick<
+    InboxPage,
+    "total" | "searchMatchTotal" | "archivedSearchMatchTotal"
+  >,
+  searchText: string,
+  archived: InboxArchivedFilter,
+): SearchMiss | undefined {
+  if (searchText === "" || page.total > 0) {
+    return undefined;
+  }
+  const archivedMatches = page.archivedSearchMatchTotal;
+  const inboxMatches = page.searchMatchTotal - archivedMatches;
+  const archivedView = archived === InboxArchivedFilters.ONLY;
+  const inView = archivedView ? archivedMatches : inboxMatches;
+  const inOtherView = archivedView ? inboxMatches : archivedMatches;
+
+  if (inView > 0) {
+    return { kind: SearchMissKinds.HIDDEN_BY_FILTERS, count: inView };
+  }
+  if (inOtherView > 0) {
+    return { kind: SearchMissKinds.IN_OTHER_VIEW, count: inOtherView };
+  }
+  return { kind: SearchMissKinds.NOWHERE, count: 0 };
 }
 
 /** One row's identity across the page: repository, number and world. */

@@ -28,6 +28,7 @@ import {
   NoInstallationLine,
   Pager,
   PersonalLine,
+  SearchMiss,
   UrlBox,
   useControlsFacade,
   useInboxSearchState,
@@ -50,10 +51,12 @@ import {
   InboxStates,
   type InboxPage,
   type InboxSearch,
+  type InboxSearchChange,
 } from "../features/inbox/types";
 import {
   readFailedReadCode,
   readInboxEmptiness,
+  readSearchMiss,
 } from "../features/inbox/utils";
 import type { ApiErrorCode } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
@@ -213,6 +216,15 @@ function Home() {
   );
 }
 
+/** Every filter but the search text and the view at its widest: all statuses, nothing else narrowed. */
+const WIDEST_FILTERS: InboxSearchChange = {
+  state: EVERY_STATUS_PARAM,
+  repo: undefined,
+  review: undefined,
+  author: undefined,
+  installation: undefined,
+};
+
 const HOME_SHORTCUTS: ShortcutSection[] = [
   {
     id: "list",
@@ -296,6 +308,20 @@ function SignedInHome({
     // A text the URL already holds is no change, so the page stays put.
     state.write((live) => (live.searchText === text ? {} : { q: text }));
   }
+  const searchMiss = readSearchMiss(
+    page,
+    state.choices.searchText,
+    state.choices.archived,
+  );
+  const archivedView = state.choices.archived === InboxArchivedFilters.ONLY;
+  const otherView = archivedView ? undefined : InboxArchivedFilters.ONLY;
+
+  function showAllMatches(): void {
+    state.write({ ...WIDEST_FILTERS });
+  }
+  function showOtherViewMatches(): void {
+    state.write({ ...WIDEST_FILTERS, archived: otherView });
+  }
   function showHidden(): void {
     state.write({ state: EVERY_STATUS_PARAM });
   }
@@ -307,10 +333,20 @@ function SignedInHome({
   }
 
   let list: ReactNode = null;
-  if (
-    emptiness !== InboxEmptinesses.ROWS &&
-    emptiness !== InboxEmptinesses.EMPTY
-  ) {
+  const rowsMissing =
+    emptiness !== InboxEmptinesses.ROWS && emptiness !== InboxEmptinesses.EMPTY;
+  if (rowsMissing && searchMiss !== undefined) {
+    list = (
+      <SearchMiss
+        archivedView={archivedView}
+        miss={searchMiss}
+        searchText={state.choices.searchText}
+        onClearSearch={() => writeSearchText("")}
+        onShowAllMatches={showAllMatches}
+        onShowOtherView={showOtherViewMatches}
+      />
+    );
+  } else if (rowsMissing) {
     list = (
       <EmptyInbox
         archivedTotal={page.archivedTotal}

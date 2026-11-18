@@ -1762,7 +1762,21 @@
       "placeholder": "Search title or number",
       "clear": "Clear search",
       "results_one": "{{count}} pull request matches “{{text}}”",
-      "results_other": "{{count}} pull requests match “{{text}}”"
+      "results_other": "{{count}} pull requests match “{{text}}”",
+      "miss": {
+        "inViewHeading": "No pull requests match in this view",
+        "hiddenDetail_one": "{{count}} more matches with the filters off.",
+        "hiddenDetail_other": "{{count}} more match with the filters off.",
+        "showAllMatches": "Show all matches",
+        "archivedDetail_one": "{{count}} archived pull request matches.",
+        "archivedDetail_other": "{{count}} archived pull requests match.",
+        "showArchivedMatches": "Show archived matches",
+        "inboxDetail_one": "{{count}} pull request outside the archive matches.",
+        "inboxDetail_other": "{{count}} pull requests outside the archive match.",
+        "showInboxMatches": "Show matches outside the archive",
+        "nowhereHeading": "No pull requests match “{{text}}”",
+        "clearSearch": "Clear search"
+      }
     },
     "urlBox": {
       "ariaLabel": "Pull request URL",
