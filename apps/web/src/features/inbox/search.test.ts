@@ -2,6 +2,7 @@ import { InboxQueryBounds } from "contract";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
 } from "types/inbox";
@@ -119,6 +120,7 @@ describe("readInboxParams and readInboxChoices", () => {
     expect(readInboxChoices(search)).toEqual({
       page: 1,
       sort: InboxSorts.UPDATED,
+      direction: InboxSortDirections.DESCENDING,
       layout: "folded",
       states: ["merged"],
       repos: [],
@@ -286,6 +288,40 @@ describe("the search text", () => {
 
   it("an emptied field removes the key", () => {
     expect(writeInboxSearch({ q: "anchor" }, { q: "" })).toEqual({});
+  });
+});
+
+describe("the sort direction", () => {
+  const oldestCreated = parseInboxSearch({ sort: "created", direction: "asc" });
+
+  it("rides the URL only off its default and drops an unknown value", () => {
+    expect(oldestCreated).toEqual({ sort: "created", direction: "asc" });
+    expect(parseInboxSearch({ direction: "desc" })).toEqual({});
+    expect(parseInboxSearch({ direction: "sideways" })).toEqual({});
+  });
+
+  it("goes to the wire and fills the controls with newest first", () => {
+    expect(readInboxParams(oldestCreated)).toEqual({
+      sort: InboxSorts.CREATED,
+      direction: InboxSortDirections.ASCENDING,
+    });
+    expect(readInboxChoices({}).direction).toBe(InboxSortDirections.DESCENDING);
+  });
+
+  it("restarts the pages, is no filter and survives a clear", () => {
+    const paged = parseInboxSearch({ page: 4, review: "new" });
+    const turned = writeInboxSearch(paged, { direction: "asc" });
+
+    expect(turned).toEqual({ review: "new", direction: "asc" });
+    expect(countChangedFilters(oldestCreated)).toBe(0);
+    expect(clearInboxFilters(turned)).toEqual({ direction: "asc" });
+  });
+
+  it("a direction change loading beside a search is kept", () => {
+    const shown = parseInboxSearch({ page: 3 });
+    const loading = parseInboxSearch({ direction: "asc", q: "fo" });
+
+    expect(dropPendingSearchText(loading, shown)).toEqual({ direction: "asc" });
   });
 });
 
