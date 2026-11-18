@@ -1,0 +1,64 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .field {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    inline-size: 100%;
+    min-block-size: functions.to-rem(28px);
+    padding-inline: var(--space-3) var(--space-1);
+    border: 1px solid var(--color-control-edge);
+    border-radius: var(--radius-md);
+    color: var(--color-text-1);
+    cursor: text;
+    font-size: var(--font-size-2);
+
+    &:has(.input:focus-visible) {
+      @include mixins.focus-ring;
+    }
+
+    &[data-state="changed"] {
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-subtle);
+    }
+  }
+
+  .icon {
+    flex: none;
+    color: var(--color-text-2);
+  }
+
+  .input {
+    flex: 1;
+    min-inline-size: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    outline: 0;
+
+    @include mixins.touch-field-text;
+
+    &::placeholder {
+      color: var(--color-text-3);
+      opacity: 1;
+    }
+
+    &::-webkit-search-cancel-button {
+      appearance: none;
+    }
+  }
+
+  .hint {
+    display: inline-flex;
+    flex: none;
+    padding-inline-end: var(--space-2);
+
+    @media (pointer: coarse) {
+      display: none;
+    }
+  }
+}

@@ -9,9 +9,9 @@ import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
 import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
 
-const FOCUS_KEY = "/";
+const FOCUS_KEY = "u";
 
-/** The paste flow: the value, the submitting state, the curated error, and the slash shortcut. */
+/** The paste flow: the value, the submitting state, the curated error, and the focus shortcut. */
 export function useUrlBoxFacade() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ export function useUrlBoxFacade() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    function focusOnSlash(event: KeyboardEvent): void {
+    function focusOnKey(event: KeyboardEvent): void {
       if (event.key !== FOCUS_KEY || event.metaKey || event.ctrlKey) {
         return;
       }
@@ -34,8 +34,8 @@ export function useUrlBoxFacade() {
       event.preventDefault();
       inputRef.current?.focus();
     }
-    window.addEventListener("keydown", focusOnSlash);
-    return () => window.removeEventListener("keydown", focusOnSlash);
+    window.addEventListener("keydown", focusOnKey);
+    return () => window.removeEventListener("keydown", focusOnKey);
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {

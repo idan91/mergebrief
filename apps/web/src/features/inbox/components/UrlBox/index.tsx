@@ -18,7 +18,7 @@ export interface UrlBoxProps {
 }
 
 /**
- * The quiet paste form: a link icon, the field, a slash hint that gives way
+ * The quiet paste form: a link icon, the field, a key hint that gives way
  * to the Generate button once text is entered. While submitting, the field
  * is replaced by one line of status and a thin accent sweep. The result of
  * a submit is a navigation; a refusal lands in the alert line below.
@@ -60,7 +60,7 @@ export function UrlBox({
           {facade.submitting ? t("home.urlBox.reading") : null}
         </span>
         <kbd aria-hidden="true" className={styles["hint"]}>
-          /
+          U
         </kbd>
         <Button
           className={styles["submit"]}

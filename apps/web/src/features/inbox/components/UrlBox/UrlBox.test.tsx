@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe("UrlBox", () => {
-  it("the slash key focuses the field unless the viewer is typing", async () => {
+  it("the U key focuses the field unless the viewer is typing", async () => {
     await renderInRouter(
       <>
         <UrlBox />
@@ -30,20 +30,22 @@ describe("UrlBox", () => {
     const field = screen.getByRole("textbox", { name: "Pull request URL" });
 
     fireEvent.keyDown(window, { key: "/" });
+    expect(document.activeElement).not.toBe(field);
+    fireEvent.keyDown(window, { key: "u" });
     expect(document.activeElement).toBe(field);
 
     const other = screen.getByRole("textbox", { name: "Other" });
     other.focus();
-    fireEvent.keyDown(other, { key: "/" });
+    fireEvent.keyDown(other, { key: "u" });
     expect(document.activeElement).toBe(other);
   });
 
-  it("leaves the slash key alone with single-key shortcuts off", async () => {
+  it("leaves the U key alone with single-key shortcuts off", async () => {
     writeSingleKeyShortcutsOn(false);
     await renderInRouter(<UrlBox />);
     const field = screen.getByRole("textbox", { name: "Pull request URL" });
 
-    fireEvent.keyDown(window, { key: "/" });
+    fireEvent.keyDown(window, { key: "u" });
 
     expect(document.activeElement).not.toBe(field);
   });

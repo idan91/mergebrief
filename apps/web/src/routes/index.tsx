@@ -35,6 +35,7 @@ import {
 } from "@web/features/inbox";
 import {
   buildInboxQueryOptions,
+  cancelInboxReadWhenSuperseded,
   readCachedInboxKind,
 } from "../features/inbox/queries";
 import {
@@ -72,12 +73,18 @@ export const Route = createFileRoute("/")({
   }),
   // The Inbox and the viewer prefetch in parallel through the in-process
   // apiFetch interface, the same authz gate the browser meets.
-  loader: async ({ context, deps }) => {
+  loader: async ({ context, deps, abortController }) => {
     // The server render fails fast; the client's own refetch keeps the retries.
     const inboxPrefetch = context.queryClient.ensureQueryData({
       ...buildInboxQueryOptions(deps.inbox),
       retry: false,
     });
+    cancelInboxReadWhenSuperseded(
+      context.queryClient,
+      deps.inbox,
+      inboxPrefetch,
+      abortController.signal,
+    );
     const prefetches: Promise<unknown>[] = [
       inboxPrefetch,
       context.queryClient
@@ -217,7 +224,8 @@ const HOME_SHORTCUTS: ShortcutSection[] = [
       { keys: ["K"], descriptionKey: "home.shortcuts.cursorUp" },
       { keys: ["Enter"], descriptionKey: "home.shortcuts.openRow" },
       { keys: ["X"], descriptionKey: "home.shortcuts.toggleSelect" },
-      { keys: ["/"], descriptionKey: "home.shortcuts.focusUrl" },
+      { keys: ["/"], descriptionKey: "home.shortcuts.focusSearch" },
+      { keys: ["U"], descriptionKey: "home.shortcuts.focusUrl" },
       { keys: ["?"], descriptionKey: "home.shortcuts.toggleShortcuts" },
       { keys: ["Esc"], descriptionKey: "home.shortcuts.closeMenu" },
     ],
@@ -284,6 +292,10 @@ function SignedInHome({
     emptiness === InboxEmptinesses.EMPTY;
   const pageKey = JSON.stringify(search);
 
+  function writeSearchText(text: string): void {
+    // A text the URL already holds is no change, so the page stays put.
+    state.write((live) => (live.searchText === text ? {} : { q: text }));
+  }
   function showHidden(): void {
     state.write({ state: EVERY_STATUS_PARAM });
   }
@@ -342,7 +354,10 @@ function SignedInHome({
                 filters={controls.filters}
                 sort={controls.sort}
                 layout={controls.layout}
+                searchText={state.choices.searchText}
+                total={page.total}
                 onClear={state.clear}
+                onSearch={writeSearchText}
               />
             }
             items={page.items}

@@ -35,6 +35,7 @@ import LinkGlyph from "../icons/link.svg?react";
 import ListBulletsGlyph from "../icons/list-bullets.svg?react";
 import ListChecksGlyph from "../icons/list-checks.svg?react";
 import ListNumbersGlyph from "../icons/list-numbers.svg?react";
+import MagnifyingGlassGlyph from "../icons/magnifying-glass.svg?react";
 import OpenaiGlyph from "../icons/openai.svg?react";
 import OpenrouterGlyph from "../icons/openrouter.svg?react";
 import PencilSimpleLineGlyph from "../icons/pencil-simple-line.svg?react";
@@ -92,6 +93,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.LIST_BULLETS]: ListBulletsGlyph,
   [IconNames.LIST_CHECKS]: ListChecksGlyph,
   [IconNames.LIST_NUMBERS]: ListNumbersGlyph,
+  [IconNames.MAGNIFYING_GLASS]: MagnifyingGlassGlyph,
   [IconNames.PENCIL_SIMPLE_LINE]: PencilSimpleLineGlyph,
   [IconNames.PLAY]: PlayGlyph,
   [IconNames.QUESTION]: QuestionGlyph,
