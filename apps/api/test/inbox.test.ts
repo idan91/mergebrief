@@ -565,10 +565,10 @@ describe("GET /api/inbox", () => {
       await get("/api/inbox?q=%20anchor%20", cookie),
     );
 
-    expect(byWord.items.map((i) => i["prNumber"])).toEqual([1412]);
+    expect(byWord.items.map((item) => item["prNumber"])).toEqual([1412]);
     expect(byWord.searchMatchTotal).toBe(1);
-    expect(byNumber.items.map((i) => i["prNumber"])).toEqual([1412]);
-    expect(padded.items.map((i) => i["prNumber"])).toEqual([1412]);
+    expect(byNumber.items.map((item) => item["prNumber"])).toEqual([1412]);
+    expect(padded.items.map((item) => item["prNumber"])).toEqual([1412]);
   });
 
   it("empty search text narrows nothing and counts no match", async () => {
