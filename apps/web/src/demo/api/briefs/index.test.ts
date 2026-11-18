@@ -3,9 +3,13 @@ import {
   checkRevisionNarrativeForWrite,
   readStoredBrief,
 } from "brief-core/artifact";
+import type { LineRange } from "brief-core/types";
 import { describe, expect, it } from "vitest";
 
-import { parseFileDiffPatches } from "@web/features/brief/model";
+import {
+  parseComparisonMarks,
+  parseFileDiffPatches,
+} from "@web/features/brief/model";
 import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./consts";
 import {
   briefRev1Text,
@@ -27,23 +31,6 @@ interface DemoRevision {
   head: string;
   briefText: string;
   diffsText: string;
-}
-
-interface LineRange {
-  start: number;
-  end: number;
-}
-
-interface MarkedFile {
-  file: string;
-  addedRanges: LineRange[];
-  removedRanges: LineRange[];
-}
-
-interface SpanMarks {
-  baselineSha: string;
-  headSha: string;
-  files: MarkedFile[];
 }
 
 const REVISIONS: readonly DemoRevision[] = [
@@ -146,7 +133,11 @@ describe.each(REVISIONS)("the demo brief of $name", (revision) => {
 });
 
 describe("what the demo says changed between its revisions", () => {
-  const marks = JSON.parse(revisionSpanMarksText) as SpanMarks;
+  const parsedMarks = parseComparisonMarks(JSON.parse(revisionSpanMarksText));
+  if (!parsedMarks.ok) {
+    throw new Error(parsedMarks.error);
+  }
+  const marks = parsedMarks.value;
 
   it("marks the lines the span's patches change, between the two heads", () => {
     const markedTotals: LineTotals = {
@@ -174,8 +165,11 @@ describe("what the demo says changed between its revisions", () => {
       JSON.parse(revisionNarrativeText),
     );
     const read = readStoredBrief(briefRev2Text);
-    if (!check.ok || !read.ok || !("chunks" in check.value)) {
+    if (!check.ok || !read.ok) {
       throw new Error("the narrative or the brief does not read");
+    }
+    if (!("chunks" in check.value)) {
+      throw new Error("the narrative holds no chunks");
     }
     const groupIds = read.value.brief.changeGroups.map((group) => group.id);
     const toldFiles = new Set(check.value.chunks.map((chunk) => chunk.file));

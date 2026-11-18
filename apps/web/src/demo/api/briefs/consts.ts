@@ -1,4 +1,3 @@
-/** The example pull request's base, and its head at each revision the demo shows. */
 export const DEMO_BASE_SHA = "25be791e287a47d115d6726744b361fa6864664a";
 
 export const DEMO_REV1_HEAD = "0068da4bcb03d4bf282dc8cdaddf85f874879ef7";
