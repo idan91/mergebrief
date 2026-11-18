@@ -343,6 +343,9 @@ describe("generateBrief Product diff, over a previous brief", () => {
 
     const request = generator.productDiffRequests[0];
     expect(request?.system).toContain("## Previous Product diff (this run)");
+    expect(request?.system).toContain(
+      "A previous `before` with `beforeSource: pr-text` holds only while the current PR title or description still states it. When they no longer do, choose the before and its `beforeSource` again under the Grounding rule.",
+    );
     expect(request?.user).toContain("<pr_previous_product_diff>");
     expect(request?.user).toContain(
       "- when: a user creates an item whose name matches an archived one\n  before: a second item was created beside the archived one\n  beforeSource: diff\n  after: the archived item is restored",

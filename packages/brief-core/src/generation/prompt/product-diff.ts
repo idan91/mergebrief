@@ -14,6 +14,7 @@ This run updates the Product diff of an earlier revision of the same PR. The use
 - Re-judge every previous Product change against the current diff. Keep one that still holds, drop one the diff no longer supports, and add what is new.
 - **Keep the wording (hard rule).** Copy the \`when\`, \`before\` and \`after\` of a Product change that still holds exactly as written. Changed wording without a changed fact is wrong output.
 - A previous Product change shown with \`before: ""\` and \`beforeSource: not-shown\` had no before. Keep \`before\` as \`""\` unless the current diff now shows one.
+- A previous \`before\` with \`beforeSource: pr-text\` holds only while the current PR title or description still states it. When they no longer do, choose the before and its \`beforeSource\` again under the Grounding rule.
 - Choose \`groupIds\` afresh from \`<pr_change_groups>\`. The previous ids are not shown and may no longer exist.`;
 
 /**
