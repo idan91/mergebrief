@@ -22,8 +22,8 @@ import {
   SUMMARY_FIELD_RULE,
   renderCategorySection,
   renderConcernSection,
-  repoCustomAttributesSection,
-  repoInstructionsSection,
+  renderRepoCustomAttributesSection,
+  renderRepoInstructionsSection,
 } from "./sections";
 import type { BriefPromptOptions } from "./types";
 
@@ -116,7 +116,7 @@ function renderGroupingRepoSections(
   if (repoContext?.instructions === undefined) {
     return "";
   }
-  return `\n\n${repoInstructionsSection()}`;
+  return `\n\n${renderRepoInstructionsSection()}`;
 }
 
 /**
@@ -179,7 +179,7 @@ function renderDetailRepoSections(
   if (repoContext === undefined || repoContext.customAttributes.length === 0) {
     return "";
   }
-  return `\n\n${repoCustomAttributesSection()}`;
+  return `\n\n${renderRepoCustomAttributesSection()}`;
 }
 
 /**

@@ -20,8 +20,8 @@ import {
   SUMMARY_FIELD_RULE,
   renderCategorySection,
   renderConcernSection,
-  repoCustomAttributesSection,
-  repoInstructionsSection,
+  renderRepoCustomAttributesSection,
+  renderRepoInstructionsSection,
 } from "./sections";
 import type { BriefPromptOptions } from "./types";
 
@@ -32,18 +32,19 @@ import type { BriefPromptOptions } from "./types";
  */
 
 /** The repo-context sections actually in play for this generation, if any. */
-function repoContextSections(repoContext: RepoContext | undefined): string {
+function renderRepoContextSections(
+  repoContext: RepoContext | undefined,
+): string {
   if (repoContext === undefined) {
     return "";
   }
-  const sections = [
-    ...(repoContext.instructions === undefined
-      ? []
-      : [repoInstructionsSection()]),
-    ...(repoContext.customAttributes.length === 0
-      ? []
-      : [repoCustomAttributesSection()]),
-  ];
+  const sections: string[] = [];
+  if (repoContext.instructions !== undefined) {
+    sections.push(renderRepoInstructionsSection());
+  }
+  if (repoContext.customAttributes.length > 0) {
+    sections.push(renderRepoCustomAttributesSection());
+  }
   return sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`;
 }
 
@@ -136,5 +137,5 @@ ${INTENT_CHECK_SECTION}
 
 ${HONEST_UNCERTAINTY_SECTION}
 
-${LINE_RANGES_SECTION}${repoContextSections(repoContext)}`;
+${LINE_RANGES_SECTION}${renderRepoContextSections(repoContext)}`;
 }

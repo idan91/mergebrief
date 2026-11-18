@@ -3,7 +3,7 @@ import {
   RiskSurfaceAttributes,
   type ModelRiskSurfaceAttribute,
 } from "../../types";
-import { bullets } from "./sections";
+import { renderVocabularyBullets } from "./sections";
 
 export const RISK_DESCRIPTIONS: Record<ModelRiskSurfaceAttribute, string> = {
   // about the CODE
@@ -115,7 +115,7 @@ export function renderRiskSurfaceSection(): string {
 
 Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own text: if you note a risk in the summary (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in your text without flagging it on a chunk.**
 
-${bullets(ModelRiskSurfaceAttributes, RISK_DESCRIPTIONS)}
+${renderVocabularyBullets(ModelRiskSurfaceAttributes, RISK_DESCRIPTIONS)}
 
 Firing discipline for the observational trio (all three are about the change itself — never about who or what authored it):
 

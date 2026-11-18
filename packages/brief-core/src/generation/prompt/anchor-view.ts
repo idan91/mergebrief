@@ -7,7 +7,7 @@ import {
 import type { AnchorViewInput } from "./types";
 
 /** Union of a group's chunk files and risk attributes, order-stable. */
-function groupFacts(
+function collectGroupFacts(
   brief: Brief,
   groupId: string,
 ): { files: string[]; attrs: string[] } {
@@ -30,7 +30,7 @@ function groupFacts(
 }
 
 /** One anchor-view line per previous intent item, tagged with its bucket. */
-function intentBucketLines(
+function renderIntentBucketLines(
   label: string,
   items: readonly {
     intent: string;
@@ -56,36 +56,40 @@ function renderAlignmentLine(
   ];
 }
 
+/** Frozen and re-look groups, each in the previous brief's order. */
+function partitionChangeGroups(input: AnchorViewInput) {
+  const frozenSet = new Set(input.frozenGroupIds);
+  const { changeGroups } = input.previousBrief;
+  return {
+    frozen: changeGroups.filter((group) => frozenSet.has(group.id)),
+    reLook: changeGroups.filter((group) => !frozenSet.has(group.id)),
+  };
+}
+
 /**
  * Render the Anchor section for an anchored generation's user message: frozen
  * index (no code), full previous definitions for re-look groups, summary and
  * intent verdicts verbatim, orderings as id sequences.
  */
 export function renderAnchorView(input: AnchorViewInput): string {
-  const { previousBrief, frozenGroupIds } = input;
-  const frozenSet = new Set(frozenGroupIds);
+  const { previousBrief } = input;
 
-  const describeGroup = (group: Brief["changeGroups"][number]): string => {
+  function describeGroup(group: Brief["changeGroups"][number]): string {
     const categories = [
       group.dominantCategory,
       ...group.secondaryCategories,
     ].join(", ");
-    const { files, attrs } = groupFacts(previousBrief, group.id);
+    const { files, attrs } = collectGroupFacts(previousBrief, group.id);
     const attrsPart = attrs.length > 0 ? `; attrs: ${attrs.join(", ")}` : "";
     const title = sanitizeUntrustedText(group.title);
     const summary = sanitizeUntrustedText(group.summary);
     const paths = files.map(sanitizeUntrustedText).join(", ") || "(none)";
     return `- ${group.id} [${categories}] ${title} — ${summary}\n  files: ${paths}${attrsPart}`;
-  };
+  }
 
-  const frozen = previousBrief.changeGroups
-    .filter((group) => frozenSet.has(group.id))
-    .map(describeGroup)
-    .join("\n");
-  const reLook = previousBrief.changeGroups
-    .filter((group) => !frozenSet.has(group.id))
-    .map(describeGroup)
-    .join("\n");
+  const groups = partitionChangeGroups(input);
+  const frozen = groups.frozen.map(describeGroup).join("\n");
+  const reLook = groups.reLook.map(describeGroup).join("\n");
 
   const sections: string[] = [
     `## Anchor — previous brief (revision _${previousBrief.index})`,
@@ -105,11 +109,11 @@ function listPreviousOrderSections(previousBrief: Brief): string[] {
   if (intent !== undefined) {
     const verdictLines = [
       `specificity: ${intent.specificity}`,
-      ...intentBucketLines("accomplished", intent.accomplished),
-      ...intentBucketLines("statedButMissing", intent.statedButMissing),
-      ...intentBucketLines("doneButUnstated", intent.doneButUnstated),
-      ...intentBucketLines("deviations", intent.deviations),
-      ...intentBucketLines("maskedFixes", intent.maskedFixes),
+      ...renderIntentBucketLines("accomplished", intent.accomplished),
+      ...renderIntentBucketLines("statedButMissing", intent.statedButMissing),
+      ...renderIntentBucketLines("doneButUnstated", intent.doneButUnstated),
+      ...renderIntentBucketLines("deviations", intent.deviations),
+      ...renderIntentBucketLines("maskedFixes", intent.maskedFixes),
       ...renderAlignmentLine(intent.alignment),
     ];
     sections.push(
@@ -144,15 +148,14 @@ function wrapAnchorSections(
  * verdicts and reading order the single call reads too.
  */
 export function renderGroupingAnchorView(input: AnchorViewInput): string {
-  const { previousBrief, frozenGroupIds } = input;
-  const frozenSet = new Set(frozenGroupIds);
+  const { previousBrief } = input;
 
   function describeFrozen(group: Brief["changeGroups"][number]): string {
     const categories = [
       group.dominantCategory,
       ...group.secondaryCategories,
     ].join(", ");
-    const { files } = groupFacts(previousBrief, group.id);
+    const { files } = collectGroupFacts(previousBrief, group.id);
     const paths = files.map(sanitizeUntrustedText).join(", ") || "(none)";
     return `- ${group.id} [${categories}] ${sanitizeUntrustedText(group.title)}\n  files: ${paths}`;
   }
@@ -161,14 +164,9 @@ export function renderGroupingAnchorView(input: AnchorViewInput): string {
     return `${describeFrozen(group)}\n  previous summary: ${summary}`;
   }
 
-  const frozen = previousBrief.changeGroups
-    .filter((group) => frozenSet.has(group.id))
-    .map(describeFrozen)
-    .join("\n");
-  const reLook = previousBrief.changeGroups
-    .filter((group) => !frozenSet.has(group.id))
-    .map(describeReLook)
-    .join("\n");
+  const groups = partitionChangeGroups(input);
+  const frozen = groups.frozen.map(describeFrozen).join("\n");
+  const reLook = groups.reLook.map(describeReLook).join("\n");
 
   const sections: string[] = [
     `## Anchor, previous brief (revision _${previousBrief.index})`,
