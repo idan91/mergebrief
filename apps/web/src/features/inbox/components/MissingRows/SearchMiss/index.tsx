@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { SearchMissKinds, type SearchMissReason } from "../../types";
+import { SearchMissKinds, type SearchMissReason } from "../../../types";
 
 export interface SearchMissProps {
   /** Why the search shows no rows, with the count it names. */

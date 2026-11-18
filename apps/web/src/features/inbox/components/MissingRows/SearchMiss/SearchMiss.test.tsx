@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SearchMissKinds, type SearchMissReason } from "../../types";
+import { SearchMissKinds, type SearchMissReason } from "../../../types";
 import { SearchMiss } from ".";
 
 afterEach(cleanup);

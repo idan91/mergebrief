@@ -9,7 +9,7 @@ import {
 import type { InboxPage, InboxSearch, InboxSearchChange } from "../../types";
 import { readSearchMissReason } from "../../utils";
 import { EmptyInbox, type EmptyInboxProps } from "../EmptyInbox";
-import { SearchMiss } from "../SearchMiss";
+import { SearchMiss } from "./SearchMiss";
 
 export interface MissingRowsProps {
   page: InboxPage;
