@@ -337,6 +337,7 @@ function SignedInHome({
                 changedCount={changedCount}
                 filters={controls.filters}
                 sort={controls.sort}
+                direction={controls.direction}
                 layout={controls.layout}
                 searchTextOverride={state.searchTextOverride}
                 searchText={state.choices.searchText}

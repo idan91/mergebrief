@@ -53,6 +53,7 @@ describe("Controls", () => {
         changedCount={0}
         filters={[makeFilter("review", "Review")]}
         layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
         sort={makeFilter("sort", "Sort")}
         searchTextOverride={NO_OVERRIDE}
         searchText=""
@@ -87,6 +88,7 @@ describe("Controls", () => {
           { ...makeFilter("author", "Author"), underMore: true },
         ]}
         layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
         sort={makeFilter("sort", "Sort")}
         searchTextOverride={NO_OVERRIDE}
         searchText=""
@@ -116,6 +118,7 @@ describe("Controls", () => {
           { ...makeFilter("list", "List"), underMore: true },
         ]}
         layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
         sort={makeFilter("sort", "Sort")}
         searchTextOverride={NO_OVERRIDE}
         searchText=""
@@ -138,6 +141,7 @@ describe("Controls", () => {
         changedCount={2}
         filters={[{ ...makeFilter("review", "Review"), changed: true }]}
         layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
         sort={makeFilter("sort", "Sort")}
         searchTextOverride={NO_OVERRIDE}
         searchText="anchor"

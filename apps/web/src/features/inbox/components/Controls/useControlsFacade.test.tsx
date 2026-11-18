@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
-import { InboxSorts } from "types/inbox";
+import { InboxSortDirections, InboxSorts } from "types/inbox";
 import { describe, expect, it, vi } from "vitest";
 
 import { parseInboxSearch, readInboxChoices } from "../../search";
@@ -67,6 +67,42 @@ describe("useControlsFacade", () => {
       changed: true,
       chosen: [InboxSorts.GENERATED],
     });
+  });
+
+  it("the sort offers Created after the two it had", () => {
+    const { facade } = renderFacade(makePage());
+
+    expect(facade.sort.options.map((option) => option.value)).toEqual([
+      InboxSorts.UPDATED,
+      InboxSorts.GENERATED,
+      InboxSorts.CREATED,
+    ]);
+  });
+
+  it("the direction is changed only while it runs oldest first", () => {
+    const atDefault = renderFacade(makePage());
+    const oldest = renderFacade(makePage(), { direction: "asc" });
+
+    expect(atDefault.facade.direction).toMatchObject({
+      changed: false,
+      chosen: [InboxSortDirections.DESCENDING],
+    });
+    expect(oldest.facade.direction).toMatchObject({
+      changed: true,
+      chosen: [InboxSortDirections.ASCENDING],
+    });
+  });
+
+  it("choosing a direction writes it, and newest first unsets it", () => {
+    const { facade, write } = renderFacade(makePage(), { direction: "asc" });
+
+    facade.direction.onChoose(InboxSortDirections.ASCENDING);
+    facade.direction.onChoose(InboxSortDirections.DESCENDING);
+
+    expect(write.mock.calls).toEqual([
+      [{ direction: InboxSortDirections.ASCENDING }],
+      [{ direction: undefined }],
+    ]);
   });
 
   it("every list filter leads with an All row that clears it", () => {

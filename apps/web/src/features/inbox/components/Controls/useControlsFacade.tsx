@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   InboxLayouts,
@@ -177,10 +178,11 @@ export function useControlsFacade(
 
   const sort: FilterView = {
     id: "sort",
-    name: t("home.filters.sort"),
+    name: t("home.filters.sortBy"),
     options: [
       { value: InboxSorts.UPDATED, label: t("home.filters.sortUpdated") },
       { value: InboxSorts.GENERATED, label: t("home.filters.sortGenerated") },
+      { value: InboxSorts.CREATED, label: t("home.filters.sortCreated") },
     ],
     chosen: [choices.sort],
     multiple: false,
@@ -191,6 +193,29 @@ export function useControlsFacade(
       write({
         sort: chosenSort === InboxSorts.UPDATED ? undefined : chosenSort,
       });
+    },
+  };
+
+  const direction: FilterView = {
+    id: "direction",
+    name: t("home.filters.sortOrder"),
+    options: [
+      {
+        value: InboxSortDirections.DESCENDING,
+        label: t("home.filters.sortNewestFirst"),
+      },
+      {
+        value: InboxSortDirections.ASCENDING,
+        label: t("home.filters.sortOldestFirst"),
+      },
+    ],
+    chosen: [choices.direction],
+    multiple: false,
+    changed: search.direction !== undefined,
+    onChoose: (value) => {
+      const chosenDirection = readKnown(value, InboxSortDirections);
+      const newestFirst = chosenDirection === InboxSortDirections.DESCENDING;
+      write({ direction: newestFirst ? undefined : chosenDirection });
     },
   };
 
@@ -212,5 +237,5 @@ export function useControlsFacade(
     },
   };
 
-  return { filters, sort, layout };
+  return { filters, sort, direction, layout };
 }

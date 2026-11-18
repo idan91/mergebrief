@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Dropdown } from "@web/components/Dropdown";
+import { Dropdown, type DropdownProps } from "@web/components/Dropdown";
 import { FilterRows } from "../FilterRows";
 import filterStyles from "../trigger.module.scss";
 import type { FilterState, FilterView } from "../types";
@@ -12,6 +12,7 @@ export interface GroupedFiltersProps {
   label: string;
   state: FilterState;
   sheet?: boolean;
+  placement?: DropdownProps["placement"];
   /** What the trigger shows. */
   children: ReactNode;
 }
@@ -22,6 +23,7 @@ export function GroupedFilters({
   label,
   state,
   sheet,
+  placement,
   children,
 }: GroupedFiltersProps) {
   const selection = deriveCollapsedSelection(filters);
@@ -29,6 +31,7 @@ export function GroupedFilters({
   return (
     <Dropdown
       multiple
+      placement={placement}
       value={selection.value}
       onValueChange={selection.onValueChange}
     >
