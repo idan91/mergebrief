@@ -13,12 +13,6 @@ import {
 import { HttpMethods, HttpStatuses } from "types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  FIXTURE_BASE_SHA,
-  FIXTURE_GROUP_TITLES,
-  FIXTURE_REV1_HEAD,
-  FIXTURE_REV2_HEAD,
-} from "../../../e2e/fixtures/ids";
 import { parseViewer } from "@web/features/account/schemas";
 import { ViewerStates } from "@web/features/account/types";
 import {
@@ -37,17 +31,22 @@ import { spendViewSchema } from "@web/features/settings/schemas";
 import { tokensViewSchema } from "@web/features/tokens/schemas";
 import { parseVersion } from "@web/features/version/schemas";
 import { answerDemoRequest } from "./answers";
+import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
 import { DEMO_PR, DEMO_VIEWER_LOGIN } from "./consts";
 import type { PullReadId } from "./types";
 
 const ORIGIN = "http://demo.local";
-const REV2_SPAN = `base=${FIXTURE_BASE_SHA}&head=${FIXTURE_REV2_HEAD}`;
-const REV1_SPAN = `base=${FIXTURE_BASE_SHA}&head=${FIXTURE_REV1_HEAD}`;
-const PREVIOUS_BRIEF_SPAN = `base=${FIXTURE_REV1_HEAD}&head=${FIXTURE_REV2_HEAD}`;
-const BRIEF_PAGE_FILE =
-  "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx";
-const HEADER_FILE = "apps/web/src/features/brief/components/Header/Header.tsx";
-const VIEW_MODEL_FILE = "apps/web/src/features/brief/viewModel.ts";
+const REV2_SPAN = `base=${DEMO_BASE_SHA}&head=${DEMO_REV2_HEAD}`;
+const REV1_SPAN = `base=${DEMO_BASE_SHA}&head=${DEMO_REV1_HEAD}`;
+const PREVIOUS_BRIEF_SPAN = `base=${DEMO_REV1_HEAD}&head=${DEMO_REV2_HEAD}`;
+const HANDLER_FILE = "apps/api/src/routes/auth/sessions/handler.ts";
+const CONTROLLER_FILE = "apps/api/src/routes/auth/sessions/controller.ts";
+const MENU_FILE =
+  "apps/web/src/features/account/components/AccountMenu/AccountMenu.tsx";
+const ENDPOINT_GROUP_TITLE = "Add DELETE /api/auth/sessions revoke-all action";
+const MENU_GROUP_TITLE = "Add Sign out everywhere row to the Account menu";
+const REV1_FILE_COUNT = 13;
+const REV2_FILE_COUNT = 18;
 
 function readGet(path: string): Response {
   return answerDemoRequest(HttpMethods.GET, new URL(path, ORIGIN));
@@ -67,6 +66,34 @@ async function readDiffFiles(
   const response = readPullOperation(ProductQueryIds.READ_DIFF, span);
   expect(response.status).toBe(HttpStatuses.OK);
   return splitUnifiedDiffByFile(await response.text());
+}
+
+const HUNK_NEW_START = /^@@ -\d+(?:,\d+)? \+(\d+)/;
+
+/** The new-side line numbers of the rows a patch adds. */
+function readAddedLines(patch: string): ReadonlySet<number> {
+  const added = new Set<number>();
+  let nextLine: number | undefined;
+
+  for (const row of patch.split("\n")) {
+    const start = HUNK_NEW_START.exec(row)?.[1];
+    if (start !== undefined) {
+      nextLine = Number(start);
+      continue;
+    }
+    if (nextLine === undefined) {
+      continue;
+    }
+    if (row.startsWith("-") || row.startsWith("\\")) {
+      continue;
+    }
+    if (row.startsWith("+")) {
+      added.add(nextLine);
+    }
+    nextLine += 1;
+  }
+
+  return added;
 }
 
 afterEach(() => {
@@ -109,10 +136,10 @@ describe("answerDemoRequest reads", () => {
     const meta = prSummarySchema.parse(body);
 
     expect(meta.revisions?.map((revision) => revision.headSha)).toEqual([
-      FIXTURE_REV1_HEAD,
-      FIXTURE_REV2_HEAD,
+      DEMO_REV1_HEAD,
+      DEMO_REV2_HEAD,
     ]);
-    expect(meta.headSha).toBe(FIXTURE_REV2_HEAD);
+    expect(meta.headSha).toBe(DEMO_REV2_HEAD);
     expect(meta.comparisons?.previousBrief).toMatchObject({
       kind: "available",
       narrativeAvailable: true,
@@ -126,7 +153,7 @@ describe("answerDemoRequest reads", () => {
     const earlier = readPullOperation(ProductQueryIds.READ_BRIEF, REV1_SPAN);
     const unknown = readPullOperation(
       ProductQueryIds.READ_BRIEF,
-      `base=${FIXTURE_BASE_SHA}&head=deadbeef`,
+      `base=${DEMO_BASE_SHA}&head=deadbeef`,
     );
 
     const parsedLatest = parseBrief(await latest.text());
@@ -135,8 +162,11 @@ describe("answerDemoRequest reads", () => {
     expect(
       parsedLatest.ok &&
         parsedLatest.value.changeGroups.map((group) => group.title),
-    ).toEqual([...FIXTURE_GROUP_TITLES]);
-    expect(parsedEarlier.ok && parsedEarlier.value.index).toBe(1);
+    ).toEqual([ENDPOINT_GROUP_TITLE, MENU_GROUP_TITLE]);
+    expect(
+      parsedEarlier.ok &&
+        parsedEarlier.value.changeGroups.map((group) => group.title),
+    ).toEqual([ENDPOINT_GROUP_TITLE]);
     expect(unknown.status).toBe(HttpStatuses.NOT_FOUND);
   });
 
@@ -144,28 +174,21 @@ describe("answerDemoRequest reads", () => {
     const earlier = await readDiffFiles(REV1_SPAN);
     const latest = await readDiffFiles(REV2_SPAN);
 
-    expect([...earlier.keys()]).toEqual([BRIEF_PAGE_FILE, HEADER_FILE]);
-    expect([...latest.keys()]).toEqual([
-      BRIEF_PAGE_FILE,
-      HEADER_FILE,
-      VIEW_MODEL_FILE,
-    ]);
+    expect(earlier.size).toBe(REV1_FILE_COUNT);
+    expect(latest.size).toBe(REV2_FILE_COUNT);
+    expect(earlier.has(MENU_FILE)).toBe(false);
+    expect(latest.has(MENU_FILE)).toBe(true);
   });
 
-  it("serves the previous-brief span without the unchanged Header file", async () => {
+  it("serves the previous-brief span without the files it left alone", async () => {
+    const earlier = await readDiffFiles(REV1_SPAN);
     const latest = await readDiffFiles(REV2_SPAN);
     const previousBrief = await readDiffFiles(PREVIOUS_BRIEF_SPAN);
 
-    expect([...previousBrief.keys()]).toEqual([
-      BRIEF_PAGE_FILE,
-      VIEW_MODEL_FILE,
-    ]);
-    expect(previousBrief.get(BRIEF_PAGE_FILE)).not.toBe(
-      latest.get(BRIEF_PAGE_FILE),
-    );
-    expect(previousBrief.get(VIEW_MODEL_FILE)).toBe(
-      latest.get(VIEW_MODEL_FILE),
-    );
+    expect(previousBrief.has(CONTROLLER_FILE)).toBe(false);
+    expect(previousBrief.get(HANDLER_FILE)).not.toBe(latest.get(HANDLER_FILE));
+    expect(previousBrief.get(MENU_FILE)).toBe(latest.get(MENU_FILE));
+    expect(earlier.get(CONTROLLER_FILE)).toBe(latest.get(CONTROLLER_FILE));
   });
 
   it.each([
@@ -180,10 +203,10 @@ describe("answerDemoRequest reads", () => {
   it.each([
     {
       name: "reversed",
-      span: `base=${FIXTURE_REV2_HEAD}&head=${FIXTURE_REV1_HEAD}`,
+      span: `base=${DEMO_REV2_HEAD}&head=${DEMO_REV1_HEAD}`,
     },
-    { name: "unknown head", span: `base=${FIXTURE_BASE_SHA}&head=deadbeef` },
-    { name: "baseless", span: `head=${FIXTURE_REV2_HEAD}` },
+    { name: "unknown head", span: `base=${DEMO_BASE_SHA}&head=deadbeef` },
+    { name: "baseless", span: `head=${DEMO_REV2_HEAD}` },
   ])("refuses the $name diff span as not found", async ({ span }) => {
     const response = readPullOperation(ProductQueryIds.READ_DIFF, span);
 
@@ -197,11 +220,11 @@ describe("answerDemoRequest reads", () => {
   it("serves the previous-brief marks and the revision narrative", async () => {
     const marks = readPullOperation(
       ProductQueryIds.READ_MARKS,
-      `baseline=${FIXTURE_REV1_HEAD}&head=${FIXTURE_REV2_HEAD}`,
+      `baseline=${DEMO_REV1_HEAD}&head=${DEMO_REV2_HEAD}`,
     );
     const narrative = readPullOperation(
       ProductQueryIds.READ_NARRATIVE,
-      `prevHead=${FIXTURE_REV1_HEAD}&head=${FIXTURE_REV2_HEAD}`,
+      `prevHead=${DEMO_REV1_HEAD}&head=${DEMO_REV2_HEAD}`,
     );
 
     expect(parseComparisonMarks(await marks.json()).ok).toBe(true);
@@ -240,10 +263,31 @@ describe("answerDemoRequest reads", () => {
     expect(conversation.threads.length).toBeGreaterThanOrEqual(2);
     expect(
       conversation.threads.some(
-        (thread) => thread.isOutdated && thread.anchorSha === FIXTURE_REV1_HEAD,
+        (thread) => thread.isOutdated && thread.anchorSha === DEMO_REV1_HEAD,
       ),
     ).toBe(true);
     expect(conversation.reviews).toHaveLength(2);
+  });
+
+  it("anchors every placed thread on a line its revision adds", async () => {
+    const conversation = prConversationSchema.parse(
+      await readPullOperation(ProductQueryIds.READ_CONVERSATION).json(),
+    );
+    const latest = await readDiffFiles(REV2_SPAN);
+    const placed = conversation.threads.filter(
+      (thread) => thread.line !== undefined,
+    );
+
+    const offDiff = placed.filter((thread) => {
+      const addedLines = readAddedLines(latest.get(thread.path) ?? "");
+      return !addedLines.has(thread.line ?? Number.NaN);
+    });
+
+    expect(placed.length).toBeGreaterThan(0);
+    expect(placed.every((thread) => thread.anchorSha === DEMO_REV2_HEAD)).toBe(
+      true,
+    );
+    expect(offDiff.map((thread) => thread.rootCommentId)).toEqual([]);
   });
 
   it("serves a bot reviewer's threads, some open and some resolved", async () => {
@@ -276,7 +320,7 @@ describe("answerDemoRequest reads", () => {
     );
     const range = readPullOperation(
       ProductQueryIds.READ_FILE_RANGE,
-      `ref=${FIXTURE_REV2_HEAD}&path=README.md&from=1&to=10`,
+      `ref=${DEMO_REV2_HEAD}&path=README.md&from=1&to=10`,
     );
 
     expect(session.status).toBe(HttpStatuses.NOT_FOUND);

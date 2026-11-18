@@ -13,7 +13,7 @@ import {
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FIXTURE_PR_PATH } from "../e2e/fixtures/ids";
+import { DEMO_PR_PATH } from "../src/demo/api/consts";
 import { DEMO_OUT_DIR, DEMO_SHELL_PAGE } from "../vite.demo.config";
 
 const webDir = fileURLToPath(new URL("..", import.meta.url));
@@ -28,7 +28,7 @@ const HEADERS_FILE = "_headers";
 const NO_INDEX_HEADERS = "/*\n  X-Robots-Tag: noindex\n";
 const VITE_CONFIG = "vite.demo.config.ts";
 /** Every address the demo can land on with a full page load. */
-const ROUTE_PATHS = [FIXTURE_PR_PATH, "/settings"];
+const ROUTE_PATHS = [DEMO_PR_PATH, "/settings"];
 
 function runViteBuild(): void {
   const result = spawnSync(
