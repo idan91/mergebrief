@@ -2,7 +2,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { InboxArchivedFilters } from "types/inbox";
 
 import { GhostMark } from "@web/components/GhostMark";
 import { Header } from "@web/components/Header";
@@ -20,8 +19,7 @@ import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/model";
 import {
   Controls,
-  EmptyInbox,
-  type EmptyInboxProps,
+  MissingRows,
   FailedInbox,
   FailedReadLine,
   InboxList,
@@ -29,7 +27,6 @@ import {
   NoInstallationLine,
   Pager,
   PersonalLine,
-  SearchMiss,
   UrlBox,
   useControlsFacade,
   useInboxSearchState,
@@ -42,24 +39,18 @@ import {
 } from "../features/inbox/queries";
 import {
   countChangedFilters,
-  EVERY_STATUS_PARAM,
-  hasDefaultStatus,
   parseInboxSearch,
   readInboxParams,
-  widenInboxFilters,
-  type InboxChoices,
 } from "../features/inbox/search";
 import {
   InboxEmptinesses,
   InboxStates,
   type InboxPage,
   type InboxSearch,
-  type InboxSearchChange,
 } from "../features/inbox/types";
 import {
   readFailedReadCode,
   readInboxEmptiness,
-  readSearchMissReason,
 } from "../features/inbox/utils";
 import type { ApiErrorCode } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
@@ -261,73 +252,6 @@ function HomeShell({ children, shortcuts }: HomeShellProps) {
         />
       )}
     </div>
-  );
-}
-
-export interface MissingRowsProps {
-  page: InboxPage;
-  search: InboxSearch;
-  choices: InboxChoices;
-  /** Why no row shows while rows exist. */
-  emptiness: EmptyInboxProps["reason"];
-  onWrite: (change: InboxSearchChange) => void;
-  onClear: () => void;
-  /** A search miss action ran; its button leaves with the miss, so focus needs a node that stays. */
-  onSearchMissAction: () => void;
-}
-
-/**
- * What stands where the rows would be: why a search shows none, with the
- * way to its matches; else why the filters or the view show none.
- */
-function MissingRows({
-  page,
-  search,
-  choices,
-  emptiness,
-  onWrite,
-  onClear,
-  onSearchMissAction,
-}: MissingRowsProps) {
-  const archivedView = choices.archived === InboxArchivedFilters.ONLY;
-  const otherView = archivedView
-    ? InboxArchivedFilters.HIDE
-    : InboxArchivedFilters.ONLY;
-  const missReason = readSearchMissReason(
-    page,
-    choices.searchText,
-    choices.archived,
-  );
-
-  function writeFromMiss(change: InboxSearchChange): void {
-    onWrite(change);
-    onSearchMissAction();
-  }
-
-  if (missReason !== undefined) {
-    return (
-      <SearchMiss
-        archivedView={archivedView}
-        reason={missReason}
-        searchText={choices.searchText}
-        onClearSearch={() => writeFromMiss({ q: undefined })}
-        onShowAllMatches={() =>
-          writeFromMiss(widenInboxFilters(choices.archived))
-        }
-        onShowOtherView={() => writeFromMiss(widenInboxFilters(otherView))}
-      />
-    );
-  }
-  return (
-    <EmptyInbox
-      archivedTotal={page.archivedTotal}
-      defaultStatus={hasDefaultStatus(search)}
-      reason={emptiness}
-      onClear={onClear}
-      onShowArchived={() => onWrite({ archived: InboxArchivedFilters.ONLY })}
-      onShowHidden={() => onWrite({ state: EVERY_STATUS_PARAM })}
-      onShowInbox={() => onWrite({ archived: undefined })}
-    />
   );
 }
 

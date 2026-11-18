@@ -7,7 +7,7 @@ export {
   type PersonalLineProps,
 } from "./components/PersonalLine";
 export { Controls, type ControlsProps } from "./components/Controls";
-export { EmptyInbox, type EmptyInboxProps } from "./components/EmptyInbox";
+export { MissingRows, type MissingRowsProps } from "./components/MissingRows";
 export { FailedInbox, type FailedInboxProps } from "./components/FailedInbox";
 export {
   FailedReadLine,
@@ -19,7 +19,6 @@ export {
 } from "./components/NoInstallationLine";
 export { useControlsFacade } from "./components/Controls/useControlsFacade";
 export { Pager, type PagerProps } from "./components/Pager";
-export { SearchMiss, type SearchMissProps } from "./components/SearchMiss";
 export { UrlBox } from "./components/UrlBox";
 export { useInboxSearchState } from "./hooks/useInboxSearchState";
 export { useHomeShortcuts } from "./hooks/useHomeShortcuts";
