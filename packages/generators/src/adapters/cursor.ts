@@ -135,7 +135,7 @@ export class CursorGenerator implements Generator {
     // The CLI has no schema flag, so the wire schema rides the PROMPT,
     // this adapter's equivalent of claude's --json-schema / codex's
     // --output-schema. Without it the model is told to conform to a schema
-    // it never received (prompt.ts says "the provided JSON schema").
+    // it never received (the system prompt says "the provided JSON schema").
     let wireSchema: Record<string, unknown>;
     try {
       wireSchema = enumPreservingJsonSchema(req.schema);

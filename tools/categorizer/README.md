@@ -121,7 +121,7 @@ Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename
 |---|---|
 | `packages/brief-core/src/types.ts` | Zod brief + delta schemas: the closed vocabulary, the heart |
 | `src/github/` | `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
-| `packages/brief-core/src/generation/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
+| `packages/brief-core/src/generation/prompt/` | brief + delta system prompts, assembled from the schema constants so they can't drift |
 | `packages/brief-core/src/generation/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
 | `src/artifacts/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
 | `src/artifacts/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |

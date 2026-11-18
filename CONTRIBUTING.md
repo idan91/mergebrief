@@ -103,7 +103,8 @@ renames, or removes one) must update the mirrors in the same PR:
   output schema validates against.
 - `packages/types/src/reviews.ts`: the closed Category map. A database CHECK in
   `packages/persistence` reads it, so a Category change also needs a migration.
-- `packages/brief-core/src/generation/prompt.ts`: the description maps interpolated into the prompt.
+- `packages/brief-core/src/generation/prompt/sections.ts` and `prompt/features.ts`: the description
+  maps interpolated into the prompt.
 - `packages/i18n/src/locales/en.json`: the `brief.category.*` and `brief.risk.*` labels the web
   app shows. Its label maps are keyed by the code maps, so a missing label fails typecheck.
 - `packages/repo-config/src/constants.ts`: `FLOOR_ATTRIBUTES` and `PARKED_ATTRIBUTE_CANDIDATES`,
