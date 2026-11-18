@@ -1,22 +1,22 @@
-import { FIXTURE_PR_TITLE } from "../../../e2e/fixtures/ids";
-
-/** The fixture set's one pull request, as the seeded database identifies it. */
+/** The example pull request, as the demo's answers identify it. The repository id is made up. */
 export const DEMO_PR = {
   repoId: "424242",
-  repoSlug: "mergebrief/e2e-fixture",
-  prNumber: 1,
-  title: FIXTURE_PR_TITLE,
-  authorLogin: "e2e-author",
+  repoSlug: "idan91/mergebrief",
+  prNumber: 625,
+  authorLogin: "idan91",
   installationId: "7001",
-  installationAccount: "mergebrief",
+  installationAccount: "idan91",
 } as const;
+
+/** The brief's address inside the demo, and where the demo opens. */
+export const DEMO_PR_PATH = `/repos/${DEMO_PR.repoId}/pulls/${String(DEMO_PR.prNumber)}`;
 
 export const DEMO_VIEWER_LOGIN = "demo-reviewer";
 
 export const DEMO_VERSION = "0.1.0";
 
-/** The thread author the committed fixture comments already name. */
-export const FIXTURE_REVIEWER_LOGIN = "fixture-reviewer";
+/** A made-up colleague: the person whose review the demo's conversation holds. */
+export const DEMO_REVIEWER_LOGIN = "mira-k";
 
 /** Auth bootstrap paths sit outside the operation table. */
 export const AUTH_SESSION_PATH = "/api/auth/session";

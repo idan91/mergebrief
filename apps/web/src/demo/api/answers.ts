@@ -9,13 +9,8 @@ import {
 import { HttpMethods } from "types";
 
 import { parseFileDiffPatches } from "@web/features/brief/model";
-import {
-  FIXTURE_BASE_SHA,
-  FIXTURE_REV1_HEAD,
-  FIXTURE_REV2_HEAD,
-} from "../../../e2e/fixtures/ids";
-import revisionNarrativeText from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_2_22222222.revision-narrative.json?raw";
-import comparisonMarksText from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_previous-brief_11111111-22222222.comparison.json?raw";
+import { revisionNarrativeText, revisionSpanMarksText } from "./briefs";
+import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
 import {
   AUTH_LOGOUT_PATH,
   AUTH_SESSION_PATH,
@@ -59,7 +54,7 @@ function answerBrief(query: URLSearchParams): Response {
   const head = query.get("head");
   const text = head === null ? undefined : briefTextByHead[head];
   const base = query.get("base");
-  const unknownSpan = text === undefined || base !== FIXTURE_BASE_SHA;
+  const unknownSpan = text === undefined || base !== DEMO_BASE_SHA;
   if (unknownSpan) {
     return answerRefusal(ApiErrorCodes.NOT_FOUND);
   }
@@ -92,15 +87,15 @@ function answerDiff(query: URLSearchParams): Response {
 }
 
 function answerMarks(query: URLSearchParams): Response {
-  const span = { baseline: FIXTURE_REV1_HEAD, head: FIXTURE_REV2_HEAD };
+  const span = { baseline: DEMO_REV1_HEAD, head: DEMO_REV2_HEAD };
   if (!matchesQuery(query, span)) {
     return answerRefusal(ApiErrorCodes.NOT_FOUND);
   }
-  return answerStoredJson(comparisonMarksText);
+  return answerStoredJson(revisionSpanMarksText);
 }
 
 function answerNarrative(query: URLSearchParams): Response {
-  const span = { prevHead: FIXTURE_REV1_HEAD, head: FIXTURE_REV2_HEAD };
+  const span = { prevHead: DEMO_REV1_HEAD, head: DEMO_REV2_HEAD };
   if (!matchesQuery(query, span)) {
     return answerRefusal(ApiErrorCodes.NOT_FOUND);
   }
