@@ -151,6 +151,8 @@ export interface InboxQueryParams {
   readonly author?: InboxAuthorFilter;
   readonly installation?: readonly string[];
   readonly archived?: InboxArchivedFilter;
+  /** The search text, trimmed and within the wire's bound. */
+  readonly q?: string;
 }
 
 /**
@@ -167,6 +169,8 @@ export interface InboxSearch {
   readonly author?: InboxAuthorFilter;
   readonly installation?: string;
   readonly archived?: InboxArchivedFilter;
+  /** The search text; whole digits ride as a number so the router prints them bare. */
+  readonly q?: string | number;
   /** Why the last sign-in failed; only a signed-out Home carries it. */
   readonly error?: SignInFailure;
 }

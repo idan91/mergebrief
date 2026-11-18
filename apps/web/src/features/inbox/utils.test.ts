@@ -57,6 +57,10 @@ describe("buildInboxSearch", () => {
     ).toBe("?page=3&sort=generated&state=open&state=draft&review=updated");
   });
 
+  it("sends the search text as q", () => {
+    expect(buildInboxSearch({ q: "anchor #141" })).toBe("?q=anchor+%23141");
+  });
+
   it("leaves page 1 and an empty list out", () => {
     expect(buildInboxSearch({ page: 1, repo: [] })).toBe("");
   });

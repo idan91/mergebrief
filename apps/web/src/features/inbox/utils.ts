@@ -57,6 +57,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
   if (params.archived !== undefined) {
     search.set(InboxQueryKeys.ARCHIVED, params.archived);
   }
+  if (params.q !== undefined) {
+    search.set(InboxQueryKeys.SEARCH_TEXT, params.q);
+  }
 
   const text = search.toString();
   return text === "" ? "" : `?${text}`;

@@ -31,6 +31,9 @@ const FIRST_PAGE = 1;
 const ID_PATTERN = /^[0-9]{1,19}$/;
 const MAX_PAGE = InboxQueryBounds.MAX_PAGE;
 const MAX_LIST_VALUES = InboxQueryBounds.MAX_FILTER_VALUES;
+const MAX_SEARCH_TEXT_LENGTH = InboxQueryBounds.MAX_SEARCH_TEXT_LENGTH;
+/** Digits the router reads as a number and prints back unchanged. */
+const BARE_NUMBER_PATTERN = /^(?:0|[1-9][0-9]{0,14})$/;
 
 /** The opening view: open and draft rows, everyone's, most recently updated first. */
 export const DEFAULT_STATES: readonly InboxStatus[] = [
@@ -105,6 +108,26 @@ function readPage(value: unknown): number | undefined {
   return page;
 }
 
+/** Trimmed and cut to the wire's bound by whole characters, as the API cuts it. */
+export function shapeSearchText(text: string): string {
+  const characters = Array.from(text.trim()).slice(0, MAX_SEARCH_TEXT_LENGTH);
+  return characters.join("").trimEnd();
+}
+
+/** The router decodes `q=141`, `q=true` and `q=null` as JSON; each reads back as the text typed. */
+function readSearchText(value: unknown): string | undefined {
+  const typed =
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null;
+  if (!typed) {
+    return undefined;
+  }
+  const text = shapeSearchText(String(value));
+  return text === "" ? undefined : text;
+}
+
 function readIds(value: unknown): readonly string[] {
   return readList(value).filter((id) => ID_PATTERN.test(id));
 }
@@ -127,6 +150,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   const author = readOne(search["author"], InboxAuthorFilters);
   const installations = readIds(search["installation"]);
   const archived = readOne(search["archived"], InboxArchivedFilters);
+  const searchText = readSearchText(search["q"]);
   const error = readOne(search[SIGN_IN_FAILURE_PARAM], SignInFailures);
 
   if (page !== undefined) {
@@ -155,6 +179,11 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   }
   if (archived !== undefined && archived !== InboxArchivedFilters.HIDE) {
     parsed.archived = archived;
+  }
+  if (searchText !== undefined) {
+    parsed.q = BARE_NUMBER_PATTERN.test(searchText)
+      ? Number(searchText)
+      : searchText;
   }
   if (error !== undefined) {
     parsed.error = error;
@@ -206,6 +235,9 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
   if (search.archived !== undefined) {
     params.archived = search.archived;
   }
+  if (search.q !== undefined) {
+    params.q = String(search.q);
+  }
   return params;
 }
 
@@ -220,6 +252,8 @@ export interface InboxChoices {
   readonly author: InboxAuthorFilter;
   readonly installations: readonly string[];
   readonly archived: InboxArchivedFilter;
+  /** Empty when the reviewer is not searching. */
+  readonly searchText: string;
 }
 
 export function readInboxChoices(search: InboxSearch): InboxChoices {
@@ -234,6 +268,7 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
     author: params.author ?? InboxAuthorFilters.ALL,
     installations: params.installation ?? [],
     archived: params.archived ?? InboxArchivedFilters.HIDE,
+    searchText: params.q ?? "",
   };
 }
 
@@ -258,6 +293,7 @@ export function countChangedFilters(search: InboxSearch): number {
     "author",
     "installation",
     "archived",
+    "q",
   ];
   return keys.filter((key) => search[key] !== undefined).length;
 }

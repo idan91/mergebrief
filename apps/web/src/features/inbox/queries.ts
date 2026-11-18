@@ -64,8 +64,9 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
     queryFn: async ({
       client,
       queryKey,
+      signal,
     }: QueryFunctionContext): Promise<InboxState> => {
-      const response = await apiFetch(path, SIGNED_OUT_READ);
+      const response = await apiFetch(path, { ...SIGNED_OUT_READ, signal });
       if (response.status === 401) {
         return { kind: InboxStates.SIGNED_OUT };
       }
@@ -90,6 +91,29 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
       return { kind: InboxStates.READY, page: parsed.value };
     },
   });
+}
+
+/**
+ * Stops the read of these params if `superseded` aborts before it settles:
+ * a newer navigation, such as the next pause in typing a search, asked for
+ * another list and nobody waits for this one.
+ */
+export function cancelInboxReadWhenSuperseded(
+  queryClient: QueryClient,
+  params: InboxQueryParams,
+  read: Promise<unknown>,
+  superseded: AbortSignal,
+): void {
+  const queryKey = buildInboxQueryOptions(params).queryKey;
+  function cancelRead(): void {
+    void queryClient.cancelQueries({ queryKey, exact: true });
+  }
+  function stopWatching(): void {
+    superseded.removeEventListener("abort", cancelRead);
+  }
+
+  superseded.addEventListener("abort", cancelRead, { once: true });
+  void read.then(stopWatching, stopWatching);
 }
 
 /** The inbox's state for these params as cached now, without a read; absent before the first. */
