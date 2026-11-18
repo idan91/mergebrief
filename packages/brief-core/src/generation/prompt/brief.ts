@@ -1,11 +1,9 @@
 import type { RepoContext } from "../repo-context";
 import {
-  INTENT_CHECK_FIELD_RULE,
-  INTENT_CHECK_SECTION,
-  MEDIA_NOTE_SECTION,
-  READING_ORDER_FIELD_RULE,
-  READING_ORDER_SECTION,
-  renderRiskSurfaceSection,
+  INTENT_CHECK_TEXT,
+  READING_ORDER_TEXT,
+  RISK_SURFACE_TEXT,
+  SUMMARY_MEDIA_TEXT,
 } from "./features";
 import {
   GROUP_TEXT_CAPS,
@@ -20,7 +18,6 @@ import {
   SUMMARY_FIELD_RULE,
   renderCategorySection,
   renderConcernSection,
-  renderRepoCustomAttributesSection,
   renderRepoInstructionsSection,
 } from "./sections";
 import type { BriefPromptOptions } from "./types";
@@ -43,7 +40,7 @@ function renderRepoContextSections(
     sections.push(renderRepoInstructionsSection());
   }
   if (repoContext.customAttributes.length > 0) {
-    sections.push(renderRepoCustomAttributesSection());
+    sections.push(RISK_SURFACE_TEXT.customAttributesSection);
   }
   return sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`;
 }
@@ -79,15 +76,15 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 - The ONE exception: previous text that exceeds its length cap. Shrink it to fit while keeping its facts — length compliance is a warranted change, and carrying an over-cap wall of text forward is not stability.
 - Add or change a changelog bullet only for a material increment.
 
-**Intent check — current ask, honest transitions:** re-evaluate every verdict against the CURRENT title/description/tickets, never the previous ask. Previous verdicts anchor your wording — keep their phrasing where the verdict is unchanged — but transitions always flip: a delivered ask leaves statedButMissing, an edited ask gets a fresh verdict, a new ask gets judged fresh.
+${INTENT_CHECK_TEXT.anchoredRule}
 
-**Checks dropped since the previous revision:** the PR diff runs from the base branch, so a check an earlier revision added and this revision removed appears on neither side of it. When the Anchor shows a guard, validation, or auth check that the current diff no longer has, the revision removed it: fire \`removes-validation\` on the chunk where the check used to sit, with a \`riskNotes\` entry saying the previous revision had it.
+${RISK_SURFACE_TEXT.anchoredRule}
 
-**Reading order — whole, over ALL ids (frozen ids included):** emit the ordering across every group in the final brief, using frozen ids from the Anchor index alongside your own group ids. Preserve the previous order, insert new groups where they belong, drop removed ids.`;
+${READING_ORDER_TEXT.anchoredRule}`;
 
 export function buildSystemPrompt(options: BriefPromptOptions = {}): string {
   const { repoContext, anchored = false, holdsMedia = false } = options;
-  const media = holdsMedia ? MEDIA_NOTE_SECTION : "";
+  const media = holdsMedia ? SUMMARY_MEDIA_TEXT.note : "";
   return `${buildFreshSystemPrompt(repoContext)}${media}${anchored ? ANCHORED_SECTION : ""}`;
 }
 
@@ -101,8 +98,8 @@ You will receive a PR's title, description, file list, and unified diff — and,
 ${SUMMARY_FIELD_RULE}
 - **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (core/supporting), **line ranges** (see below), and risk-surface attributes.
 - **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list chunk ids — each chunk attaches to it via its \`changeGroupId\`. Every group must have at least one core chunk.
-${READING_ORDER_FIELD_RULE}
-${INTENT_CHECK_FIELD_RULE}
+${READING_ORDER_TEXT.fieldRule}
+${INTENT_CHECK_TEXT.fieldRule}
 
 ${PR_TEXT_RULE}
 
@@ -116,7 +113,7 @@ ${renderConcernSection()}
 
 ${ROLE_SECTION}
 
-${renderRiskSurfaceSection()}
+${RISK_SURFACE_TEXT.section}
 
 ## Change-group boundary
 
@@ -131,11 +128,11 @@ ${GROUP_TEXT_CAPS}
 - **Docs that describe the PR's own change are supporting**: a README section, an AGENTS.md map, or a plan note documenting what the diff does attaches to the group it describes, even when it adds a whole new section. A doc is a core chunk only when documentation is itself the PR's purpose.
 ${STANDALONE_GROUP_RULE}
 
-${READING_ORDER_SECTION}
+${READING_ORDER_TEXT.section}
 
-${INTENT_CHECK_SECTION}
+${INTENT_CHECK_TEXT.section}
 
-${HONEST_UNCERTAINTY_SECTION}
+${HONEST_UNCERTAINTY_SECTION} ${INTENT_CHECK_TEXT.uncertaintyRule}
 
 ${LINE_RANGES_SECTION}${renderRepoContextSections(repoContext)}`;
 }

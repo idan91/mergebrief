@@ -1,6 +1,6 @@
 import { ChangeGroupCategories } from "types";
-import { Concerns, ModelRiskSurfaceAttributes } from "../../types";
-import { RISK_DESCRIPTIONS, RISK_NOTES_RULE } from "./features";
+import { Concerns } from "../../types";
+import { RISK_SURFACE_TEXT } from "./features";
 import {
   CATEGORY_DESCRIPTIONS,
   CONCERN_DESCRIPTIONS,
@@ -53,15 +53,7 @@ ${renderVocabularyBullets(Concerns, CONCERN_DESCRIPTIONS)}
 
 ${STYLE_FILES_CORE_RULE}
 
-## Risk surface — factual attributes per chunk (0..n; never verdicts)
-
-Attach an attribute only when the incremental diff supports it — and **be consistent with your own text: if you note a risk in the summary or \`wholePrImpact\` (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
-
-${renderVocabularyBullets(ModelRiskSurfaceAttributes, RISK_DESCRIPTIONS)}
-
-Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent. \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies.
-
-${RISK_NOTES_RULE}
+${RISK_SURFACE_TEXT.deltaSection}
 
 ## Chunks are sub-file
 

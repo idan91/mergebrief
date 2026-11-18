@@ -2,12 +2,10 @@ import { OutlineForms, type OutlineForm } from "../../types";
 import type { RepoContext } from "../repo-context";
 import { OUTLINE_LIMITS } from "../outline/consts";
 import {
-  INTENT_CHECK_FIELD_RULE,
-  INTENT_CHECK_SECTION,
-  MEDIA_NOTE_SECTION,
-  READING_ORDER_FIELD_RULE,
-  READING_ORDER_SECTION,
-  renderRiskSurfaceSection,
+  INTENT_CHECK_TEXT,
+  READING_ORDER_TEXT,
+  RISK_SURFACE_TEXT,
+  SUMMARY_MEDIA_TEXT,
 } from "./features";
 import {
   GROUP_TEXT_CAPS,
@@ -22,7 +20,6 @@ import {
   SUMMARY_FIELD_RULE,
   renderCategorySection,
   renderConcernSection,
-  renderRepoCustomAttributesSection,
   renderRepoInstructionsSection,
 } from "./sections";
 import type { BriefPromptOptions } from "./types";
@@ -40,8 +37,8 @@ This run UPDATES a previous brief for a new revision of the same PR. The user me
 - **Frozen groups are fixed.** The Anchor lists them as an index: id, categories, title, files. The pipeline carries them forward verbatim and the outline leaves their files out. Never list a frozen group in \`changeGroups\`, and never map a hunk to a frozen id: such an entry is discarded.
 - **Groups to re-examine** cover every file in the outline. Keep what still holds from their previous take and change only what the diff warrants. A new group takes an id that appears nowhere in the Anchor.
 - **Summary, minimal edit (HARD RULE):** copy the previous summary from the Anchor and edit only what the new material forces. A byte-identical summary is the expected default when nothing material changed; changed wording without changed facts is wrong output.
-- **Intent check:** re-judge every verdict against the CURRENT ask. Keep the previous wording where a verdict holds.
-- **Reading order, whole, over ALL ids:** order every group of the final brief, frozen ids from the Anchor included. Preserve the previous order, insert new groups where they belong, drop removed ids.`;
+${INTENT_CHECK_TEXT.groupingAnchoredRule}
+${READING_ORDER_TEXT.groupingAnchoredRule}`;
 
 /** A changed-lines form's input description, its numbers read off `OUTLINE_LIMITS`. */
 function describeTrimmedOutline(name: string, form: OutlineForm): string {
@@ -129,7 +126,7 @@ export function buildGroupingSystemPrompt(
   options: BriefPromptOptions = {},
 ): string {
   const { repoContext, anchored = false, holdsMedia = false } = options;
-  const media = holdsMedia ? MEDIA_NOTE_SECTION : "";
+  const media = holdsMedia ? SUMMARY_MEDIA_TEXT.note : "";
   const anchor = anchored ? GROUPING_ANCHORED_SECTION : "";
   return `${ROLE_INTRO}
 
@@ -148,8 +145,8 @@ ${SHORTENED_INPUT_RULE}
 ${SUMMARY_FIELD_RULE}
 - **changeGroups[]**: one group = the largest hunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list hunk ids — the hunk map below assigns hunks to it.
 - **hunkMap[]**: which hunks belong to which group — see "Hunk map" below.
-${READING_ORDER_FIELD_RULE}
-${INTENT_CHECK_FIELD_RULE}
+${READING_ORDER_TEXT.fieldRule}
+${INTENT_CHECK_TEXT.fieldRule}
 
 ${PR_TEXT_RULE}
 
@@ -163,11 +160,11 @@ ${GROUPING_BOUNDARY_SECTION}
 
 ${HUNK_MAP_SECTION}
 
-${READING_ORDER_SECTION}
+${READING_ORDER_TEXT.section}
 
-${INTENT_CHECK_SECTION}
+${INTENT_CHECK_TEXT.section}
 
-${HONEST_UNCERTAINTY_SECTION}${renderGroupingRepoSections(repoContext)}${media}${anchor}`;
+${HONEST_UNCERTAINTY_SECTION} ${INTENT_CHECK_TEXT.uncertaintyRule}${renderGroupingRepoSections(repoContext)}${media}${anchor}`;
 }
 
 const DETAIL_HUNK_MARKER_RULE = `Every hunk marker reads \`[hunk <id> -> <groupId>]\`: the grouping step assigned that hunk to \`<groupId>\`. **Every chunk drawn from a hunk takes that hunk's groupId as its \`changeGroupId\`.** Never invent a group id and never move a hunk to another group; a chunk the pipeline cannot place under a group of this batch leaves the brief.`;
@@ -179,7 +176,7 @@ function renderDetailRepoSections(
   if (repoContext === undefined || repoContext.customAttributes.length === 0) {
     return "";
   }
-  return `\n\n${renderRepoCustomAttributesSection()}`;
+  return `\n\n${RISK_SURFACE_TEXT.customAttributesSection}`;
 }
 
 /**
@@ -211,7 +208,7 @@ ${renderConcernSection()}
 
 ${ROLE_SECTION}
 
-${renderRiskSurfaceSection()}
+${RISK_SURFACE_TEXT.section}
 
 ${LINE_RANGES_SECTION}${renderDetailRepoSections(repoContext)}`;
 }
