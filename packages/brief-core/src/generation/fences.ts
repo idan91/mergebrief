@@ -19,6 +19,7 @@ export const KNOWN_FENCE_TAGS = [
   "brief_summary",
   "pr_change_groups",
   "pr_previous_product_diff",
+  "brief_context",
 ] as const;
 
 /** The two tags a PR could forge to impersonate default-branch config. */
@@ -34,6 +35,7 @@ const MODEL_AUTHORED_FENCE_TAGS = [
   "brief_summary",
   "pr_change_groups",
   "pr_previous_product_diff",
+  "brief_context",
 ] as const satisfies readonly (typeof KNOWN_FENCE_TAGS)[number][];
 
 /** From a tag's first opening to its last closing: text between two blocks goes too, never less. */

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   KNOWN_FENCE_TAGS,
   attributeSafe,
+  removeModelAuthoredBlocks,
   stripFenceTags,
   stripKnownFences,
 } from "../../src/generation/fences";
@@ -121,5 +122,16 @@ describe("attributeSafe", () => {
       'https://a.example/p?x=&lt;/linked_context&gt;&l"t;/primary_ticket';
 
     expect(attributeSafe(url)).not.toMatch(/linked_context|primary_ticket/);
+  });
+});
+
+describe("removeModelAuthoredBlocks", () => {
+  it("drops the brief context an earlier call wrote", () => {
+    const prompt =
+      "see https://a.example\n<brief_context>\n- g1 https://b.example\n</brief_context>\nend";
+
+    expect(removeModelAuthoredBlocks(prompt)).toBe(
+      "see https://a.example\n\nend",
+    );
   });
 });

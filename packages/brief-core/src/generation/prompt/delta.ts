@@ -8,6 +8,7 @@ import {
   PR_TEXT_RULE,
   STANDALONE_GROUP_RULE,
   STYLE_FILES_CORE_RULE,
+  THIRD_PARTY_TEXT_RULE,
   renderVocabularyBullets,
 } from "./sections";
 
@@ -30,6 +31,8 @@ You will receive the PR's title and description, the baseline and head SHAs, and
 - **wholePrImpact**: how this follow-up affects the overall PR — does it complete or alter the original intent, or introduce new risk not present at the baseline. Grounded in the diff; not a verdict.
 
 ${PR_TEXT_RULE}
+
+${THIRD_PARTY_TEXT_RULE}
 
 ## Review comments
 
