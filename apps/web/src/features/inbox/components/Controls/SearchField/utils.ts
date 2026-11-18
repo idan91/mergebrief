@@ -27,9 +27,8 @@ function isOutsideChange(state: SearchFieldState, urlText: string): boolean {
 
 /**
  * The state once the URL holds `urlText` and the filters were cleared
- * `clearCount` times. A Clear empties the field as a write of its own
- * would, since a search still loading never moved the URL for the field to
- * notice. The field's own write landing keeps what the reviewer typed
+ * `clearCount` times. A Clear empties the field itself, since a search
+ * still loading never moved the URL for the field to notice. The field's own write landing keeps what the reviewer typed
  * since and forgets that write with every one before it; a change from
  * outside replaces the text. The same state comes back when nothing moved.
  */
@@ -39,9 +38,17 @@ export function reconcileUrlText(
   clearCount: number,
 ): SearchFieldState {
   if (clearCount !== state.seenClearCount) {
-    const cleared = recordWrite(typeText(state, ""), "");
-    const counted = { ...cleared, seenClearCount: clearCount };
-    return reconcileUrlText(counted, urlText, clearCount);
+    // The empty text is remembered as the field's own, so its landing keeps
+    // what is typed meanwhile. It is not awaited: the Clear is not a search
+    // a keystroke may drop.
+    const cleared: SearchFieldState = {
+      text: "",
+      seenUrlText: state.seenUrlText,
+      ownWrites: state.seenUrlText === "" ? [] : [""],
+      awaitsLanding: false,
+      seenClearCount: clearCount,
+    };
+    return reconcileUrlText(cleared, urlText, clearCount);
   }
   if (urlText === state.seenUrlText) {
     return state;

@@ -73,16 +73,19 @@ describe("reconcileUrlText after a Clear", () => {
     expect(reconcileUrlText(state, "", 1)).toEqual(startSearchField("", 1));
   });
 
-  it("awaits the cleared URL when the one on screen holds text", () => {
+  it("remembers the empty text as its own without awaiting it", () => {
     const state = makeState({ text: "foo", seenUrlText: "foo" });
 
-    expect(reconcileUrlText(state, "foo", 1)).toEqual({
+    const cleared = reconcileUrlText(state, "foo", 1);
+
+    expect(cleared).toEqual({
       text: "",
       seenUrlText: "foo",
       ownWrites: [""],
-      awaitsLanding: true,
+      awaitsLanding: false,
       seenClearCount: 1,
     });
+    expect(reconcileUrlText(typeText(cleared, "x"), "", 1).text).toBe("x");
   });
 });
 

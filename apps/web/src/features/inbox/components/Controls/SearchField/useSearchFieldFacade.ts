@@ -105,6 +105,10 @@ export function useSearchFieldFacade(
   }
 
   function pressKey(event: ReactKeyboardEvent<HTMLInputElement>): void {
+    // Enter commits an IME candidate and Escape cancels one; neither is the field's yet.
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
     if (event.key === "Enter") {
       write(state.text);
       return;

@@ -407,6 +407,52 @@ describe("SearchField", () => {
     expect(getField().value).toBe("");
   });
 
+  it("a keystroke after Clear drops nothing, so the old text stays gone", () => {
+    const onSearch = vi.fn();
+    const view = render(
+      <SearchField
+        clearCount={0}
+        resultCount={3}
+        value="abc"
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    view.rerender(
+      <SearchField
+        clearCount={1}
+        resultCount={3}
+        value="abc"
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+    expect(getField().value).toBe("");
+
+    typeText("x");
+
+    expect(onDropPendingSearch).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape and Enter to the IME while it composes", () => {
+    const onSearch = vi.fn();
+    render(
+      <SearchField
+        clearCount={0}
+        resultCount={3}
+        value="anchor"
+        onDropPendingSearch={onDropPendingSearch}
+        onSearch={onSearch}
+      />,
+    );
+
+    fireEvent.keyDown(getField(), { key: "Escape", isComposing: true });
+    fireEvent.keyDown(getField(), { key: "Enter", isComposing: true });
+
+    expect(getField().value).toBe("anchor");
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
   it("the slash key focuses the field from the page, never from a field", () => {
     render(
       <>
