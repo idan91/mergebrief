@@ -46,6 +46,7 @@ import {
   hasDefaultStatus,
   parseInboxSearch,
   readInboxParams,
+  widenInboxFilters,
   type InboxChoices,
 } from "../features/inbox/search";
 import {
@@ -218,15 +219,6 @@ function Home() {
   );
 }
 
-/** Every filter but the search text and the view at its widest: all statuses, nothing else narrowed. */
-const WIDEST_FILTERS: InboxSearchChange = {
-  state: EVERY_STATUS_PARAM,
-  repo: undefined,
-  review: undefined,
-  author: undefined,
-  installation: undefined,
-};
-
 const HOME_SHORTCUTS: ShortcutSection[] = [
   {
     id: "list",
@@ -298,7 +290,9 @@ function MissingRows({
   onSearchMissAction,
 }: MissingRowsProps) {
   const archivedView = choices.archived === InboxArchivedFilters.ONLY;
-  const otherView = archivedView ? undefined : InboxArchivedFilters.ONLY;
+  const otherView = archivedView
+    ? InboxArchivedFilters.HIDE
+    : InboxArchivedFilters.ONLY;
   const missReason = readSearchMissReason(
     page,
     choices.searchText,
@@ -317,10 +311,10 @@ function MissingRows({
         reason={missReason}
         searchText={choices.searchText}
         onClearSearch={() => writeFromMiss({ q: undefined })}
-        onShowAllMatches={() => writeFromMiss({ ...WIDEST_FILTERS })}
-        onShowOtherView={() =>
-          writeFromMiss({ ...WIDEST_FILTERS, archived: otherView })
+        onShowAllMatches={() =>
+          writeFromMiss(widenInboxFilters(choices.archived))
         }
+        onShowOtherView={() => writeFromMiss(widenInboxFilters(otherView))}
       />
     );
   }

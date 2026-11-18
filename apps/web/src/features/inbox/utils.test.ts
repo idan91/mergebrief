@@ -330,7 +330,6 @@ describe("readSearchMissReason", () => {
   it("says nowhere when no row the reviewer reaches matches", () => {
     expect(readSearchMissReason(makeCounts(0), "anchor", HIDE)).toEqual({
       kind: SearchMissKinds.NOWHERE,
-      count: 0,
     });
   });
 });

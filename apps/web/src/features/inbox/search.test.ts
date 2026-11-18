@@ -21,6 +21,7 @@ import {
   readLastPage,
   toggleListValue,
   toggleStateValue,
+  widenInboxFilters,
   writeInboxSearch,
 } from "./search";
 
@@ -308,5 +309,57 @@ describe("dropPendingSearchText", () => {
       review: "new",
       author: "mine",
     });
+  });
+});
+
+describe("widenInboxFilters", () => {
+  const narrowed = parseInboxSearch({
+    page: 2,
+    sort: "generated",
+    state: "merged",
+    repo: "424242",
+    review: "new",
+    author: "mine",
+    installation: "7001",
+    q: "anchor",
+  });
+
+  it("opens every filter and keeps the search text and the sort", () => {
+    const widened = writeInboxSearch(
+      narrowed,
+      widenInboxFilters(InboxArchivedFilters.HIDE),
+    );
+
+    expect(widened).toEqual({
+      sort: "generated",
+      state: EVERY_STATUS_PARAM,
+      q: "anchor",
+    });
+  });
+
+  it("moves to the archived view when asked for it", () => {
+    const widened = writeInboxSearch(
+      narrowed,
+      widenInboxFilters(InboxArchivedFilters.ONLY),
+    );
+
+    expect(widened).toEqual({
+      sort: "generated",
+      state: EVERY_STATUS_PARAM,
+      archived: InboxArchivedFilters.ONLY,
+      q: "anchor",
+    });
+  });
+
+  it("leaves the archived view for the Inbox when asked for that", () => {
+    const archived = { ...narrowed, archived: InboxArchivedFilters.ONLY };
+
+    const widened = writeInboxSearch(
+      archived,
+      widenInboxFilters(InboxArchivedFilters.HIDE),
+    );
+
+    expect(widened.archived).toBeUndefined();
+    expect(widened.q).toBe("anchor");
   });
 });

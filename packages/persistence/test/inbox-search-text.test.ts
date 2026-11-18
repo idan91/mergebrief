@@ -1,6 +1,7 @@
 // The Inbox list narrowed by search text: words against the title, digits
 // against the pull request number, and the total the other filters hide.
 import { sql } from "drizzle-orm";
+import { InboxArchivedFilters } from "types/inbox";
 import { describe, expect, it } from "vitest";
 import {
   createInboxStore,
@@ -225,7 +226,7 @@ describe("createInboxStore.list, matches the filters hide", () => {
     await seedTitled(handle, 1401, "Bump the node version");
     await createTenantRepository(handle, CTX).archives.set(archived, VIEWER);
     const archivedView = {
-      ...DEFAULT_FILTERS,
+      ...DEFAULT_INBOX_FILTERS,
       archived: InboxArchivedFilters.ONLY,
     };
 

@@ -150,11 +150,13 @@ export const SearchMissKinds = {
 } as const;
 export type SearchMissKind = ValueOf<typeof SearchMissKinds>;
 
-export interface SearchMissReason {
-  readonly kind: SearchMissKind;
-  /** The matching rows the kind names; 0 for nowhere. */
-  readonly count: number;
-}
+/** Why a search shows no rows; a kind that points at matches counts them. */
+export type SearchMissReason =
+  | {
+      readonly kind: Exclude<SearchMissKind, typeof SearchMissKinds.NOWHERE>;
+      readonly count: number;
+    }
+  | { readonly kind: typeof SearchMissKinds.NOWHERE };
 
 export type InboxState =
   | { readonly kind: typeof InboxStates.READY; readonly page: InboxPage }

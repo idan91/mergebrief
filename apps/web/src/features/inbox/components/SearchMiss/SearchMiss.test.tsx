@@ -80,7 +80,7 @@ describe("SearchMiss", () => {
   });
 
   it("names the text nothing matches and offers the way out", () => {
-    const handlers = mountMiss({ kind: SearchMissKinds.NOWHERE, count: 0 });
+    const handlers = mountMiss({ kind: SearchMissKinds.NOWHERE });
 
     expect(
       screen.getByRole("heading", { name: "No pull requests match “anchor”" }),

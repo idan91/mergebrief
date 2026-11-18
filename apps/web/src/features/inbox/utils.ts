@@ -251,7 +251,7 @@ export function readSearchMissReason(
   if (inOtherView > 0) {
     return { kind: SearchMissKinds.IN_OTHER_VIEW, count: inOtherView };
   }
-  return { kind: SearchMissKinds.NOWHERE, count: 0 };
+  return { kind: SearchMissKinds.NOWHERE };
 }
 
 /** One row's identity across the page: repository, number and world. */

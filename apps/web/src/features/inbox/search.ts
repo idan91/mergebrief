@@ -17,6 +17,7 @@ import {
   InboxLayouts,
   type InboxLayout,
 } from "types/inbox";
+import type { Mutable } from "types/utils";
 
 import type {
   FilterOption,
@@ -335,6 +336,25 @@ export function dropPendingSearchText(
   );
   const page = onlySearchLoading ? shown.page : loading.page;
   return parseInboxSearch({ ...loading, q: shown.q, page });
+}
+
+/**
+ * Every filter at its widest beside the search text: all statuses, nothing
+ * else narrowed, in the view asked for. A row the search text matches in
+ * that view then shows, whatever was hiding it.
+ */
+export function widenInboxFilters(
+  view: InboxArchivedFilter,
+): InboxSearchChange {
+  const widest: Mutable<InboxSearchChange> = {};
+  for (const key of FILTER_KEYS) {
+    widest[key] = undefined;
+  }
+  widest.state = EVERY_STATUS_PARAM;
+  if (view === InboxArchivedFilters.ONLY) {
+    widest.archived = view;
+  }
+  return widest;
 }
 
 /** Every filter back to its default; the sort and the layout stay. */
