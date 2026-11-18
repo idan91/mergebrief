@@ -1,0 +1,349 @@
+import { describe, expect, it } from "vitest";
+import {
+  ArtifactIssueCodes,
+  checkBriefForWrite,
+  checkDeltaForWrite,
+  checkRevisionNarrativeForWrite,
+  isDeltaSkipRecord,
+  isDeltaUnchangedRecord,
+  isRevisionNarrativeSkipRecord,
+  isRevisionNarrativeUnchangedRecord,
+  isSpanTooLargeSkipRecord,
+} from "../../src/artifact";
+import {
+  BriefSchema,
+  DeltaSkipReasons,
+  RevisionNarrativeSkipReasons,
+} from "../../src/types";
+import {
+  makeSkippedDelta,
+  makeSkippedRevisionNarrative,
+  makeTwoGroupBrief,
+  makeUnchangedDelta,
+  makeUnchangedRevisionNarrative,
+  makeValidBrief,
+  makeValidDeltaBrief,
+  makeValidRevisionNarrative,
+} from "../helpers";
+
+const CUSTOM_NAME = "touches-billing";
+const MARKER = "marker-value-that-must-not-leak";
+
+function makeCustomNameBrief() {
+  const brief = makeValidBrief();
+  const [chunk] = brief.chunks;
+  if (chunk === undefined) {
+    throw new Error("fixture has no chunk");
+  }
+  chunk.riskSurface = [CUSTOM_NAME];
+  chunk.riskNotes = [{ attr: CUSTOM_NAME, note: "charges the card" }];
+  return brief;
+}
+
+describe("checkBriefForWrite", () => {
+  it("accepts a built-in Brief with no custom names", () => {
+    const brief = makeValidBrief();
+
+    expect(checkBriefForWrite(brief, [])).toEqual({ ok: true, value: brief });
+  });
+
+  it("accepts a custom risk name the repo configured", () => {
+    const brief = makeCustomNameBrief();
+
+    const checked = checkBriefForWrite(brief, [CUSTOM_NAME]);
+
+    expect(BriefSchema.safeParse(brief).success).toBe(false);
+    expect(checked).toEqual({ ok: true, value: brief });
+  });
+
+  it("refuses a custom risk name the repo did not configure", () => {
+    const checked = checkBriefForWrite(makeCustomNameBrief(), []);
+
+    expect(checked).toEqual({
+      ok: false,
+      error: [
+        expect.objectContaining({
+          code: ArtifactIssueCodes.INVALID,
+          path: "chunks.0.riskSurface.0",
+        }),
+        expect.objectContaining({
+          code: ArtifactIssueCodes.INVALID,
+          path: "chunks.0.riskNotes.0.attr",
+        }),
+      ],
+    });
+  });
+
+  it.each([
+    ["no custom names", []],
+    ["custom names", [CUSTOM_NAME]],
+  ])("refuses two groups that share an id with %s", (_label, customNames) => {
+    const brief = makeTwoGroupBrief();
+    const [firstGroup, lastGroup] = brief.changeGroups;
+    const body = { ...brief, changeGroups: [firstGroup, lastGroup, lastGroup] };
+
+    expect(checkBriefForWrite(body, customNames)).toEqual({
+      ok: false,
+      error: [
+        {
+          code: ArtifactIssueCodes.INVALID,
+          path: "changeGroups.2.id",
+          message: "Shares its id with an earlier change group",
+        },
+      ],
+    });
+  });
+
+  it("refuses a body that is not an object", () => {
+    const checked = checkBriefForWrite("not a brief", []);
+
+    expect(checked).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "" })],
+    });
+  });
+
+  it("keeps the offending value out of every issue", () => {
+    const brief = makeValidBrief();
+    const [chunk] = brief.chunks;
+    if (chunk === undefined) {
+      throw new Error("fixture has no chunk");
+    }
+    chunk.riskSurface = [MARKER];
+    const body = { ...brief, summary: { text: MARKER }, index: MARKER };
+
+    const checked = checkBriefForWrite(body, []);
+
+    expect(checked).toMatchObject({
+      ok: false,
+      error: [{ path: "index" }, { path: "summary" }, {}],
+    });
+    expect(JSON.stringify(checked)).not.toContain(MARKER);
+  });
+});
+
+describe("checkDeltaForWrite", () => {
+  it("accepts a well-formed Delta Brief", () => {
+    const delta = makeValidDeltaBrief();
+
+    expect(checkDeltaForWrite(delta)).toEqual({ ok: true, value: delta });
+  });
+
+  it("refuses two changed groups that share an id", () => {
+    const delta = makeValidDeltaBrief();
+    const [group] = delta.changedGroups;
+    const body = { ...delta, changedGroups: [group, group] };
+
+    expect(checkDeltaForWrite(body)).toEqual({
+      ok: false,
+      error: [
+        {
+          code: ArtifactIssueCodes.INVALID,
+          path: "changedGroups.1.id",
+          message: "Shares its id with an earlier change group",
+        },
+      ],
+    });
+  });
+
+  it("refuses a Delta Brief missing a field with a pathed issue", () => {
+    const { wholePrImpact: _dropped, ...body } = makeValidDeltaBrief();
+
+    const checked = checkDeltaForWrite(body);
+
+    expect(checked).toEqual({
+      ok: false,
+      error: [
+        {
+          code: ArtifactIssueCodes.INVALID,
+          path: "wholePrImpact",
+          message: expect.any(String),
+        },
+      ],
+    });
+  });
+});
+
+describe("checkDeltaForWrite on the skip record", () => {
+  it("accepts the skip record", () => {
+    const skipped = makeSkippedDelta();
+
+    expect(checkDeltaForWrite(skipped)).toEqual({ ok: true, value: skipped });
+  });
+
+  it("refuses an unknown key on the skip record", () => {
+    const body = { ...makeSkippedDelta(), summary: "extra" };
+
+    expect(checkDeltaForWrite(body)).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "" })],
+    });
+  });
+
+  it("refuses a skip reason it does not know", () => {
+    const body = { ...makeSkippedDelta(), skipped: "too slow" };
+
+    expect(checkDeltaForWrite(body)).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "skipped" })],
+    });
+  });
+});
+
+describe("isDeltaSkipRecord", () => {
+  it("names a stored skip record a skip record", () => {
+    expect(isDeltaSkipRecord(JSON.stringify(makeSkippedDelta()))).toBe(true);
+  });
+
+  it("names a stored Delta Brief not a skip record", () => {
+    const body = JSON.stringify(makeValidDeltaBrief());
+
+    expect(isDeltaSkipRecord(body)).toBe(false);
+  });
+
+  it("names a body that is not a JSON object not a skip record", () => {
+    expect(isDeltaSkipRecord("not json")).toBe(false);
+    expect(isDeltaSkipRecord('["deltaSkipped"]')).toBe(false);
+  });
+});
+
+describe("isSpanTooLargeSkipRecord", () => {
+  it("names a narrative or delta skipped for size a too-large record", () => {
+    const narrative = JSON.stringify(makeSkippedRevisionNarrative());
+    const delta = JSON.stringify(makeSkippedDelta());
+
+    expect(isSpanTooLargeSkipRecord(narrative)).toBe(true);
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(true);
+  });
+
+  it("names a skip for config or a cut output not a too-large record", () => {
+    const narrative = JSON.stringify({
+      ...makeSkippedRevisionNarrative(),
+      skipped: RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG,
+    });
+    const delta = JSON.stringify({
+      ...makeSkippedDelta(),
+      skipped: DeltaSkipReasons.OUTPUT_CUT,
+    });
+
+    expect(isSpanTooLargeSkipRecord(narrative)).toBe(false);
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(false);
+  });
+
+  it("names a reason under the other kind's spelling not a too-large record", () => {
+    const delta = JSON.stringify({
+      ...makeSkippedDelta(),
+      skipped: RevisionNarrativeSkipReasons.SPAN_TOO_LARGE,
+    });
+
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(false);
+    expect(isSpanTooLargeSkipRecord("not json")).toBe(false);
+  });
+});
+
+describe("the no-change records", () => {
+  it("accepts the delta no-change record", () => {
+    const unchanged = makeUnchangedDelta();
+
+    expect(checkDeltaForWrite(unchanged)).toEqual({
+      ok: true,
+      value: unchanged,
+    });
+  });
+
+  it("refuses a skip reason on the delta no-change record", () => {
+    const body = { ...makeUnchangedDelta(), skipped: "span-too-large" };
+
+    expect(checkDeltaForWrite(body).ok).toBe(false);
+  });
+
+  it("accepts the narrative no-change record", () => {
+    const unchanged = makeUnchangedRevisionNarrative();
+
+    expect(checkRevisionNarrativeForWrite(unchanged)).toEqual({
+      ok: true,
+      value: unchanged,
+    });
+  });
+
+  it("names each stored no-change record by its kind alone", () => {
+    const delta = JSON.stringify(makeUnchangedDelta());
+    const narrative = JSON.stringify(makeUnchangedRevisionNarrative());
+
+    expect(isDeltaUnchangedRecord(delta)).toBe(true);
+    expect(isDeltaSkipRecord(delta)).toBe(false);
+    expect(isDeltaUnchangedRecord(JSON.stringify(makeSkippedDelta()))).toBe(
+      false,
+    );
+    expect(isRevisionNarrativeUnchangedRecord(narrative)).toBe(true);
+    expect(isRevisionNarrativeUnchangedRecord(delta)).toBe(false);
+    expect(isRevisionNarrativeUnchangedRecord("not json")).toBe(false);
+  });
+
+  it("names the narrative's skip record by its kind, whatever the reason", () => {
+    const tooLarge = makeSkippedRevisionNarrative();
+    const disabled = {
+      ...tooLarge,
+      skipped: RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG,
+    };
+    const unchanged = makeUnchangedRevisionNarrative();
+
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(tooLarge))).toBe(true);
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(disabled))).toBe(true);
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(unchanged))).toBe(
+      false,
+    );
+    expect(isRevisionNarrativeSkipRecord("not json")).toBe(false);
+  });
+});
+
+describe("checkRevisionNarrativeForWrite", () => {
+  it("accepts a generated narrative", () => {
+    const narrative = makeValidRevisionNarrative();
+
+    expect(checkRevisionNarrativeForWrite(narrative)).toEqual({
+      ok: true,
+      value: narrative,
+    });
+  });
+
+  it("accepts the skipped stub", () => {
+    const stub = makeSkippedRevisionNarrative();
+
+    expect(checkRevisionNarrativeForWrite(stub)).toEqual({
+      ok: true,
+      value: stub,
+    });
+  });
+
+  it("refuses an unknown key on a narrative", () => {
+    const body = { ...makeValidRevisionNarrative(), verdict: "approve" };
+
+    const checked = checkRevisionNarrativeForWrite(body);
+
+    expect(checked).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ code: ArtifactIssueCodes.INVALID })],
+    });
+  });
+
+  it("refuses an unknown key on the skipped stub", () => {
+    const body = { ...makeSkippedRevisionNarrative(), overview: "extra" };
+
+    expect(checkRevisionNarrativeForWrite(body)).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "" })],
+    });
+  });
+
+  it("refuses an artifact kind it does not know", () => {
+    const body = { ...makeSkippedRevisionNarrative(), artifactKind: "other" };
+
+    const checked = checkRevisionNarrativeForWrite(body);
+
+    expect(checked).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "artifactKind" })],
+    });
+  });
+});

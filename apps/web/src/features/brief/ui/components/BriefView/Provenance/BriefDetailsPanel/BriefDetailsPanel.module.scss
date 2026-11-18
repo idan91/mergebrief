@@ -1,0 +1,180 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // The hover wrapper IS the identity row's flex item — flex-centering it
+  // keeps the trigger dead-centered instead of riding the inline line box.
+  .hoverArea {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  // The attribute is carried so this beats IconButton's own sm sizing rule,
+  // which is equally specific.
+  .trigger[data-size="sm"] {
+    inline-size: var(--header-meta-control-h);
+    block-size: var(--header-meta-control-h);
+  }
+
+  .trigger {
+    --trigger-open-edge: color-mix(
+      in srgb,
+      var(--color-line-strong) 60%,
+      var(--color-text-1)
+    );
+
+    border-color: var(--color-line-strong);
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-control);
+    vertical-align: middle;
+
+    /* :hover doubled in so the open affordance survives the hover-open. */
+    &[aria-expanded="true"] {
+      border-color: var(--trigger-open-edge);
+      color: var(--color-text-1);
+    }
+
+    @include mixins.hover {
+      &[aria-expanded="true"]:hover {
+        border-color: var(--trigger-open-edge);
+        color: var(--color-text-1);
+      }
+    }
+  }
+
+  // Style-reset base: the warnings chip is a real button (it opens the
+  // panel) wearing the amber pill's visuals.
+  // Fixed height + middle alignment so the chip can't inflate the identity
+  // row; amber label + quieter fill on Chip's warning chrome.
+  .warningsChip {
+    --warnings-chip-edge: color-mix(
+      in srgb,
+      var(--color-warning) 40%,
+      transparent
+    );
+
+    flex: none;
+    gap: var(--space-2);
+    min-height: 0;
+
+    // Same box as the ⓘ trigger beside it, which renders at IconButton's sm
+    // size; they read as one pair rather than two heights.
+    block-size: var(--header-meta-control-h);
+    padding-block: 0;
+    padding-inline: var(--space-3);
+    color: var(--color-warning);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-1);
+    letter-spacing: normal;
+    vertical-align: middle;
+    white-space: nowrap;
+
+    /* Re-pins at Chip's tone-selector specificity: the quieter 40/8 amber
+       is this chip's look, hover included (it never had one). */
+    &[data-tone="warning"] {
+      border-color: var(--warnings-chip-edge);
+      background: var(--color-warning-tint-subtle);
+    }
+
+    @include mixins.hover {
+      &[data-tone="warning"]:is(button):hover {
+        border-color: var(--warnings-chip-edge);
+        background: var(--color-warning-tint-subtle);
+      }
+    }
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4-5);
+    max-inline-size: functions.to-rem(360px);
+    text-align: start;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2-5);
+  }
+
+  .heading {
+    margin: 0;
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    font-weight: 600;
+  }
+
+  // Label/value fact rows: quiet grid, values in the text register.
+  .facts {
+    display: grid;
+    gap: var(--space-2) var(--space-4);
+    grid-template-columns: max-content 1fr;
+    margin: 0;
+    font-size: var(--font-size-2);
+
+    dt {
+      color: var(--color-text-3);
+    }
+
+    dd {
+      margin: 0;
+      color: var(--color-text-1);
+    }
+  }
+
+  .shaRange {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .modelId {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    overflow-wrap: anywhere;
+  }
+
+  .caveat {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    b {
+      color: var(--color-text-1);
+    }
+  }
+
+  .configList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    font-size: var(--font-size-2);
+    list-style: none;
+
+    li {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      align-items: baseline;
+    }
+
+    code {
+      color: var(--color-text-1);
+    }
+
+    [data-outcome]:not([data-outcome="applied"]) {
+      color: var(--color-warning);
+    }
+
+    i {
+      color: var(--color-warning);
+    }
+  }
+}

@@ -1,0 +1,19 @@
+@layer components {
+  .root {
+    display: grid;
+  }
+
+  .heading {
+    margin: 0 0 var(--space-4);
+    color: var(--color-text-1);
+    font-size: var(--font-size-4);
+    font-weight: 600;
+    line-height: var(--line-height-compact);
+  }
+
+  .stale {
+    margin: var(--space-3) 0 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "product-diff-available": 5,
+    "rename-groups-not-behavioural": 5,
+    "rename-has-more-false": 5,
+    "rename-no-product-changes": 5
+  }
+}

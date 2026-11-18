@@ -1,0 +1,20 @@
+@layer components {
+  .changed {
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
+    font-size: var(--font-size-1);
+  }
+
+  .leadIn {
+    padding-block: var(--space-2-5);
+    padding-inline: var(--space-4);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+
+  .versions {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    min-block-size: 0;
+  }
+}

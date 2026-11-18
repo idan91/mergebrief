@@ -1,0 +1,275 @@
+@use "functions";
+@use "mixins";
+
+@mixin shows-checkbox {
+  .lead {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .state {
+    opacity: 0;
+  }
+}
+
+@layer components {
+  .row {
+    --row-bg: var(--color-surface-1);
+    --row-cursor-ring: #{functions.inset-ring(var(--color-cursor-ring))};
+    --row-opening-edge: #{functions.edge-bar(var(--color-text-2))};
+
+    position: relative;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    column-gap: var(--space-4);
+    align-items: center;
+    min-block-size: functions.to-rem(56px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5) var(--space-3);
+
+    & + & {
+      border-block-start: 1px solid var(--color-line);
+    }
+
+    &:first-child {
+      border-start-start-radius: var(--radius-lg);
+      border-start-end-radius: var(--radius-lg);
+    }
+
+    &:last-child {
+      border-end-start-radius: var(--radius-lg);
+      border-end-end-radius: var(--radius-lg);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        --row-bg: var(--color-surface-2);
+
+        background: var(--row-bg);
+      }
+    }
+
+    &:active {
+      --row-bg: var(--color-surface-3);
+
+      background: var(--row-bg);
+    }
+
+    &[data-cursor="true"] {
+      --row-bg: var(--color-surface-3);
+
+      background: var(--row-bg);
+      box-shadow: var(--row-cursor-ring);
+
+      @include mixins.forced-current;
+    }
+
+    &[data-selected="true"] {
+      --row-bg: color-mix(
+        in srgb,
+        var(--color-accent) 6%,
+        var(--color-surface-1)
+      );
+
+      background: var(--row-bg);
+    }
+
+    &[data-opening] {
+      box-shadow: var(--row-opening-edge);
+      transition: box-shadow var(--motion-fast) ease var(--notice-delay);
+    }
+
+    &[data-opening][data-cursor="true"] {
+      box-shadow: var(--row-opening-edge), var(--row-cursor-ring);
+    }
+
+    &[data-needs-you="true"] .title {
+      color: var(--color-text-1);
+    }
+
+    &[data-unreachable="true"] .titleText,
+    &[data-unreachable="true"] .sub {
+      color: var(--color-text-3);
+    }
+  }
+
+  /* Above the link's overlay, so the pointer meets the slot rather than the mark under it. */
+  .lead {
+    position: relative;
+    z-index: 1;
+    grid-row: 1;
+    grid-column: 1;
+    opacity: 0;
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  .state {
+    display: grid;
+    grid-row: 1 / span 2;
+    grid-column: 1;
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  .row[data-cursor="true"] .lead,
+  .row[data-cursor="true"] .state {
+    transition: none;
+  }
+
+  .row:is([data-selecting="true"], [data-cursor="true"], :has(:focus-visible)) {
+    @include shows-checkbox;
+  }
+
+  @include mixins.hover {
+    .row:hover {
+      @include shows-checkbox;
+    }
+  }
+
+  /* A tap on the hidden box would tick it unseen; it falls through to the link. */
+  @media (hover: none) {
+    .lead {
+      pointer-events: none;
+    }
+  }
+
+  .main {
+    display: grid;
+    grid-row: 1;
+    grid-column: 1 / 3;
+    grid-template-columns: 20px minmax(0, 1fr);
+    column-gap: inherit;
+    align-items: center;
+    min-inline-size: 0;
+    color: inherit;
+    text-decoration: none;
+    outline: 0;
+
+    > .title,
+    > .sub {
+      grid-column: 2;
+    }
+
+    /* The whole row is the target; the link's box stays where the text is. */
+    &::after {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      content: "";
+    }
+
+    &:focus-visible::after {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: -2px;
+    }
+  }
+
+  .title {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    block-size: functions.to-rem(20px);
+    min-inline-size: 0;
+    overflow-x: clip;
+    color: var(--color-text-soft);
+    font-size: var(--font-size-3);
+    font-weight: 500;
+    line-height: functions.to-rem(20px);
+  }
+
+  .titleText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    // Atomic, so the title's ellipsis never leaves a strip of it, and capped
+    // at the row with its own ellipsis: an atomic inline wider than the space
+    // left is otherwise hidden whole, and a code-led title shows only the dots.
+    code {
+      display: inline-block;
+      max-inline-size: 100%;
+      overflow: hidden;
+      padding-block: 0;
+      padding-inline: var(--space-2);
+      border-radius: var(--radius-chip);
+      background: color-mix(in srgb, var(--color-text-1) 8%, transparent);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-2);
+      font-weight: 400;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  /* Above the link's overlay for the actions only; the labels let the link take the click. */
+  .end {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    grid-row: 1;
+    grid-column: 3;
+    pointer-events: none;
+    gap: var(--space-5);
+    align-items: center;
+  }
+
+  .sub {
+    display: flex;
+    gap: var(--space-4);
+    align-items: baseline;
+    block-size: functions.to-rem(18px);
+    min-inline-size: 0;
+    overflow-x: clip;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-variant-numeric: tabular-nums;
+    line-height: functions.to-rem(18px);
+    white-space: nowrap;
+
+    > * {
+      flex: none;
+    }
+  }
+
+  // AuthorChip's flex baseline is its avatar's bottom edge, 4px under its text.
+  .author {
+    display: flex;
+    align-self: center;
+  }
+
+  .repo {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .source {
+    display: inline-grid;
+    place-items: center;
+    margin-inline-end: calc(var(--space-2) * -1);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .row {
+      column-gap: var(--space-3);
+      padding-inline: var(--space-4) var(--space-2);
+    }
+
+    .end {
+      gap: var(--space-3);
+    }
+
+    .sub {
+      gap: var(--space-3);
+    }
+
+    .titleText {
+      flex: 0 1 auto;
+      min-inline-size: 0;
+    }
+  }
+}

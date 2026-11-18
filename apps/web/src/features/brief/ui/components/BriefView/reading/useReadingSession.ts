@@ -1,0 +1,706 @@
+// The reading-session facade hook: per-brief Review Session store wiring, the
+// progress/receipt derivation, and the scroll/nav machinery (scroll to target,
+// scroll-spy, focus mode, read-through). Exposes only the members the screen
+// (or a sibling flow hook) consumes.
+import type { ReviewOutcome } from "types/reviews";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { createI18n } from "i18n";
+import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
+
+import { readLandscapePhone } from "@web/hooks/useMobileViewport";
+import { useLatestRef } from "@web/hooks/useLatestRef";
+import { useScrollSpy } from "@web/hooks/useScrollSpy";
+import {
+  buildReceipt,
+  deriveUnresolvedItems,
+  type Receipt,
+  type ReviewComment,
+  type UnresolvedItem,
+} from "@web/features/review/utils";
+import {
+  serializeSnapshot,
+  useReviewSession,
+  useReviewSessionActions,
+  type ReviewSessionActions,
+  type SessionSnapshot,
+} from "@web/features/review/session";
+import { isFocusLost, MAIN_CONTENT_ID } from "@web/utils/main-content";
+
+const receiptArtifactI18n = createI18n();
+import {
+  summarizeProgress,
+  type ProgressTotals,
+} from "../../../utils/progress";
+import type { Brief } from "../../../../model/types";
+import {
+  attachChunkListRows,
+  type FileRowsCache,
+} from "../../../../model/file-rows/cache";
+import { GroupViewKinds } from "../../../../model/utils/remainder";
+import type {
+  BriefViewModel,
+  GroupView,
+} from "../../../../model/utils/view-model";
+import type { RepoConfigContext } from "../../../../model/utils/repo-config";
+import type { ChunkWindowRegistry } from "./chunk-windows";
+import type { ReadingPositionStore } from "./reading-position";
+import type { BriefViewStore } from "../store";
+import {
+  SupportingCollapseStates,
+  type ScopeExitOptions,
+  type SupportingCollapseState,
+} from "../types";
+import {
+  deriveBriefProgress,
+  deriveGroupHeadingId,
+  groupStartIndexes,
+  listChunkIds,
+  listLargeChunkIds,
+  toggleSetMember,
+} from "../utils";
+import { useScrollToTarget } from "../scroll-to-target";
+import { deriveScrollMotion } from "../scroll-to-target/engine/plan";
+import {
+  ScrollMotions,
+  ScrollPlacements,
+  type ScrollPlacement,
+} from "../scroll-to-target/engine/types";
+import { readReadingLine } from "../scroll-to-target/targets";
+import { isScrolledToEnd, pageScrolls } from "../ChunkIndicator/utils";
+import {
+  ScrollHistories,
+  ScrollTargetKinds,
+  type ScrollHistory,
+  type ScrollTargetOptions,
+  type ScrollToTarget,
+} from "../scroll-to-target/types";
+
+const EMPTY_CHUNK_IDS: string[] = [];
+
+function isPageAtEnd(): boolean {
+  const atEnd = !pageScrolls() || isScrolledToEnd();
+  return atEnd;
+}
+
+const SMOOTH_UNDER_STACK: ScrollTargetOptions = {
+  motion: ScrollMotions.SMOOTH,
+  history: ScrollHistories.NONE,
+  placement: ScrollPlacements.UNDER_STACK,
+};
+
+export interface UseReadingSessionInput {
+  brief: Brief;
+  /** The PR diff's rows once it has landed. */
+  fileRows?: FileRowsCache | undefined;
+  briefId: string;
+  /** Whether the FULL-brief view is active (gates scroll-spy). */
+  compareViewFull: boolean;
+  model: BriefViewModel;
+  /**
+   * Own-draft state: flag dispositions are unreachable there (read-only
+   * mirror), so progress is chunk read-through only.
+   */
+  ownDraftActive: boolean;
+  repoConfig: RepoConfigContext | null | undefined;
+  /** The Brief's open chunks, focus mode and shortcuts overlay. */
+  viewStore: BriefViewStore;
+  /** Jump routing into windowed chunk lists; null = mounted DOM only. */
+  chunkWindows?: ChunkWindowRegistry | null | undefined;
+  /** Route-owned; a jump with a history mode leaves Changes scope through it. */
+  exitChangesScope?: ((options: ScopeExitOptions) => void) | undefined;
+  /**
+   * The reading-position store this session WRITES (scroll-spy + explicit
+   * nav). Never subscribed here, position consumers subscribe themselves, so
+   * a spy tick re-renders them and not the screen shell hosting this hook.
+   */
+  position: ReadingPositionStore;
+}
+
+export interface UseReadingSessionValue {
+  // store surface the screen still wires directly,
+  actions: ReviewSessionActions;
+  reviewComments: ReviewComment[];
+  submittedReviewIds: number[];
+  reviewOutcome: ReviewOutcome | undefined;
+  // progress / receipt derivation,
+  totals: ProgressTotals;
+  progress: number;
+  unresolvedItems: UnresolvedItem[];
+  snapshot: SessionSnapshot;
+  receipt: Receipt;
+  // reading order,
+  /** Chunks in the RENDERED (grouped) order, the sequence J/K walks, with their rows. */
+  readingOrderedChunks: GroupView["chunks"];
+  chunkIds: string[];
+  /** Index into `chunkIds` where each group starts (Shift+J/Shift+K). */
+  groupBoundaries: number[];
+  // view / focus state,
+  focusMode: boolean;
+  /** The focus pill's measurement target (publishes --focus-indicator-h). */
+  focusIndicatorRef: RefObject<HTMLDivElement | null>;
+  openChunks: ReadonlySet<string>;
+  /** Bulk action over `openChunks`, never an override, derived state. */
+  supportingCollapse: SupportingCollapseState;
+  toggleCollapseSupporting: () => void;
+  shortcutsOpen: boolean;
+  toggleShortcuts: () => void;
+  closeShortcuts: () => void;
+  /** The chunk whose actions sheet is open; absent = none. */
+  chunkActionsFor: string | undefined;
+  openChunkActions: (chunkId: string) => void;
+  closeChunkActions: () => void;
+  // navigation,
+  toggleChunk: (chunkId: string) => void;
+  markReviewed: (chunkId: string) => void;
+  /** `focus` moves focus onto the card once the scroll finds it mounted. */
+  jumpToChunk: (
+    chunkId: string,
+    behavior?: ScrollBehavior,
+    placement?: ScrollPlacement,
+    history?: ScrollHistory,
+    focus?: boolean,
+  ) => void;
+  /** The page's one scroll to target, for callers past a chunk jump. */
+  scrollToTarget: ScrollToTarget["scrollToTarget"];
+  /** The reading position's one write path, for a scroll that names a chunk. */
+  setActiveChunk: (chunkId: string) => void;
+  /** Seats a chunk's head under the stack at once, leaving it open or closed as the reader set it. */
+  placeChunkUnderStack: (chunkId: string) => void;
+  /** The keyboard-shortcut jump: under the stack while focus mode is on. */
+  jumpToChunkFromShortcut: (chunkId: string) => void;
+  /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
+  openChunk: (chunkId: string) => void;
+  jumpToGroup: (groupId: string, history?: ScrollHistory) => void;
+  /** A keyboard jump to a group: scrolls and focuses the group heading. */
+  jumpToGroupHeading: (groupId: string, history?: ScrollHistory) => void;
+  toggleFocusMode: () => void;
+  startReadThrough: () => void;
+  /** Exit focus mode into the story view (the intent-bar scroll path). */
+  exitToStoryView: () => void;
+}
+
+export function useReadingSession(
+  input: UseReadingSessionInput,
+): UseReadingSessionValue {
+  const {
+    brief,
+    briefId,
+    compareViewFull,
+    fileRows,
+    model,
+    ownDraftActive,
+    repoConfig,
+    chunkWindows,
+    exitChangesScope,
+    position,
+    viewStore,
+  } = input;
+  const { t } = useTranslation();
+  // Session/domain state lives in the per-brief Review Session store.
+  const dispositions = useReviewSession((state) => state.dispositions);
+  const dominants = useReviewSession((state) => state.dominants);
+  const reclassifiedGroups = useReviewSession(
+    (state) => state.reclassifiedGroups,
+  );
+  const reviewedChunks = useReviewSession((state) => state.reviewedChunks);
+  const reviewComments = useReviewSession((state) => state.reviewComments);
+  const submittedReviewIds = useReviewSession(
+    (state) => state.submittedReviewIds,
+  );
+  const reviewOutcome = useReviewSession((state) => state.reviewOutcome);
+  const actions = useReviewSessionActions();
+  // RENDERED (grouped) order, not raw brief order, the StoryView lays chunks
+  // out by group, so J/K must follow the same sequence.
+  const groupedChunks = useMemo(
+    () => model.groups.flatMap((group) => group.chunks),
+    [model.groups],
+  );
+  const readingOrderedChunks = useMemo(
+    () => attachChunkListRows(groupedChunks, fileRows),
+    [groupedChunks, fileRows],
+  );
+
+  const chunkIds = useMemo(() => listChunkIds(model.groups), [model.groups]);
+  const largeChunkIds = useMemo(
+    () => listLargeChunkIds(groupedChunks),
+    [groupedChunks],
+  );
+  const groupBoundaries = useMemo(
+    () => groupStartIndexes(model.groups),
+    [model.groups],
+  );
+
+  const openChunks = useStore(viewStore, (state) => state.openChunks);
+  const focusMode = useStore(viewStore, (state) => state.focusMode);
+  const shortcutsOpen = useStore(viewStore, (state) => state.shortcutsOpen);
+  const chunkActionsFor = useStore(viewStore, (state) => state.chunkActionsFor);
+  const {
+    updateOpenChunks,
+    setFocusMode,
+    setShortcutsOpen,
+    setChunkActionsFor,
+  } = viewStore.getState().actions;
+
+  /** Ensure-open, never a toggle, row-target jumps (conversation threads,
+   * revision rails, unresolved submit items) land INSIDE the diff, which
+   * only exists on an open card. */
+  const openChunk = useCallback(
+    (chunkId: string) => {
+      updateOpenChunks((current) =>
+        current.has(chunkId) ? current : new Set(current).add(chunkId),
+      );
+    },
+    [updateOpenChunks],
+  );
+  const { scrollToTarget, isScrollInFlight, subscribeScrollEnded } =
+    useScrollToTarget({
+      briefId,
+      chunkWindows: chunkWindows ?? undefined,
+      openChunk,
+      inChangesScope: !compareViewFull,
+      exitChangesScope,
+    });
+
+  // Derived, never stored: mirrors openChunks, so collapse-on-review and
+  // manual toggles keep it honest.
+  const supportingChunkIds = useMemo(
+    () =>
+      groupedChunks
+        .filter((chunk) => chunk.role === "supporting")
+        .map((chunk) => chunk.id),
+    [groupedChunks],
+  );
+  const collapsedSupportingCount = supportingChunkIds.filter(
+    (id) => !openChunks.has(id),
+  ).length;
+  let supportingCollapse: SupportingCollapseState =
+    SupportingCollapseStates.NONE;
+  if (collapsedSupportingCount > 0) {
+    supportingCollapse =
+      collapsedSupportingCount === supportingChunkIds.length
+        ? SupportingCollapseStates.ALL
+        : SupportingCollapseStates.SOME;
+  }
+  const toggleCollapseSupporting = useCallback(() => {
+    updateOpenChunks((current) => {
+      const next = new Set(current);
+      const allCollapsed =
+        supportingChunkIds.length > 0 &&
+        supportingChunkIds.every((id) => !current.has(id));
+      for (const id of supportingChunkIds) {
+        if (allCollapsed) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }, [supportingChunkIds, updateOpenChunks]);
+  const focusModeRef = useLatestRef(focusMode);
+  // The one write path into the reading-position store: chunk and derived
+  // group land together, so subscribers never see them disagree.
+  const chunkToGroup = model.chunkToGroup;
+  const setActivePosition = useCallback(
+    (chunkId: string) => {
+      position
+        .getState()
+        .actions.setActive(chunkId, chunkToGroup.get(chunkId) ?? null);
+    },
+    [chunkToGroup, position],
+  );
+  // markReviewed is a ChunkCard memo-boundary prop: reading reviewedChunks
+  // through a ref keeps its identity stable across review actions (a Set dep
+  // would re-render every memoized card per click).
+  const reviewedChunksRef = useLatestRef(reviewedChunks);
+  // Publishes --focus-indicator-h so sticky chunk heads stack below the
+  // pill; 0px whenever focus mode is off (pill unmounted).
+  const focusIndicatorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const setIndicatorHeight = (value: string) =>
+      document.documentElement.style.setProperty("--focus-indicator-h", value);
+    const el = focusIndicatorRef.current;
+    if (!focusMode || !el) {
+      setIndicatorHeight("0px");
+      return;
+    }
+    const apply = () => setIndicatorHeight(`${el.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      setIndicatorHeight("0px");
+    };
+  }, [focusMode]);
+  const firstChunkId = chunkIds[0] ?? null;
+
+  const totals = useMemo(
+    () => summarizeProgress(model, reviewedChunks, dispositions),
+    [dispositions, model, reviewedChunks],
+  );
+  const progress = deriveBriefProgress({
+    ownDraftActive,
+    totals,
+    flagCount: model.flags.length,
+  });
+  const unresolvedItems = useMemo(() => {
+    const remainderGroup = model.groups.find(
+      (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    );
+    const remainderChunks = remainderGroup?.chunks ?? [];
+
+    return deriveUnresolvedItems(t, {
+      chunks: brief.chunks,
+      remainderChunks,
+      flags: model.flags,
+      dispositions,
+      reviewedChunkIds: reviewedChunks,
+      comments: reviewComments,
+    });
+  }, [
+    t,
+    brief.chunks,
+    dispositions,
+    model.flags,
+    model.groups,
+    reviewComments,
+    reviewedChunks,
+  ]);
+  // Frozen snapshot + Receipt: the inputs the drawer renders.
+  const snapshot = useMemo(
+    () =>
+      serializeSnapshot(briefId, {
+        dispositions,
+        dominants,
+        reclassifiedGroups,
+        reviewedChunks,
+        reviewComments,
+        reviewOutcome,
+        submittedReviewIds,
+      }),
+    [
+      briefId,
+      dispositions,
+      dominants,
+      reclassifiedGroups,
+      reviewComments,
+      reviewOutcome,
+      reviewedChunks,
+      submittedReviewIds,
+    ],
+  );
+  const receipt = useMemo(
+    () =>
+      buildReceipt(receiptArtifactI18n.t, snapshot, brief, model, repoConfig),
+    [snapshot, brief, model, repoConfig],
+  );
+
+  // Only anchor when nothing else holds focus: a reviewer who switched brief
+  // from a live control must keep it. Never scrolls.
+  useEffect(() => {
+    if (!isFocusLost(document.activeElement)) {
+      return;
+    }
+    document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
+  }, [briefId]);
+
+  // Entering focus mode unmounts the phone bar and toolbar, leaving it
+  // unmounts its own chrome; focus that sat on either lands on the main
+  // landmark instead of the body.
+  const wasFocusModeRef = useRef(focusMode);
+  useEffect(() => {
+    const focusModeChanged = wasFocusModeRef.current !== focusMode;
+    wasFocusModeRef.current = focusMode;
+    const focusOrphaned = document.activeElement === document.body;
+    if (focusModeChanged && focusOrphaned) {
+      document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true });
+    }
+  }, [focusMode]);
+
+  // The position has two write sources: scroll-spy (below) and explicit nav
+  // (toggleChunk/jumpToChunk). Scroll-spy only runs on the full brief outside
+  // focus mode.
+  useScrollSpy(
+    !focusMode && compareViewFull ? chunkIds : EMPTY_CHUNK_IDS,
+    setActivePosition,
+    readReadingLine,
+    briefId,
+    {
+      readActive: () => {
+        const { activeChunkId, betweenChunks } = position.getState();
+        if (betweenChunks) {
+          return undefined;
+        }
+        return activeChunkId ?? undefined;
+      },
+      clearActive: (lastBelowLine) =>
+        position.getState().actions.leaveChunks(lastBelowLine),
+      isHeld: isScrollInFlight,
+      subscribeHoldEnded: subscribeScrollEnded,
+      isExact: readLandscapePhone,
+      isAtPageEnd: isPageAtEnd,
+    },
+  );
+
+  const toggleChunk = useCallback(
+    (chunkId: string) => {
+      updateOpenChunks((current) => toggleSetMember(current, chunkId));
+      setActivePosition(chunkId);
+    },
+    [setActivePosition, updateOpenChunks],
+  );
+
+  const markReviewed = useCallback(
+    (chunkId: string) => {
+      const alreadyReviewed = reviewedChunksRef.current.has(chunkId);
+      // Focus mode: checking collapses + advances (never wraps); un-checking
+      // is a correction, reopen and stay put.
+      if (focusModeRef.current) {
+        if (alreadyReviewed) {
+          actions.reviewChunk(chunkId);
+          updateOpenChunks((current) => new Set(current).add(chunkId));
+          return;
+        }
+        actions.reviewChunk(chunkId);
+        updateOpenChunks((current) => {
+          const next = new Set(current);
+          next.delete(chunkId);
+          return next;
+        });
+        const index = chunkIds.indexOf(chunkId);
+        const next = index >= 0 ? chunkIds[index + 1] : undefined;
+        if (next) {
+          setActivePosition(next);
+          scrollToTarget(
+            { kind: ScrollTargetKinds.CHUNK, chunkId: next },
+            { ...SMOOTH_UNDER_STACK, open: true },
+          );
+        }
+        return;
+      }
+      actions.reviewChunk(chunkId);
+      updateOpenChunks((current) => {
+        const next = new Set(current);
+        next.delete(chunkId);
+        return next;
+      });
+    },
+    [
+      actions,
+      chunkIds,
+      focusModeRef,
+      scrollToTarget,
+      reviewedChunksRef,
+      setActivePosition,
+      updateOpenChunks,
+    ],
+  );
+
+  const jumpToChunk = useCallback(
+    (
+      chunkId: string,
+      behavior: ScrollBehavior = "smooth",
+      placement: ScrollPlacement = ScrollPlacements.VIEWPORT_TOP,
+      history: ScrollHistory = ScrollHistories.NONE,
+      focus = false,
+    ) => {
+      setActivePosition(chunkId);
+      // Focus mode must open the target, every other card is display:none,
+      // so a collapsed target would show nothing. A large chunk starts
+      // closed only to spare the page, so a jump to one opens it. Any other
+      // collapsed card is the user's triage: wayfinding jumps (toc, group
+      // stepper, Jump-rail) scroll to it WITHOUT re-expanding.
+      const opensTarget = focusModeRef.current || largeChunkIds.has(chunkId);
+      scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId },
+        {
+          motion: deriveScrollMotion(behavior),
+          history,
+          open: opensTarget,
+          focus,
+          placement,
+        },
+      );
+    },
+    [focusModeRef, largeChunkIds, scrollToTarget, setActivePosition],
+  );
+  const placeChunkUnderStack = useCallback(
+    (chunkId: string) => {
+      setActivePosition(chunkId);
+      scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId },
+        {
+          motion: deriveScrollMotion("instant"),
+          history: ScrollHistories.NONE,
+          open: focusModeRef.current,
+          placement: ScrollPlacements.UNDER_STACK,
+        },
+      );
+    },
+    [focusModeRef, scrollToTarget, setActivePosition],
+  );
+  // Plain handlers from here down: no consumer memoizes on their identity
+  // (the memo boundaries live at ChunkCard/GroupCard, whose props stay the
+  // stable callbacks above). closeShortcuts is the one exception below.
+  const jumpToChunkFromShortcut = (chunkId: string) => {
+    const focusActive =
+      document.getElementById(MAIN_CONTENT_ID)?.dataset["zen"] === "on";
+    const placement = focusActive
+      ? ScrollPlacements.UNDER_STACK
+      : ScrollPlacements.VIEWPORT_TOP;
+    jumpToChunk(chunkId, "auto", placement);
+  };
+
+  const toggleFocusMode = () => {
+    const entering = !focusModeRef.current;
+    setFocusMode(entering);
+    if (!entering) {
+      return;
+    }
+    // Under the stack, required: the focus pill only mounts once `focusMode`
+    // flips true, so the scroll must wait for it and rest below it or the
+    // pill covers the chunk.
+    const target = position.getState().activeChunkId ?? firstChunkId;
+    if (!target) {
+      return;
+    }
+    // Focus mode reads the active card; a collapsed one would show nothing.
+    setActivePosition(target);
+    scrollToTarget(
+      { kind: ScrollTargetKinds.CHUNK, chunkId: target },
+      { ...SMOOTH_UNDER_STACK, open: true },
+    );
+  };
+  const toggleShortcuts = () =>
+    setShortcutsOpen(!viewStore.getState().shortcutsOpen);
+  // Stable: Modal's Escape-listener effect deps on `close`, an unstable
+  // identity would re-bind a document listener on every session render
+  // while the shortcuts modal is open.
+  const closeShortcuts = useCallback(
+    () => setShortcutsOpen(false),
+    [setShortcutsOpen],
+  );
+  const closeChunkActions = useCallback(
+    () => setChunkActionsFor(undefined),
+    [setChunkActionsFor],
+  );
+
+  // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
+  // active chunk. Under the stack: see toggleFocusMode.
+  const startReadThrough = () => {
+    if (!firstChunkId) {
+      return;
+    }
+    setFocusMode(true);
+    setActivePosition(firstChunkId);
+    scrollToTarget(
+      { kind: ScrollTargetKinds.CHUNK, chunkId: firstChunkId },
+      { ...SMOOTH_UNDER_STACK, open: true },
+    );
+  };
+
+  // The TOC bar jumps by Change-group; scroll to the group's first chunk.
+  const jumpToGroup = useCallback(
+    (groupId: string, history: ScrollHistory = ScrollHistories.NONE) => {
+      const group = model.groups.find((candidate) => candidate.id === groupId);
+      const target = group?.chunks[0];
+      if (target) {
+        jumpToChunk(
+          target.id,
+          "smooth",
+          ScrollPlacements.VIEWPORT_TOP,
+          history,
+        );
+      }
+    },
+    [jumpToChunk, model.groups],
+  );
+
+  // The section is in flow at every width where the card can be sticky, so
+  // it is the target; the heading only takes focus. A parked jump runs once
+  // the story pane renders, whose group card shows the heading outside focus
+  // mode.
+  const jumpToGroupHeading = useCallback(
+    (groupId: string, history: ScrollHistory = ScrollHistories.NONE) => {
+      const group = model.groups.find((candidate) => candidate.id === groupId);
+      const target = group?.chunks[0];
+      if (!target) {
+        return;
+      }
+      const parks = !compareViewFull && history !== ScrollHistories.NONE;
+      const headingShown = parks
+        ? !focusModeRef.current
+        : document.getElementById(deriveGroupHeadingId(groupId)) !== null;
+      if (!headingShown) {
+        jumpToChunk(
+          target.id,
+          "smooth",
+          ScrollPlacements.VIEWPORT_TOP,
+          history,
+        );
+        return;
+      }
+
+      setActivePosition(target.id);
+      scrollToTarget(
+        { kind: ScrollTargetKinds.GROUP, groupId },
+        { ...SMOOTH_UNDER_STACK, focus: true, history },
+      );
+    },
+    [
+      compareViewFull,
+      focusModeRef,
+      jumpToChunk,
+      scrollToTarget,
+      model.groups,
+      setActivePosition,
+    ],
+  );
+
+  // The intent bar lives in the full-compare story view, so leave focus
+  // mode first.
+  const exitToStoryView = useCallback(() => {
+    setFocusMode(false);
+  }, [setFocusMode]);
+
+  return {
+    actions,
+    reviewComments,
+    submittedReviewIds,
+    reviewOutcome,
+    totals,
+    progress,
+    unresolvedItems,
+    snapshot,
+    receipt,
+    readingOrderedChunks,
+    chunkIds,
+    groupBoundaries,
+    focusMode,
+    focusIndicatorRef,
+    openChunks,
+    supportingCollapse,
+    toggleCollapseSupporting,
+    shortcutsOpen,
+    toggleShortcuts,
+    closeShortcuts,
+    chunkActionsFor,
+    openChunkActions: setChunkActionsFor,
+    closeChunkActions,
+    toggleChunk,
+    markReviewed,
+    jumpToChunk,
+    placeChunkUnderStack,
+    scrollToTarget,
+    setActiveChunk: setActivePosition,
+    jumpToChunkFromShortcut,
+    openChunk,
+    jumpToGroup,
+    jumpToGroupHeading,
+    toggleFocusMode,
+    startReadThrough,
+    exitToStoryView,
+  };
+}

@@ -1,0 +1,39 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Hono HTTP surface: webhook ingest, OAuth, and read/write routes. Composes github (primitives) with persistence (tenant-scoped writes).",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx --import ./src/instrument.ts src/main.ts",
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "brief-core": "workspace:*",
+    "contract": "workspace:*",
+    "generators": "workspace:*",
+    "github": "workspace:*",
+    "graphile-worker": "^0.16.6",
+    "hono": "^4.13.11",
+    "logging": "workspace:*",
+    "persistence": "workspace:*",
+    "sharp": "^0.35.5",
+    "tsx": "^4.19.0",
+    "types": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@octokit/webhooks-methods": "^5.1.1",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

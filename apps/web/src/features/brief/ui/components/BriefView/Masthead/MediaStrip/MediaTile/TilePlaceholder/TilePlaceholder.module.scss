@@ -1,0 +1,42 @@
+@layer components {
+  .placeholder {
+    display: grid;
+    gap: var(--space-2);
+    align-content: center;
+    justify-items: center;
+    inline-size: 132px;
+    block-size: 100%;
+    padding-inline: var(--space-3);
+    background:
+      repeating-linear-gradient(
+        135deg,
+        transparent 0 6px,
+        color-mix(in oklch, var(--color-text-1) 2.5%, transparent) 6px 7px
+      ),
+      var(--color-surface-2);
+    color: var(--color-text-2);
+
+    &[data-state="failed"] {
+      background: transparent;
+      color: var(--color-text-3);
+    }
+  }
+
+  .label {
+    max-inline-size: 100%;
+    overflow: hidden;
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-compact);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    [data-state="failed"] > & {
+      display: -webkit-box;
+      white-space: normal;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+  }
+}

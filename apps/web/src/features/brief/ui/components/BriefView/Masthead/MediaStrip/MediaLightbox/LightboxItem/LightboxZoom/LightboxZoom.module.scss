@@ -1,0 +1,77 @@
+@use "mixins";
+
+@layer components {
+  .viewport {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    inline-size: 100%;
+    block-size: 100%;
+    min-block-size: 0;
+
+    &[data-zoom="actual"] {
+      place-items: start;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-color: var(--color-line-strong) transparent;
+      cursor: grab;
+    }
+
+    &[data-dragging="true"] {
+      cursor: grabbing;
+      user-select: none;
+    }
+  }
+
+  .content {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    inline-size: 100%;
+    block-size: 100%;
+
+    [data-zoom="actual"] > & {
+      grid-template-rows: auto;
+      grid-template-columns: auto;
+      inline-size: max-content;
+      block-size: max-content;
+      min-inline-size: 100%;
+      min-block-size: 100%;
+    }
+  }
+
+  .item {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+
+    &[data-sized="false"] {
+      inline-size: 100%;
+      block-size: 100%;
+    }
+  }
+
+  .toggle {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: zoom-in;
+
+    [data-zoom="actual"] & {
+      cursor: inherit;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+
+      outline-offset: -2px;
+    }
+  }
+}

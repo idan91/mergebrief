@@ -1,0 +1,217 @@
+# One-command self-host: `docker compose up` brings up Postgres (the single
+# stateful dependency), the API, the web tier that proxies to it, and the
+# long-lived generation worker.
+#
+# An upgrade replaces this file: put your own edits in
+# docker-compose.override.yml, which compose merges in on its own. For your
+# own Postgres, layer docker-compose.external-db.yml on this file
+# (docs/self-host/compose.md).
+#
+# `mergebrief.config.yaml` beside this file is the instance config (copy
+# `mergebrief.config.example.yaml`). `api` and `worker` mount it read-only,
+# and `up` refuses to create them while the file is missing.
+#
+# Settings come from `.env` beside this file (copy `.env.example`). Compose uses
+# it for ${...} interpolation, and `api` and `worker` load it via env_file, so a
+# var you leave out of .env is ABSENT in the container: the config loaders treat
+# empty and unset differently. `web` holds no credentials and gets no env_file.
+# Every variable: docs/self-host/configuration.md
+#
+# All published ports bind loopback-only: dev/self-host credentials must not
+# be reachable from the LAN. Put a reverse proxy in front for real exposure.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mergebrief}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mergebrief}
+      POSTGRES_DB: ${POSTGRES_DB:-mergebrief}
+    ports:
+      # Loopback-only: dev credentials must not be reachable from the LAN.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-mergebrief} -d $${POSTGRES_DB:-mergebrief}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: ghcr.io/idan91/mergebrief:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: api
+    # The boot path is written for this policy: a config error exits 0 and
+    # stays down, a transient fault exits 1 and self-heals on the restart.
+    restart: on-failure
+    # No published port: the API is reached through the web tier on the
+    # compose network, and it holds every credential this deployment has.
+    expose:
+      - "3001"
+    # API containers. Every replica is interchangeable (state lives in
+    # Postgres; boot migrations take an advisory lock); web reaches them by
+    # service name, which gives failover when one exits, not an even split,
+    # and a write can read stale for a minute from another replica
+    # (docs/self-host/operations.md, "Running more than one api").
+    # `docker compose up --scale api=N` wins over this for that run. No
+    # container_name and no ports, so scaling needs nothing else.
+    deploy:
+      replicas: ${API_COUNT:-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # In-network DSN, DERIVED from the postgres credentials above so one
+      # `.env` edit moves both sides. Overrides any host-oriented DATABASE_URL
+      # from .env (which points at 127.0.0.1 for host tooling).
+      # sslmode=disable is REQUIRED, not optional: `postgres` is a
+      # non-loopback hostname, so the TLS allowlist gate refuses boot
+      # without an explicit choice, and the compose bridge network is exactly
+      # the private-network case explicit disable exists for. The bundled
+      # postgres image does not speak TLS.
+      DATABASE_URL: postgres://${POSTGRES_USER:-mergebrief}:${POSTGRES_PASSWORD:-mergebrief}@postgres:5432/${POSTGRES_DB:-mergebrief}?sslmode=disable
+      # The public origin, not the in-network one: the OAuth callback URL is
+      # built from it and must match the App's registered callback.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      # Reachable from the web service, not from the host.
+      MERGEBRIEF_API_HOST: 0.0.0.0
+      MERGEBRIEF_API_PORT: "3001"
+      # The mount below. Set here, so a host-oriented value in .env never
+      # reaches the container.
+      MERGEBRIEF_CONFIG: /app/mergebrief.config.yaml
+    # The instance config. The image carries none, so the file beside this
+    # one is mounted; edits apply on restart. `create_host_path: false` makes
+    # a missing file an error: left on, docker would create a root-owned
+    # DIRECTORY of that name on the host.
+    volumes:
+      - &instance-config
+        type: bind
+        source: ./mergebrief.config.yaml
+        target: /app/mergebrief.config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+    # Liveness only: /healthz is static, never /readyz here, or a DB blip
+    # would trigger restart churn on the tier that owns the database.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://127.0.0.1:3001/healthz || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # The api does not listen until its migrations finish, and a long one
+      # must not read as a failed start.
+      start_period: 5m
+    logging: &log-rotation
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    image: ghcr.io/idan91/mergebrief:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: web
+    restart: on-failure
+    # The web tier drains for up to its longest proxied request, a review
+    # submit (150 s), so a stop never cuts one the browser waits on.
+    stop_grace_period: 160s
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        # `service_healthy`, not `service_started`: the API does not listen
+        # until the schema and queue migrations finish, so `up --wait` would
+        # otherwise call the stack ready while `/api/*` still refuses.
+        condition: service_healthy
+    # No `env_file` on purpose. This tier is the internet-facing one and it
+    # holds no credentials, so `.env` never reaches its process environment.
+    # What it needs is set below; LOG_LEVEL falls back to its default and
+    # NODE_ENV to the image's `production`, which this service wants. A bad
+    # value here exits 1, so unlike api and worker it restarts until fixed.
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      MERGEBRIEF_API_ORIGIN: http://api:3001
+      # Tracing, off unless an endpoint is set in `.env`. OTLP headers stay
+      # out: point the web tier at a local collector or Agent, so the
+      # internet-facing process holds no vendor key.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
+      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
+    # Liveness only: /healthz is static, never /readyz here,
+    # or an upstream blip would trigger web restart churn.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *log-rotation
+
+  worker:
+    image: ghcr.io/idan91/mergebrief:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Derived from the postgres credentials, same as the api service, see
+      # the sslmode=disable note there (required).
+      DATABASE_URL: postgres://${POSTGRES_USER:-mergebrief}:${POSTGRES_PASSWORD:-mergebrief}@postgres:5432/${POSTGRES_DB:-mergebrief}?sslmode=disable
+      # The Entry comment's deep-link base, the same value the web tier uses.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      MERGEBRIEF_CONFIG: /app/mergebrief.config.yaml
+    # The same file the api reads, see its mount note.
+    volumes:
+      - *instance-config
+    # Worker containers. Concurrent generations = WORKER_COUNT x
+    # (WORKER_CONCURRENCY + WORKER_LARGE_CONCURRENCY), both slot counts set in
+    # .env (docs/self-host/generators.md, "Worker slots"). `docker compose up
+    # --scale worker=N` wins over this for that run. No container_name and no
+    # ports, so scaling needs nothing else.
+    deploy:
+      replicas: ${WORKER_COUNT:-1}
+    # No HTTP surface to probe; liveness = the runner process itself.
+    # on-failure: transient crashes (nonzero exit, e.g. a Postgres boot race)
+    # self-heal; config errors exit 0 and STAY DOWN. The reason is the last
+    # line of `docker compose logs worker`.
+    restart: on-failure
+    # A job aborts within 5s of a stop, then the pool closes and the last
+    # spans flush within 5s more; the default 10s would cut that flush.
+    stop_grace_period: 30s
+    logging: *log-rotation
+
+volumes:
+  postgres_data:

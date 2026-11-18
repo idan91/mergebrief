@@ -1,0 +1,88 @@
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V8
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+# Compose secret files (docker-compose.external-db.yml's documented layout)
+secrets/
+
+# Build output
+dist/
+dist-demo/
+build/
+out/
+*.tsbuildinfo
+**/.vitepress/cache/
+**/.vitepress/.temp/
+
+# Misc
+*.tmp
+*.bak
+*.orig
+coverage/
+
+# Playwright run output (traces/screenshots and the HTML report)
+test-results/
+playwright-report/
+
+# Local tooling artifacts
+.playwright-cli/
+.impeccable/
+
+node_modules
+
+.pnpm-store
+# TanStack Start dev artifacts
+apps/web/.tanstack/
+
+# Instance config (real file may name private key VARS/models; example is committed)
+mergebrief.config.yaml
+
+# Local render proofs (screenshots for PR bodies), never committed
+.screenshots/
+
+# Wrangler's local state.
+.wrangler/
+
+# Nested git worktrees (other checkouts of this repo).
+.worktrees/
+
+# Private material. It is kept outside the repository and linked into a
+# checkout; no trailing slash, so the links match too. CI's
+# lint job reads these lines up to the blank line and refuses a tracked file
+# under any of them; every line here starts with "/".
+/.claude
+/.serena
+/docs/internal
+/docs/plans
+/tools/categorizer/.mergebrief
+/tools/categorizer/eval/private-cases
+/tools/categorizer/eval/private-pair-cases
+/tools/categorizer/test/pipeline-goldens-private.test.ts
+/tools/categorizer/test/__snapshots__/pipeline-goldens-private.test.ts.snap
+/tools/categorizer/test/eval-summary-media-cases.test.ts

@@ -1,0 +1,19 @@
+@use "mixins";
+
+@layer components {
+  .panel {
+    flex: 1;
+    overscroll-behavior: contain;
+
+    @include mixins.rail-scroller;
+  }
+
+  .list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-3);
+    list-style: none;
+  }
+}

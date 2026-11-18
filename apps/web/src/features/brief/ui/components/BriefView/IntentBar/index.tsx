@@ -1,0 +1,329 @@
+import { useTranslation } from "react-i18next";
+import { forwardRef, useId, useImperativeHandle, useState } from "react";
+
+import {
+  AlignmentReads,
+  PrimaryTicketStatuses,
+  Specificities,
+  type IntentCheck,
+  type IntentItem,
+} from "brief-core/types";
+import { AccessibleLink } from "@web/components/AccessibleLink";
+import { Chip } from "@web/components/Chip";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import { CollapsibleBar } from "@web/components/CollapsibleBar";
+import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
+import {
+  CLAMP_THRESHOLD,
+  CLAMP_VISIBLE,
+  INTENT_BAR_ID,
+  INTENT_COUNTS,
+  UNAVAILABLE_REASON_KEY,
+} from "./consts";
+import { AlarmMark } from "./AlarmMark";
+import styles from "./IntentBar.module.scss";
+import { IntentCount } from "./IntentCount";
+import { GroupJumps } from "../GroupJumps";
+import { InlineCodeText } from "../InlineCodeText";
+import { IntentLegend } from "./IntentLegend";
+import { ScopeNote } from "./ScopeNote";
+import { TicketAlignment } from "./TicketAlignment";
+import {
+  isHttpUrl,
+  listNonZeroIntentCounts,
+  partitionIntentCheck,
+  type IntentBucketSpec,
+} from "./utils";
+
+export interface IntentBarProps {
+  intentCheck: IntentCheck;
+  /** Reuses the BriefView group-jump machinery (the TocBar path). */
+  jumpToGroup: (groupId: string) => void;
+  /**
+   * Change-group titles by id, for the go-to buttons' name and hover
+   * tooltip, a bare ↳ says nothing about WHERE it goes. An unknown id
+   * keeps the plain label.
+   */
+  groupTitles?: Record<string, string> | undefined;
+}
+
+export interface IntentBarHandle {
+  /** Expand the body; the view's scroll to target goes to `INTENT_BAR_ID`. */
+  expand: () => void;
+}
+
+export interface IntentItemRowProps {
+  item: IntentItem;
+  jumpToGroup: (groupId: string) => void;
+  groupTitles: Record<string, string>;
+  /** The primary ticket's URL; an item quoting it is labelled "ticket". */
+  ticketUrl?: string | undefined;
+}
+
+interface IntentSourceProps {
+  item: IntentItem;
+  linked: boolean;
+  sourceLabel: string;
+}
+
+/** Where the quote came from: a link, or "PR description" when there is no URL. */
+function IntentSource({ item, linked, sourceLabel }: IntentSourceProps) {
+  const { t } = useTranslation();
+
+  if (linked) {
+    return (
+      <span className={styles["source"]}>
+        <AccessibleLink
+          className={styles["sourceLink"]}
+          href={item.sourceUrl}
+          target="_blank"
+        >
+          {sourceLabel}
+        </AccessibleLink>
+      </span>
+    );
+  }
+  if (item.sourceUrl === "" && item.quote !== "") {
+    return (
+      <span className={styles["source"]}>
+        {t("brief.intent.prDescription")}
+      </span>
+    );
+  }
+  return null;
+}
+
+function IntentItemRow({
+  item,
+  jumpToGroup,
+  groupTitles,
+  ticketUrl,
+}: IntentItemRowProps) {
+  const { t } = useTranslation();
+  const linked = item.sourceUrl !== "" && isHttpUrl(item.sourceUrl);
+  const fromTicket = linked && item.sourceUrl === ticketUrl;
+  const sourceLabel = fromTicket
+    ? t("brief.intent.ticket")
+    : t("brief.intent.source");
+  return (
+    <li className={styles["item"]}>
+      <span className={styles["itemBody"]}>
+        <span className={styles["intent"]}>
+          <InlineCodeText text={item.intent} />
+        </span>
+        {item.quote !== "" || linked ? (
+          <span className={styles["itemMeta"]}>
+            {/* Model-produced quote: backtick spans only, never markdown or HTML. */}
+            {item.quote !== "" ? (
+              <q className={styles["quote"]}>
+                <InlineCodeText text={item.quote} />
+              </q>
+            ) : null}
+            <IntentSource
+              item={item}
+              linked={linked}
+              sourceLabel={sourceLabel}
+            />
+          </span>
+        ) : null}
+      </span>
+      <GroupJumps
+        groupIds={item.groupIds}
+        groupTitles={groupTitles}
+        jumpToGroup={jumpToGroup}
+      />
+    </li>
+  );
+}
+
+export interface IntentBucketProps {
+  bucket: IntentBucketSpec;
+  jumpToGroup: (groupId: string) => void;
+  groupTitles: Record<string, string>;
+  ticketUrl?: string | undefined;
+}
+
+function IntentBucket({
+  bucket,
+  jumpToGroup,
+  groupTitles,
+  ticketUrl,
+}: IntentBucketProps) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+
+  const clampable = bucket.items.length > CLAMP_THRESHOLD;
+  const clamped = clampable && !expanded;
+  const visibleItems = clamped
+    ? bucket.items.slice(0, CLAMP_VISIBLE)
+    : bucket.items;
+
+  return (
+    <div className={styles["bucket"]}>
+      <h4 className={styles["bucketLabel"]}>
+        {t(bucket.labelKey)}
+        {bucket.alarm ? <AlarmMark /> : null}
+      </h4>
+      {bucket.alarm ? (
+        <p className={styles["caution"]}>{t("brief.intent.alarmCaution")}</p>
+      ) : null}
+      <ul className={styles["bucketList"]} id={listId}>
+        {/* Content key: the list is immutable per prop and intent+quote
+            is effectively unique within a bucket. */}
+        {visibleItems.map((item) => (
+          <IntentItemRow
+            groupTitles={groupTitles}
+            item={item}
+            jumpToGroup={jumpToGroup}
+            key={`${item.intent}::${item.quote}`}
+            ticketUrl={ticketUrl}
+          />
+        ))}
+      </ul>
+      {clampable ? (
+        <Chip
+          aria-controls={listId}
+          aria-expanded={!clamped}
+          className={styles["showAll"]}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {clamped
+            ? t("brief.intent.showAll", { count: bucket.items.length })
+            : t("brief.intent.showFewer")}
+        </Chip>
+      ) : null}
+    </div>
+  );
+}
+
+/** One frozen default so the prop keeps its identity across renders. */
+const NO_GROUP_TITLES: Readonly<Record<string, string>> = {};
+
+/**
+ * Keep the neutral bucket counts visible and the body initially collapsed.
+ * Never auto-expand from model inference, which could anchor the reviewer.
+ * Broad and absent intent sources show one quiet unavailability line.
+ */
+export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
+  function IntentBar(
+    { intentCheck, jumpToGroup, groupTitles = NO_GROUP_TITLES },
+    ref,
+  ) {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+
+    // Stable handle: `setOpen` is referentially fixed, so the empty dep
+    // array keeps the ref identity constant across renders.
+    useImperativeHandle(ref, () => ({ expand: () => setOpen(true) }), []);
+
+    const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
+    const available = specificity === Specificities.PRECISE;
+
+    const statedCounts = listNonZeroIntentCounts(intentCheck, INTENT_COUNTS);
+    const ticketReadAgrees =
+      alignment === undefined || alignment.read === AlignmentReads.ALIGNED;
+    const ticketUnread = primaryTicket?.status === PrimaryTicketStatuses.UNREAD;
+    const nothingToReport =
+      statedCounts.length === 0 && ticketReadAgrees && !ticketUnread;
+    const counts = nothingToReport ? (
+      <span className={styles["nothingFound"]}>
+        {t("brief.intent.nothingFound")}
+      </span>
+    ) : (
+      <span className={styles["counts"]}>
+        {statedCounts.map(({ field, labelKey }) => (
+          <IntentCount
+            count={intentCheck[field].length}
+            key={field}
+            labelKey={labelKey}
+          />
+        ))}
+      </span>
+    );
+    const summary = available
+      ? counts
+      : t("brief.intent.unavailable", {
+          reason: t(UNAVAILABLE_REASON_KEY[specificity]),
+        });
+
+    const legend = available ? <IntentLegend /> : undefined;
+    const showsInference =
+      available || alignment !== undefined || scopeNote !== "";
+    const partition = partitionIntentCheck(intentCheck);
+    const ticketUrl = primaryTicket?.url;
+    const checksOut = partition.checksOut.map((bucket) => (
+      <IntentBucket
+        bucket={bucket}
+        groupTitles={groupTitles}
+        jumpToGroup={jumpToGroup}
+        key={bucket.key}
+        ticketUrl={ticketUrl}
+      />
+    ));
+    const needsALook = partition.needsALook.map((bucket) => (
+      <IntentBucket
+        bucket={bucket}
+        groupTitles={groupTitles}
+        jumpToGroup={jumpToGroup}
+        key={bucket.key}
+        ticketUrl={ticketUrl}
+      />
+    ));
+
+    return (
+      <CollapsibleBar
+        actions={legend}
+        data-intent-bar=""
+        headingLevel={BarHeadingLevels.H2}
+        id={INTENT_BAR_ID}
+        open={open}
+        summary={summary}
+        title={t("brief.intent.title")}
+        onToggle={() => setOpen((value) => !value)}
+      >
+        {scopeNote !== "" ? <ScopeNote note={scopeNote} /> : null}
+        {primaryTicket ? (
+          <TicketAlignment
+            alignment={alignment}
+            primaryTicket={primaryTicket}
+            specificity={specificity}
+          />
+        ) : null}
+        {available ? (
+          <div className={styles["split"]}>
+            <div className={styles["splitCol"]}>
+              <ScreenReaderOnly as="h3">
+                {t("brief.intent.splitChecksOut")}
+              </ScreenReaderOnly>
+              {checksOut.length > 0 ? (
+                checksOut
+              ) : (
+                <p className={styles["splitEmpty"]}>
+                  {t("brief.intent.emptyChecksOut")}
+                </p>
+              )}
+            </div>
+            <div className={styles["splitCol"]}>
+              <ScreenReaderOnly as="h3">
+                {t("brief.intent.splitNeedsALook")}
+              </ScreenReaderOnly>
+              {needsALook.length > 0 ? (
+                needsALook
+              ) : (
+                <p className={styles["splitEmpty"]}>
+                  {t("brief.intent.emptyNeedsALook")}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+        {showsInference ? (
+          <p className={styles["inferenceCaution"]}>
+            {t("brief.inferenceCaution")}
+          </p>
+        ) : null}
+      </CollapsibleBar>
+    );
+  },
+);

@@ -1,0 +1,6 @@
+generator:
+  provider: claude-code
+  model: claude-opus-5-5
+contextSources:
+  - type: notion
+    tokenEnv: NOTION_TOKEN

@@ -1,0 +1,34 @@
+import type { Logger } from "logging";
+import type { ApiTokenMetadataRow } from "persistence";
+import type { AuthRouteDeps, ViewerPrincipal } from "../session/types";
+import type { AccessLevel } from "types/access-levels";
+
+export interface TokensControllerDeps {
+  readonly deps: AuthRouteDeps;
+  readonly session: ViewerPrincipal;
+  readonly log: Logger;
+}
+
+/** A logout deleted the minting session before the mint could lock it. */
+export interface MintFailure {
+  readonly kind: "session-gone";
+}
+
+/** The one failure the revoke path can produce. */
+export interface RevokeFailure {
+  readonly kind: "token-not-found";
+}
+
+export interface MintedToken {
+  readonly token: string;
+  readonly row: ApiTokenMetadataRow;
+}
+
+export interface MintInput {
+  readonly name: string;
+  readonly scope: AccessLevel;
+  /** `null` = no expiry; `undefined` = the default window. */
+  readonly expiresInDays: number | null | undefined;
+  /** The opaque secret's scanner-friendly prefix (authz owns the constant). */
+  readonly tokenPrefix: string;
+}

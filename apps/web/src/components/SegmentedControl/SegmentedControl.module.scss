@@ -1,0 +1,126 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .fieldset {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2-5);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  // Outside the group so it cannot read as an option. The float is
+  // load-bearing: it opts out of fieldset-legend rendering so this lays out
+  // as an ordinary flex item.
+  .legend {
+    float: inline-start;
+    padding: 0;
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    white-space: nowrap;
+  }
+
+  .group {
+    --segmented-inner-radius: #{functions.inner-radius(var(--radius-md), 3px)};
+
+    display: flex;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+  }
+
+  .option {
+    position: relative;
+    display: inline-flex;
+    flex: 1;
+
+    &:focus-within,
+    &[data-tip-open="true"] {
+      z-index: functions.get-z-index("segmented-tip");
+    }
+  }
+
+  .label {
+    inline-size: 100%;
+    min-block-size: functions.to-rem(24px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
+    border-radius: var(--segmented-inner-radius);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      background var(--motion-fast),
+      color var(--motion-fast);
+
+    @include mixins.hover {
+      &:hover:not([data-unavailable]) {
+        background: var(--color-surface-2);
+        color: var(--color-text-1);
+      }
+    }
+
+    &:active:not([data-unavailable]) {
+      background: var(--color-surface-3);
+    }
+
+    &[data-state="active"] {
+      background: var(--color-accent-tint-subtle);
+      box-shadow: var(--shadow-inset-accent);
+      color: var(--color-accent);
+
+      @include mixins.forced-selected;
+    }
+
+    &[data-unavailable] {
+      cursor: not-allowed;
+
+      @include mixins.dimmed("input:focus-visible + &");
+    }
+  }
+
+  // The input is `.sr-only` (still focusable), so the ring goes on the label.
+  input:focus-visible + .label {
+    @include mixins.focus-ring;
+  }
+
+  .group[data-density="roomy"] .label {
+    padding-inline: var(--space-3-5);
+  }
+
+  .tip {
+    position: absolute;
+    inset-block-start: calc(100% + functions.to-rem(6px));
+    inset-inline-start: 50%;
+    z-index: functions.get-z-index("segmented-tip");
+    display: none;
+    inline-size: max-content;
+    max-inline-size: functions.to-rem(240px);
+    padding: var(--space-2-5) var(--space-3);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-chip);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-tooltip);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    line-height: var(--line-height-compact);
+    white-space: normal;
+    transform: translateX(-50%);
+  }
+
+  .option:focus-within .tip,
+  .option[data-tip-open="true"] .tip {
+    display: block;
+  }
+
+  .option[data-tip-dismissed="true"] .tip {
+    display: none;
+  }
+}

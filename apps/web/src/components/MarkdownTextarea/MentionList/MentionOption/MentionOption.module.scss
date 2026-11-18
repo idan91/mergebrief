@@ -1,0 +1,44 @@
+@use "mixins";
+
+@layer components {
+  .mentionOption {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-2);
+    cursor: pointer;
+    font-size: var(--font-size-2);
+
+    &[data-state="active"] {
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+
+      @include mixins.forced-selected;
+    }
+
+    &[data-state="active"][data-variant="floating"] {
+      background: color-mix(in srgb, var(--color-line-strong) 40%, transparent);
+    }
+  }
+
+  .handle,
+  .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .handle {
+    flex-shrink: 1;
+  }
+
+  .name {
+    flex-shrink: 1000;
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+}

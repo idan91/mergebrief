@@ -1,0 +1,34 @@
+@layer components {
+  .head {
+    padding-block-start: var(--space-5);
+    padding-inline: var(--space-6) var(--space-5);
+  }
+
+  .body {
+    flex: 1;
+    min-block-size: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    padding-block: 0 var(--space-5);
+    padding-inline: var(--space-6);
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .strip {
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  .flags {
+    margin-block-start: var(--space-4);
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--font-size-2);
+  }
+}

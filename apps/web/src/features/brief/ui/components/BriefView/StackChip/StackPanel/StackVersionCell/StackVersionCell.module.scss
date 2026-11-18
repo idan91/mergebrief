@@ -1,0 +1,13 @@
+@layer components {
+  .cell {
+    display: flex;
+    flex-direction: column;
+    grid-area: 1 / 1;
+    justify-content: flex-end;
+    min-block-size: 0;
+
+    &[data-state="inactive"] {
+      visibility: hidden;
+    }
+  }
+}

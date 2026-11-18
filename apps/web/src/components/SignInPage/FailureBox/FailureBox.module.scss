@@ -1,0 +1,35 @@
+@layer components {
+  .box {
+    display: grid;
+    gap: var(--space-3);
+    padding-block: var(--space-4);
+    padding-inline: var(--space-5);
+    border: 1px solid
+      color-mix(in oklch, var(--color-negative) 40%, var(--color-line));
+    border-radius: var(--radius-md);
+    background: var(--color-negative-tint-faint);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+    text-align: start;
+  }
+
+  .why {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .owner {
+    color: var(--color-text-2);
+    overflow-wrap: anywhere;
+
+    code {
+      padding-inline: var(--space-2);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-2);
+      color: var(--color-text-soft);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-2);
+      box-decoration-break: clone;
+    }
+  }
+}

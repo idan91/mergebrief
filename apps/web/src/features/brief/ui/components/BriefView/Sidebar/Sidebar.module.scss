@@ -1,0 +1,108 @@
+@use "functions";
+@use "layout";
+@use "mixins";
+
+@layer components {
+  .sidebar[data-variant="desktop"] {
+    position: fixed;
+    inset-block: var(--top-bar-h) 0;
+    inset-inline-end: 0;
+    z-index: functions.get-z-index("sidebar");
+    display: flex;
+    inline-size: var(--sidebar-w-collapsed);
+    overflow: hidden;
+
+    // By width, on the page column's own clock: the panel's edge and the
+    // story's edge are laid out in the same frame and cannot part.
+    transition: inline-size var(--sidebar-slide) var(--ease-out);
+
+    &[data-state="expanded"] {
+      inline-size: var(--sidebar-w-expanded);
+    }
+
+    @include mixins.for-breakpoint("tablet", "<=") {
+      display: none;
+    }
+  }
+
+  .sidebar[data-variant="narrow"] {
+    --bottom-sheet-offset: var(--sidebar-bar-h);
+
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: functions.get-z-index("narrow-sidebar");
+
+    @include mixins.for-landscape-phone {
+      --bottom-sheet-offset: 0px;
+    }
+  }
+
+  .column {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    inline-size: var(--sidebar-w-collapsed);
+    padding-block: var(--space-3) var(--space-5);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- balances the rail's 1px start border so its icons centre: a border width, so px */
+    padding-inline-end: 1px;
+    border-inline-start: 1px solid var(--color-line);
+    background: var(--color-chrome);
+  }
+
+  .foot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-block-start: auto;
+  }
+
+  .shortcutsTrigger {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-3);
+    font-weight: 600;
+  }
+
+  @media (hover: none) {
+    /* :is(button) outranks IconButton's own display in either bundle order. */
+    .shortcutsTrigger:is(button) {
+      display: none;
+    }
+  }
+
+  .panel {
+    --scroller-bg: var(--color-chrome);
+
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
+    border-inline-start: 1px solid var(--color-line);
+    background: var(--color-chrome);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .failure {
+    padding-block: var(--space-5);
+    padding-inline: var(--space-4);
+  }
+
+  // Overflow opens for the overlay's shadow: the panel under the rail spills
+  // only past the viewport edge, and a fixed box adds no scrollable overflow.
+  @media (width <= #{layout.$sidebar-overlay-max}) {
+    .sidebar[data-variant="desktop"] {
+      overflow: visible;
+    }
+
+    .panel {
+      box-shadow: var(--shadow-float);
+    }
+  }
+}

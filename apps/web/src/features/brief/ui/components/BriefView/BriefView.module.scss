@@ -1,0 +1,112 @@
+@use "functions";
+@use "layout";
+@use "mixins";
+
+@layer components {
+  // Set on :root because the toast and the page notices read the covered
+  // width outside the reading column.
+  :root {
+    // Only the Brief page pins a stack; elsewhere the registered 0px stands.
+    &:has(.readingColumn) {
+      --sticky-stack-h: calc(
+        var(--top-bar-h) + var(--banner-stack-h) + var(--toolbar-h, 0px)
+      );
+    }
+
+    &:has(.readingColumn[data-sidebar="collapsed"]),
+    &:has(.readingColumn[data-sidebar="expanded"]) {
+      --sidebar-w: var(--sidebar-w-collapsed);
+      --sidebar-covered-w: var(--sidebar-w-collapsed);
+    }
+
+    &:has(.readingColumn[data-sidebar="expanded"]) {
+      --sidebar-covered-w: var(--sidebar-w-expanded);
+    }
+
+    @media (width > #{layout.$sidebar-overlay-max}) {
+      &:has(.readingColumn[data-sidebar="expanded"]) {
+        --sidebar-w: var(--sidebar-w-expanded);
+      }
+    }
+
+    // Set only while the panel slides, so a resize never eases.
+    &:has(.readingColumn[data-sidebar-slide="in"]) {
+      --sidebar-slide: var(--motion-slide);
+    }
+
+    &:has(.readingColumn[data-sidebar-slide="out"]) {
+      --sidebar-slide: var(--motion-base);
+    }
+
+    &:has(.readingColumn[data-sidebar="bar"]) {
+      --sidebar-reserve-bottom: var(--sidebar-bar-h);
+    }
+
+    @include mixins.for-breakpoint("mobile", max) {
+      &:has(.readingColumn[data-phone-bar]) {
+        --sidebar-reserve-bottom: var(--sidebar-bar-h);
+        --bottom-sheet-offset: var(--sidebar-bar-h);
+      }
+    }
+
+    @include mixins.for-landscape-phone {
+      &:has(.readingColumn[data-sidebar="bar"]),
+      &:has(.readingColumn[data-phone-bar]) {
+        --sidebar-reserve-bottom: 0px;
+        --bottom-sheet-offset: 0px;
+      }
+    }
+
+    @include mixins.for-breakpoint("tablet", "<=") {
+      &:has(.readingColumn[data-sidebar]) {
+        --sidebar-w: 0px;
+        --sidebar-covered-w: 0px;
+      }
+    }
+  }
+
+  .readingColumn {
+    transition:
+      opacity var(--motion-fast) ease,
+      padding-inline-end var(--sidebar-slide) var(--ease-out);
+
+    &[data-pending] {
+      opacity: 0.6;
+    }
+
+    // The focus pill's dock takes no layout, so the column reserves it.
+    &[data-zen="on"] {
+      padding-block-start: var(--focus-indicator-h);
+      padding-inline: 0;
+    }
+  }
+
+  @include mixins.for-landscape-phone {
+    .readingColumn {
+      padding-inline: max(var(--main-gutter), env(safe-area-inset-left))
+        max(var(--main-gutter), env(safe-area-inset-right));
+    }
+  }
+
+  .conversationFailure {
+    padding: var(--space-5);
+  }
+
+  .diffTimeoutBand {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the room under the diff-timeout band, 4px from 16 and 24 */
+    margin-block: var(--space-4) functions.to-rem(20px);
+    margin-inline-end: var(--sidebar-covered-w);
+    padding-inline: max(var(--page-gutter), env(safe-area-inset-left))
+      max(var(--page-gutter), env(safe-area-inset-right));
+    transition: margin-inline-end var(--sidebar-slide) var(--ease-out);
+
+    > * {
+      max-inline-size: functions.to-rem(880px);
+      margin-inline: auto;
+    }
+  }
+
+  body:has(.readingColumn[data-zen="on"]) {
+    background: var(--color-focus-ground);
+  }
+}

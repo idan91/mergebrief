@@ -1,0 +1,78 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9001
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9001",
+        "sha": "6c165563af5ba90182693db67080056d2b5d7b27",
+        "baseSha": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+        "commitCount": 1,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 11,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+      "head": "6c165563af5ba90182693db67080056d2b5d7b27",
+      "commitCount": 1
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9001
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters.",
+        "url": "https://github.com/acme/mergebrief/pull/9001",
+        "sha": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776",
+        "baseSha": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+        "commitCount": 2,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 12,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,17 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+// Uptime is measured from process start, not deploy time.\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+      "head": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776",
+      "commitCount": 2
+    }
+  },
+  "increment": {
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n"
+  }
+}

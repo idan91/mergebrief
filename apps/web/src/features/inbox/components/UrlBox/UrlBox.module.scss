@@ -1,0 +1,174 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .box {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .form {
+    --url-box-shadow-rest:
+      #{functions.inset-ring(var(--color-control-edge))}, var(--shadow-lift);
+    --url-box-shadow-focus:
+      #{functions.inset-ring(var(--color-control-edge))},
+      var(--shadow-lift-focus);
+
+    position: relative;
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    block-size: functions.to-rem(44px);
+    padding-inline: var(--space-5) var(--space-3);
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    outline: 1px solid transparent;
+    outline-offset: -1px;
+    background: var(--color-surface-2);
+    box-shadow: var(--url-box-shadow-rest);
+    color: var(--color-text-2);
+    transition:
+      background var(--motion-base) ease,
+      box-shadow var(--motion-base) ease;
+
+    &:focus-within {
+      background: var(--color-surface-3);
+      box-shadow: var(--url-box-shadow-focus);
+
+      @include mixins.forced-colors {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+      }
+
+      .icon {
+        color: var(--color-accent);
+      }
+    }
+
+    &:has(.input:not(:placeholder-shown)) {
+      .hint {
+        display: none;
+      }
+
+      .submit {
+        display: inline-flex;
+      }
+    }
+
+    /* :has(.input) only for weight: the shown rule above is (0,4,0), and this must outrank it. */
+    &[data-state="progress"]:has(.input) {
+      .hint,
+      .submit {
+        display: none;
+      }
+
+      &::after {
+        position: absolute;
+        inset: auto 0 0;
+        block-size: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--color-accent),
+          transparent
+        );
+        background-repeat: no-repeat;
+        background-size: 40% 100%;
+        animation: sweep var(--motion-spin) linear infinite;
+        content: "";
+      }
+    }
+  }
+
+  .icon {
+    flex: none;
+  }
+
+  .input {
+    flex: 1;
+    min-inline-size: 0;
+    block-size: 100%;
+    border: 0;
+    background: none;
+    color: var(--color-text-1);
+    font-size: var(--font-size-3);
+    outline: 0;
+
+    @include mixins.touch-field-text;
+
+    &::placeholder {
+      color: var(--color-text-3);
+      opacity: 1;
+    }
+  }
+
+  .progress {
+    display: none;
+    flex: 1;
+    color: var(--color-text-1);
+    font-size: var(--font-size-3);
+  }
+
+  .form[data-state="progress"] {
+    .input {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    .progress {
+      display: block;
+    }
+  }
+
+  .hint {
+    flex: none;
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2-5);
+    border-radius: var(--radius-chip);
+    background: var(--color-surface-3);
+    color: var(--color-text-2);
+    font: inherit;
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-control);
+  }
+
+  .form .submit {
+    display: none;
+    flex: none;
+    min-block-size: functions.to-rem(32px);
+    padding-block: 0;
+    padding-inline: var(--space-5);
+    font-size: var(--font-size-2);
+  }
+
+  .error {
+    color: var(--color-negative);
+    font-size: var(--font-size-2);
+  }
+
+  @keyframes sweep {
+    from {
+      background-position: -40% 0;
+    }
+
+    to {
+      background-position: 140% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .form[data-state="progress"]::after {
+      animation: none;
+      background-size: 100% 100%;
+    }
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .hint {
+      display: none;
+    }
+  }
+}

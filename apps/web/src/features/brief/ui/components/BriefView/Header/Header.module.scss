@@ -1,0 +1,466 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .header {
+    --header-ground: var(--color-ground);
+    --header-edge: var(--color-line);
+
+    position: sticky;
+    inset-block-start: 0;
+    z-index: functions.get-z-index("header");
+    display: flex;
+    flex-direction: column;
+    border-block-end: 1px solid transparent;
+    container: header / inline-size;
+  }
+
+  // The ground and edge sit on their own layer so a collapse can slide them
+  // while the box already holds its final height. It overhangs the top by more
+  // than the height a collapse moves.
+  .header::before {
+    position: absolute;
+    inset: calc(-1 * var(--space-8)) 0 -1px;
+    z-index: -1;
+    border-block-end: 1px solid var(--header-edge);
+    background: var(--header-ground);
+    content: "";
+    pointer-events: none;
+  }
+
+  .identityRow {
+    display: flex;
+    align-items: center;
+    gap: clamp(var(--space-3-5), 1.5vw, var(--space-5));
+    min-block-size: var(--header-identity-min);
+    padding-block: var(--header-pad-block);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the header's widest side inset, 4px from 24 and 32 */
+    padding-inline: clamp(var(--space-5), 3vw, functions.to-rem(28px));
+  }
+
+  .comparisonRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, var(--space-5));
+    min-block-size: var(--header-comparison-min);
+    padding-block: var(--space-2);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the identity row's side inset, which this row shares */
+    padding-inline: clamp(var(--space-5), 3vw, functions.to-rem(28px));
+    border-block-start: 1px solid var(--color-line);
+    background: var(--color-chrome);
+  }
+
+  .home {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-brand);
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .mark {
+    inline-size: 32px;
+    block-size: 32px;
+  }
+
+  .titleBlock {
+    position: relative;
+    display: flex;
+    flex: 0 1000 auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--header-line-gap);
+    min-inline-size: functions.to-rem(112px);
+  }
+
+  // The outgoing title while a collapse runs; its size and width are written
+  // at the start of each one. No width at rest: its nowrap text would otherwise
+  // size the box and overflow the page.
+  .titleGhost {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    font-weight: 600;
+    line-height: var(--line-height-heading);
+    opacity: 0;
+    pointer-events: none;
+    text-overflow: ellipsis;
+    transform-origin: 0 0;
+    white-space: nowrap;
+
+    &::before {
+      content: attr(data-title);
+    }
+  }
+
+  .titleLine {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3-5);
+    min-inline-size: 0;
+  }
+
+  // Never wraps above 880px: a second line moves the published --top-bar-h
+  // mid-scroll.
+  .metaLine {
+    --meta-ring-room: #{functions.to-rem(6px)};
+
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: clamp(var(--space-3), 1vw, var(--space-4));
+    min-inline-size: 0;
+    font-size: var(--font-size-1);
+
+    // --header-meta-h resolves on :root, so the collapsed control height never
+    // reaches it: the line keeps one height while its controls ease inside it.
+    block-size: calc(var(--header-meta-h) + 2 * var(--meta-ring-room));
+
+    // clip, not hidden: hidden would make this a scroll container.
+    overflow: clip;
+
+    // Padding + cancelling margin gives the focus ring room inside the clip
+    // box, sized for the 3px ring prefers-contrast raises to.
+    // overflow-clip-margin would be the obvious tool; WebKit lacks it.
+    padding-block: var(--meta-ring-room);
+    margin-block: calc(-1 * var(--meta-ring-room));
+  }
+
+  .title {
+    // Yields first: the one thing here that reads fine truncated.
+    flex: 0 1000 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    font-size: var(--header-title-font);
+    font-weight: 600;
+    line-height: var(--line-height-heading);
+    text-overflow: ellipsis;
+    transform-origin: 0 0;
+    white-space: nowrap;
+  }
+
+  .header[data-collapsed] .title {
+    font-size: var(--font-size-2);
+  }
+
+  // Scoped to the widths that collapse: below the breakpoint the header ships
+  // already-compact and holds ONE height.
+  @include mixins.for-breakpoint("mobile", ">") {
+    .header[data-collapsed] {
+      --header-line-gap: #{functions.to-rem(6px)};
+      --header-pad-block: #{functions.to-rem(8px)};
+
+      // 20px rides WCAG 2.5.8's spacing exception: measured 28.8px between
+      // centres along this line, 25px vertically against the PR link on 24px
+      // required. Tightening either gap breaks it.
+      --header-meta-control-h: #{functions.to-rem(20px)};
+    }
+  }
+
+  // display: contents keeps the identity row one flex line on wide viewports;
+  // the ≤880px block turns lead into the grid's content row.
+  .lead {
+    display: contents;
+  }
+
+  .spacer {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  // Pinned to the row's control box rather than Button's own padding, which
+  // every other surface uses; the label centres inside whatever it holds.
+  .identityRow > .terminalSlot {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--header-control-h);
+    padding-block: 0;
+    padding-inline: var(--space-4-5);
+  }
+
+  .detailsRegion {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: clamp(var(--space-3-5), 1.5vw, var(--space-5));
+    margin-inline-start: auto;
+  }
+
+  // Never `align-items: baseline` here — it inflates the rows.
+  .statsGroup {
+    display: grid;
+    flex: none;
+    grid-auto-flow: column;
+    grid-template-rows: auto auto;
+  }
+
+  .statsGroup > span:not([class]) {
+    display: contents;
+  }
+
+  .statsGroup > .stat,
+  .statsGroup > span:not([class]) > .stat {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    justify-items: end;
+  }
+
+  .stat {
+    position: relative;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-3);
+    cursor: default;
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-compact);
+    text-align: end;
+    white-space: nowrap;
+
+    b {
+      display: block;
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--font-size-2);
+      font-weight: 600;
+    }
+  }
+
+  // After the `.stat` reset: its `border: 0` would swallow an equal-specificity
+  // earlier rule.
+  .statsGroup > * + .stat,
+  .statsGroup > * + span:not([class]) > .stat {
+    border-inline-start: 1px solid var(--color-line);
+    padding-inline-start: var(--space-4-5);
+    margin-inline-start: var(--space-4-5);
+  }
+
+  .comparisonCluster {
+    display: flex;
+    flex: 1;
+    min-inline-size: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3) clamp(var(--space-3-5), 1.5vw, var(--space-5));
+  }
+
+  .header[data-focus] {
+    --header-ground: var(--color-focus-ground);
+    --header-edge: transparent;
+
+    > * {
+      opacity: 0.32;
+      transition: opacity var(--motion-base) var(--ease-out);
+    }
+
+    &:focus-within > * {
+      opacity: 1;
+    }
+
+    @include mixins.hover {
+      &:hover > * {
+        opacity: 1;
+      }
+    }
+
+    // Touch has no hover to lift the dim, and WebKit focuses no tapped control.
+    @media (hover: none) {
+      > * {
+        opacity: 1;
+      }
+    }
+
+    .comparisonRow,
+    .progressBar {
+      display: none;
+    }
+  }
+
+  // scaleX, not inline-size: a percentage re-fires the transition every
+  // resize frame. `0 50%` = inline-start; transform-origin has no logical
+  // keywords yet.
+  // Hangs off the header box rather than --top-bar-h, which a ResizeObserver
+  // publishes a frame after the box changes height. Sits under the hairline.
+  .progressBar {
+    position: absolute;
+    inset-block-start: calc(100% + 1px);
+    inset-inline-start: 0;
+    z-index: functions.get-z-index("header");
+    inline-size: 100%;
+    block-size: 3px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-brand) 60%, var(--color-ground)) 0%,
+      var(--color-brand) 70%,
+      color-mix(in oklch, var(--color-brand) 55%, var(--color-on-brand)) 100%
+    );
+    transform: scaleX(var(--progress-scale));
+    transform-origin: 0 50%;
+    transition: transform var(--motion-slow) var(--ease-in-out);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progressBar {
+      transition: none;
+    }
+  }
+
+  // Forced colours drop the gradient; the bar keeps its place in system ink.
+  @media (forced-colors: active) {
+    .progressBar {
+      forced-color-adjust: none;
+      background: CanvasText;
+    }
+  }
+
+  .account {
+    display: contents;
+  }
+
+  .back {
+    display: none;
+  }
+
+  @include mixins.for-phone {
+    .identityRow {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 0;
+      block-size: functions.to-rem(43px);
+      min-block-size: 0;
+      padding-block: 0;
+      padding-inline: 0 var(--space-5);
+    }
+
+    .back {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: functions.to-rem(44px);
+      block-size: functions.to-rem(43px);
+      color: var(--color-text-2);
+
+      &:focus-visible {
+        @include mixins.focus-ring;
+
+        outline-offset: -2px;
+      }
+    }
+
+    .lead {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3-5);
+      min-inline-size: 0;
+    }
+
+    .titleBlock {
+      flex: 1 1 0;
+      min-inline-size: 0;
+    }
+
+    .spacer,
+    .account,
+    .comparisonRow,
+    .identityRow > .terminalSlot {
+      display: none;
+    }
+
+    .header[data-focus] .identityRow {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .header[data-focus] .identityRow > .terminalSlot {
+      display: inline-flex;
+      margin-inline-start: var(--space-3);
+    }
+  }
+
+  @include mixins.for-landscape-phone {
+    .identityRow {
+      padding-inline: env(safe-area-inset-left)
+        max(var(--space-5), env(safe-area-inset-right));
+    }
+
+    .header:has([data-landscape-row]) .identityRow {
+      display: none;
+    }
+  }
+}
+
+@layer components {
+  @include mixins.for-phone {
+    .metaLine,
+    .titleLine > :not(.title) {
+      display: none;
+    }
+
+    .title {
+      flex: 1 1 auto;
+    }
+
+    .header:not([data-title-out]) .titleBlock,
+    .header:not([data-title-out]) [data-landscape-row] h1 {
+      position: absolute;
+      overflow: hidden;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      border: 0;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .home {
+      justify-content: flex-start;
+      min-inline-size: functions.to-rem(44px);
+      min-block-size: functions.to-rem(43px);
+
+      &:focus-visible {
+        outline-offset: -2px;
+      }
+    }
+
+    .mark {
+      inline-size: 24px;
+      block-size: 24px;
+    }
+
+    .header[data-title-out] .home {
+      display: none;
+    }
+
+    .header[data-title-out] .titleBlock,
+    .header[data-title-out] [data-landscape-row] h1 {
+      animation: title-in var(--motion-base) var(--ease-out);
+    }
+  }
+
+  @keyframes title-in {
+    from {
+      opacity: 0;
+      translate: 0 functions.to-rem(4px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes title-in {
+      from {
+        opacity: 0;
+      }
+    }
+  }
+}

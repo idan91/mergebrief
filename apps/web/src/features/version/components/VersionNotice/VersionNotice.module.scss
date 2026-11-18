@@ -1,0 +1,113 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .notice {
+    --notice-gutter: var(--page-gutter);
+
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sits over the header's 1px hairline: a border width, not rhythm */
+    margin-block-start: -1px;
+    margin-inline-end: var(--sidebar-covered-w);
+    padding-inline: max(var(--notice-gutter), env(safe-area-inset-left))
+      max(var(--notice-gutter), env(safe-area-inset-right));
+    border-block-start: 1px solid var(--color-line-strong);
+    border-block-end: 1px solid var(--color-line);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    transition:
+      opacity var(--motion-base) ease,
+      margin-inline-end var(--sidebar-slide) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+
+    &[data-surface="brief"] {
+      --notice-gutter: clamp(
+        #{functions.to-rem(18px)},
+        3vw,
+        #{functions.to-rem(28px)}
+      );
+    }
+
+    &[data-tone="warning"] {
+      border-block-start-color: color-mix(
+        in srgb,
+        var(--color-warning) 60%,
+        var(--color-line)
+      );
+
+      .lead,
+      .version {
+        color: var(--color-warning);
+      }
+    }
+  }
+
+  .inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2-5) var(--space-5);
+    align-items: center;
+    min-block-size: functions.to-rem(42px);
+    padding-block: var(--space-3);
+  }
+
+  .mark {
+    flex: none;
+    color: var(--color-warning);
+  }
+
+  .text {
+    flex: 1 1 functions.to-rem(280px);
+    min-inline-size: 0;
+    margin: 0;
+    line-height: var(--line-height-compact);
+  }
+
+  .lead {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .version {
+    color: var(--color-text-1);
+    font-weight: 600;
+  }
+
+  .actions {
+    display: flex;
+    flex: none;
+    gap: var(--space-3);
+    align-items: center;
+    margin-inline-start: auto;
+  }
+
+  .link {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    border-radius: var(--radius-xs);
+    color: var(--color-text-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-strong);
+    text-underline-offset: 3px;
+    transition: color var(--motion-fast);
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+        text-decoration-color: currentcolor;
+      }
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .linkIcon {
+    color: var(--color-text-2);
+  }
+}

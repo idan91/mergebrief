@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-11-12T23:04:48.301633066Z",
+  "status": 404,
+  "error": "Not Found",
+  "message": "No message available",
+  "path": "/ex/jira/00000000-0000-0000-0000-000000000000/rest/api/3/issue/ACME-2"
+}

@@ -1,0 +1,182 @@
+// The digest-row visual language, shared by the ConversationSection subtree,
+// the promoted ThreadRowView subtree, and InlineThreads consumers; no
+// component owns these atoms alone.
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .rows,
+  .nested {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nested {
+    margin-inline-start: var(--space-5);
+  }
+
+  .row {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2);
+  }
+
+  /* Shared atoms restated for RowButton's slim faint run (the component owns
+     the chrome; these are this module's own children). */
+  [data-density="slim"] {
+    .rowAuthor {
+      color: inherit;
+      font-weight: 500;
+    }
+
+    .rowLine {
+      flex: initial;
+      color: inherit;
+    }
+
+    /* The count sits in the run, not pushed to the far edge — its separator
+       would otherwise strand itself before the auto margin's gap. */
+    .count {
+      margin-inline-start: 0;
+      color: inherit;
+    }
+  }
+
+  .slimLabel {
+    flex-shrink: 0;
+    font-size: var(--font-size-1);
+    letter-spacing: 0.02em;
+  }
+
+  .slimSep {
+    flex-shrink: 0;
+    color: var(--color-decorative);
+  }
+
+  /* Text-carrying chips (WCAG 1.4.1); factual tones — resolved is NOT a
+     success green. */
+  .chip {
+    flex-shrink: 0;
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-1);
+    letter-spacing: 0.02em;
+
+    // An open thread needs the reviewer, so it wears the accent.
+    &[data-state="open"] {
+      border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+      color: var(--color-accent);
+    }
+
+    &[data-state="resolved"],
+    &[data-state="outdated"] {
+      color: var(--color-text-2);
+    }
+
+    &[data-state="after-brief"] {
+      border-color: var(--color-line-strong);
+      color: var(--color-text-soft);
+    }
+
+    &[data-state="approved"],
+    &[data-state="changes-requested"],
+    &[data-state="commented"],
+    &[data-state="dismissed"] {
+      color: var(--color-text-1);
+    }
+  }
+
+  /* Open/outdated rows only — the slim resolved run stays text-only by
+     design (a settled row stops competing for attention). */
+  .rowAvatar {
+    flex-shrink: 0;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-circle);
+  }
+
+  .rowAuthor {
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  .rowLine {
+    overflow: hidden;
+    min-inline-size: 0;
+    flex: 1 1 functions.to-rem(120px);
+    color: var(--color-text-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ownTag,
+  .botTag {
+    flex-shrink: 0;
+    margin-inline-start: var(--space-2);
+    padding-inline: var(--space-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+  }
+
+  .revision,
+  .count {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .revision {
+    font-family: var(--font-mono);
+  }
+
+  .detail {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-3-5);
+    padding-block: var(--space-2-5) var(--space-3-5);
+  }
+
+  .replies {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-3);
+    margin-inline-start: var(--space-5);
+    padding-inline-start: var(--space-4);
+    border-inline-start: 2px solid var(--color-line);
+  }
+
+  .author {
+    flex-shrink: 0;
+    color: var(--color-text-1);
+    font-weight: 600;
+  }
+
+  .detailActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .note {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+
+  .error {
+    margin: 0;
+    color: var(--color-negative);
+    font-size: var(--font-size-2);
+  }
+}

@@ -1,0 +1,25 @@
+@layer components {
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    line-height: var(--line-height-control);
+  }
+
+  .chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 2ch;
+    padding-block: var(--space-2);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-count-on-fill);
+    color: var(--color-on-brand);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: var(--line-height-control);
+  }
+}

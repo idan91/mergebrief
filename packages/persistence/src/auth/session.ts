@@ -1,0 +1,230 @@
+// The `auth_session` boundary, the PRE-TENANT resolver and every write to the
+// table: a session holds no installation, so no tenant scope reaches it. The
+// globally UNIQUE `session_token_hash` keys one session, the reviewer keys
+// all of them. The row carries NO credential material: the GitHub pair lives
+// on the `github_grant` row it references, so resolution JOINs the grant and
+// every delete orphan-cleans it in the same tx.
+import { type SQL, eq, inArray, lt, sql } from "drizzle-orm";
+import { traceStore } from "../stores/trace-store";
+import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
+import { githubGrant } from "../schema/github-grant";
+import { authSession } from "../schema/auth-session";
+import type { GrantRowId, ReviewerId } from "../types";
+import type { Result } from "types/utils";
+import type { CryptoError } from "./crypto";
+import {
+  type GithubGrantRow,
+  type GrantCreateInput,
+  type OrphanedGrant,
+  type OrphanedGrantSink,
+  deleteOrphanedGrants,
+  insertSealedGrant,
+} from "./grant";
+
+export type AuthSessionRow = typeof authSession.$inferSelect;
+
+const SESSION_SWEEP_BATCH_SIZE = 500;
+
+export interface SessionCreateInput {
+  readonly sessionTokenHash: string;
+  readonly reviewerId: ReviewerId;
+  readonly reviewerLogin?: string | undefined;
+  /** The GitHub credential pair lives on the grant row, link, never copy. */
+  readonly grantId: GrantRowId;
+  readonly expiresAt: Date;
+}
+
+/** A sign-in: the session takes the grant's user and refresh expiry. */
+export interface SessionWithGrantCreateInput {
+  readonly sessionTokenHash: string;
+  readonly reviewerLogin?: string;
+  readonly grant: GrantCreateInput;
+}
+
+// ---------------------------------------------------------------------------
+// The surface.
+// ---------------------------------------------------------------------------
+
+/** What a session delete removed, and the grants it left with no referent. */
+export interface SessionDeleteResult {
+  readonly deleted: number;
+  readonly orphanedGrants: readonly OrphanedGrant[];
+}
+
+/** A resolved session with the grant it references (one JOINed query). */
+export interface SessionWithGrant {
+  readonly session: AuthSessionRow;
+  readonly grant: GithubGrantRow;
+}
+
+export interface SessionAuth {
+  /** Insert a session linking a grant that already exists. */
+  createSession(input: SessionCreateInput): Promise<AuthSessionRow>;
+  /**
+   * Insert a sign-in's grant and its session in ONE transaction, so neither
+   * row exists without the other. A key the provider cannot resolve is a
+   * `CryptoError` and inserts nothing.
+   */
+  createSessionWithGrant(
+    input: SessionWithGrantCreateInput,
+  ): Promise<Result<SessionWithGrant, CryptoError>>;
+  /** By the globally-unique hash, JOINed to the grant; absence is `undefined`. */
+  findSession(sessionTokenHash: string): Promise<SessionWithGrant | undefined>;
+  /** Delete by hash; the grant dies with its last referent. */
+  deleteSession(sessionTokenHash: string): Promise<SessionDeleteResult>;
+  /**
+   * Delete every session the reviewer holds; each grant dies with its last
+   * referent, so one an API token still links survives.
+   */
+  deleteSessionsForReviewer(
+    reviewerId: ReviewerId,
+  ): Promise<SessionDeleteResult>;
+  /** Mirror the grant's rotated `refresh_expires_at`; returns rows touched. */
+  setExpiresAt(sessionTokenHash: string, expiresAt: Date): Promise<number>;
+}
+
+/** The hash-keyed resolver over the opaque `AppDatabase`; never ctx-bound. */
+export function createSessionAuth(handle: AppDatabase): SessionAuth {
+  const db = internal(handle);
+
+  return traceStore("sessionAuth", {
+    async createSession(input) {
+      return insertSession(db, input);
+    },
+
+    async createSessionWithGrant(input) {
+      return db.transaction(async (tx) => {
+        const created = await insertSealedGrant(tx, input.grant);
+        if (!created.ok) {
+          return created;
+        }
+
+        const grant = created.value;
+        const session = await insertSession(tx, {
+          sessionTokenHash: input.sessionTokenHash,
+          reviewerId: grant.userId,
+          reviewerLogin: input.reviewerLogin,
+          grantId: grant.id,
+          expiresAt: grant.refreshExpiresAt,
+        });
+        return { ok: true, value: { session, grant } };
+      });
+    },
+
+    async findSession(sessionTokenHash) {
+      const rows = await db
+        .select({ session: authSession, grant: githubGrant })
+        .from(authSession)
+        .innerJoin(githubGrant, eq(authSession.grantId, githubGrant.id))
+        .where(eq(authSession.sessionTokenHash, sessionTokenHash))
+        .limit(1);
+      return rows[0];
+    },
+
+    async deleteSession(sessionTokenHash) {
+      return db.transaction(async (tx) =>
+        deleteSessionsWhere(
+          tx,
+          eq(authSession.sessionTokenHash, sessionTokenHash),
+        ),
+      );
+    },
+
+    async deleteSessionsForReviewer(reviewerId) {
+      return db.transaction(async (tx) =>
+        deleteSessionsWhere(tx, eq(authSession.reviewerId, reviewerId)),
+      );
+    },
+
+    async setExpiresAt(sessionTokenHash, expiresAt) {
+      const rows = await db
+        .update(authSession)
+        .set({ expiresAt })
+        .where(eq(authSession.sessionTokenHash, sessionTokenHash))
+        .returning({ id: authSession.id });
+      return rows.length;
+    },
+  });
+}
+
+async function insertSession(
+  executor: AppDrizzle,
+  input: SessionCreateInput,
+): Promise<AuthSessionRow> {
+  const rows = await executor
+    .insert(authSession)
+    .values({
+      sessionTokenHash: input.sessionTokenHash,
+      reviewerId: input.reviewerId,
+      reviewerLogin: input.reviewerLogin,
+      grantId: input.grantId,
+      expiresAt: input.expiresAt,
+    })
+    .returning();
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error("auth_session insert returned no row");
+  }
+  return row;
+}
+
+/**
+ * Delete every session expired before `now`, across every reviewer, and
+ * orphan-clean their grants. Each batch is its own transaction, so a large
+ * backlog holds no long lock, and hands its orphaned grants to `onOrphaned`
+ * once committed. Writes no audit row: an expired session already grants
+ * nothing, and the row belongs to neither audit world. Returns rows deleted.
+ */
+export async function sweepExpiredSessions(
+  handle: AppDatabase,
+  now: Date,
+  onOrphaned: OrphanedGrantSink,
+): Promise<number> {
+  const db = internal(handle);
+  const isExpired = lt(authSession.expiresAt, now);
+  let sessionsDeleted = 0;
+
+  for (;;) {
+    const swept = await db.transaction(async (tx) => {
+      const batch = tx
+        .select({ id: authSession.id })
+        .from(authSession)
+        .where(isExpired)
+        .orderBy(authSession.expiresAt)
+        .limit(SESSION_SWEEP_BATCH_SIZE);
+      // The outer predicate is re-checked on a row a concurrent refresh moved,
+      // so a session extended after the batch was picked survives.
+      const inBatch = inArray(authSession.id, batch);
+      return deleteSessionsWhere(tx, sql`${inBatch} and ${isExpired}`);
+    });
+    sessionsDeleted += swept.deleted;
+    onOrphaned(swept.orphanedGrants);
+    if (swept.deleted < SESSION_SWEEP_BATCH_SIZE) {
+      return sessionsDeleted;
+    }
+  }
+}
+
+/** Must run inside the caller's transaction: the orphan-clean shares it. */
+async function deleteSessionsWhere(
+  tx: AppDrizzle,
+  where: SQL,
+): Promise<SessionDeleteResult> {
+  // Lock order sessions, tokens, grants; within the table, by id, so two
+  // multi-row deletes over overlapping sessions wait instead of deadlocking.
+  await tx
+    .select({ id: authSession.id })
+    .from(authSession)
+    .where(where)
+    .orderBy(authSession.id)
+    .for("update");
+  const rows = await tx
+    .delete(authSession)
+    .where(where)
+    .returning({ grantId: authSession.grantId });
+  const orphanedGrants = await deleteOrphanedGrants(
+    tx,
+    rows.map((row) => row.grantId),
+  );
+  return { deleted: rows.length, orphanedGrants };
+}

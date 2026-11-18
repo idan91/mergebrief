@@ -1,0 +1,12 @@
+@use "mixins";
+
+@layer components {
+  // The scope and comparison controls sit co-linear in the header toolbar; the
+  // header is the surface, so no full-width strip chrome.
+  .bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+}

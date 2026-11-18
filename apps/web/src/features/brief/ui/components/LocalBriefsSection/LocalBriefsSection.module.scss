@@ -1,0 +1,21 @@
+@layer components {
+  .section {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .heading {
+    color: var(--color-text-1);
+    font-size: var(--font-size-3);
+    font-weight: 600;
+    line-height: var(--line-height-heading);
+  }
+
+  .list {
+    padding: 0;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+    list-style: none;
+  }
+}

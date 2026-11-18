@@ -1,0 +1,140 @@
+@use "functions";
+@use "mixins";
+
+$detach-action-below: 480px;
+
+@layer components {
+  .root {
+    position: relative;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: var(--space-2);
+    min-inline-size: 0;
+  }
+
+  .tail {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .split {
+    --segment-radius: #{functions.inner-radius(var(--radius-md), 1px)};
+
+    display: inline-flex;
+    align-items: stretch;
+    block-size: functions.to-rem(24px);
+    border: 1px solid var(--color-accent-edge);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+
+    > :first-child {
+      border-start-start-radius: var(--segment-radius);
+      border-end-start-radius: var(--segment-radius);
+    }
+
+    > :last-child {
+      border-start-end-radius: var(--segment-radius);
+      border-end-end-radius: var(--segment-radius);
+    }
+
+    &:not([data-variant="attached"]) {
+      margin-inline-end: var(--space-2);
+    }
+
+    &[data-variant="attached"] {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+
+      > :last-child {
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
+      }
+    }
+  }
+
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2-5);
+    padding-inline: var(--space-3);
+    background: var(--color-accent-tint-subtle);
+    color: var(--color-accent);
+    white-space: nowrap;
+  }
+
+  .dot {
+    flex: none;
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-circle);
+    background: var(--color-accent);
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+    border-inline-start: 1px solid var(--color-accent-edge);
+    color: var(--color-text-soft);
+    white-space: nowrap;
+  }
+
+  // Outranks Button's own [data-size="sm"] padding, radius and type.
+  .action[data-size][data-variant] {
+    block-size: functions.to-rem(24px);
+    padding-block: 0;
+    padding-inline: var(--space-3);
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-start-end-radius: var(--radius-md);
+    border-end-end-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    font-size: var(--font-size-1);
+
+    @include mixins.hover {
+      &:hover {
+        background: color-mix(
+          in srgb,
+          var(--color-surface-1) 88%,
+          var(--color-text-1)
+        );
+      }
+    }
+
+    &:active {
+      background: var(--color-surface-1);
+    }
+  }
+
+  .failure {
+    margin-inline-start: var(--space-2);
+    color: var(--color-negative);
+    font-size: var(--font-size-1);
+  }
+
+  @media (width < $detach-action-below) {
+    .root[data-variant="beside-newer-brief"] {
+      column-gap: var(--space-2-5);
+
+      .split[data-variant="attached"] {
+        border-start-end-radius: var(--radius-md);
+        border-end-end-radius: var(--radius-md);
+
+        > :last-child {
+          border-start-end-radius: var(--segment-radius);
+          border-end-end-radius: var(--segment-radius);
+        }
+      }
+
+      .action[data-size][data-variant] {
+        border-start-start-radius: var(--radius-md);
+        border-end-start-radius: var(--radius-md);
+      }
+    }
+  }
+}

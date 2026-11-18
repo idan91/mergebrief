@@ -1,0 +1,21 @@
+// Request-parsing helpers for the reads adapters: every rejection is the
+// deterministic 400 (`invalid-request`), never a schema-shaped hint.
+import type { Context, Env } from "hono";
+import type { z } from "zod/v4";
+import { BadRequest } from "../../../../shared-errors/api-error";
+
+export function parseQuery<S extends z.ZodType, E extends Env>(
+  c: Context<E>,
+  schema: S,
+  keys: readonly string[],
+): z.infer<S> {
+  const raw: Record<string, string | undefined> = {};
+  for (const key of keys) {
+    raw[key] = c.req.query(key);
+  }
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    throw new BadRequest();
+  }
+  return parsed.data;
+}

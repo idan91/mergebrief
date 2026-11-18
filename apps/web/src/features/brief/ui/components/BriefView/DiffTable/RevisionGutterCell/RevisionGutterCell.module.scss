@@ -1,0 +1,86 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // `[data-gutter]` outranks the row's own cell padding, which would
+  // otherwise widen a border-box cell past the gutter width.
+  .gutter[data-gutter] {
+    position: relative;
+    inline-size: var(--diff-gutter-w);
+    min-inline-size: var(--diff-gutter-w);
+    padding: 0;
+
+    &[data-rev] {
+      cursor: pointer;
+    }
+
+    &[data-span] {
+      box-shadow: var(--diff-span-edge-bar);
+    }
+
+    &[data-placement="seam"] {
+      border-inline-start: 1px solid var(--color-line);
+    }
+
+    // Hover, not focus: the `focus-ring` mixin's prefers-contrast bump
+    // belongs to focus states only, so this ring is hand-rolled.
+    @include mixins.hover {
+      &:hover .rail {
+        background: var(--rail-active-fill);
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  .rail {
+    // The rail's hover lift: the accent lightened, so a hover never changes hue.
+    --rail-active-fill: color-mix(in srgb, var(--color-accent) 70%, white);
+
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: var(--diff-rail-inset);
+    inline-size: var(--diff-rail-w);
+    background: var(--color-accent);
+    pointer-events: none;
+
+    &[data-start] {
+      border-start-start-radius: var(--radius-sm);
+      border-start-end-radius: var(--radius-sm);
+    }
+
+    &[data-end] {
+      border-end-start-radius: var(--radius-sm);
+      border-end-end-radius: var(--radius-sm);
+    }
+  }
+
+  .railButton {
+    position: absolute;
+
+    // The 24px hit box overhangs the gutter; `z-index` keeps it above the
+    // number cells that follow it and are positioned, a phone's deleted-line
+    // number included, so the overhang is hit-testable. At the edge the
+    // viewport clips the start side, so the box hangs off the end side only.
+    z-index: functions.get-z-index("raised");
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: functions.to-rem(24px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    [data-placement="seam"] > & {
+      inset-inline-start: calc(
+        (var(--diff-gutter-w) - functions.to-rem(24px)) / 2
+      );
+    }
+
+    &:focus-visible ~ .rail {
+      background: var(--rail-active-fill);
+
+      @include mixins.focus-ring;
+    }
+  }
+}

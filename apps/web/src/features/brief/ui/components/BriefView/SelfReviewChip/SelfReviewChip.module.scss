@@ -1,0 +1,105 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  /* The own-draft state label: non-dismissible, informational. */
+  .selfReviewChip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2-5);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-3-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-chip);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    white-space: nowrap;
+  }
+
+  .chipInfo {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+
+    /* Driven by state, not `:hover`: an iOS tap fires mouseenter but never
+       focuses the button. HOVERABLE (WCAG 1.4.13): pointer events re-enable
+       so the pointer can travel from the trigger onto the tooltip text. */
+    &[data-tooltip-open] .chipTooltip {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+  }
+
+  .chipInfoButton {
+    display: grid;
+    inline-size: 16px;
+    block-size: 16px;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--color-text-2);
+    cursor: help;
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-control);
+    place-items: center;
+
+    &:focus-visible {
+      border-color: var(--color-text-3);
+    }
+
+    @include mixins.hover {
+      &:hover {
+        border-color: var(--color-text-3);
+      }
+    }
+  }
+
+  .chipTooltip {
+    position: absolute;
+
+    /* Expressed off the trigger box so the hover bridge below can span
+       exactly the 8px offset. */
+    inset-block-start: calc(100% + functions.to-rem(8px));
+    inset-inline-end: 0;
+    z-index: functions.get-z-index("self-review-tooltip");
+    inline-size: min(
+      functions.to-rem(300px),
+      calc(100vw - functions.to-rem(48px))
+    );
+    padding: var(--space-4);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    box-shadow: var(--shadow-raised);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-weight: 400;
+    line-height: var(--line-height-body);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
+    white-space: normal;
+
+    /* WCAG 1.4.13 hover bridge: an invisible strip spanning the 8px offset,
+       so the pointer travelling trigger to tooltip never leaves the hover
+       chain. Its pointer-events follow the tooltip's: inert while hidden. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: -8px;
+      inset-inline: 0;
+      block-size: 8px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chipTooltip {
+      transition: none;
+    }
+  }
+}

@@ -1,0 +1,33 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  /* Text that acts: context font and color, the underline carrying the
+     affordance (never colour alone). */
+  .linkButton {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: start;
+    text-decoration: underline;
+    text-underline-offset: functions.to-rem(3px);
+
+    @include mixins.hover {
+      &:where(:not([aria-disabled="true"])):hover {
+        color: var(--color-text-1);
+      }
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        text-decoration-color: functions.dim(currentcolor);
+      }
+    }
+  }
+}

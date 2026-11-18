@@ -1,0 +1,68 @@
+@use "functions";
+
+// Story-group geometry the splitter's JS mirrors: the card bounds track
+// STORY_CARD_* in StoryView/StorySplitter/consts.ts and the diff floor tracks
+// SPLIT_MIN_WIDTH_PX in StoryView/useSplitWidth.ts. Bounds stay px so the
+// mirror holds at any root font size; the headroom keeps the diff column off
+// the split-versus-unified threshold when the ceiling binds.
+$story-card-floor: 360px;
+$story-card-ceiling: 750px;
+$story-diff-floor: 500px;
+$story-diff-headroom: 2px;
+$story-group-gap: 18px;
+
+// The chunk card's trailing margin; the splitter stops above it so the line
+// ends with the last chunk instead of the column's margin.
+$chunk-card-gap: 12px;
+$story-diff-reserve: $story-diff-floor + $story-diff-headroom;
+
+// The story group's two tracks: the diff column, then the card track the
+// splitter writes as --story-card-track. The masthead reads the same
+// tracks so its card lines up with every group's card.
+@function story-columns() {
+  @return minmax(0, 1fr)
+    clamp(
+      #{$story-card-floor},
+      var(--story-card-track, max(#{functions.to-rem(450px)}, 28%)),
+      min(
+        #{$story-card-ceiling},
+        calc(
+          100% - #{$story-diff-reserve} - #{functions.to-rem($story-group-gap)}
+        )
+      )
+    );
+}
+
+// Below these widths the card stacks under the diff: the reading column
+// under 1124px plus 96px of gutters, plus the collapsed sidebar's reserve.
+// StackedQueries in StorySplitter/types.ts mirrors both. Include it from a
+// rule whose element sits inside .main.
+@mixin when-story-stacks {
+  @media (width <= 1220px) {
+    :global(.main) & {
+      @content;
+    }
+  }
+
+  @media (width <= 1268px) {
+    :global(.main[data-sidebar="collapsed"]) &,
+    :global(.main[data-sidebar="expanded"]) & {
+      @content;
+    }
+  }
+}
+
+// Up to this width an expanded sidebar overlays the story and the page keeps
+// the collapsed reserve: its full reserve would take the story under the
+// 1268px stack point above. It is that point plus the panel's 23.5rem.
+$sidebar-overlay-max: 1644px;
+
+// Equal columns that wrap to one once a column would fall under 340px. The
+// floor is the breakpoint: a media query cannot see a narrowed container.
+@mixin wrapping-columns($row-gap) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  /* stylelint-disable-next-line declaration-property-value-allowed-list -- the column gutter, 4px from the 32px step; callers pass a --space-* step as $row-gap */
+  gap: $row-gap functions.to-rem(36px);
+  align-items: start;
+}

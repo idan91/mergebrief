@@ -1,0 +1,54 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .fold {
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  .resolvedList {
+    display: grid;
+    margin: var(--space-3-5) 0 0;
+    padding: 0;
+    list-style: none;
+    gap: var(--space-3-5);
+  }
+
+  .resolvedFile {
+    display: grid;
+    min-inline-size: 0;
+    gap: var(--space-2);
+  }
+
+  .resolvedMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .path {
+    display: inline-block;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-3);
+    direction: rtl;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    text-align: start;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-2);
+        text-decoration: underline;
+        text-underline-offset: functions.to-rem(3px);
+      }
+    }
+  }
+}

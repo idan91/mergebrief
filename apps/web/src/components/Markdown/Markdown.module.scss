@@ -1,0 +1,46 @@
+@use "mixins";
+
+@layer components {
+  .markdown {
+    overflow-wrap: anywhere;
+
+    @include mixins.markdown-type;
+    @include mixins.markdown-lists;
+
+    p,
+    ul,
+    ol {
+      margin-block-end: var(--space-4);
+    }
+
+    li ul,
+    li ol {
+      margin-block: var(--space-2) 0;
+    }
+
+    li + li {
+      margin-block-start: var(--space-2);
+    }
+
+    code {
+      padding-block: var(--space-1);
+      padding-inline: var(--space-2-5);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+      font-family: var(--font-mono);
+    }
+
+    pre {
+      @include mixins.code-block;
+    }
+
+    blockquote {
+      margin-block: 0 var(--space-4);
+      margin-inline: 0;
+      padding-inline-start: var(--space-4);
+      border-inline-start: 3px solid var(--color-line-strong);
+      color: var(--color-text-3);
+    }
+  }
+}

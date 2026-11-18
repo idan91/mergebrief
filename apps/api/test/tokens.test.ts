@@ -1,0 +1,964 @@
+// Bearer /api/* access yields the same principal as cookies and hint-free 401s on invalid tokens.
+// Refresh-once must not extend token expiry. Mint/list/revoke stay cookie-only.
+// Mint checks live installation access and returns token material exactly once.
+import { randomBytes } from "node:crypto";
+import {
+  createTenantRepository,
+  isInstallationId,
+  isRepoId,
+  isReviewerId,
+  createTokenAuth,
+  type AppDatabase,
+  type KeyProvider,
+  type ReviewerId,
+  type TenantContext,
+} from "persistence";
+import { seedGrant } from "persistence/testing";
+import { PrStates, type AccessLevel, AccessLevels } from "types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp, type ApiApp } from "../src/index";
+import { testLogger, testLogging } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+  getRequestUrl,
+  SAME_ORIGIN_HEADERS,
+} from "./fixtures";
+import {
+  LISTED_REVIEWER_DEPS,
+  UNUSED_INSTALLATION_DEPS,
+} from "./reviewer-github";
+import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
+
+const REPO_A = 42001;
+const REPO_B = 42002;
+const OTHER_INSTALLATION_ID = 111222;
+
+const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
+const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
+
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
+  const asBigInt = BigInt(value);
+  if (!guard(asBigInt)) {
+    throw new Error("bad branded id");
+  }
+  return asBigInt;
+}
+
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
+const OTHER_CTX: TenantContext = {
+  installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
+};
+const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
+  });
+}
+
+/** `GET /user/installations/{id}/repositories` (the /api/pulls allowed set). */
+function installationReposOk(
+  repos: ReadonlyArray<{ id: number; full_name: string }>,
+): Response {
+  return jsonResponse({ total_count: repos.length, repositories: repos });
+}
+
+/** `GET /user/installations` (the live accessible set for minting). */
+function userInstallationsOk(
+  items: ReadonlyArray<{ id: number; login: string }>,
+): Response {
+  return jsonResponse({
+    total_count: items.length,
+    installations: items.map((i) => ({
+      id: i.id,
+      account: { login: i.login },
+    })),
+  });
+}
+
+const TOKEN_SUCCESS = {
+  access_token: ROTATED_ACCESS,
+  refresh_token: ROTATED_REFRESH,
+  expires_in: 28_800,
+  refresh_token_expires_in: 15_897_600,
+  token_type: "bearer",
+  scope: "",
+};
+
+interface StubConfig {
+  /** `GET /user/installations/{id}/repositories` responses per call. */
+  readonly installationRepos?: (call: number, url: string) => Response;
+  /** `GET /user/installations` responses per call. */
+  readonly userInstallations?: (call: number) => Response;
+  /** `GET /repositories/{id}`, the gate's access check, per call. */
+  readonly repositories?: (call: number, url: string) => Response;
+  /** OAuth token endpoint (refresh) responses per call. */
+  readonly token?: (call: number) => Response;
+}
+interface StubCounts {
+  installationRepos: number;
+  userInstallations: number;
+  repositories: number;
+  token: number;
+}
+
+function stubGitHub(cfg: StubConfig): StubCounts {
+  const counts: StubCounts = {
+    installationRepos: 0,
+    userInstallations: 0,
+    repositories: 0,
+    token: 0,
+  };
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url = getRequestUrl(input);
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
+        const i = counts.installationRepos++;
+        return cfg.installationRepos
+          ? cfg.installationRepos(i, url)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      if (url.includes("/user/installations")) {
+        const i = counts.userInstallations++;
+        return cfg.userInstallations
+          ? cfg.userInstallations(i)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      if (cfg.repositories !== undefined && url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories(i, url);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
+  vi.stubGlobal("fetch", fetchFn);
+  return counts;
+}
+
+/** Seed an api_token row directly; returns the Bearer plaintext. */
+async function seedApiToken(
+  handle: AppDatabase,
+  kp: KeyProvider,
+  overrides: {
+    expiresAt?: Date | null;
+    revoke?: boolean;
+    scope?: AccessLevel;
+  } = {},
+): Promise<string> {
+  const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+  const grant = await seedGrant(handle, {
+    userId: REVIEWER,
+    accessToken: ACCESS_TOKEN,
+    refreshToken: REFRESH_TOKEN,
+    keyProvider: kp,
+    keyRef: KEY_REF,
+  });
+  const minted = await createTokenAuth(handle).mintToken({
+    scope: overrides.scope ?? AccessLevels.EXTERNAL_WRITE,
+    userId: REVIEWER,
+    userLogin: "octocat",
+    name: "ci-token",
+    tokenHash: hashSha256Hex(plaintext),
+    grantId: grant.id,
+    expiresAt:
+      overrides.expiresAt === undefined
+        ? new Date("2027-01-01T00:00:00Z")
+        : overrides.expiresAt,
+  });
+  if (overrides.revoke === true) {
+    const revoked = await createTokenAuth(handle).revokeToken(
+      REVIEWER,
+      minted.id,
+      new Date(),
+    );
+    if (revoked === undefined) {
+      throw new Error("seed revoke failed");
+    }
+  }
+  return plaintext;
+}
+
+async function seedPr(handle: AppDatabase): Promise<void> {
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
+    repoId: brand(isRepoId, REPO_A),
+    prNumber: 7,
+    repoSlug: "octo/hello",
+    title: "PR 7",
+    state: PrStates.OPEN,
+  });
+}
+
+const harness = registerSharedPglite();
+
+describe("Bearer presentation on /api/*", () => {
+  let app: ApiApp;
+  let kp: KeyProvider;
+
+  beforeEach(() => {
+    kp = createKeyProvider();
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function getWithBearer(
+    path: string,
+    bearer: string,
+  ): Promise<Response> {
+    return app.request(path, {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+  }
+
+  it("authenticates a valid token through the full gate to a real read", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      repositories: () =>
+        jsonResponse({
+          id: REPO_A,
+          full_name: "octo/hello",
+          private: true,
+          permissions: { push: true },
+        }),
+    });
+    await seedPr(harness.handle);
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    const res = await getWithBearer(`/api/repos/${REPO_A}/pulls/7`, bearer);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toMatchObject({ title: "PR 7" });
+  });
+
+  it("reads rows in two installations with one token", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([
+          { id: INSTALLATION_ID, login: "octo" },
+          { id: OTHER_INSTALLATION_ID, login: "acme" },
+        ]),
+      installationRepos: (_call, url) =>
+        url.includes(`/user/installations/${INSTALLATION_ID}/`)
+          ? installationReposOk([{ id: REPO_A, full_name: "octo/hello" }])
+          : installationReposOk([{ id: REPO_B, full_name: "acme/other" }]),
+      repositories: (_call, url) =>
+        url.endsWith(`/repositories/${REPO_B}`)
+          ? jsonResponse({
+              id: REPO_B,
+              full_name: "acme/other",
+              private: true,
+              permissions: { push: true },
+            })
+          : jsonResponse({
+              id: REPO_A,
+              full_name: "octo/hello",
+              private: true,
+              permissions: { push: true },
+            }),
+    });
+    await seedPr(harness.handle);
+    await createTenantRepository(harness.handle, OTHER_CTX).pullRequests.upsert(
+      {
+        repoId: brand(isRepoId, REPO_B),
+        prNumber: 3,
+        repoSlug: "acme/other",
+        title: "PR 3",
+        state: PrStates.OPEN,
+      },
+    );
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    const first = await getWithBearer(`/api/repos/${REPO_A}/pulls/7`, bearer);
+    const other = await getWithBearer(`/api/repos/${REPO_B}/pulls/3`, bearer);
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ title: "PR 7" });
+    expect(other.status).toBe(200);
+    expect(await other.json()).toMatchObject({ title: "PR 3" });
+  });
+
+  it("denies writes when the Bearer token carries read scope", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const readOnly = await seedApiToken(harness.handle, kp, {
+      scope: AccessLevels.READ,
+    });
+
+    // The same credential reads fine…
+    expect((await getWithBearer("/api/inbox", readOnly)).status).toBe(200);
+    // …and is refused at the private-write rung, before the handler runs.
+    const res = await app.request("/api/generate", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${readOnly}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ url: "https://github.com/octo/hello/pull/7" }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "this credential's scope does not allow this operation",
+      code: "scope-exceeded",
+    });
+  });
+
+  it("401s all invalid token forms with the same hint-free body", async () => {
+    stubGitHub({});
+    const expired = await seedApiToken(harness.handle, kp, {
+      expiresAt: new Date("2020-01-01T00:00:00Z"),
+    });
+    // Distinct plaintexts so the revoked seed does not collide on token_hash.
+    const revoked = await seedApiToken(harness.handle, kp, { revoke: true });
+
+    for (const bearer of [
+      "not-even-prefixed",
+      `mergebrief_${randomBytes(32).toString("base64url")}`, // unknown
+      expired,
+      revoked,
+    ]) {
+      const res = await getWithBearer("/api/inbox", bearer);
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual({
+        error: "unauthorized",
+        code: "unauthorized",
+      });
+    }
+  });
+
+  it("refreshes GitHub access once without extending token expiry", async () => {
+    const counts = stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: (call) =>
+        call === 0
+          ? jsonResponse({ message: "Bad credentials" }, 401)
+          : installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      token: () => jsonResponse(TOKEN_SUCCESS),
+    });
+    await seedPr(harness.handle);
+    const bearer = await seedApiToken(harness.handle, kp);
+    const beforeGrant = await harness.raw(
+      "select gh_token_ciphertext from github_grant limit 1",
+    );
+    const beforeToken = await harness.raw(
+      "select expires_at from api_token limit 1",
+    );
+
+    const res = await getWithBearer("/api/inbox", bearer);
+    expect(res.status).toBe(200);
+    expect(counts.token).toBe(1);
+    expect(counts.installationRepos).toBe(2);
+
+    const afterGrant = await harness.raw(
+      "select gh_token_ciphertext from github_grant limit 1",
+    );
+    const afterToken = await harness.raw(
+      "select expires_at from api_token limit 1",
+    );
+    // Credentials rotated on the grant row the api_token references...
+    expect(afterGrant[0]?.["gh_token_ciphertext"]).not.toBe(
+      beforeGrant[0]?.["gh_token_ciphertext"],
+    );
+    // ...while the mint-chosen expiry is untouched by GitHub rotation.
+    expect(afterToken[0]?.["expires_at"]).toEqual(
+      beforeToken[0]?.["expires_at"],
+    );
+    expect(
+      await harness.raw("select count(*)::int as n from auth_session"),
+    ).toEqual([{ n: 0 }]);
+  });
+
+  it("emits token.refresh.fail for rejected Bearer-channel rotations", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      // Every data call 401s (expired access token) and the rotation itself
+      // is rejected, the refresh orchestrator's bearer-channel hard failure.
+      installationRepos: () =>
+        jsonResponse({ message: "Bad credentials" }, 401),
+      token: () =>
+        jsonResponse({
+          error: "bad_refresh_token",
+          error_description: "The refresh token is expired",
+          error_uri: "https://docs.github.com/",
+        }),
+    });
+    await seedPr(harness.handle);
+    const capture = testLogging();
+    const captureApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+    });
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    const res = await captureApp.request("/api/inbox", {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    expect(res.status).toBe(401);
+    // Alert contract: the bearer fork emits the same evt as the
+    // cookie flow, operators key alerts off token.refresh.fail.
+    const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(typeof line?.["reviewerId"]).toBe("string");
+    // The api_token row is NOT deleted on failure, user-managed credential.
+    expect(
+      await harness.raw("select count(*)::int as n from api_token"),
+    ).toEqual([{ n: 1 }]);
+  });
+
+  it("touches last_used_at on use, throttled within the window", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    expect((await getWithBearer("/api/inbox", bearer)).status).toBe(200);
+    // The touch is fire-and-forget (never awaited on the request path), poll.
+    await vi.waitFor(async () => {
+      const touched = await harness.raw(
+        "select last_used_at from api_token limit 1",
+      );
+      expect(touched[0]?.["last_used_at"]).not.toBeNull();
+    });
+
+    // Clear the stamp out-of-band: a second request inside the throttle window
+    // must NOT re-touch (the throttle, not the DB write, is under test).
+    await harness.raw("update api_token set last_used_at = null");
+    expect((await getWithBearer("/api/inbox", bearer)).status).toBe(200);
+    const throttled = await harness.raw(
+      "select last_used_at from api_token limit 1",
+    );
+    expect(throttled[0]?.["last_used_at"]).toBeNull();
+  });
+});
+
+describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
+  let app: ApiApp;
+  let kp: KeyProvider;
+
+  beforeEach(() => {
+    kp = createKeyProvider();
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function mint(body: unknown, cookie?: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      ...SAME_ORIGIN_HEADERS,
+      "content-type": "application/json",
+    };
+
+    if (cookie !== undefined) {
+      headers["Cookie"] = `__Host-mergebrief_session=${cookie}`;
+    }
+
+    return app.request("/api/auth/tokens", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  interface MintedBody {
+    readonly token: string;
+    readonly apiToken: {
+      readonly id: string;
+      readonly expiresAt: string | null;
+    };
+  }
+
+  it("refuses a mint for an account the instance no longer lists", async () => {
+    const closed = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ total_count: 0, installations: [] })),
+    );
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await closed.request("/api/auth/tokens", {
+      method: "POST",
+      body: JSON.stringify({ name: "ci", scope: "read", expiresInDays: 30 }),
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "account-not-allowed" });
+    expect(await harness.raw("select id from api_token")).toEqual([]);
+  });
+
+  it("mints a token shown exactly once, stored hash-only, usable as Bearer", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await mint(
+      {
+        name: "ci-token",
+        scope: "external-write",
+      },
+      cookie,
+    );
+    expect(res.status).toBe(201);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = (await res.json()) as MintedBody;
+    expect(body.token.startsWith("mergebrief_")).toBe(true);
+
+    // Hash-only storage: the DB row carries sha256(token), never the token.
+    const rows = await harness.raw(
+      "select token_hash, grant_id from api_token",
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.["token_hash"]).toBe(hashSha256Hex(body.token));
+
+    // Link-never-copy: mint linked the SESSION's grant, one physical
+    // pair exists after the mint, and the token row points at it.
+    const grantRows = await harness.raw("select id from github_grant");
+    expect(grantRows).toHaveLength(1);
+    expect(String(rows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
+    const sessionRows = await harness.raw("select grant_id from auth_session");
+    expect(String(sessionRows[0]?.["grant_id"])).toBe(
+      String(grantRows[0]?.["id"]),
+    );
+
+    // Default expiry ≈ 90 days out.
+    const expiresAt = body.apiToken.expiresAt;
+    if (expiresAt === null) {
+      throw new Error("expected a default expiry");
+    }
+    const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(89);
+    expect(days).toBeLessThan(91);
+
+    // The minted token authenticates on /api/* immediately.
+    const read = await app.request("/api/inbox", {
+      headers: { Authorization: `Bearer ${body.token}` },
+    });
+    expect(read.status).toBe(200);
+
+    // The list never re-surfaces token material.
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
+    expect(listed.tokens).toHaveLength(1);
+    const entry = listed.tokens[0];
+    expect(entry?.["name"]).toBe("ci-token");
+    expect(JSON.stringify(listed)).not.toContain(body.token);
+    expect(JSON.stringify(listed)).not.toContain("tokenHash");
+    expect(JSON.stringify(listed)).not.toContain("Ciphertext");
+  });
+
+  it("supports the no-expiry choice", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const res = await mint(
+      {
+        name: "forever",
+        scope: "external-write",
+        expiresInDays: null,
+      },
+      cookie,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as MintedBody;
+    expect(body.apiToken.expiresAt).toBeNull();
+  });
+
+  it("is cookie-only: no cookie → 401; a Bearer token cannot mint or list", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    expect(
+      (
+        await mint({
+          name: "x",
+          scope: "external-write",
+        })
+      ).status,
+    ).toBe(401);
+    const viaBearerMint = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      body: JSON.stringify({
+        name: "x",
+        scope: "external-write",
+      }),
+    });
+    expect(viaBearerMint.status).toBe(401);
+    const viaBearerList = await app.request("/api/auth/tokens", {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    expect(viaBearerList.status).toBe(401);
+    // Exactly the seeded row, nothing minted through either path.
+    expect(
+      await harness.raw("select count(*)::int as n from api_token"),
+    ).toEqual([{ n: 1 }]);
+  });
+
+  it("mints at the chosen scope, and refuses a mint that names none", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const narrowed = await mint({ name: "read-only", scope: "read" }, cookie);
+    expect(narrowed.status).toBe(201);
+    expect(await narrowed.json()).toMatchObject({
+      apiToken: { scope: "read" },
+    });
+
+    const widest = await mint(
+      {
+        name: "full",
+        scope: "external-write",
+      },
+      cookie,
+    );
+    expect(widest.status).toBe(201);
+    expect(await widest.json()).toMatchObject({
+      apiToken: { scope: "external-write" },
+    });
+
+    // No scope is NOT a default, the reach a token carries is always chosen.
+    const unchosen = await mint({ name: "unstated" }, cookie);
+    expect(unchosen.status).toBe(400);
+
+    // The list surface shows it too, the scope is how a reader tells the two
+    // credentials apart.
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
+    expect(
+      listed.tokens
+        .map((token) => String(token["scope"]))
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(["external-write", "read"]);
+  });
+
+  it("refuses a cookie mint that proves no origin", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "forbidden", code: "forbidden" });
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(((await list.json()) as { tokens: unknown[] }).tokens).toEqual([]);
+  });
+
+  it("refuses a cookie mint from a sibling subdomain", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        "sec-fetch-site": "same-site",
+        origin: "https://evil.example.test",
+      },
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts a cookie mint whose Origin is the instance's own", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        origin: "https://app.example.test",
+      },
+      body: JSON.stringify({ name: "ci", scope: AccessLevels.READ }),
+    });
+
+    expect(res.status).toBe(201);
+  });
+
+  it("rejects malformed bodies deterministically", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    for (const bad of [
+      {},
+      { name: "ok" },
+      { name: "", scope: "read" },
+      { name: "   ", scope: "read" },
+      { name: "x".repeat(101), scope: "read" },
+      {
+        name: "ok",
+        scope: "read",
+        expiresInDays: 0,
+      },
+      {
+        name: "ok",
+        scope: "read",
+        expiresInDays: -3,
+      },
+      { name: "ok", scope: "admin" },
+    ]) {
+      const res = await mint(bad, cookie);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it("stores the name trimmed and bounds it after trimming", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const padded = `  ${"x".repeat(100)}  `;
+    const res = await mint({ name: padded, scope: "read" }, cookie);
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { apiToken: { name: string } };
+    expect(body.apiToken.name).toBe("x".repeat(100));
+  });
+
+  it("answers 404 for a token id past int8, as for an unknown one", async () => {
+    stubGitHub({});
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    for (const id of ["9223372036854775808", "99999999999999999999", "abc"]) {
+      const res = await app.request(`/api/auth/tokens/${id}`, {
+        method: "DELETE",
+        headers: {
+          ...SAME_ORIGIN_HEADERS,
+          Cookie: `__Host-mergebrief_session=${cookie}`,
+        },
+      });
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it("revoking a grant's last live token revokes it at GitHub", async () => {
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request) =>
+        new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal("fetch", fetchFn);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const grant = await seedGrant(harness.handle, {
+      userId: REVIEWER,
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      keyProvider: kp,
+      keyRef: KEY_REF,
+    });
+    const minted = await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: REVIEWER,
+      userLogin: "octocat",
+      name: "sessionless",
+      tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
+      grantId: grant.id,
+      expiresAt: null,
+    });
+
+    const revoke = await app.request(`/api/auth/tokens/${String(minted.id)}`, {
+      method: "DELETE",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(revoke.status).toBe(200);
+    const deleteUrls = fetchFn.mock.calls
+      .map((call) => getRequestUrl(call[0]))
+      .filter((url) => url.includes("/applications/"));
+    expect(deleteUrls).toEqual([
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+    ]);
+  });
+
+  it("revokes idempotently, records revocation and 404s foreign token ids", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const minted = (await (
+      await mint(
+        {
+          name: "doomed",
+          scope: "external-write",
+        },
+        cookie,
+      )
+    ).json()) as MintedBody;
+
+    // Works before revocation.
+    expect(
+      (
+        await app.request("/api/inbox", {
+          headers: { Authorization: `Bearer ${minted.token}` },
+        })
+      ).status,
+    ).toBe(200);
+
+    const revoke = await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
+      method: "DELETE",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+    expect(revoke.status).toBe(200);
+    const revoked = (await revoke.json()) as Record<string, unknown>;
+    expect(Object.keys(revoked)).toEqual(["apiToken"]);
+    expect(revoked).toMatchObject({
+      apiToken: { id: minted.apiToken.id, revokedAt: expect.any(String) },
+    });
+
+    // Bearer is dead immediately (liveness is checked per request, uncached).
+    expect(
+      (
+        await app.request("/api/inbox", {
+          headers: { Authorization: `Bearer ${minted.token}` },
+        })
+      ).status,
+    ).toBe(401);
+
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
+    expect(listed.tokens[0]?.["revokedAt"]).not.toBeNull();
+
+    // Idempotent repeat; foreign/unknown id is an indistinguishable 404.
+    expect(
+      (
+        await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
+          method: "DELETE",
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            Cookie: `__Host-mergebrief_session=${cookie}`,
+          },
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await app.request("/api/auth/tokens/999999", {
+          method: "DELETE",
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            Cookie: `__Host-mergebrief_session=${cookie}`,
+          },
+        })
+      ).status,
+    ).toBe(404);
+  });
+});

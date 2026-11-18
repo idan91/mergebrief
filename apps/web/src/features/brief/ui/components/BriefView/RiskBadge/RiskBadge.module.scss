@@ -1,0 +1,11 @@
+@layer components {
+  .risk[data-source="repo-policy"] {
+    border-style: dashed;
+    border-color: color-mix(in srgb, currentcolor 55%, transparent);
+  }
+
+  .risk[data-deemphasized] {
+    border-style: dotted;
+    border-color: color-mix(in srgb, currentcolor 38%, transparent);
+  }
+}

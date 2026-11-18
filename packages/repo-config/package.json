@@ -1,0 +1,29 @@
+{
+  "name": "repo-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The .mergebrief/ repo-local config surface: Zod schemas for settings.yaml/policy.yaml, budget caps, and the pure source-agnostic validateRepoConfig — reject-whole, collision resolution, outcome model.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts",
+    "./constants": "./src/constants.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "brief-core": "workspace:*",
+    "generators": "workspace:*",
+    "types": "workspace:*",
+    "yaml": "^2.9.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

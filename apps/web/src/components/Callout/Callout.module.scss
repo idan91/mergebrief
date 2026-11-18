@@ -1,0 +1,119 @@
+@use "functions";
+
+.callout {
+  z-index: functions.get-z-index("popover");
+  display: flex;
+  flex-direction: column;
+  width: functions.to-rem(320px);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-3);
+  box-shadow: var(--shadow-float);
+  white-space: normal;
+  font-family: var(--font-sans);
+
+  // The pointer may travel into the callout — to copy text today, to
+  // interact tomorrow (safePolygon keeps it open on the way in).
+  user-select: text;
+}
+
+// The scroll lives here, not on the root: overflow there would clip the arrow.
+.content {
+  display: block;
+  min-block-size: 0;
+  padding: var(--space-4);
+  border-radius: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.callout[data-fit] {
+  width: max-content;
+  max-width: functions.to-rem(320px);
+}
+
+.callout[data-compact] {
+  border-radius: var(--radius-chip);
+  box-shadow: var(--shadow-tooltip);
+
+  .content {
+    padding: var(--space-2-5) var(--space-3);
+  }
+
+  .title {
+    font-weight: 500;
+    line-height: var(--line-height-compact);
+  }
+}
+
+.callout[data-flush] {
+  width: max-content;
+  max-width: none;
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+}
+
+.callout[data-surface="ground"] {
+  // Chrome snaps a 1.5px border to 1px; the half pixel rides a ring under the float.
+  --callout-ground-ring: #{functions.ring(var(--color-line-strong), 0.5px)};
+
+  background: var(--color-focus-ground);
+  box-shadow: var(--callout-ground-ring), var(--shadow-float);
+
+  .arrow {
+    fill: var(--color-focus-ground);
+  }
+}
+
+// The hairline is the stroke prop's currentColor: a presentation attribute
+// cannot read a custom property.
+.arrow {
+  color: var(--color-line-strong);
+  fill: var(--color-surface-3);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-2);
+  font-size: var(--font-size-1);
+}
+
+.title {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-2);
+  font-weight: 600;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// The line count rides an inline WebkitLineClamp from the `clamp` prop; this
+// attribute selector outranks `.title`'s display, independent of stylesheet
+// order.
+.title[data-clamp] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.body {
+  display: block;
+  color: var(--color-text-2);
+  font-size: var(--font-size-2);
+  line-height: var(--line-height-body);
+}
+
+.context {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-text-2);
+  font-size: var(--font-size-1);
+  line-height: var(--line-height-compact);
+}

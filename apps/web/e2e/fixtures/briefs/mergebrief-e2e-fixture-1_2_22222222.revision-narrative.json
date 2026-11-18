@@ -1,0 +1,244 @@
+{
+  "artifactKind": "revisionNarrative",
+  "overview": "This revision extracts the chunk scroller into a cancellable, top-aligning hook backed by tracked timeout/RAF handles, hoists the grouped chunkId memo above its consumers, and reworks flag addressing to run through a new flagsById index and a pre-resolved evidence Map, alongside converting most BriefPage handlers to memoized callbacks.",
+  "chunks": [
+    {
+      "id": "rc1",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 39,
+          "end": 39
+        },
+        {
+          "start": 43,
+          "end": 43
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Imports the RiskEvidenceKind and UnresolvedItem types now consumed by the memoized confirmEvidence and jumpToPreSubmitItem callbacks."
+    },
+    {
+      "id": "rc2",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 65,
+          "end": 66
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds a shared EMPTY_CHUNK_IDS constant so the disabled scroll-spy path passes a stable empty array."
+    },
+    {
+      "id": "rc3",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 402,
+          "end": 403
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 304,
+          "end": 305
+        }
+      ],
+      "summary": "Feeds scroll-spy the memoized chunkIds and the stable EMPTY_CHUNK_IDS constant rather than mapping brief.chunks and allocating a fresh empty array."
+    },
+    {
+      "id": "rc4",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 538,
+          "end": 546
+        },
+        {
+          "start": 548,
+          "end": 548
+        },
+        {
+          "start": 550,
+          "end": 550
+        },
+        {
+          "start": 553,
+          "end": 553
+        },
+        {
+          "start": 556,
+          "end": 556
+        },
+        {
+          "start": 578,
+          "end": 578
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 472,
+          "end": 478
+        },
+        {
+          "start": 480,
+          "end": 480
+        },
+        {
+          "start": 482,
+          "end": 482
+        },
+        {
+          "start": 485,
+          "end": 485
+        },
+        {
+          "start": 488,
+          "end": 488
+        },
+        {
+          "start": 511,
+          "end": 511
+        }
+      ],
+      "summary": "Reworks addressWithEvidence to build an evidence Map keyed via model.flagsById and pass it to the new addressFlags signature, and converts confirmDismiss into a memoized useCallback."
+    },
+    {
+      "id": "rc5",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 631,
+          "end": 660
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds memoized callbacks for the receipt, summary-preview, and pre-submit flows (closeReceipt, submitReceipt, jumpToPreSubmitItem, etc.)."
+    },
+    {
+      "id": "rc6",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 667,
+          "end": 694
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds memoized toggleDescription, cancelDismiss, cancelEvidence, and confirmEvidence callbacks feeding the new addressWithEvidence path."
+    },
+    {
+      "id": "rc7",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 753,
+          "end": 753
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 633,
+          "end": 633
+        }
+      ],
+      "summary": "Wires the description toggle button to the memoized toggleDescription callback."
+    },
+    {
+      "id": "rc8",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 822,
+          "end": 824
+        },
+        {
+          "start": 829,
+          "end": 829
+        },
+        {
+          "start": 837,
+          "end": 843
+        },
+        {
+          "start": 854,
+          "end": 858
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 702,
+          "end": 712
+        },
+        {
+          "start": 715,
+          "end": 726
+        },
+        {
+          "start": 730,
+          "end": 730
+        },
+        {
+          "start": 747,
+          "end": 762
+        },
+        {
+          "start": 766,
+          "end": 768
+        }
+      ],
+      "summary": "Replaces inline arrow props on the receipt, summary-preview, pre-submit, dismiss, evidence, and shortcuts modals with the newly memoized callbacks."
+    },
+    {
+      "id": "rc9",
+      "briefChangeGroupId": "g4",
+      "file": "apps/web/src/features/brief/viewModel.ts",
+      "addedRanges": [
+        {
+          "start": 37,
+          "end": 37
+        },
+        {
+          "start": 131,
+          "end": 131
+        },
+        {
+          "start": 146,
+          "end": 146
+        },
+        {
+          "start": 156,
+          "end": 156
+        }
+      ],
+      "removedRanges": [],
+      "summary": "Adds a flagsById lookup Map to the view model, populating it as flags are built and exposing it alongside flags/flagsByGroup."
+    }
+  ],
+  "pr": {
+    "repo": "mergebrief/e2e-fixture",
+    "number": 1,
+    "title": "feat: front-door accessibility and keyboard navigation",
+    "url": "https://github.com/mergebrief/e2e-fixture/pull/1",
+    "sha": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+    "description": "## Summary\n- Fix WCAG AA contrast on the faint text token and add a skip-to-content link.\n- Add J/K chunk navigation and a `?` shortcuts modal to the brief screen.\n\n## Test plan\n- [x] `pnpm test`\n- [x] `pnpm lint`\n"
+  },
+  "prevHeadSha": "11111111aaaa2222bbbb3333cccc4444dddd5555",
+  "headSha": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+  "prevIndex": 1,
+  "headIndex": 2,
+  "generation": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "effort": "medium"
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "apps/api/src/routes/auth/tokens/consts.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "apps/api/src/routes/repos/collaborators/consts.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "apps/api/src/routes/repos/pr/conversation/consts.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "apps/api/src/routes/repos/pr/conversation/utils.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "apps/api/src/routes/repos/utils.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "apps/api/test/logging.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "apps/api/test/pr-view.test.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    },
+    "house/test-title": {
+      "count": 3
+    }
+  },
+  "apps/web/src/components/Markdown/utils.test.ts": {
+    "house/test-title": {
+      "count": 1
+    }
+  },
+  "apps/web/src/data/ssrWarnSink.client.test.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ReplyComposer/utils.test.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "apps/web/src/hooks/useLatestRef.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "apps/web/src/i18n/I18nProvider.tsx": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "apps/web/src/i18n/locale.test.ts": {
+    "house/test-title": {
+      "count": 1
+    }
+  },
+  "apps/web/src/i18n/locale.ts": {
+    "house/no-em-dash": {
+      "count": 4
+    }
+  },
+  "apps/web/src/server/health.test.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/github/test/fixtures/collaborators-graphql.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/github/test/fixtures/graphql-error.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "packages/i18n/src/create.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "packages/i18n/src/pseudo.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/logging/src/sanitize.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "packages/persistence/drizzle.config.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/persistence/src/schema/review-read-mark.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/persistence/src/schema/review-submitted-review.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/persistence/test/ping.test.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "packages/repo-config/test/instructions.test.ts": {
+    "house/test-title": {
+      "count": 1
+    }
+  },
+  "tools/categorizer/eval/run.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "tools/categorizer/eval/specimens.ts": {
+    "house/no-em-dash": {
+      "count": 2
+    }
+  },
+  "tools/categorizer/eval/usageSink.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "tools/categorizer/test/eval-baseline.test.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    },
+    "house/test-title": {
+      "count": 2
+    }
+  },
+  "tools/ingest-briefs/src/cli/report.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  },
+  "tools/ingest-briefs/src/index.ts": {
+    "house/no-em-dash": {
+      "count": 1
+    }
+  }
+}

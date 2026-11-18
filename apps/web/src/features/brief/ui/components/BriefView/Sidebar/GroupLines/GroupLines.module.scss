@@ -1,0 +1,90 @@
+@use "mixins";
+
+$line-start: 15px;
+$line-size: 16px;
+$line-size-hover: 20px;
+$mark-size: 9px;
+$mark-gap: 6px;
+
+@layer components {
+  .lines {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+    inline-size: 100%;
+    min-block-size: 0;
+    padding-block: var(--space-4);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .line {
+    position: relative;
+    flex: none;
+    inline-size: 32px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: $line-start;
+      inline-size: $line-size;
+      block-size: 4px;
+      border-radius: var(--radius-xs);
+      background: var(--color-text-3);
+      opacity: 0.45;
+      content: "";
+      transform: translateY(-50%);
+      transition:
+        inline-size var(--motion-fast) ease,
+        opacity var(--motion-fast) ease,
+        background-color var(--motion-fast) ease;
+
+      @include mixins.forced-fill;
+    }
+
+    @include mixins.hover {
+      &:hover::before {
+        inline-size: $line-size-hover;
+        background: var(--color-text-1);
+        opacity: 1;
+
+        @include mixins.forced-fill;
+      }
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[data-current]::before {
+      background: var(--color-accent);
+      opacity: 1;
+
+      @include mixins.forced-fill(Highlight);
+    }
+  }
+
+  .threads {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: $line-start - $mark-gap - $mark-size;
+    inline-size: $mark-size;
+    block-size: $mark-size;
+    color: var(--color-text-2);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .line::before {
+      transition: none;
+    }
+  }
+}

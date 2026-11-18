@@ -1,0 +1,569 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // react-perf is deliberately absent: its inline-prop rules contradict the
+  // house style (no memoization by default — inline handlers to non-memoized
+  // children are idiomatic and free).
+  // The house plugin carries every convention oxlint has no native rule for;
+  // eslint-plugin-i18next gates user-facing copy. Both load as JS plugins.
+  "jsPlugins": [
+    "./tools/oxlint-plugin-house/src/index.mjs",
+    "eslint-plugin-i18next"
+  ],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "react",
+    "jsx-a11y",
+    "promise",
+    "vitest"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "react/jsx-no-constructed-context-values": "error",
+    "react/no-unstable-nested-components": "error",
+    "react/no-object-type-as-default-prop": "error",
+    // Vite uses the automatic JSX runtime — no React import needed for JSX.
+    "react/react-in-jsx-scope": "off",
+    // div[role=status] is the standard WAI-ARIA live-region idiom; <output>
+    // is form-associated (label/value semantics) and not a drop-in.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    // Labelled region + tabindex=0 is the required pattern for keyboard-
+    // reachable scroll containers (axe: scrollable-region-focusable).
+    "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"] }],
+    // One condition per ternary. Replacements, in order: a `Record<State,
+    // Value>` lookup, if/else, an early return.
+    "no-nested-ternary": "error",
+    // Loose equality never, `null` included: a value that can be either
+    // absent form is checked against both, so the two stay distinguishable.
+    "eqeqeq": ["error", "always"],
+    // Every if, else, for and while body takes braces, one-liners included.
+    "curly": ["error", "all"],
+    // Blocks nest at most three deep inside a function; tests included.
+    "max-depth": ["error", { "max": 3 }],
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-non-null-assertion": "error",
+    // The root standard's "no bare `as`" rule. `as const` and
+    // `satisfies` are unaffected; boundaries narrow with Zod or a type guard,
+    // and a genuinely-unavoidable cast takes a line-scoped disable + reason.
+    "typescript/consistent-type-assertions": [
+      "error",
+      { "assertionStyle": "never" }
+    ],
+    "oxc/no-const-enum": "error",
+    // oxlint has no `noInlineConfig`, so a line disable can suppress these
+    // two like any rule; `--report-unused-disable-directives` catches a stale
+    // one and a live one is reviewed like every lint-disable.
+    "house/no-enum": "error",
+    "house/extensionless-import": "error",
+    // Test titles and em-dashes: existing violations sit in
+    // oxlint-suppressions.json, which only shrinks. A PR that edits a listed
+    // file clears that file's entries for the rules it trips and prunes.
+    "house/test-title": ["error", { "maxLength": 70 }],
+    "house/comment-run": ["error", { "maxContentLines": 8 }],
+    "house/comment-density": ["error", { "maxRatio": 0.4 }],
+    "house/no-em-dash": "error",
+    // Config enters at the composition root; the roots are listed in the
+    // overrides.
+    "house/no-process-env": "error",
+    // Conditional fields are assigned under an if, never spread.
+    "house/no-conditional-spread": "error",
+    // Re-export only from a barrel, and only files inside its own folder.
+    "house/no-re-export": "error",
+    // Named exports only; the framework-required default exports are carved
+    // out per-path in the overrides.
+    "import/no-default-export": "error",
+    "import/no-cycle": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          { "name": "zod", "message": "Import zod as \"zod/v4\"." },
+          { "name": "zod/v3", "message": "Import zod as \"zod/v4\"." }
+        ]
+      }
+    ],
+    // Side-effect imports are how Vite loads global styles and server
+    // entrypoints register themselves.
+    "import/no-unassigned-import": [
+      "error",
+      {
+        "allow": ["**/*.css", "**/*.scss", "@tanstack/react-start/server-only"]
+      }
+    ],
+    "no-console": ["error", { "allow": ["warn", "error", "info"] }],
+    // `__typename` is GraphQL's own introspection field — the only way to
+    // discriminate author kinds (User vs Bot) on the wire.
+    "no-underscore-dangle": ["error", { "allow": ["__typename"] }],
+    // Effects legitimately mix early `return;` with `return cleanup` — the
+    // conditional-cleanup idiom React documents; tsc checks the return type.
+    "typescript/consistent-return": "off",
+    // Spread-in-map is the codebase's deliberate immutable-update idiom;
+    // the rule's suggested in-place mutation would alias parsed objects.
+    "oxc/no-map-spread": "off",
+    // The only index-keyed lists (diff lines, markdown segments) are
+    // immutable and never reorder within a render lifetime, and have no
+    // natural ids — index keys are stable there by construction.
+    "react/no-array-index-key": "off"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/out/**",
+    "**/.playwright-cli/**",
+    // Nested git worktrees are other checkouts of this repo, never source.
+    "**/.worktrees/**",
+    "**/routeTree.gen.ts",
+    // Each house rule's own counter-examples; the plugin's tests lint them.
+    "tools/oxlint-plugin-house/test/fixtures/**"
+  ],
+  "overrides": [
+    {
+      // apps/web runs no server functions for data: a read or write is an
+      // apps/api route reached through data/apiFetch. An override replaces the
+      // root options, so the zod entries repeat here.
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "Import zod as \"zod/v4\"." },
+              { "name": "zod/v3", "message": "Import zod as \"zod/v4\"." },
+              {
+                "name": "@tanstack/react-start",
+                "importNames": ["createServerFn"],
+                "message": "apps/web runs no server functions: add an apps/api route and read it through data/apiFetch."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // NO console level survives in these files (the global rule's
+      // warn/error/info allowance is client-side only). Server code logs
+      // through `packages/logging`; the logging package, the domain
+      // packages, the CLI and the web data layer never print through console.
+      "files": [
+        "apps/api/src/**",
+        "apps/cli/src/**",
+        "apps/worker/src/**",
+        "apps/web/src/data/**",
+        "apps/web/src/server.ts",
+        "apps/web/src/server/**",
+        "apps/web/src/**/*.server.ts",
+        "packages/brief-core/src/**",
+        "packages/generators/src/**",
+        "packages/github/src/**",
+        "packages/logging/src/**",
+        "packages/persistence/src/**"
+      ],
+      "rules": {
+        "no-console": "error"
+      }
+    },
+    {
+      // Framework-required default exports: vite/tsup/drizzle read the
+      // default export of their config, and TanStack Start's server entry is
+      // resolved the same way. The house plugin is loaded by oxlint the same
+      // way ESLint loads a plugin: by default export.
+      "files": [
+        "**/*.config.ts",
+        "apps/web/src/server.ts",
+        "apps/web/src/demo/server.ts",
+        "apps/docs-site/.vitepress/config.ts",
+        "apps/docs-site/.vitepress/theme/index.ts",
+        "tools/oxlint-plugin-house/src/index.mjs"
+      ],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    },
+    {
+      // User-facing copy lives in the catalog. `all` mode sees strings assigned
+      // to consts and built in template literals, not only JSX; the word
+      // pattern below lets a bare identifier-shaped string through and stops
+      // anything Capitalised or sentence-shaped.
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "rules": {
+        "i18next/no-literal-string": [
+          "error",
+          {
+            "mode": "all",
+            "should-validate-template": true,
+            "jsx-attributes": {
+              // Structural and behavioural attributes are never copy.
+              "exclude": [
+                "className",
+                "data-.*",
+                "id",
+                "key",
+                "type",
+                "role",
+                "href",
+                "to",
+                "name",
+                "value",
+                "scope",
+                "color",
+                "as",
+                "testId",
+                "labelledBy",
+                "describedBy",
+                "aria-hidden",
+                "aria-haspopup",
+                "autoComplete",
+                "rel",
+                "target",
+                "charSet",
+                "property",
+                "content",
+                "crossOrigin",
+                "boxClassName",
+                "labelClassName",
+                "triggerClassName",
+                "stroke",
+                "fill",
+                "focusable",
+                "viewBox",
+                "xmlns",
+                "d",
+                "points",
+                "offset",
+                "stopColor",
+                "placement",
+                "callout",
+                "kind",
+                "variant",
+                "size",
+                "density",
+                "tone",
+                "state",
+                "side",
+                "anchor",
+                "components"
+              ]
+            },
+            // The plugin's default callee list plus the sinks that never reach
+            // a reader: errors, logging, and the parse-failure reporters.
+            "callees": {
+              "exclude": [
+                "i18n(ext)?$",
+                "^t$",
+                "require",
+                "addEventListener",
+                "removeEventListener",
+                "postMessage",
+                "getElementById",
+                "dispatch",
+                "commit",
+                "includes",
+                "indexOf",
+                "endsWith",
+                "startsWith",
+                "Error",
+                "super",
+                "logger\\..*",
+                "console\\..*",
+                "warn",
+                "failRead"
+              ]
+            },
+            "object-properties": {
+              "exclude": ["error", "name", "nativeName"]
+            },
+            "words": {
+              // Punctuation-only and single-glyph nodes are decoration; the
+              // named entries are discriminants inside attribute expressions;
+              // the last pattern passes any string that is neither Capitalised
+              // nor two words apart.
+              "exclude": [
+                "^[^a-zA-Z]*$",
+                "^.$",
+                "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$",
+                "^(?![A-Z][a-z])(?![\\s\\S]*[A-Za-z] [A-Za-z(])[\\s\\S]*$"
+              ]
+            }
+          }
+        ],
+        // i18next skips every string under a SHOUT_CASE const; this reports
+        // the copy-shaped ones. Keyboard key names, TextMate scopes and brand
+        // names are not copy; the attribute and callee lists copy i18next's
+        // above and change with them.
+        "house/no-shout-case-copy": [
+          "error",
+          {
+            "ignoreKeys": [
+              "error",
+              "name",
+              "nativeName",
+              "key",
+              "keys",
+              "scope"
+            ],
+            "ignoreAttributes": [
+              "className",
+              "data-.*",
+              "id",
+              "key",
+              "type",
+              "role",
+              "href",
+              "to",
+              "name",
+              "value",
+              "scope",
+              "color",
+              "as",
+              "testId",
+              "labelledBy",
+              "describedBy",
+              "aria-hidden",
+              "aria-haspopup",
+              "autoComplete",
+              "rel",
+              "target",
+              "charSet",
+              "property",
+              "content",
+              "crossOrigin",
+              "boxClassName",
+              "labelClassName",
+              "triggerClassName",
+              "stroke",
+              "fill",
+              "focusable",
+              "viewBox",
+              "xmlns",
+              "d",
+              "points",
+              "offset",
+              "stopColor",
+              "placement",
+              "callout",
+              "kind",
+              "variant",
+              "size",
+              "density",
+              "tone",
+              "state",
+              "side",
+              "anchor",
+              "components"
+            ],
+            "ignoreCallees": [
+              "i18n(ext)?$",
+              "^t$",
+              "require",
+              "addEventListener",
+              "removeEventListener",
+              "postMessage",
+              "getElementById",
+              "dispatch",
+              "commit",
+              "includes",
+              "indexOf",
+              "endsWith",
+              "startsWith",
+              "Error",
+              "super",
+              "logger\\..*",
+              "console\\..*",
+              "warn",
+              "failRead"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Copy that stays English by shape: the root document's head meta, the
+      // dev and demo fixtures, the receipt the submit flow shows, and the
+      // review body submit.ts posts to GitHub, both in a frozen format.
+      "files": [
+        "apps/web/src/routes/__root.tsx",
+        "apps/web/src/features/brief/test-utils/fixtures.ts",
+        "apps/web/src/demo/api/fixtures.ts",
+        "apps/web/src/features/inbox/test-utils.ts",
+        "apps/web/src/features/review/utils/receipt.ts",
+        "apps/web/src/features/review/utils/submit.ts",
+        "**/characterization/**"
+      ],
+      "rules": {
+        "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off"
+      }
+    },
+    {
+      // The shared-button enforcement: raw `<button>` and `target="_blank"` on
+      // a raw `<a>` are banned in apps/web source outside the shared
+      // components' own files. A bespoke site carries an
+      // oxlint-disable-next-line with its reason; the disables are the
+      // allowlist.
+      "files": ["apps/web/src/**/*.tsx"],
+      "rules": {
+        "house/no-raw-button": "error",
+        "house/no-blank-target": "error",
+        // A render-prefixed function in a React tree is a sub-component.
+        "house/no-render-function": "error"
+      }
+    },
+    {
+      // Plurals go through `_one`/`_other` keys with `count`. The helpers that
+      // shape copy are .ts, so the rule cannot be a .tsx-only override.
+      "files": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+      "rules": {
+        "house/no-hand-built-plural": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/web/src/components/AccessibleLink/**",
+        "apps/web/src/components/Button/**",
+        "apps/web/src/components/Chip/**",
+        "apps/web/src/components/Dropdown/**",
+        "apps/web/src/components/IconButton/**",
+        "apps/web/src/components/LinkButton/**",
+        "apps/web/src/components/Menu/**",
+        "apps/web/src/components/RowButton/**",
+        "apps/web/src/components/Tabs/**",
+        "apps/web/src/components/ToolbarButton/**"
+      ],
+      "rules": {
+        "house/no-raw-button": "off",
+        "house/no-blank-target": "off"
+      }
+    },
+    {
+      // Stories are fixtures, not copy.
+      "files": ["**/*.stories.tsx"],
+      "rules": {
+        "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off"
+      }
+    },
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/test/**",
+        "apps/web/e2e/**"
+      ],
+      "rules": {
+        "i18next/no-literal-string": "off",
+        "house/no-shout-case-copy": "off",
+        "house/no-render-function": "off",
+        "house/no-process-env": "off",
+        "typescript/no-non-null-assertion": "off",
+        // Sequential awaits in tests are usually the point (step-by-step UI
+        // flows where each action depends on the previous one settling).
+        "no-await-in-loop": "off",
+        // expect(mock.method).toHaveBeenCalled — the standard vitest pattern
+        // the rule can't distinguish from a real unbound `this` hazard.
+        "typescript/unbound-method": "off",
+        // Narrowing getByRole/getElementById results is routine in tests;
+        // tsgolint's preview verdicts on these are inconsistent (identical
+        // casts flagged unsafe at one site, unnecessary at another).
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        // Same reason the two rules above are off here: narrowing a fixture
+        // or a DOM query to the shape under test is the test's own setup,
+        // not an escape from a boundary contract.
+        "typescript/consistent-type-assertions": "off",
+        // Mocks here pass implementations (vi.fn(async () => fixture)), which
+        // already fully type them — explicit type parameters would be
+        // redundant annotations, not added safety.
+        "vitest/require-mock-type-parameters": "off",
+        // Custom assertion helpers that wrap expect() internally (e.g.
+        // expectCheckViolation walking a driver error's cause chain).
+        "vitest/expect-expect": [
+          "error",
+          { "assertFunctionNames": ["expect", "expect*"] }
+        ],
+        // Helpers declared inside a describe/it read with the case they
+        // serve; hoisting them out to save a closure per call buys nothing
+        // in a test.
+        "unicorn/consistent-function-scoping": "off"
+      }
+    },
+    {
+      // The Playwright perf harness. Its stdout IS its interface (a runner
+      // parses the PERF_RESULT lines), and the injected browser globals are
+      // named by contract with addInitScript.
+      "files": ["apps/web/e2e/**"],
+      "rules": {
+        "no-console": "off",
+        "no-underscore-dangle": [
+          "error",
+          { "allow": ["__typename", "__COMMIT_STATS__", "__COMMIT_TRACKING__"] }
+        ]
+      }
+    },
+    {
+      // Composition roots and hand-run scripts: the only readers of
+      // `process.env`. Everything else takes its values as parameters.
+      "files": [
+        "apps/api/src/main.ts",
+        "apps/api/src/migrate.ts",
+        "apps/api/src/instrument.ts",
+        "apps/worker/src/main.ts",
+        "apps/worker/src/instrument.ts",
+        "apps/web/src/server/env.ts",
+        "apps/cli/src/bin.ts",
+        "apps/docs-site/.vitepress/config.ts",
+        "tools/baselines/src/main.ts",
+        "tools/ingest-briefs/src/main.ts",
+        "tools/categorizer/eval/cli.ts",
+        "tools/categorizer/src/cli/categorize.ts",
+        "tools/categorizer/src/cli/delta.ts",
+        "tools/categorizer/scripts/**",
+        "packages/generators/smoke/**",
+        "**/*.config.{ts,js,mjs}",
+        "apps/web/e2e/**"
+      ],
+      "rules": {
+        "house/no-process-env": "off"
+      }
+    },
+    {
+      // Runtime in packages/types is as const maps only.
+      "files": ["packages/types/**"],
+      "rules": {
+        "house/types-const-maps": "error"
+      }
+    },
+    {
+      // The plugin itself is Node-resolved, not bundler-resolved: its `.mjs`
+      // modules must carry their extension.
+      "files": ["tools/oxlint-plugin-house/**"],
+      "rules": {
+        "house/extensionless-import": "off"
+      }
+    },
+    {
+      // The categorize/delta CLI entries and their summary printer: stdout is
+      // their interface.
+      "files": [
+        "tools/categorizer/src/cli/categorize.ts",
+        "tools/categorizer/src/cli/delta.ts",
+        "tools/categorizer/src/artifacts/output.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+name: Weekly full suite
+
+# Drift detector. Affected filtering is an optimisation with
+# a failure mode — a dependency edge the graph does not know about, a test
+# that only breaks in combination — so once a week everything runs with no
+# filters at all. There is no flake-tracking infrastructure by design: a red
+# run here becomes a ticket the day it is seen.
+on:
+  schedule:
+    # Monday 05:23 UTC — before the working week, offset off the hour.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: weekly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  full-suite:
+    name: Full suite (no filters)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    # The real-Postgres suites. Throwaway credentials for an ephemeral container.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: mergebrief
+          POSTGRES_PASSWORD: mergebrief
+          POSTGRES_DB: mergebrief_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mergebrief -d mergebrief_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Cheapest first: a lint or type failure is diagnosable without paying
+      # for the suites behind it. No `--filter` of any kind here, deliberately
+      # — `pnpm -r run` already leaves the workspace-root project out unless a
+      # filter selects it, so the root's alias scripts (`test` = categorizer,
+      # `typecheck` = apps/web) cannot double-run.
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Test
+        env:
+          MERGEBRIEF_TEST_POSTGRES_URL: postgres://mergebrief:mergebrief@127.0.0.1:5432/mergebrief_test
+        run: pnpm -r test
+
+      # The browser suite is not a `pnpm -r` script, so it needs its own step.
+      # No cache here on purpose: a weekly run would miss a 7-day-evicted entry
+      # about as often as it hit one, and the download is ~1 minute.
+      - name: Install Chromium
+        run: pnpm -C apps/web exec playwright install --with-deps chromium
+
+      - name: E2E (browser)
+        run: pnpm -C apps/web test:e2e
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: weekly-diagnostics
+          path: |
+            apps/web/test-results/**
+            apps/web/playwright-report/**
+            apps/*/coverage/**
+            packages/*/coverage/**
+            tools/*/coverage/**
+            !**/node_modules/**
+          retention-days: 7
+          if-no-files-found: ignore

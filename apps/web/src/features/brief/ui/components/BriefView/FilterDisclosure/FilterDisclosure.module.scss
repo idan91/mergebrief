@@ -1,0 +1,37 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Positioning context for the in-tree floating panel: floating-ui's
+  // absolute strategy resolves against the nearest positioned ancestor, and
+  // anchoring here keeps the panel riding the sticky bar natively on scroll.
+  .wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .segment {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .sep {
+    color: var(--color-line-strong);
+  }
+
+  .count {
+    color: var(--color-text-1);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  // Rendered in-tree, so it stacks inside the toolbar's stacking context.
+  // Wider than the risk panel: two labelled chip rows plus the footer.
+  .panel {
+    z-index: functions.get-z-index("bar-panel");
+    min-inline-size: functions.to-rem(320px);
+    max-inline-size: min(functions.to-rem(540px), 85vw);
+    padding: var(--space-4);
+  }
+}

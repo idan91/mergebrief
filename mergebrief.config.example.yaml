@@ -1,0 +1,184 @@
+# MergeBrief instance config. Copy to `mergebrief.config.yaml` (gitignored)
+# beside docker-compose.yml, which mounts it into `api` and `worker`
+# (docs/self-host/compose.md). In a source checkout, host processes read it
+# from the repo root; MERGEBRIEF_CONFIG in `.env` names a file kept elsewhere.
+# Edits apply on restart.
+#
+# You need this file: nobody can sign in until `operators` or `allowed` names
+# them. Every other block is optional. A line commented twice is an example
+# for one provider or one mode: uncommenting its block leaves it off.
+#
+# Every value ends in a tag that says what it is:
+#   # default               what you get without the line
+#   # example; default X    the value shown is not the default, X is
+#   # example; no default   the key has none; its comment says what unset does
+#   # required              no default, and its block or entry refuses boot
+#                           without it
+#
+# An unknown key refuses boot. A credential never goes here: the file names
+# the environment variable that holds it.
+#
+# Every key and what it accepts: docs/self-host/configuration.md
+
+# --- Operators (required) ----------------------------------------------------
+# The GitHub users who run this instance, by numeric id, never by login.
+# Find yours with `gh api users/<login> --jq .id`. Boot refuses until you
+# replace the placeholder. Without the key nobody is an Operator.
+# docs/self-host/generators.md#operators
+operators: # example; no default
+  - <your-github-user-id>
+
+# --- Who else may sign in and start a brief ----------------------------------
+# `accounts` lets in the people of an org or personal account the App is
+# installed on. `users` adds single people. Ids, never logins: find an org's
+# with `gh api orgs/<org> --jq .id`. No block lets in Operators alone.
+# docs/self-host/generators.md#who-may-start-a-brief
+# allowed:
+#   users: # example; no default
+#     - <github-user-id>
+#   accounts: # example; no default
+#     - <org-or-account-id>
+
+# --- Generator (provider and model) ------------------------------------------
+# No block runs `anthropic` on ANTHROPIC_API_KEY with claude-opus-5-5.
+# Where each provider's model names come from, with an example for each:
+# docs/self-host/generators.md#model-names-by-provider
+# generator:
+#   # anthropic | openai | openrouter | claude-code | codex | cursor
+#   provider: anthropic # required
+#
+#   # The cheaper option. openai and openrouter have no default and need the
+#   # line. codex and cursor default to the model their CLI is set to.
+#   model: claude-sonnet-5-5 # example; default claude-opus-5-5
+#
+#   # low | medium | high. cursor ignores it and reads the model id's suffix.
+#   effort: medium # default
+#
+#   # never | on-model-swap | always: when a new revision's brief restarts from
+#   # scratch, not from the previous brief.
+#   fullRegeneration: never # default
+#
+#   # true runs every brief as a multi-call run. A diagnostic, and it costs more.
+#   forceMultiCall: false # default
+#
+#   # Detail calls a multi-call run keeps in flight. Lower it for a rate limit.
+#   detailConcurrency: 8 # default
+#
+#   # false skips the revision narrative against the previous brief.
+#   revisionNarrative: true # default
+#
+#   # The share of a PR's changed lines, above 0 and at most 1, at which an
+#   # incremental span falls back to the full brief.
+#   hugeSpanRatio: 0.65 # default
+#
+#   # API providers: the NAME of the variable holding the key. The default is
+#   # ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY, by provider.
+#   # apiKeyEnv: MY_PROVIDER_KEY_VAR # example; default above
+#
+#   # anthropic, openai: the model provider's API address, for a gateway in
+#   # front of it. anthropic takes the host root with no /v1, openai takes
+#   # the /v1 root.
+#   # baseUrl: https://gateway.example # example; default the provider's host
+#
+#   # openrouter only: routing options and attribution headers. All three
+#   # are optional.
+#   # providerRouting: # example; no default
+#   #   order: ["anthropic"] # example; no default
+#   # referer: https://you.example # example; no default
+#   # title: MergeBrief # example; no default
+#
+#   # claude-code, codex, cursor only: host processes, refused in the image.
+#   # The binary, and the run's timers in milliseconds. The binary defaults
+#   # to claude, codex or cursor-agent, by provider. cursor's inactivityMs
+#   # defaults to its hardMs.
+#   # command: claude # example; default by provider, above
+#   # timeouts:
+#   #   hardMs: 900000 # default
+#   #   inactivityMs: 180000 # default
+#   #   killGraceMs: 5000 # default
+
+# --- Daily generation cap ----------------------------------------------------
+# The most runs per UTC day across every repo. `unlimited` lifts the cap.
+# docs/self-host/generators.md#daily-generation-cap
+# spend:
+#   maxGenerationsPerDay: 300 # default
+
+# --- Draft pull requests -----------------------------------------------------
+# `generate: off` holds a draft's first brief until it is marked ready.
+# `debounceSeconds` sets a longer wait before a draft regenerates. Unset, a
+# draft waits the normal 60 seconds.
+# docs/self-host/repo-config.md#related-instance-block-drafts-operator-side
+# drafts:
+#   generate: on # default
+#   debounceSeconds: 900 # example; no default
+
+# --- Trackers (the boards every repo reads tickets from) ---------------------
+# No block reads GitHub issues only. A repo's own `.mergebrief/settings.yaml`
+# replaces this list for that repo. A notion or jira entry needs its
+# `contextSources` entry below. docs/self-host/trackers.md
+# trackers:
+#   - kind: notion # required
+#     keyPrefix: ACME # required
+#     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9 # required
+#   - kind: jira # required
+#     projectKeys: [WEB, OPS] # required
+#   - kind: github # required
+#     issuesRepo: owner/name # example; default the pull request's repo
+#     siblingRepos: false # default
+
+# --- Context sources (tracker credentials) -----------------------------------
+# One entry per tracker type that needs a credential. Each key names the
+# variable holding it, and an entry whose variable is unset refuses boot.
+# `linkHosts` adds hosts whose issue links count as the site's. Unset, only
+# the site's own links do.
+# docs/self-host/trackers.md
+# contextSources:
+#   - type: notion # required
+#     tokenEnv: NOTION_TOKEN # default
+#   - type: jira # required
+#     site: acme.atlassian.net # required
+#     emailEnv: JIRA_EMAIL # default
+#     tokenEnv: JIRA_API_TOKEN # default
+#     linkHosts: # example; no default
+#       - jira.acme.example
+
+# --- Retention and audit ----------------------------------------------------
+# Days the daily sweeps keep audit rows (at least 30) and closed pull requests
+# (at least 1). Unset, rows are kept forever.
+# docs/self-host/operations.md
+# retention:
+#   auditDays: 365 # example; no default
+#   pullRequestDays: 90 # example; no default
+#
+# false stops recording writes that stay inside the instance. Writes that
+# reach GitHub and every denial are recorded either way.
+# audit:
+#   privateWrites: true # default
+
+# --- Update check -----------------------------------------------------------
+# false stops the hourly fetch of version.json and the version notice. `url`
+# names a mirror, for a network that blocks github.com.
+# docs/self-host/operations.md#the-update-check
+# updateCheck:
+#   enabled: true # default
+#   # The default is the project's own release file on GitHub.
+#   # url: https://mirror.example.com/version.json # example; default above
+
+# --- Attachments and media --------------------------------------------------
+# What one reviewer may attach per window, and the largest video or image,
+# in megabytes, the api streams. docs/self-host/attachments.md
+# attachments:
+#   quotaFiles: 10 # default
+#   quotaMb: 30 # default
+#   quotaWindowMinutes: 10 # default
+#   mediaMaxMb: 100 # default
+
+# --- Link fetch (the links a PR description cites) ---------------------------
+# public | off | allowlist. `hosts` goes with allowlist only, and allowlist
+# needs it.
+# docs/self-host/configuration.md#linkfetch
+# linkFetch:
+#   mode: allowlist # example; default public
+#   hosts: # example; no default
+#     - docs.example.com
+#   maxTotalChars: 40000 # default

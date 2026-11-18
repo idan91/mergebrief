@@ -1,0 +1,161 @@
+import { describe, expect, it } from "vitest";
+import { fetchContextSnippets } from "../../src/context/fan-out";
+import {
+  ContextProviderTypes,
+  type ContextProvider,
+  type ContextQuery,
+  type ProviderSnippet,
+} from "../../src/context/types";
+import { TicketUnreadReasons } from "../../src/types";
+
+function stubProvider(fetch: ContextProvider["fetch"]): ContextProvider {
+  return { providerId: ContextProviderTypes.URL, fetch };
+}
+
+function makeSnippet(source: string): ProviderSnippet {
+  return {
+    providerId: ContextProviderTypes.URL,
+    source,
+    text: `body of ${source}`,
+  };
+}
+
+const query: ContextQuery = {
+  title: "t",
+  body: "see https://a.example/x",
+  headRef: "",
+  repo: { owner: "o", repo: "r" },
+  trackers: [],
+  references: [],
+};
+
+describe("fetchContextSnippets", () => {
+  it("numbers results ctx-1..N in provider order, not finish order", async () => {
+    const fastAnswered = Promise.withResolvers<void>();
+    const slow = stubProvider(async () => {
+      await fastAnswered.promise;
+      return { ok: true, value: [makeSnippet("https://slow.example")] };
+    });
+    const fast = stubProvider(async () => {
+      fastAnswered.resolve();
+      return {
+        ok: true,
+        value: [
+          makeSnippet("https://fast.example"),
+          makeSnippet("https://fast.example/2"),
+        ],
+      };
+    });
+
+    const { links: snippets } = await fetchContextSnippets(query, [slow, fast]);
+
+    expect(snippets.map((s) => [s.id, s.source])).toEqual([
+      ["ctx-1", "https://slow.example"],
+      ["ctx-2", "https://fast.example"],
+      ["ctx-3", "https://fast.example/2"],
+    ]);
+  });
+
+  it("aborts a provider's signal once it answered", async () => {
+    const signals: AbortSignal[] = [];
+    const provider = stubProvider(async (_, deps) => {
+      signals.push(deps.signal);
+      return { ok: true, value: [makeSnippet("https://a.example/x")] };
+    });
+
+    await fetchContextSnippets(query, [provider]);
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([true]);
+  });
+
+  it("fails open on a failed read, logging the reason and keeping the rest", async () => {
+    const logs: string[] = [];
+    const refused = stubProvider(async () => ({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NO_CREDENTIAL, detail: "gh exit 4" },
+    }));
+    const fine = stubProvider(async () => ({
+      ok: true,
+      value: [makeSnippet("https://fine.example")],
+    }));
+
+    const { links: snippets } = await fetchContextSnippets(
+      query,
+      [refused, fine],
+      (m) => logs.push(m),
+    );
+
+    expect(snippets.map((s) => s.source)).toEqual(["https://fine.example"]);
+    expect(
+      logs.some((l) => l.includes("no-credential") && l.includes("gh exit 4")),
+    ).toBe(true);
+  });
+
+  it("fails open when a provider throws", async () => {
+    const logs: string[] = [];
+    const broken = stubProvider(async () => {
+      throw new Error("boom");
+    });
+    const fine = stubProvider(async () => ({
+      ok: true,
+      value: [makeSnippet("https://fine.example")],
+    }));
+
+    const { links: snippets } = await fetchContextSnippets(
+      query,
+      [broken, fine],
+      (m) => logs.push(m),
+    );
+
+    expect(snippets.map((s) => s.source)).toEqual(["https://fine.example"]);
+    expect(logs.some((l) => l.includes("threw") && l.includes("boom"))).toBe(
+      true,
+    );
+  });
+
+  it("drops a provider past its timeout, aborts it, keeps the rest", async () => {
+    const logs: string[] = [];
+    let aborted = false;
+    const hung = stubProvider(
+      (_query, deps) =>
+        new Promise(() => {
+          deps.signal.addEventListener("abort", () => {
+            aborted = true;
+          });
+        }),
+    );
+    const fine = stubProvider(async () => ({
+      ok: true,
+      value: [makeSnippet("https://fine.example")],
+    }));
+
+    const { links: snippets } = await fetchContextSnippets(
+      query,
+      [hung, fine],
+      (m) => logs.push(m),
+      { timeoutMs: 10, graceMs: 10 },
+    );
+
+    expect(snippets.map((s) => s.source)).toEqual(["https://fine.example"]);
+    expect(aborted).toBe(true);
+    expect(logs.some((l) => l.includes("timed out"))).toBe(true);
+  });
+
+  it("keeps what an aborted provider hands back within the grace", async () => {
+    const trickling = stubProvider(
+      (_query, deps) =>
+        new Promise((resolve) => {
+          deps.signal.addEventListener("abort", () =>
+            resolve({ ok: true, value: [makeSnippet("https://done.example")] }),
+          );
+        }),
+    );
+
+    const { links } = await fetchContextSnippets(query, [trickling], () => {}, {
+      timeoutMs: 10,
+      graceMs: 200,
+    });
+
+    expect(links.map((s) => s.source)).toEqual(["https://done.example"]);
+  });
+});

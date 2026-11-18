@@ -1,0 +1,10 @@
+@layer components {
+  .code {
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-3);
+    color: var(--color-text-1);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-2);
+  }
+}

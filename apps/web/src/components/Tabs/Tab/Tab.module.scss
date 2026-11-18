@@ -1,0 +1,90 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .tab {
+    padding-block: var(--space-4) var(--space-3-5);
+    padding-inline: var(--space-2-5);
+    border: 0;
+    border-block-end: 2px solid transparent;
+    background: transparent;
+    color: var(--color-text-2);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      color var(--motion-fast),
+      border-color var(--motion-fast);
+
+    @include mixins.hover {
+      &:hover {
+        color: var(--color-text-1);
+      }
+    }
+
+    &:active:not([aria-selected="true"]) {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[aria-selected="true"] {
+      border-block-end-color: var(--color-accent);
+      color: var(--color-text-1);
+
+      @include mixins.forced-selected($inset-ring: true);
+    }
+
+    &[data-variant="rail"] {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3-5);
+      block-size: functions.to-rem(34px);
+      padding-block: 0;
+      padding-inline: var(--space-3-5);
+      border: 0;
+      border-radius: var(--radius-md);
+      text-align: start;
+
+      @include mixins.hover {
+        &:hover:not([aria-selected="true"]) {
+          background: var(--color-surface-2);
+        }
+      }
+
+      &:active:not([aria-selected="true"]),
+      &[aria-selected="true"] {
+        background: var(--color-surface-3);
+      }
+
+      @include mixins.for-phone {
+        block-size: auto;
+        padding-block: var(--space-3) var(--space-3-5);
+        padding-inline: 0;
+        border-block-end: 2px solid transparent;
+        border-radius: 0;
+        font-size: var(--font-size-3);
+
+        @include mixins.hover {
+          &:hover:not([aria-selected="true"]) {
+            background: transparent;
+          }
+        }
+
+        &[aria-selected="true"] {
+          border-block-end-color: var(--color-accent);
+          background: transparent;
+
+          @include mixins.forced-selected($inset-ring: true);
+        }
+
+        svg {
+          display: none;
+        }
+      }
+    }
+  }
+}

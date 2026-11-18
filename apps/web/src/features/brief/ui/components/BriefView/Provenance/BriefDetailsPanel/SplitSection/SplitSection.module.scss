@@ -1,0 +1,13 @@
+@layer components {
+  .row {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .percent {
+    margin-inline-start: var(--space-2);
+    color: var(--color-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+}

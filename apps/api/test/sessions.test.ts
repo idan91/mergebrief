@@ -1,0 +1,234 @@
+// DELETE /api/auth/sessions: the "sign out everywhere" a leaked cookie needs.
+// Owner-bound (another reviewer's rows stay), grant-safe (a token minted off
+// a revoked session keeps working), cookie-only, and same-origin like every
+// cookie mutation.
+import { randomBytes } from "node:crypto";
+import {
+  createSessionAuth,
+  createTokenAuth,
+  type AppDatabase,
+  type GithubGrantRow,
+  type KeyProvider,
+  type ReviewerId,
+} from "persistence";
+import { seedGrant } from "persistence/testing";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createApp, type ApiApp } from "../src/index";
+import {
+  KEY_REF,
+  REVIEWER_ID,
+  SAME_ORIGIN_HEADERS,
+  SECRET,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  getRequestUrl,
+  hashSha256Hex,
+} from "./fixtures";
+import { testLogger } from "./logging";
+import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
+
+const OTHER_REVIEWER_ID = 777;
+const REVOKE_PATH = "/api/auth/sessions";
+
+interface SeededSession {
+  readonly cookie: string;
+  readonly grantId: GithubGrantRow["id"];
+}
+
+async function seedSessionFor(
+  handle: AppDatabase,
+  kp: KeyProvider,
+  reviewerId: ReviewerId,
+): Promise<SeededSession> {
+  const cookie = randomBytes(32).toString("base64url");
+  const grant = await seedGrant(handle, {
+    userId: reviewerId,
+    accessToken: "ghu_ACCESS",
+    refreshToken: "ghr_REFRESH",
+    keyProvider: kp,
+    keyRef: KEY_REF,
+    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
+  await createSessionAuth(handle).createSession({
+    sessionTokenHash: hashSha256Hex(cookie),
+    reviewerId,
+    reviewerLogin: `reviewer-${String(reviewerId)}`,
+    grantId: grant.id,
+    expiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
+  return { cookie, grantId: grant.id };
+}
+
+async function countRows(
+  harness: SharedPglite,
+  table: string,
+): Promise<number> {
+  const rows = await harness.raw(`select count(*)::int as n from ${table}`);
+  const n = rows[0]?.["n"];
+  if (typeof n !== "number") {
+    throw new Error(`count of ${table} is not a number`);
+  }
+  return n;
+}
+
+describe("DELETE /api/auth/sessions", () => {
+  const harness = registerSharedPglite();
+  let kp: KeyProvider;
+  let app: ApiApp;
+  let fetchFn: ReturnType<typeof vi.fn>;
+  const reviewer = brandReviewerId(BigInt(REVIEWER_ID));
+  const otherReviewer = brandReviewerId(BigInt(OTHER_REVIEWER_ID));
+
+  beforeEach(() => {
+    fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchFn);
+    kp = createKeyProvider();
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+  });
+
+  function revokeAll(cookie: string, headers: Record<string, string> = {}) {
+    return app.request(REVOKE_PATH, {
+      method: "DELETE",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        ...headers,
+      },
+    });
+  }
+
+  function probe(cookie: string) {
+    return app.request("/api/auth/session", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+  }
+
+  it("revokes every session of the reviewer and clears the cookie", async () => {
+    const laptop = await seedSessionFor(harness.handle, kp, reviewer);
+    const phone = await seedSessionFor(harness.handle, kp, reviewer);
+    const stranger = await seedSessionFor(harness.handle, kp, otherReviewer);
+
+    const res = await revokeAll(laptop.cookie);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ revoked: 2 });
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie.startsWith("__Host-mergebrief_session=")).toBe(true);
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toMatch(/Max-Age=0/i);
+
+    expect((await probe(laptop.cookie)).status).toBe(401);
+    expect((await probe(phone.cookie)).status).toBe(401);
+    expect((await probe(stranger.cookie)).status).toBe(200);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("revokes each orphaned grant's token at GitHub", async () => {
+    const laptop = await seedSessionFor(harness.handle, kp, reviewer);
+    await seedSessionFor(harness.handle, kp, reviewer);
+
+    await revokeAll(laptop.cookie);
+
+    const deleteUrls = fetchFn.mock.calls
+      .map((call) => getRequestUrl(call[0] as string | URL | Request))
+      .filter((url) => url.includes("/applications/"));
+    expect(deleteUrls).toEqual([
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+    ]);
+  });
+
+  it("keeps a grant an API token still links", async () => {
+    const seeded = await seedSessionFor(harness.handle, kp, reviewer);
+    const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+    await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: reviewer,
+      userLogin: "octocat",
+      name: "ci-token",
+      tokenHash: hashSha256Hex(plaintext),
+      grantId: seeded.grantId,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+
+    const res = await revokeAll(seeded.cookie);
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(await countRows(harness, "github_grant")).toBe(1);
+    const viaBearer = await app.request("/api/capabilities", {
+      headers: { Authorization: `Bearer ${plaintext}` },
+    });
+    expect(viaBearer.status).toBe(200);
+  });
+
+  it("answers 401 without a cookie and ignores Bearer", async () => {
+    const seeded = await seedSessionFor(harness.handle, kp, reviewer);
+    const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+    await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.EXTERNAL_WRITE,
+      userId: reviewer,
+      userLogin: "octocat",
+      name: "ci-token",
+      tokenHash: hashSha256Hex(plaintext),
+      grantId: seeded.grantId,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+
+    const bare = await app.request(REVOKE_PATH, {
+      method: "DELETE",
+      headers: SAME_ORIGIN_HEADERS,
+    });
+    const viaBearer = await app.request(REVOKE_PATH, {
+      method: "DELETE",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Authorization: `Bearer ${plaintext}`,
+      },
+    });
+
+    expect(bare.status).toBe(401);
+    expect(viaBearer.status).toBe(401);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("refuses a revoke that proves no origin", async () => {
+    const seeded = await seedSessionFor(harness.handle, kp, reviewer);
+
+    const res = await app.request(REVOKE_PATH, {
+      method: "DELETE",
+      headers: { Cookie: `__Host-mergebrief_session=${seeded.cookie}` },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("writes one audit row naming the reviewer", async () => {
+    const seeded = await seedSessionFor(harness.handle, kp, reviewer);
+
+    await revokeAll(seeded.cookie);
+
+    const rows = await harness.raw(
+      "select operation, outcome, target_type, target_id::text as target_id from audit_log",
+    );
+    expect(rows).toEqual([
+      {
+        operation: "revoke-sessions",
+        outcome: "ok",
+        target_type: "reviewer",
+        target_id: String(REVIEWER_ID),
+      },
+    ]);
+  });
+});

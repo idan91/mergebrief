@@ -1,0 +1,44 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+  }
+
+  .count {
+    margin-inline-end: var(--space-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stepBtn {
+    border-color: var(--color-line-strong);
+
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        background: var(--color-surface-2);
+      }
+    }
+  }
+
+  .stepper[data-layout="sheet"] {
+    display: flex;
+    font-size: var(--font-size-2);
+
+    .count {
+      flex: 1;
+      font-size: inherit;
+    }
+
+    // Nested to outrank IconButton's own size rule: 44px targets in a sheet.
+    .stepBtn {
+      inline-size: functions.to-rem(44px);
+      block-size: functions.to-rem(44px);
+    }
+  }
+}

@@ -1,0 +1,79 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .pager {
+    display: flex;
+    gap: var(--space-5);
+    align-items: center;
+    justify-content: space-between;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .range {
+    white-space: nowrap;
+  }
+
+  .pages {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .page {
+    display: grid;
+    place-items: center;
+    min-inline-size: functions.to-rem(30px);
+    block-size: functions.to-rem(30px);
+    padding-inline: var(--space-2);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-2);
+    cursor: pointer;
+    font: inherit;
+
+    @include mixins.hover {
+      &:hover:not([aria-disabled="true"]) {
+        background: var(--color-surface-2);
+        color: var(--color-text-1);
+      }
+    }
+
+    &[aria-current="page"] {
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-medium);
+      color: var(--color-accent);
+
+      @include mixins.forced-selected;
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+
+      @include mixins.dimmed {
+        border-color: functions.dim(var(--color-line-strong));
+      }
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .gap {
+    inline-size: functions.to-rem(24px);
+    text-align: center;
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .pager {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pages {
+      justify-content: space-between;
+    }
+  }
+}

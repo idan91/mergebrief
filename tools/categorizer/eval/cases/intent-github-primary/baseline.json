@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "alignment-goal-verifies": 5,
+    "intent-precise": 5,
+    "intent-ticket-url-bound": 5,
+    "primary-title-from-header": 5
+  }
+}

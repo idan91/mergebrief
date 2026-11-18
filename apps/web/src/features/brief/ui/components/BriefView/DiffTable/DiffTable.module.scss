@@ -1,0 +1,128 @@
+@use "functions";
+
+@layer components {
+  .metadataDiff {
+    padding-block: var(--space-4-5);
+    padding-inline: var(--space-5);
+    border-block-start: 1px solid var(--color-line);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+
+    span {
+      display: block;
+      margin-block-end: var(--space-2-5);
+      color: var(--color-text-1);
+      font-size: var(--font-size-2);
+    }
+  }
+
+  // The frame's right rule rides the spanned gutter cell's attribute, or the
+  // row's own for a comment row, which has no gutter cell: a border, not a
+  // shadow, because the code cell's own edge bar is one.
+  .diff tr:has(> [data-span]) > td:last-child,
+  .diff tr[data-span] > td:last-child {
+    border-inline-end: 1px solid var(--color-line);
+  }
+
+  .diff tr[data-span] > td:first-child {
+    box-shadow: var(--diff-span-edge-bar);
+  }
+
+  .composerDisabledNote {
+    margin: 0;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-5);
+    border-block-start: 1px solid var(--color-line);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+
+  .viewport {
+    content-visibility: auto;
+
+    // `auto` remembers real painted size; the estimate only tames first-paint scroll jump
+    contain-intrinsic-block-size: auto
+      var(
+        --diff-reserved-size,
+        calc(var(--diff-rows, 40) * functions.to-rem(22px))
+      );
+
+    // `content-visibility: auto` always applies paint containment, which would
+    // clip the table where `white-space: pre` code pushes it past this box;
+    // `overflow-x: auto` turns that clipping into a scroll region instead.
+    overflow-x: auto;
+
+    // Named container so the comment composer below can size itself to this
+    // scrollport's visible width (100cqw) instead of the table's full width.
+    container-type: inline-size;
+  }
+
+  // A windowed card mounting with its top above the viewport sets visible
+  // (reading/window-layout.ts): it reaches its real height there, where
+  // scroll anchoring absorbs it, and `auto` keeps that size once skipped.
+  .viewport[data-first-paint] {
+    content-visibility: var(--diff-first-paint-visibility, auto);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .viewport[data-state="arrived"] {
+      animation: ink-settle var(--motion-base) var(--ease-out);
+    }
+  }
+
+  @keyframes ink-settle {
+    from {
+      opacity: 0.35;
+    }
+  }
+
+  .diff {
+    inline-size: 100%;
+    border-collapse: collapse;
+    background: var(--color-well);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-reading);
+  }
+
+  // Equal halves by construction: the two code columns share what the rail
+  // and number columns leave, and a long line wraps inside its half.
+  .diff[data-view="split"] {
+    table-layout: fixed;
+  }
+
+  // A text selection that began on one side stays on that side.
+  .diff[data-selecting="left"] td[data-side="right"],
+  .diff[data-selecting="right"] td[data-side="left"] {
+    user-select: none;
+  }
+
+  /* A scrolled-to diff row flashes its cells' background: a ring on a table
+     row clips, and the cells already carry inset edge bars. */
+  .diff tr[data-scroll-flash]:not([data-under-row]) > td,
+  .diff td[data-scroll-flash] {
+    animation: conversation-cell-flash var(--motion-flash) ease-out 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .diff tr[data-scroll-flash]:not([data-under-row]) > td,
+    .diff td[data-scroll-flash] {
+      animation: none;
+      background-color: color-mix(
+        in srgb,
+        var(--color-accent) 24%,
+        transparent
+      );
+    }
+  }
+}
+
+@keyframes conversation-cell-flash {
+  0% {
+    background-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}

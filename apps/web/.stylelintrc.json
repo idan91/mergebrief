@@ -1,0 +1,103 @@
+{
+  "extends": ["stylelint-config-standard-scss"],
+  "plugins": [
+    "./stylelint-hover-in-mixin.mjs",
+    "./stylelint-custom-property-no-raw-value.mjs"
+  ],
+  "reportNeedlessDisables": true,
+  "reportDescriptionlessDisables": true,
+  "overrides": [
+    {
+      "files": ["**/*.module.scss", "src/styles/_layout.scss"],
+      "rules": {
+        "selector-pseudo-class-no-unknown": [
+          true,
+          { "ignorePseudoClasses": ["global"] }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.module.scss"],
+      "rules": {
+        "house/custom-property-no-raw-value": true,
+        "declaration-property-value-disallowed-list": [
+          {
+            "/^(--|\\$)/": [
+              "/(?<![\\w.$]|[\\w-]-)\\d*\\.?\\d*[1-9][\\d.]*m?s\\b/"
+            ]
+          },
+          {
+            "message": "Motion: a module custom property or Sass variable holds no time literal. Read a --motion-* token, or keep a duration one component alone owns behind a line-scoped disable naming why."
+          }
+        ]
+      }
+    }
+  ],
+  "rules": {
+    "house/hover-in-mixin": true,
+    "custom-property-pattern": null,
+    "selector-class-pattern": null,
+    "scss/at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": ["container"]
+      }
+    ],
+    "declaration-property-value-allowed-list": [
+      {
+        "color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background-image": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "border": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "outline": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "outline-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-shadow": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "fill": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "stroke": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "caret-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "accent-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "scrollbar-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "column-rule-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-decoration-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-emphasis-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "/^border(-(block|inline))?(-(start|end|top|right|bottom|left))?-color$/": [
+          "/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"
+        ],
+        "/^border-(block-|inline-)?(start|end|top|right|bottom|left)$/": [
+          "/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"
+        ],
+        "font-size": [
+          "/^(?![\\s\\S]*\\d\\s*((px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|%))/"
+        ],
+        "line-height": [
+          "/^(0|(?![\\s\\S]*((?<![\\w.$]|[\\w-]-)\\d*\\.?\\d+(?![\\d.]|(px|rem)\\b)|(?<![\\w.]|var\\(#\\{)\\$))[\\s\\S]*)$/i"
+        ],
+        "font": [
+          "/^(inherit|initial|unset|revert(-layer)?|caption|icon|menu|message-box|small-caption|status-bar)$/"
+        ],
+        "/^border-radius$|^border-((start|end)-(start|end)|(top|bottom)-(left|right))-radius$/": [
+          "/^(?![\\s\\S]*\\d\\s*((px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|%))/"
+        ],
+        "box-shadow": [
+          "/^(?![\\s\\S]*(\\d\\s*(px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|rgba?\\(|hsla?\\(|#[0-9a-fA-F]{3}))/"
+        ],
+        "z-index": [
+          "/^functions\\.get-z-index\\(\"[a-z-]+\"\\)$/",
+          "-1",
+          "0",
+          "1"
+        ],
+        "/^(margin|padding)(-(block|inline|top|right|bottom|left))?(-(start|end))?$|^(column-|row-)?gap$/": [
+          "/^(?![\\s\\S]*(\\d(px|r?em|ch|ex|cap|ic|r?lh|pt|pc|in|cm|mm|q)\\b|to-rem\\(\\s*-?\\.?\\d|(?<![\\w.]|var\\(#\\{)\\$))/i"
+        ],
+        "/^(transition|animation)(-(duration|delay))?$/": [
+          "/^(?![\\s\\S]*((?<![\\w.$]|[\\w-]-)\\d*\\.?\\d*[1-9][\\d.]*m?s\\b|(?<![\\w.]|var\\(#\\{)\\$))/"
+        ]
+      },
+      {
+        "message": "Token bar: no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-1..7, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification. Spacing (margin, padding, gap) reads a --space-* step, a custom property, a module-namespaced Sass variable (layout.$x) or 0: no length literal, no file-local Sass variable and no functions.to-rem() over a number. line-height reads a --line-height-* step, a px or rem length (functions.to-rem()), a custom property, a module-namespaced Sass variable, inherit or 0: no other number, no % or font-relative unit and no file-local Sass variable. z-index reads functions.get-z-index(<layer>) from $z-layers in src/styles/_functions.scss, or -1, 0 or 1 inside a component's own stacking context. transition and animation durations and delays read a --motion-* token, another custom property or 0: no time literal and no file-local Sass variable."
+      }
+    ]
+  }
+}

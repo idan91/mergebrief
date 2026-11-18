@@ -1,0 +1,33 @@
+@layer components {
+  .note {
+    display: flex;
+    gap: var(--space-4-5);
+    align-items: flex-start;
+    margin-block: 0 var(--space-4-5);
+    padding: var(--space-4) var(--space-5) var(--space-4) var(--space-4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-surface-2) 60%, transparent);
+  }
+
+  .mark {
+    display: grid;
+    flex: none;
+    place-items: center;
+    inline-size: 28px;
+    block-size: 28px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-line);
+    background: var(--color-ground);
+    color: var(--color-text-2);
+  }
+
+  .text {
+    flex: 1;
+    margin: 0;
+    padding-block-start: var(--space-1);
+    color: var(--color-text-1);
+    line-height: var(--line-height-body);
+    text-wrap: pretty;
+  }
+}

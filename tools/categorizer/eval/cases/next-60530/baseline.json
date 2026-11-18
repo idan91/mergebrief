@@ -1,0 +1,11 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "every-line-attributed-or-remainder": 5,
+    "group-ids-unique": 5,
+    "no-empty-groups": 5,
+    "no-unknown-groups": 5,
+    "outline-form-read": 5
+  }
+}

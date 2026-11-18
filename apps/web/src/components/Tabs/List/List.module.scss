@@ -1,0 +1,29 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .list {
+    display: flex;
+    flex: none;
+    gap: var(--space-2);
+    padding-inline: var(--space-3-5);
+    border-block-end: 1px solid var(--color-line);
+
+    &[data-variant="rail"] {
+      position: sticky;
+      inset-block-start: functions.to-rem(24px);
+      flex-direction: column;
+      align-self: start;
+      gap: var(--space-1);
+      padding-inline: 0;
+      border: 0;
+
+      @include mixins.for-phone {
+        position: static;
+        flex-direction: row;
+        gap: var(--space-6);
+        border-block-end: 1px solid var(--color-line);
+      }
+    }
+  }
+}

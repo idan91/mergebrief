@@ -1,0 +1,52 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .actions {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    pointer-events: auto;
+  }
+
+  .link {
+    display: grid;
+    place-items: center;
+    inline-size: functions.to-rem(32px);
+    block-size: functions.to-rem(32px);
+    border-radius: var(--radius-md);
+    color: var(--color-text-2);
+    text-decoration: none;
+
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-3);
+        color: var(--color-text-1);
+      }
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  @include mixins.hover {
+    .actions {
+      opacity: 0;
+      transition: opacity var(--motion-fast) ease;
+    }
+
+    li:is(:hover, :focus-within, [data-cursor="true"]) .actions,
+    .actions:has([aria-expanded="true"]) {
+      opacity: 1;
+    }
+
+    li[data-cursor="true"] .actions {
+      transition: none;
+    }
+  }
+
+  @media (hover: none) {
+    .link {
+      display: none;
+    }
+  }
+}

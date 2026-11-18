@@ -1,0 +1,33 @@
+{
+  "name": "generators",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Generator port and its adapter family: structured generation behind one contract — interchangeable provider adapters over a shared schema-floor pipeline, plus the origin vocabulary.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts",
+    "./generation": "./src/contract/generation.ts",
+    "./instance-policy": "./src/config/instancePolicy.ts",
+    "./trackers": "./src/config/trackers.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "smoke": "tsx smoke/generate-smoke.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "openai": "^6.46.0",
+    "types": "workspace:*",
+    "yaml": "^2.9.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

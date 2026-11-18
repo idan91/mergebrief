@@ -1,0 +1,8 @@
+@layer components {
+  .sha {
+    padding-inline: var(--space-1);
+    color: var(--color-text-1);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+  }
+}

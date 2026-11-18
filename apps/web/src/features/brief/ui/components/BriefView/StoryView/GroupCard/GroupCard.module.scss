@@ -1,0 +1,138 @@
+@use "functions";
+@use "mixins";
+@use "layout";
+
+@layer components {
+  .card {
+    --card-inset: var(--space-6);
+
+    margin-block-end: var(--space-7);
+    border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--color-card);
+
+    &[data-stuck] {
+      border-start-start-radius: 0;
+      border-start-end-radius: 0;
+    }
+
+    &[data-motion="on"] {
+      transition:
+        border-start-start-radius var(--motion-base) var(--ease-out),
+        border-start-end-radius var(--motion-base) var(--ease-out);
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
+    }
+  }
+
+  // Normally content-sized and fixed; on very short viewports it shrinks
+  // last, after .body hits its floor, and scrolls internally instead of
+  // collapsing the flags region to nothing.
+  .head {
+    min-block-size: 0;
+    flex: 0 1 auto;
+    padding-block: var(--space-5);
+    padding-inline: var(--card-inset);
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  .stripSection {
+    min-block-size: 0;
+    flex: 0 1 auto;
+    padding-block: var(--space-2) var(--space-4);
+    padding-inline: var(--card-inset);
+    border-block-start: 1px solid var(--color-line);
+    overflow: hidden auto;
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  .reclassify {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-start: var(--space-4);
+    padding-block: var(--space-4);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+
+    b {
+      color: var(--color-text-1);
+      font-weight: 600;
+    }
+  }
+
+  .question {
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+  }
+
+  .pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  // The scroll region under the fixed head (StoryView makes the sticky card
+  // a viewport-capped flex column). Bottom corners follow the card's radius
+  // so the scroller doesn't poke square corners out of the rounded card.
+  .body {
+    --scroller-bg: var(--color-surface-1);
+
+    @include mixins.rail-scroller;
+
+    // Shrinks before .head (huge flex-shrink) but never below a usable floor,
+    // so the scroll region can't collapse to zero height.
+    min-block-size: functions.to-rem(96px);
+    flex: 0 999 auto;
+    border-end-end-radius: var(--radius-lg);
+    border-end-start-radius: var(--radius-lg);
+  }
+
+  // The Changes view mounts the same Risk Surface outside a card; only the
+  // card's copy takes the panel's label scale and paddings.
+  .card > .body {
+    --scroller-bg: var(--color-card);
+
+    border-block-start: 1px solid var(--color-line);
+    border-end-end-radius: var(--radius-lg);
+    border-end-start-radius: var(--radius-lg);
+
+    > div {
+      padding-block: var(--space-4) var(--space-5);
+      padding-inline: var(--card-inset);
+    }
+
+    h3 {
+      color: var(--color-text-2);
+      font-size: var(--font-size-2);
+      font-weight: 500;
+    }
+  }
+
+  // Stacked, the card is no longer a capped sticky column, so the scroll
+  // region's floor would only pad the card's end.
+  .card {
+    @include layout.when-story-stacks {
+      margin-block-end: 0;
+
+      > .body {
+        min-block-size: 0;
+      }
+    }
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    :global(.main) .card {
+      --card-inset: var(--space-5);
+
+      @include mixins.safe-area-bleed("--card-edge", "--card-bleed");
+    }
+  }
+}

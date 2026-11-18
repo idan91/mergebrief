@@ -1,0 +1,99 @@
+// The semver grammar: a parse that accepts a leading v and drops a suffix,
+// an ordering, and the canonical text.
+import { describe, expect, it } from "vitest";
+import {
+  compareSemver,
+  formatSemver,
+  isDevVersion,
+  parseSemver,
+  parseServerVersion,
+} from "../src/version";
+
+describe("parseSemver", () => {
+  it("reads major.minor.patch with a leading v or build metadata", () => {
+    expect(parseSemver("1.4.0")).toEqual({
+      ok: true,
+      value: { major: 1, minor: 4, patch: 0 },
+    });
+    expect(parseSemver(" v2.0.1 ")).toEqual({
+      ok: true,
+      value: { major: 2, minor: 0, patch: 1 },
+    });
+    expect(parseSemver("3.0.0+build.7")).toEqual({
+      ok: true,
+      value: { major: 3, minor: 0, patch: 0 },
+    });
+  });
+
+  it("refuses text that is not a version or has an unbounded number", () => {
+    const refused = { ok: false, error: "not major.minor.patch" };
+    expect(parseSemver("dev")).toEqual(refused);
+    expect(parseSemver("1.4")).toEqual(refused);
+    expect(parseSemver("1.4.0 ; rm")).toEqual(refused);
+    expect(parseSemver("3.0.0+0; touch /tmp/x")).toEqual(refused);
+    expect(parseSemver("99999999999999999999999.0.0")).toEqual(refused);
+  });
+
+  it("refuses a prerelease with its own reason, never equal to a release", () => {
+    const refused = { ok: false, error: "a prerelease is not a release" };
+    expect(parseSemver("1.5.0-rc.1")).toEqual(refused);
+    expect(parseSemver("v1.5.0-0")).toEqual(refused);
+    expect(parseSemver("3.0.0-0; touch /tmp/x")).toEqual(refused);
+  });
+});
+
+describe("compareSemver and formatSemver", () => {
+  it("orders by major, then minor, then patch", () => {
+    const base = { major: 1, minor: 4, patch: 0 };
+    expect(
+      compareSemver({ major: 2, minor: 0, patch: 0 }, base),
+    ).toBeGreaterThan(0);
+    expect(compareSemver({ major: 1, minor: 3, patch: 9 }, base)).toBeLessThan(
+      0,
+    );
+    expect(
+      compareSemver({ major: 1, minor: 4, patch: 1 }, base),
+    ).toBeGreaterThan(0);
+    expect(compareSemver(base, base)).toBe(0);
+  });
+
+  it("prints the canonical text", () => {
+    expect(formatSemver({ major: 1, minor: 4, patch: 0 })).toBe("1.4.0");
+  });
+});
+
+describe("isDevVersion", () => {
+  it("names dev and the zero version as the sentinels", () => {
+    expect(isDevVersion("dev")).toBe(true);
+    expect(isDevVersion("0.0.0")).toBe(true);
+    expect(isDevVersion("v0.0.0")).toBe(true);
+    expect(isDevVersion("0.0.1")).toBe(false);
+    expect(isDevVersion("1.4.0")).toBe(false);
+  });
+});
+
+describe("parseServerVersion", () => {
+  it("reads unset and empty as the dev sentinel", () => {
+    expect(parseServerVersion(undefined)).toEqual({ ok: true, value: "dev" });
+    expect(parseServerVersion("")).toEqual({ ok: true, value: "dev" });
+  });
+
+  it("takes any printable header token as the version", () => {
+    expect(parseServerVersion("1.4.0")).toEqual({ ok: true, value: "1.4.0" });
+    expect(parseServerVersion("v2.0.0+sha.abc")).toEqual({
+      ok: true,
+      value: "v2.0.0+sha.abc",
+    });
+  });
+
+  it("refuses text a header cannot carry without echoing it", () => {
+    for (const raw of ["leak-marker 1", "leak-marker\n", " ", "leak-markeré"]) {
+      const result = parseServerVersion(raw);
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        continue;
+      }
+      expect(result.error).not.toContain("leak-marker");
+    }
+  });
+});

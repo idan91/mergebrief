@@ -1,0 +1,364 @@
+@use "functions";
+@use "mixins";
+
+$sign-w: functions.to-rem(16px);
+$sign-inset: functions.to-rem(8px);
+
+// A wrapped phone line hangs under its own indent, capped so a deep line
+// keeps room to wrap into: about 40% of the code columns either view fits.
+$unified-hang: min(var(--code-indent, 0) * 1ch, 16ch);
+$split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
+
+@layer components {
+  .line[data-line-stop][data-state="stepping"],
+  .code[data-line-stop][data-state="stepping"] {
+    scroll-margin-block: calc(
+        var(--sticky-stack-h) + var(--diff-line-cover) + var(--ring-room)
+      )
+      calc(var(--sidebar-reserve-bottom) + var(--space-6));
+  }
+
+  .line {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-2);
+
+    // Row height: 22px at this font size, the number the chunk height model
+    // and the paint-skip estimate are both built on.
+    line-height: var(--line-height-reading);
+
+    > td {
+      padding-block: 0;
+      padding-inline: var(--space-4-5);
+      vertical-align: top;
+      white-space: pre;
+    }
+
+    // Long lines wrap inside the code cell like the split halves do; the row
+    // grows and the height model's estimate corrects after first paint.
+    > .code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    // Hover deepens the row's OWN hue — grey over green/red is invisible.
+    --row-hue: var(--color-text-1);
+
+    // Earned: a 2px edge in the row's own hue, so a changed block reads as one.
+    --change-edge-bar: #{functions.edge-bar(var(--row-hue))};
+
+    // Earned: the word-diff mark on a selected row, an underline in the row's
+    // hue where a fill would stack on the selection wash.
+    --emphasis-mark-bar: #{functions.edge-bar(var(--row-hue), 2px, "bottom")};
+    --row-hover-tint: 6%;
+
+    &[data-line-kind="add"] {
+      --row-hue: var(--color-positive);
+      --row-hover-tint: var(--tint-medium);
+
+      background: var(--color-positive-tint-faint);
+
+      .code {
+        color: var(--color-diff-add-text);
+        box-shadow: var(--change-edge-bar);
+      }
+
+      // 45% measured 2.7:1 against the added-row tint — a WCAG 1.4.3 failure.
+      // 75% lands at 5.3:1 and keeps the gutter tinted.
+      .lineNumber {
+        color: color-mix(in srgb, var(--color-positive) 75%, transparent);
+      }
+    }
+
+    &[data-line-kind="del"] {
+      --row-hue: var(--color-negative);
+      --row-hover-tint: var(--tint-medium);
+
+      background: var(--color-negative-tint-faint);
+
+      .code {
+        color: var(--color-diff-del-text);
+        box-shadow: var(--change-edge-bar);
+      }
+
+      // Same measurement as the added-row gutter above: 40% read at 2.1:1,
+      // full strength at 5.6:1.
+      .lineNumber {
+        color: var(--color-negative);
+      }
+    }
+
+    // Outranks the per-kind gutter colours.
+    &[data-line-kind] .lineNumber[data-state="covered"] {
+      color: transparent;
+    }
+
+    &[data-line-kind="hunk"] td {
+      padding-block: var(--space-2-5);
+      padding-inline: var(--space-4-5);
+      background: var(--color-surface-2);
+      color: var(--color-text-3);
+      font-size: var(--font-size-1);
+    }
+
+    &[data-line-kind="note"] td {
+      padding-block: var(--space-2-5);
+      padding-inline: var(--space-4-5);
+      color: var(--color-text-3);
+      font-size: var(--font-size-1);
+      font-style: italic;
+    }
+
+    > .lineNumber[data-select-anchor] {
+      cursor: pointer;
+    }
+
+    &[data-pick="available"] > .lineNumber,
+    &[data-pick="available"] .sign {
+      cursor: cell;
+    }
+
+    &[data-pick="unavailable"] > .lineNumber,
+    &[data-pick="unavailable"] .sign {
+      cursor: not-allowed;
+    }
+
+    &[data-commentable] {
+      @include mixins.hover {
+        &:hover {
+          background: color-mix(
+            in srgb,
+            var(--row-hue) var(--row-hover-tint),
+            transparent
+          );
+        }
+      }
+    }
+
+    &[data-pick="available"]:focus-visible,
+    &[data-selected] {
+      background: var(--diff-selected-fill);
+    }
+
+    // The :hover arms match the commentable-hover rule's specificity, so the
+    // selection tint wins under the cursor: a drag's newest row would
+    // otherwise read as unselected until mouseup.
+    @include mixins.hover {
+      &[data-pick="available"]:hover,
+      &[data-selected]:hover {
+        background: var(--diff-selected-fill);
+      }
+    }
+
+    &[data-selected] > .code {
+      box-shadow: var(--diff-selected-edge-bar);
+    }
+
+    &[data-selected] > .lineNumber {
+      color: var(--color-text-1);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) var(--diff-selected-gutter-tint),
+        var(--color-well)
+      );
+
+      @include mixins.forced-selected;
+    }
+
+    &[data-selected] > .lineNumber[data-state="covered"] {
+      @include mixins.forced-covered(".digits > *");
+    }
+
+    &[data-rev="added"] .code {
+      background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-accent) 10%, transparent),
+        color-mix(in srgb, var(--color-accent) 1.5%, transparent) 60%
+      );
+    }
+
+    // The two washes never stack: a selected row shows the selection alone,
+    // so the code keeps the contrast the palette test holds.
+    &[data-selected][data-rev="added"] .code {
+      background: none;
+    }
+  }
+
+  .lineNumber {
+    position: relative;
+    inline-size: var(--diff-number-w);
+    min-inline-size: var(--diff-number-w);
+
+    // The gutter carries line numbers, so it is text under WCAG 1.4.3;
+    // `--color-decorative` measures about 1.5:1 here. It is the lowest step of the
+    // scale that clears AA against the chunk body (5.5:1).
+    color: var(--color-text-3);
+    text-align: end;
+
+    @include mixins.user-select(none);
+  }
+
+  // The digits are the slot content's containing block, so a glyph centres
+  // on the number, not on the cell the number sits at the end of.
+  .digits {
+    position: relative;
+    display: inline-block;
+  }
+
+  .code {
+    color: var(--color-text-1);
+    cursor: text;
+  }
+
+  .sign {
+    display: inline-block;
+    inline-size: $sign-w;
+    color: var(--row-hue);
+    opacity: 0.6;
+    text-indent: 0;
+
+    // Comment anchor like the gutter.
+    cursor: cell;
+
+    // Copied code must be the code: the sign is a literal text node with
+    // no separating space, so a selection would paste `+code` fused.
+    @include mixins.user-select(none);
+  }
+}
+
+@layer components {
+  @include mixins.for-phone {
+    .line {
+      > .lineNumber {
+        inline-size: var(--diff-unified-number-w);
+        min-inline-size: var(--diff-unified-number-w);
+        padding-inline: 0 var(--space-3);
+        font-size: var(--font-size-1);
+
+        // The code's line box, so the smaller digits centre on its first line.
+        line-height: var(--diff-line-box);
+      }
+
+      // Both number cells stay in the table: comment anchoring and table
+      // navigation read them.
+      > .oldNumber {
+        position: relative;
+        inline-size: 0;
+        min-inline-size: 0;
+        padding-inline: 0;
+
+        > .digits {
+          position: absolute;
+          inline-size: 1px;
+          block-size: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+      }
+
+      // Overhangs the new-number cell, which is positioned and fills when selected.
+      &[data-line-kind="del"] > .oldNumber > .digits,
+      > .oldNumber[data-state="covered"] > .digits {
+        z-index: 1;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: var(--diff-unified-number-w);
+        block-size: auto;
+        padding-inline-end: var(--space-3);
+        overflow: visible;
+        clip-path: none;
+      }
+
+      > .oldNumber[data-state="covered"] + .lineNumber {
+        color: transparent;
+      }
+
+      &[data-selected] > .oldNumber[data-state="covered"] + .lineNumber {
+        @include mixins.forced-covered;
+      }
+
+      > .code {
+        // chunk-height-model.ts copies this padding; chunk-height-model.stylesheets.test.ts compares.
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column, $sign-w + $sign-inset, shared with the hang arithmetic below */
+        padding-inline: $sign-w + $sign-inset var(--space-3);
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column plus the wrap hang */
+        padding-inline-start: calc($sign-w + $sign-inset + $unified-hang);
+        text-indent: calc(-1 * ($sign-w + $unified-hang));
+      }
+
+      > .code[data-side] {
+        /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 24px sign column plus the wrap hang */
+        padding-inline-start: calc($sign-w + $sign-inset + $split-hang);
+        text-indent: calc(-1 * ($sign-w + $split-hang));
+      }
+
+      // The hit box takes the number cell's blank end padding, whose tap
+      // would select the line, and outranks the deleted-line number that
+      // overhangs it.
+      .sign {
+        position: relative;
+        z-index: functions.get-z-index("raised");
+
+        &::after {
+          position: absolute;
+          inset-block: 0;
+          inset-inline: calc(-1 * (var(--space-3) + $sign-inset)) 0;
+          content: "";
+        }
+      }
+
+      // A cell's nowrap text sets the table's minimum width, and one long hunk
+      // title would push every code line past the screen.
+      &[data-line-kind="hunk"] > td {
+        max-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &[data-line-kind="note"] > td {
+        white-space: pre-wrap;
+      }
+    }
+  }
+}
+
+@layer components {
+  // Colour before render: the rows exist, threads and height included, and
+  // only the code text waits for its tokens, so nothing repaints uncoloured.
+  tbody[data-tokens="pending"] .line .code {
+    color: transparent;
+  }
+}
+
+@layer components {
+  // 18% is the strongest fill every palette colour keeps at 4.5:1 over the
+  // add and del tints once comment and ignored tokens take their lifted
+  // colours (the lifted keyword lands at 5.9:1 on add); without the lift the
+  // comment colour caps the fill at 12%.
+  .emphasis {
+    border-radius: var(--radius-xs);
+    background: color-mix(
+      in srgb,
+      var(--row-hue) var(--tint-strong),
+      transparent
+    );
+    color: inherit;
+    text-decoration: none;
+  }
+
+  // The fill would stack on the selection wash and take the syntax colours
+  // under 4.5:1; the mark keeps an underline in the row's hue instead.
+  .line[data-selected] .emphasis,
+  td[data-selected] .emphasis {
+    background: transparent;
+    box-shadow: var(--emphasis-mark-bar);
+  }
+
+  @media (prefers-contrast: more) {
+    .emphasis {
+      background: transparent;
+      outline: 2px solid currentcolor;
+      outline-offset: 0;
+    }
+  }
+}

@@ -1,0 +1,132 @@
+import { useTranslation } from "react-i18next";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+
+import { Callout } from "@web/components/Callout";
+import { isInsideCallout } from "@web/components/Callout/utils";
+import { LocSign, LocSigns } from "@web/components/LocSign";
+import styles from "./CoreLinesDisclosure.module.scss";
+
+export interface CoreLinesDisclosureProps {
+  /** Core-chunk derived-line sums at the trigger's scope. */
+  coreAdded: number;
+  coreDeleted: number;
+  /** The matching all-chunks derived-line sums. */
+  allAdded: number;
+  allDeleted: number;
+  /** Visible trigger content: its text IS the button's accessible name. */
+  children: ReactNode;
+  /** Styles the wrapper span: the consumer's layout slot (flex item). */
+  className?: string | undefined;
+  /** Styles the trigger button; the consumer owns the content's look. */
+  triggerClassName?: string | undefined;
+}
+
+/**
+ * The core-lines mini panel: both line scopes plus the derivation caveat,
+ * anchored to a real-button trigger in the RiskChipDisclosure grammar:
+ * hover previews (mouse only), click is canonical for touch, keyboard focus
+ * opens, and the Callout's Escape dismisses without reaching page shortcuts.
+ */
+export function CoreLinesDisclosure({
+  coreAdded,
+  coreDeleted,
+  allAdded,
+  allDeleted,
+  children,
+  className,
+  triggerClassName,
+}: CoreLinesDisclosureProps) {
+  const { t } = useTranslation();
+  const [anchor, setAnchor] = useState<Element | null>(null);
+  // Hover-open must anchor the BUTTON: in the header stats grid the wrapper
+  // span is display:contents (no box), so its rect would place the callout
+  // at the viewport origin.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const detailId = useId();
+  // Close on scroll: the portal'd panel repositions a frame late (stutter).
+  useEffect(() => {
+    if (anchor === null) {
+      return;
+    }
+    const close = (event: Event) => {
+      if (!isInsideCallout(event.target)) {
+        setAnchor(null);
+      }
+    };
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [anchor]);
+  return (
+    // Hover EXIT is owned by Callout's safePolygon (its onClose): closing on
+    // this span's mouseleave would kill the portal'd callout before the
+    // pointer can travel into it.
+    <span
+      className={className}
+      onPointerEnter={(event) => {
+        // Touch browsers synthesize mouseenter before click: a hover-open
+        // there would be immediately toggled shut by the click. Hover
+        // preview is a MOUSE affordance; touch/pen go through click.
+        if (event.pointerType === "mouse") {
+          setAnchor(triggerRef.current);
+        }
+      }}
+    >
+      {/* oxlint-disable-next-line house/no-raw-button -- headless zero-specificity trigger wrapper: the child carries the visuals */}
+      <button
+        ref={triggerRef}
+        aria-controls={anchor ? detailId : undefined}
+        aria-describedby={anchor ? detailId : undefined}
+        aria-expanded={anchor !== null}
+        className={
+          triggerClassName
+            ? `${styles["trigger"]} ${triggerClassName}`
+            : styles["trigger"]
+        }
+        data-state={anchor !== null ? "open" : "closed"}
+        data-testid="core-lines-disclosure"
+        type="button"
+        onClick={(event) =>
+          setAnchor(anchor === null ? event.currentTarget : null)
+        }
+        // Keyboard-only open: a mouse click focuses the button in some
+        // browsers, and a plain focus-open there would fight the click
+        // toggle (open on focus, immediately closed by the click).
+        onFocus={(event) => {
+          if (event.currentTarget.matches(":focus-visible")) {
+            setAnchor(event.currentTarget);
+          }
+        }}
+        onBlur={() => setAnchor(null)}
+      >
+        {children}
+      </button>
+      {anchor ? (
+        // Downwards: upwards lands under the sticky toolbar's controls.
+        <Callout
+          anchor={anchor}
+          fit
+          placement="bottom"
+          onClose={() => setAnchor(null)}
+        >
+          <span className={styles["panel"]} id={detailId}>
+            <dl className={styles["rows"]}>
+              <dt>{t("brief.coreLines.core")}</dt>
+              <dd>
+                <LocSign sign={LocSigns.ADD} count={coreAdded} />{" "}
+                <LocSign sign={LocSigns.DEL} count={coreDeleted} />
+              </dd>
+              <dt>{t("brief.coreLines.allLines")}</dt>
+              <dd>
+                <LocSign sign={LocSigns.ADD} count={allAdded} />{" "}
+                <LocSign sign={LocSigns.DEL} count={allDeleted} />
+              </dd>
+            </dl>
+            <span className={styles["caveat"]}>
+              {t("brief.coreLines.caveat")}
+            </span>
+          </span>
+        </Callout>
+      ) : null}
+    </span>
+  );
+}

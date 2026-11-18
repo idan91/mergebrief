@@ -1,0 +1,11 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 5,
+    "new-feature-dominant": 5,
+    "no-cross-service-anywhere": 5,
+    "no-cross-service-on-new-types-file": 5,
+    "test-file-is-test-concern": 5
+  }
+}

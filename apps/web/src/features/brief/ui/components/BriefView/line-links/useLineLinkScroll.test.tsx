@@ -1,0 +1,457 @@
+// @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type { TFunction } from "i18next";
+import { describe, expect, it, vi } from "vitest";
+import { type ReactNode, useState } from "react";
+import { Button } from "@web/components/Button";
+import type { LineLinkTarget } from "@web/features/review/utils";
+
+import {
+  briefFixture,
+  FixtureBriefView,
+  mountBriefHost,
+  mountBriefView,
+  stubFileRowsCache,
+} from "@web/features/brief/test-utils";
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { BriefSearchParams } from "../../../../model/comparison/compare-state";
+import type { FileRangeResult } from "../../../../queries";
+import { type ComparisonMarks } from "../../../../model/types";
+import { FileRangeResultKinds } from "../../../../model/expansion/types";
+import {
+  createFileRowsCache,
+  type FileRowsCache,
+} from "../../../../model/file-rows/cache";
+import { AddressEventKinds } from "../address/types";
+import { ScrollHistories } from "../scroll-to-target/types";
+import type { ScopeExitOptions } from "../types";
+import { useLineLinkScroll } from "./useLineLinkScroll";
+
+const lastReviewMarks: ComparisonMarks = {
+  baselineSha: "chk1234",
+  headSha: briefFixture.pr.sha,
+  baselineLabel: "checkpoint",
+  baselineIndex: 1,
+  files: [],
+};
+
+function stubLastReviewPlan() {
+  return {
+    lastReview: {
+      marks: {
+        queryKey: ["test-last-review-marks"],
+        queryFn: () => Promise.resolve(lastReviewMarks),
+      },
+    },
+  };
+}
+
+/** The whole head file as the PR diff would show it, so an edge reads locally. */
+function stubFileRows(): DiffLine[] {
+  const rows: DiffLine[] = [];
+  for (let line = 1; line <= 40; line += 1) {
+    if (line === 10) {
+      rows.push({ kind: "add", content: "validate(a);", newLine: 10 });
+      continue;
+    }
+    rows.push({
+      kind: "ctx",
+      content: `line ${String(line)}`,
+      oldLine: line < 10 ? line : line - 1,
+      newLine: line,
+    });
+  }
+  return rows;
+}
+
+function stubLeakFileRows(): FileRowsCache {
+  return stubFileRowsCache((path) =>
+    path === "src/leak.ts" ? stubFileRows() : undefined,
+  );
+}
+
+async function renderWithLink(link: string) {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const navigateLink = vi.fn();
+  await mountBriefView({
+    fileRows: createFileRowsCache(new Map()),
+    link,
+    navigateLink,
+    searchParams: { view: "full", compare: "off" },
+  });
+  return navigateLink;
+}
+
+describe("line link scroll from Changes scope", () => {
+  it("scrolls to the card and says so when the read fails", async () => {
+    const { exits, navigateLink } = await renderInChangesScope("chunk-a.R4");
+
+    await waitFor(() => expect(document.activeElement?.id).toBe("chunk-a"));
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-toast").textContent).toBe(READ_FAILED),
+    );
+    expect(exits).toEqual([{ replace: true }]);
+    expect(document.querySelector("tr[data-selected]")).toBeNull();
+    expect(screen.queryByTestId("line-link-notice")).toBeNull();
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
+  });
+
+  it("leaves the scope for the card when the chunk has no rows", async () => {
+    const { exits } = await renderInChangesScope("chunk-b.R2");
+
+    await waitFor(() => expect(document.activeElement?.id).toBe("chunk-b"));
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-toast").textContent).toBe(READ_FAILED),
+    );
+    expect(exits).toEqual([{ replace: true }]);
+  });
+
+  it("scrolls to a shown line after leaving the scope, and selects it", async () => {
+    const { exits, navigateLink } = await renderInChangesScope("chunk-a.R10");
+
+    const row = await waitFor(() => {
+      const found = document.querySelector('td[data-line-new="10"]');
+      const tr = found?.closest("tr");
+      if (!(tr instanceof HTMLElement) || tr.closest("[hidden]") !== null) {
+        throw new Error("no visible row yet");
+      }
+      return tr;
+    });
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    expect(row.hasAttribute("data-selected")).toBe(true);
+    expect(exits).toEqual([{ replace: true }]);
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
+    expect(screen.queryByTestId("line-link-notice")).toBeNull();
+  });
+
+  it("reads a folded line, leaves the scope once and selects it", async () => {
+    const { exits } = await renderInChangesScope(
+      "chunk-a.R4",
+      stubLeakFileRows(),
+    );
+
+    const row = await waitFor(() => {
+      const found = document.querySelector('td[data-line-new="4"]');
+      const tr = found?.closest("tr");
+      if (!(tr instanceof HTMLElement) || tr.closest("[hidden]") !== null) {
+        throw new Error("no visible row yet");
+      }
+      return tr;
+    });
+    await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
+    expect(exits).toEqual([{ replace: true }]);
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
+  });
+});
+
+describe("useLineLinkScroll", () => {
+  const folded: LineLinkTarget = {
+    chunkId: "chunk-a",
+    side: "new",
+    startLine: 4,
+    endLine: 4,
+  };
+
+  it("scrolls a failed read to the card by replace", async () => {
+    const { input, provideQueryClient, settleRead } = stubLineLinkInput();
+    const { result } = renderHook(() => useLineLinkScroll(input), {
+      wrapper: provideQueryClient,
+    });
+
+    act(() => {
+      result.current.scrollToLine(folded);
+    });
+    await act(async () => {
+      settleRead({ kind: FileRangeResultKinds.UNAVAILABLE });
+      await Promise.resolve();
+    });
+
+    expect(input.jumpToChunkFromConversation).toHaveBeenCalledWith(
+      "chunk-a",
+      undefined,
+      "instant",
+      ScrollHistories.REPLACE,
+    );
+    expect(input.announce).toHaveBeenCalledWith("brief.lineLink.readFailed");
+  });
+
+  it("acts on nothing when the read settles after a brief switch", async () => {
+    const { input, provideQueryClient, settleRead } = stubLineLinkInput();
+    const { result, rerender } = renderHook(
+      ({ briefId }) => useLineLinkScroll({ ...input, briefId }),
+      { initialProps: { briefId: "brief-a" }, wrapper: provideQueryClient },
+    );
+
+    act(() => {
+      result.current.scrollToLine(folded);
+    });
+    rerender({ briefId: "brief-b" });
+    await act(async () => {
+      settleRead({ kind: FileRangeResultKinds.UNAVAILABLE });
+      await Promise.resolve();
+    });
+
+    expect(input.jumpToChunkFromConversation).not.toHaveBeenCalled();
+    expect(input.announce).not.toHaveBeenCalled();
+    expect(input.selectLines).not.toHaveBeenCalled();
+  });
+
+  it("leaves the URL alone when a short read settles after unmount", async () => {
+    const { input, provideQueryClient, settleRead } = stubLineLinkInput();
+    const { result, unmount } = renderHook(() => useLineLinkScroll(input), {
+      wrapper: provideQueryClient,
+    });
+
+    act(() => {
+      result.current.scrollToLine(folded);
+    });
+    unmount();
+    await act(async () => {
+      settleRead({
+        kind: FileRangeResultKinds.READY,
+        range: {
+          path: "src/leak.ts",
+          ref: "a".repeat(40),
+          from: 4,
+          to: 5,
+          lines: ["line 4", "line 5"],
+          totalLines: 5,
+        },
+      });
+      await Promise.resolve();
+    });
+
+    expect(input.address.send).not.toHaveBeenCalled();
+    expect(input.announce).not.toHaveBeenCalled();
+  });
+
+  it("scrolls nowhere when a failed read settles after unmount", async () => {
+    const { input, provideQueryClient, settleRead } = stubLineLinkInput();
+    const { result, unmount } = renderHook(() => useLineLinkScroll(input), {
+      wrapper: provideQueryClient,
+    });
+
+    act(() => {
+      result.current.scrollToLine(folded);
+    });
+    unmount();
+    await act(async () => {
+      settleRead({ kind: FileRangeResultKinds.UNAVAILABLE });
+      await Promise.resolve();
+    });
+
+    expect(input.jumpToChunkFromConversation).not.toHaveBeenCalled();
+    expect(input.announce).not.toHaveBeenCalled();
+  });
+
+  it("reports a line past the file's end as missing, not selected", async () => {
+    const { input, provideQueryClient, settleRead } = stubLineLinkInput();
+    const { result } = renderHook(() => useLineLinkScroll(input), {
+      wrapper: provideQueryClient,
+    });
+
+    act(() => {
+      result.current.scrollToLine({ ...folded, startLine: 999, endLine: 999 });
+    });
+    await act(async () => {
+      settleRead({
+        kind: FileRangeResultKinds.READY,
+        range: {
+          path: "src/leak.ts",
+          ref: "a".repeat(40),
+          from: 14,
+          to: 40,
+          lines: Array.from({ length: 27 }, () => "line"),
+          totalLines: 40,
+        },
+      });
+      await Promise.resolve();
+    });
+
+    expect(input.address.send).toHaveBeenCalledWith({
+      kind: AddressEventKinds.LINE_LINK_MISSED,
+    });
+    expect(input.announce).toHaveBeenCalledWith("brief.lineLink.missing");
+    expect(result.current.missed).toBe(true);
+    expect(input.selectLines).not.toHaveBeenCalled();
+    expect(input.expandEdge).not.toHaveBeenCalled();
+  });
+
+  it("forgets a miss once the brief switches away and back", () => {
+    const { input, provideQueryClient } = stubLineLinkInput();
+    const { result, rerender } = renderHook(
+      ({ briefId }) => useLineLinkScroll({ ...input, briefId }),
+      { initialProps: { briefId: "brief-a" }, wrapper: provideQueryClient },
+    );
+
+    act(() => {
+      result.current.scrollToLine({ ...folded, chunkId: "nope" });
+    });
+    expect(result.current.missed).toBe(true);
+    rerender({ briefId: "brief-b" });
+    expect(result.current.missed).toBe(false);
+    rerender({ briefId: "brief-a" });
+
+    expect(result.current.missed).toBe(false);
+  });
+
+  it("keeps the chance when the card scroll cannot be scheduled", () => {
+    const { input, provideQueryClient } = stubLineLinkInput();
+    input.jumpToChunkFromConversation.mockReturnValue(false);
+    const { result } = renderHook(() => useLineLinkScroll(input), {
+      wrapper: provideQueryClient,
+    });
+
+    let spent = true;
+    act(() => {
+      spent = result.current.scrollToLine({ ...folded, chunkId: "chunk-b" });
+    });
+
+    expect(spent).toBe(false);
+    expect(input.announce).not.toHaveBeenCalled();
+  });
+});
+
+function stubLineLinkInput() {
+  const queryClient = new QueryClient();
+  let settleRead: (result: FileRangeResult) => void = () => undefined;
+  vi.spyOn(queryClient, "fetchQuery").mockReturnValue(
+    new Promise<FileRangeResult>((resolve) => {
+      settleRead = resolve;
+    }),
+  );
+  function provideQueryClient({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
+  const input = {
+    briefId: "brief-a",
+    chunks: briefFixture.chunks,
+    fileRows: createFileRowsCache(new Map()),
+    rowsSettled: true,
+    expansionSource: { repoId: "repo", prNumber: 1, ref: "a".repeat(40) },
+    jumpToChunkFromConversation: vi.fn(() => true),
+    selectLines: vi.fn(),
+    expandEdge: vi.fn(),
+    announce: vi.fn(),
+    announceQuietly: vi.fn(),
+    address: { send: vi.fn() },
+    t: ((key: string) => key) as unknown as TFunction,
+  };
+  return {
+    input,
+    provideQueryClient,
+    settleRead: (result: FileRangeResult) => settleRead(result),
+  };
+}
+
+const READ_FAILED =
+  "The lines this link names could not be loaded; the chunk is shown instead.";
+
+interface ChangesScopeArrival {
+  exits: (ScopeExitOptions | undefined)[];
+  navigateLink: ReturnType<typeof vi.fn>;
+}
+
+/** Arrives on the link in Changes scope; the exit flips the scope to Full. */
+async function renderInChangesScope(
+  link: string,
+  fileRows: FileRowsCache = createFileRowsCache(new Map()),
+): Promise<ChangesScopeArrival> {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const exits: (ScopeExitOptions | undefined)[] = [];
+  const navigateLink = vi.fn();
+  function Harness() {
+    const [search, setSearch] = useState<BriefSearchParams>({
+      view: "changes",
+      compare: "last-review",
+    });
+    return (
+      <FixtureBriefView
+        comparisonPlan={stubLastReviewPlan()}
+        exitChangesScope={(options) => {
+          exits.push(options);
+          setSearch({ view: "full", compare: "last-review" });
+        }}
+        fileRows={fileRows}
+        link={link}
+        navigateLink={navigateLink}
+        searchParams={search}
+      />
+    );
+  }
+  await mountBriefHost(<Harness />);
+
+  return { exits, navigateLink };
+}
+
+describe("line link scroll", () => {
+  it("selects a range and announces it", async () => {
+    await renderWithLink("chunk-a.R9-R10");
+
+    await waitFor(() =>
+      expect(document.querySelectorAll("tr[data-selected]")).toHaveLength(2),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-live").textContent).toBe(
+        "Lines 9 to 10 selected.",
+      ),
+    );
+    expect(screen.getByTestId("brief-toast").textContent).toBe("");
+  });
+
+  it("drops the link and shows the notice when it misses", async () => {
+    const navigateLink = await renderWithLink("nope.R1");
+
+    await waitFor(() =>
+      expect(screen.getByTestId("line-link-notice")).toBeTruthy(),
+    );
+    expect(navigateLink).toHaveBeenCalledWith(undefined);
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-toast").textContent).toBe(
+        "This link points at lines this brief does not contain.",
+      ),
+    );
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    dismiss.focus();
+    fireEvent.click(dismiss);
+    expect(screen.queryByTestId("line-link-notice")).toBeNull();
+    expect(document.activeElement?.id).toBe("main-content");
+  });
+
+  it("keeps the notice when the brief object changes under the same id", async () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    function Host() {
+      const [brief, setBrief] = useState(briefFixture);
+      return (
+        <>
+          <Button onClick={() => setBrief({ ...briefFixture })}>
+            swap brief
+          </Button>
+          <FixtureBriefView
+            brief={brief}
+            link="nope.R1"
+            navigateLink={vi.fn()}
+            searchParams={{ view: "full", compare: "off" }}
+          />
+        </>
+      );
+    }
+    await mountBriefHost(<Host />);
+    await waitFor(() =>
+      expect(screen.getByTestId("line-link-notice")).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "swap brief" }));
+
+    expect(screen.getByTestId("line-link-notice")).toBeTruthy();
+  });
+});

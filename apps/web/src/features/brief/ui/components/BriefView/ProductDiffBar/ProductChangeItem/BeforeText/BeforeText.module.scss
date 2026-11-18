@@ -1,0 +1,11 @@
+@layer components {
+  .absent {
+    color: var(--color-text-3);
+  }
+
+  .sourceMark {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,103 @@
+@use "sass:list";
+@use "sass:map";
+@use "sass:math";
+
+$default-font-size: 16px;
+$breakpoints: (
+  "small-mobile": 760px,
+  "mobile": 880px,
+  "tablet": 1120px,
+  "landscape-height": 500px,
+);
+$z-layer-step: 10;
+$z-layers: (
+  "raised",
+  "chunk-head-corners",
+  "chunk-head",
+  "self-review-tooltip",
+  "warming-chip",
+  "reading-toolbar",
+  "intent-legend",
+  "sidebar",
+  "reanchor-banner",
+  "header",
+  "bar-panel",
+  "focus-chrome",
+  "focus-panel",
+  "focus-scrim",
+  "focus-sheet",
+  "narrow-sidebar",
+  "phone-bar",
+  "bottom-sheet",
+  "modal",
+  "navigation-progress",
+  "segmented-tip",
+  "skip-link",
+  "popover-scrim",
+  "popover",
+  "toast"
+);
+
+@function to-rem($px-size, $default-size: $default-font-size) {
+  @return math.div($px-size, $default-size) * 1rem;
+}
+
+@function to-em($px-size, $default-size: $default-font-size) {
+  @return math.div($px-size, $default-size) * 1em;
+}
+
+// The disabled dim as paint rather than element opacity, which would also
+// dim the element's outline.
+@function dim($color) {
+  @return color-mix(
+    in srgb,
+    #{$color} calc(var(--opacity-disabled) * 100%),
+    transparent
+  );
+}
+
+@function inner-radius($radius, $inset) {
+  @return calc(#{$radius} - #{$inset});
+}
+
+@function edge-bar($color, $width: 2px, $side: "left") {
+  @if $side == "bottom" {
+    @return inset 0 (-$width) 0 #{$color};
+  }
+
+  @if $side != "left" {
+    @error "Unknown edge-bar side #{$side}.";
+  }
+
+  @return inset $width 0 0 #{$color};
+}
+
+@function ring($color, $width) {
+  @return 0 0 0 $width #{$color};
+}
+
+@function inset-ring($color, $width: 1px) {
+  @return inset ring($color, $width);
+}
+
+@function ink-lift($surface) {
+  @return color-mix(in srgb, #{$surface} 97%, var(--color-text-1));
+}
+
+@function get-breakpoint($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error "Unknown breakpoint #{$name}.";
+  }
+
+  @return map.get($breakpoints, $name);
+}
+
+@function get-z-index($name) {
+  $position: list.index($z-layers, $name);
+
+  @if not $position {
+    @error "Unknown z-index layer #{$name}.";
+  }
+
+  @return $position * $z-layer-step;
+}

@@ -1,0 +1,23 @@
+@use "mixins";
+
+@layer components {
+  .preview {
+    position: relative;
+    max-inline-size: 100%;
+    margin-inline: auto;
+  }
+
+  .opener {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

@@ -1,0 +1,23 @@
+@layer components {
+  .countNum {
+    margin-inline-end: var(--space-1);
+    color: var(--color-text-1);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .count::after {
+    content: "·";
+    margin-inline-start: var(--space-4);
+  }
+
+  .count:last-of-type::after {
+    content: none;
+  }
+
+  @media (width <= 600px) {
+    .count::after {
+      content: none;
+    }
+  }
+}

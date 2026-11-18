@@ -1,0 +1,28 @@
+@layer components {
+  .row {
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    padding: var(--space-3) var(--space-4-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    margin-block-end: var(--space-5);
+    background: var(--color-surface-1);
+  }
+
+  .summary {
+    margin: 0;
+    color: var(--color-text-2);
+  }
+
+  // The last item keeps its own block padding for the armed tint, so the
+  // box's end padding is the difference.
+  .row[data-state="pending"] {
+    padding: var(--space-4) var(--space-5) var(--space-1);
+  }
+
+  .row[data-state="pending"] .summary {
+    padding-block-end: var(--space-2-5);
+    color: var(--color-text-1);
+    font-weight: 600;
+  }
+}

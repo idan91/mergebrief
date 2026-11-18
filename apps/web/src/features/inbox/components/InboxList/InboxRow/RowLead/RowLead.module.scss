@@ -1,0 +1,16 @@
+@use "functions";
+
+@layer components {
+  .slot {
+    display: grid;
+    place-items: center;
+
+    /* The 24px target overhangs the 20px column. */
+    > label {
+      justify-content: center;
+      min-inline-size: functions.to-rem(24px);
+      min-block-size: functions.to-rem(24px);
+      margin: calc(var(--space-1) * -1);
+    }
+  }
+}

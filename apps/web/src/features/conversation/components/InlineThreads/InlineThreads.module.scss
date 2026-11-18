@@ -1,0 +1,50 @@
+@use "mixins";
+
+@layer components {
+  .inline {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2-5);
+    padding: var(--space-3-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+  }
+
+  .label {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    line-height: var(--line-height-body);
+  }
+
+  .rows {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .row {
+    @include mixins.single-column-grid;
+
+    gap: var(--space-2);
+  }
+
+  .botTag {
+    padding-inline: var(--space-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-2);
+    font-size: var(--font-size-1);
+    font-weight: 400;
+  }
+
+  .botSummary {
+    color: var(--color-text-2);
+    font-weight: 400;
+  }
+}

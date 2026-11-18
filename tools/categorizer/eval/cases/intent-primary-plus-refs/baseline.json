@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "alignment-goal-from-primary": 5,
+    "alignment-present-partial": 5,
+    "alignment-response-nonempty": 5,
+    "intent-ticket-url-bound": 5
+  }
+}

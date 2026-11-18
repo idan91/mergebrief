@@ -1,0 +1,38 @@
+# Build and tool output (never hand-edited, often not valid to reformat).
+dist
+out
+coverage
+**/.tanstack
+**/.vite
+**/.vitepress/cache
+**/.vitepress/.temp
+.playwright-cli
+
+# Agent/tool session state; .claude also holds throwaway worktrees whose
+# copies of the repo would otherwise be scanned as source.
+.claude
+.worktrees
+.pnpm-store
+.serena
+.impeccable
+
+# Local e2e/perf run output — already git-ignored, but prettier reads the disk,
+# so a perf run would otherwise fail `pnpm lint` for whoever ran it.
+apps/web/e2e/perf/generated
+apps/web/e2e/.artifacts
+
+# Generated artifacts: the router's file-based route tree, drizzle's migration
+# output (SQL + its journal), and anything else emitted as `*.gen.*`.
+**/routeTree.gen.ts
+packages/persistence/drizzle
+**/*.gen.*
+
+# Resolver-owned; reformatting it would churn a 268 KB file on every install.
+**/pnpm-lock.yaml
+
+# Markdown is prose, not source, and prettier's markdown printer is not safe
+# on this doc set: it rewrote `**lychee link-check on `docs/**` adopted**`
+# into `**lychee link-check on `docs/**`adopted**`, moving a word out of the
+# emphasis span. Docs are hand-wrapped (proseWrap: preserve keeps them that
+# way), so the check buys layout nothing and risks meaning.
+**/*.md

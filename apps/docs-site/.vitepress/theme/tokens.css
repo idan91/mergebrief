@@ -1,0 +1,203 @@
+/*
+ * The product palette from apps/web/src/styles/tokens.scss,
+ * restated: no app imports another. Dark is the product as is; light is
+ * derived at the same hue and grey chroma.
+ */
+:root {
+  --mb-hue: 286;
+  --mb-gray-c: 0.01;
+  --mb-brand: #e91f00;
+  --mb-brand-strong: #d81b00;
+  --mb-on-brand: #ffffff;
+
+  --mb-ground: oklch(98.6% calc(var(--mb-gray-c) / 3) var(--mb-hue));
+  --mb-surface-1: oklch(96.6% var(--mb-gray-c) var(--mb-hue));
+  --mb-surface-2: oklch(95% var(--mb-gray-c) var(--mb-hue));
+  --mb-surface-elevated: var(--mb-ground);
+  --mb-line: oklch(90.5% var(--mb-gray-c) var(--mb-hue));
+  --mb-line-strong: oklch(85.5% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-1: oklch(21% calc(var(--mb-gray-c) / 3) var(--mb-hue));
+  --mb-text-soft: oklch(31% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-2: oklch(47% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-3: oklch(51% var(--mb-gray-c) var(--mb-hue));
+  --mb-accent: oklch(22% 0 var(--mb-hue));
+  --mb-positive: oklch(45% 0.12 155);
+  --mb-warning: oklch(47% 0.115 70);
+  --mb-negative: oklch(47% 0.16 12);
+  --mb-shadow-float: 0 18px 44px -10px rgb(0 0 0 / 18%);
+  --mb-underline-mix: 55%;
+  --mb-ring-width: 2px;
+  --mb-ring-offset: 2px;
+  --mb-ring-reach: calc(var(--mb-ring-width) + var(--mb-ring-offset));
+}
+
+.dark {
+  --mb-ground: oklch(8% var(--mb-gray-c) var(--mb-hue));
+  --mb-surface-1: oklch(17.9% var(--mb-gray-c) var(--mb-hue));
+  --mb-surface-2: oklch(19.8% var(--mb-gray-c) var(--mb-hue));
+  --mb-surface-elevated: oklch(22.9% var(--mb-gray-c) var(--mb-hue));
+  --mb-line: oklch(24.1% var(--mb-gray-c) var(--mb-hue));
+  --mb-line-strong: oklch(29.2% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-1: oklch(94.4% calc(var(--mb-gray-c) / 3) var(--mb-hue));
+  --mb-text-soft: oklch(84% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-2: oklch(68.9% var(--mb-gray-c) var(--mb-hue));
+  --mb-text-3: oklch(64.5% var(--mb-gray-c) var(--mb-hue));
+  --mb-accent: oklch(91% 0 var(--mb-hue));
+  --mb-positive: #5fc88f;
+  --mb-warning: #d9a45c;
+  --mb-negative: #df6b7d;
+  --mb-shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%);
+  --mb-underline-mix: 40%;
+}
+
+/* :root.dark outranks the default theme's own .dark block. */
+:root,
+:root.dark {
+  --vp-font-family-base:
+    "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
+  --vp-font-family-mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
+
+  --vp-c-bg: var(--mb-ground);
+  --vp-c-bg-alt: var(--mb-ground);
+  --vp-c-bg-soft: var(--mb-surface-1);
+  --vp-c-bg-elv: var(--mb-surface-elevated);
+  --vp-c-text-1: var(--mb-text-1);
+  --vp-c-text-2: var(--mb-text-2);
+  --vp-c-text-3: var(--mb-text-3);
+  --vp-c-divider: var(--mb-line);
+  --vp-c-border: var(--mb-line-strong);
+  --vp-c-gutter: var(--mb-line);
+
+  --vp-c-default-1: var(--mb-line-strong);
+  --vp-c-default-2: var(--mb-line);
+  --vp-c-default-3: var(--mb-surface-2);
+  --vp-c-default-soft: color-mix(in srgb, var(--mb-text-1) 7%, transparent);
+
+  --vp-c-brand-1: var(--mb-accent);
+  --vp-c-brand-2: var(--mb-text-1);
+  --vp-c-brand-3: var(--mb-accent);
+  --vp-c-brand-soft: color-mix(in srgb, var(--mb-accent) 8%, transparent);
+
+  --vp-c-tip-1: var(--mb-text-2);
+  --vp-c-tip-2: var(--mb-text-2);
+  --vp-c-tip-3: var(--mb-text-2);
+  --vp-c-tip-soft: var(--vp-c-default-soft);
+  --vp-c-note-1: var(--mb-text-2);
+  --vp-c-note-2: var(--mb-text-2);
+  --vp-c-note-3: var(--mb-text-2);
+  --vp-c-note-soft: var(--vp-c-default-soft);
+  --vp-c-important-1: var(--mb-accent);
+  --vp-c-important-2: var(--mb-accent);
+  --vp-c-important-3: var(--mb-accent);
+  --vp-c-important-soft: var(--vp-c-brand-soft);
+  --vp-c-success-1: var(--mb-positive);
+  --vp-c-success-2: var(--mb-positive);
+  --vp-c-success-3: var(--mb-positive);
+  --vp-c-success-soft: color-mix(in srgb, var(--mb-positive) 12%, transparent);
+  --vp-c-warning-1: var(--mb-warning);
+  --vp-c-warning-2: var(--mb-warning);
+  --vp-c-warning-3: var(--mb-warning);
+  --vp-c-warning-soft: color-mix(in srgb, var(--mb-warning) 12%, transparent);
+  --vp-c-danger-1: var(--mb-negative);
+  --vp-c-danger-2: var(--mb-negative);
+  --vp-c-danger-3: var(--mb-negative);
+  --vp-c-danger-soft: color-mix(in srgb, var(--mb-negative) 12%, transparent);
+  --vp-c-caution-1: var(--mb-negative);
+  --vp-c-caution-2: var(--mb-negative);
+  --vp-c-caution-3: var(--mb-negative);
+  --vp-c-caution-soft: var(--vp-c-danger-soft);
+
+  /* The brand fills the call to action only; links keep the accent. */
+  --vp-button-brand-border: var(--mb-brand);
+  --vp-button-brand-text: var(--mb-on-brand);
+  --vp-button-brand-bg: var(--mb-brand);
+  --vp-button-brand-hover-border: var(--mb-brand-strong);
+  --vp-button-brand-hover-text: var(--mb-on-brand);
+  --vp-button-brand-hover-bg: var(--mb-brand-strong);
+  --vp-button-brand-active-border: var(--mb-brand-strong);
+  --vp-button-brand-active-text: var(--mb-on-brand);
+  /* Black, not the ground: the light ground would lighten the press. */
+  --vp-button-brand-active-bg: color-mix(
+    in srgb,
+    var(--mb-brand-strong) 88%,
+    #000
+  );
+
+  --vp-code-color: var(--mb-text-1);
+  --vp-code-block-bg: var(--mb-surface-1);
+  --vp-code-line-number-color: var(--mb-text-3);
+  --vp-code-copy-code-bg: var(--mb-surface-2);
+  --vp-code-copy-code-hover-bg: var(--mb-surface-elevated);
+
+  --vp-local-search-result-bg: var(--vp-local-search-bg);
+  --vp-local-search-result-border: transparent;
+  --vp-local-search-result-selected-bg: var(--mb-surface-2);
+  --vp-local-search-result-selected-border: color-mix(
+    in srgb,
+    var(--mb-accent) 55%,
+    transparent
+  );
+  /* Opaque: forced colours keep a background's alpha but swap its colour. */
+  --vp-local-search-highlight-bg: color-mix(
+    in srgb,
+    var(--mb-accent) 18%,
+    var(--mb-ground)
+  );
+  --vp-local-search-highlight-text: var(--mb-text-1);
+
+  --vp-shadow-3: var(--mb-shadow-float);
+  --vp-shadow-4: var(--mb-shadow-float);
+  --vp-shadow-5: var(--mb-shadow-float);
+}
+
+.vp-doc {
+  color: var(--mb-text-soft);
+}
+
+.vp-doc :is(h1, h2, h3, h4, h5, h6, strong) {
+  color: var(--mb-text-1);
+}
+
+.vp-doc a {
+  text-decoration-color: color-mix(
+    in srgb,
+    currentcolor var(--mb-underline-mix),
+    transparent
+  );
+  text-underline-offset: 3px;
+}
+
+.vp-doc a:hover {
+  text-decoration-color: currentcolor;
+}
+
+/* The default theme only feeds this variable to the excerpt fades. */
+.VPLocalSearchBox .result {
+  background-color: var(--vp-local-search-result-bg);
+}
+
+/*
+ * :root lifts this past the default theme's button:focus-visible. Text
+ * fields keep the default theme's focus edge on their own box.
+ */
+:root :focus-visible:not(input) {
+  outline: var(--mb-ring-width) solid var(--mb-accent);
+  outline-offset: var(--mb-ring-offset);
+}
+
+/* These fill a scroll box that clips anything drawn outside them. */
+:root
+  :is(
+    .vp-doc div[class*="language-"] > pre,
+    .VPLocalSearchBox .result
+  ):focus-visible {
+  outline-offset: calc(var(--mb-ring-width) * -1);
+}
+
+.VPDocAsideOutline .content {
+  padding-inline-end: var(--mb-ring-reach);
+}
+
+:is(.VPSidebar, .VPDoc .aside-container) {
+  scroll-padding-block: var(--mb-ring-reach);
+}

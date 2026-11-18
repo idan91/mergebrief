@@ -1,0 +1,15 @@
+@layer components {
+  .rawBody {
+    overflow-x: auto;
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4-5);
+    border-radius: var(--radius-md);
+    background: var(--color-ground);
+    color: var(--color-text-3);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-reading);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}

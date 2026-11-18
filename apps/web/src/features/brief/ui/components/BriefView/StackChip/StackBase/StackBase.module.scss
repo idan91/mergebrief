@@ -1,0 +1,48 @@
+@use "functions";
+
+@layer components {
+  .base {
+    // Tracks the row grid in StackMemberRow.module.scss so the label sits under the positions.
+    --stack-position-col: #{functions.to-rem(28px)};
+
+    display: grid;
+    grid-template-columns: var(--stack-position-col) minmax(0, 1fr) auto;
+    gap: var(--space-3-5);
+    align-items: center;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4) var(--space-4-5);
+    border-block-start: 1px solid var(--color-line-strong);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+
+  .label {
+    text-align: center;
+  }
+
+  .branch {
+    justify-self: start;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow: hidden;
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-chip);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-1);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .end {
+    grid-column: 3;
+    justify-self: end;
+
+    label {
+      font-size: var(--font-size-1);
+    }
+  }
+}

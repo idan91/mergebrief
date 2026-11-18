@@ -1,0 +1,11 @@
+@layer components {
+  .locSign {
+    &[data-sign="add"] {
+      color: var(--color-positive);
+    }
+
+    &[data-sign="del"] {
+      color: var(--color-negative);
+    }
+  }
+}

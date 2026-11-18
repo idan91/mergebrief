@@ -1,0 +1,161 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  type ReactNode,
+  type RefCallback,
+} from "react";
+import { useStore } from "zustand";
+import { createStore, type StoreApi } from "zustand/vanilla";
+
+/**
+ * Reading-position store (zustand-in-context, the ReviewFlow recipe): where
+ * the reader IS, written by the scroll-spy and every explicit navigation,
+ * subscribed to by the few components that show position (active card, TOC
+ * bar, toolbar counter, focus panel, read-through progress). The screen shell
+ * never subscribes, so a scroll-spy tick re-renders only those consumers.
+ */
+export interface ReadingPositionState {
+  activeChunkId: string | null;
+  /** Set together with the chunk by the writer (which holds the chunk→group
+   * map); consumers never re-derive the group. */
+  activeGroupId: string | null;
+  /** No chunk is on screen; the active chunk stays as where the reader last was. */
+  betweenChunks: boolean;
+  /** Between chunks: the active chunk lies below the reader, who scrolled up out of it. */
+  activeBelowReader: boolean;
+  /** A file comment asked for from outside the card, which owns its composer. */
+  fileCommentChunkId: string | undefined;
+}
+
+export interface ReadingPositionActions {
+  setActive: (chunkId: string, groupId: string | null) => void;
+  leaveChunks: (activeBelowReader: boolean) => void;
+  requestFileComment: (chunkId: string) => void;
+  clearFileCommentRequest: () => void;
+}
+
+export interface ReadingPositionStoreValue extends ReadingPositionState {
+  actions: ReadingPositionActions;
+}
+
+export type ReadingPositionStore = StoreApi<ReadingPositionStoreValue>;
+
+export function createReadingPositionStore(): ReadingPositionStore {
+  return createStore<ReadingPositionStoreValue>((set) => ({
+    activeChunkId: null,
+    activeGroupId: null,
+    betweenChunks: false,
+    activeBelowReader: false,
+    fileCommentChunkId: undefined,
+    actions: {
+      setActive(chunkId, groupId) {
+        set({
+          activeChunkId: chunkId,
+          activeGroupId: groupId,
+          betweenChunks: false,
+          activeBelowReader: false,
+        });
+      },
+      leaveChunks(activeBelowReader) {
+        set({ betweenChunks: true, activeBelowReader });
+      },
+      requestFileComment(chunkId) {
+        set({ fileCommentChunkId: chunkId });
+      },
+      clearFileCommentRequest() {
+        set({ fileCommentChunkId: undefined });
+      },
+    },
+  }));
+}
+
+/**
+ * Creates the screen's reading-position store (once per brief, never a module
+ * singleton). A brief switch without remount gets a FRESH store, not a reset:
+ * a render-phase `setState` would notify still-mounted subscribers while
+ * their parent renders. The new store starts empty and reaches consumers
+ * through context in the same render, so the old brief's ids never paint.
+ */
+export function useCreateReadingPositionStore(
+  briefId: string,
+): ReadingPositionStore {
+  const storeRef = useRef<{
+    briefId: string;
+    store: ReadingPositionStore;
+  } | null>(null);
+  if (storeRef.current === null || storeRef.current.briefId !== briefId) {
+    storeRef.current = { briefId, store: createReadingPositionStore() };
+  }
+  return storeRef.current.store;
+}
+
+const ReadingPositionContext = createContext<ReadingPositionStore | null>(null);
+
+export interface ReadingPositionProviderProps {
+  store: ReadingPositionStore;
+  children: ReactNode;
+}
+
+export function ReadingPositionProvider({
+  store,
+  children,
+}: ReadingPositionProviderProps) {
+  return (
+    <ReadingPositionContext.Provider value={store}>
+      {children}
+    </ReadingPositionContext.Provider>
+  );
+}
+
+export function useReadingPosition<T>(
+  selector: (state: ReadingPositionStoreValue) => T,
+): T {
+  const store = useContext(ReadingPositionContext);
+  if (!store) {
+    throw new Error("ReadingPositionProvider is missing");
+  }
+  return useStore(store, selector);
+}
+
+const CURRENT_CHUNK_ATTRIBUTE = "data-current";
+
+/**
+ * A ref that marks its element `data-current` while the reader is on
+ * `chunkId`. The store writes the attribute straight to the DOM, so a
+ * scroll-spy tick renders no card: a card's subtree is its whole diff table.
+ */
+export function useCurrentChunkMark(chunkId: string): RefCallback<HTMLElement> {
+  const store = useContext(ReadingPositionContext);
+  if (!store) {
+    throw new Error("ReadingPositionProvider is missing");
+  }
+  return useCallback(
+    (element: HTMLElement | null) => {
+      if (element === null) {
+        return undefined;
+      }
+      const syncMark = () => {
+        const current = store.getState().activeChunkId === chunkId;
+        element.toggleAttribute(CURRENT_CHUNK_ATTRIBUTE, current);
+      };
+      syncMark();
+      return store.subscribe(syncMark);
+    },
+    [chunkId, store],
+  );
+}
+
+const DETACHED_STORE = createReadingPositionStore();
+
+/**
+ * The same read for a surface also mounted outside the provider (the Risk
+ * Surface in the Changes view's tests): there it sees a reader nowhere.
+ */
+export function useReadingPositionIfMounted<T>(
+  selector: (state: ReadingPositionStoreValue) => T,
+): T {
+  const store = useContext(ReadingPositionContext) ?? DETACHED_STORE;
+  return useStore(store, selector);
+}

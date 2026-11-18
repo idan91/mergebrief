@@ -1,0 +1,300 @@
+// The comparison plan keys on the pr-meta cache's own envelope objects, so its
+// identity across equal poll ticks rides on react-query structural sharing;
+// `structuralSharing: false` on that query rebuilds it every tick.
+import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+
+import {
+  DB_BRIEF_ID_PREFIX,
+  type BriefComparisonPlan,
+} from "@web/features/brief";
+import {
+  lastReviewUnavailableReasonTitle,
+  previousBriefUnavailableReasonTitle,
+  type CompareOptionFlags,
+} from "@web/features/brief/model";
+import {
+  buildSubmitPayload,
+  type SubmitDraftInput,
+  type SubmitReviewAction,
+} from "@web/features/review/utils";
+import type {
+  ConversationPlan,
+  ThreadRevisionJump,
+} from "@web/features/conversation";
+import { buildConversationQueryOptions } from "../../conversation/queries";
+import { postConversationReply } from "../../conversation/reply";
+import { setThreadResolution } from "../../conversation/resolve";
+import type { Span } from "../utils/briefRouteState";
+import type { Mutable } from "types/utils";
+
+type PreviousBriefPlan = Mutable<
+  NonNullable<BriefComparisonPlan["previousBrief"]>
+>;
+type LastReviewPlan = Mutable<NonNullable<BriefComparisonPlan["lastReview"]>>;
+import type { DbTimelineSelection } from "../utils/dbTimeline";
+import { createMarkReadyAction } from "../transport/markReady";
+import { isOwnDraft } from "../utils/ownDraft";
+import { postInlineComment } from "../transport/postComment";
+import {
+  buildDbComparisonMarksQueryOptions,
+  buildDbDeltaQueryOptions,
+  buildDbRevisionNarrativeQueryOptions,
+  buildPrSpanDiffQueryOptions,
+  buildPrMetaQueryOptions,
+} from "../queries";
+import { submitReview } from "../transport/submitReview";
+import type { PrSummary } from "../types";
+
+export interface UsePrBriefPlansInput {
+  repoId: string;
+  prNumber: number;
+  /** The RENDERED span, anchors and commit pins derive from it, never meta. */
+  span: Span;
+  meta: PrSummary;
+  /** The resolved revision timeline; absent on legacy metas. */
+  timeline: DbTimelineSelection | undefined;
+  /** Outdated-thread revision jump; absent without a timeline. */
+  revisionJump: ThreadRevisionJump | undefined;
+}
+
+export interface OwnDraftPlanSlice {
+  markReady?: ReturnType<typeof createMarkReadyAction>;
+  postComment?: (draftId: string) => ReturnType<typeof postInlineComment>;
+}
+
+export interface UsePrBriefPlansValue {
+  /** Keys the per-brief Review Session store, exactly like a local brief id. */
+  briefId: string;
+  comparisonPlan: BriefComparisonPlan;
+  availability: CompareOptionFlags;
+  /** Honest reason on the disabled compare control; absent keeps generic copy. */
+  lastReviewDisabledReason: string | undefined;
+  /** The same for a previous brief whose span has no marks. */
+  previousBriefDisabledReason: string | undefined;
+  submitAction: SubmitReviewAction;
+  conversationPlan: ConversationPlan;
+  /** Own-draft plan: absent on every non-own-draft view. */
+  ownDraft: OwnDraftPlanSlice | undefined;
+}
+
+export function usePrBriefPlans(
+  input: UsePrBriefPlansInput,
+): UsePrBriefPlansValue {
+  const { t } = useTranslation();
+  const { repoId, prNumber, span, meta, timeline, revisionJump } = input;
+
+  // On the timeline path the SELECTED revision's own availability drives the
+  // plan, each envelope is scoped to its head. On the legacy non-timeline
+  // path, meta.comparisons applies only to the current head: a pinned older
+  // span must not borrow the current head's baselines.
+  const currentHead = meta.headSha === span.head;
+  const effectiveComparisons =
+    timeline?.selected.comparisons ??
+    (currentHead ? meta.comparisons : undefined);
+  const previous = effectiveComparisons?.previousBrief;
+  const lastReview = effectiveComparisons?.lastReview;
+  const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
+    const plan: Mutable<BriefComparisonPlan> = {};
+
+    if (previous?.kind === "available") {
+      const previousBrief: PreviousBriefPlan = {
+        marks: buildDbComparisonMarksQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+          "previous-brief",
+          previous.baselineIndex,
+        ),
+        // Raw span diff toggle: previous head → selected head.
+        rawDiff: buildPrSpanDiffQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+        ),
+      };
+
+      if (previous.narrativeAvailable) {
+        previousBrief.narrative = buildDbRevisionNarrativeQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+        );
+      }
+
+      plan.previousBrief = previousBrief;
+    }
+
+    if (lastReview !== undefined && lastReview.kind === "available") {
+      const lastReviewPlan: LastReviewPlan = {
+        marks: buildDbComparisonMarksQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+          "checkpoint",
+          lastReview.baselineIndex ?? null,
+        ),
+        // Raw span diff toggle: checkpoint → selected head.
+        rawDiff: buildPrSpanDiffQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+        ),
+      };
+
+      // Marks-only tier: no delta descriptor, the delta pane
+      // degrades honestly ("absence IS the signal").
+      if (lastReview.deltaAvailable) {
+        lastReviewPlan.delta = buildDbDeltaQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+        );
+      }
+      if (lastReview.deltaSkipped === true) {
+        lastReviewPlan.deltaSkipped = true;
+      }
+      if (lastReview.deltaUnchanged === true) {
+        lastReviewPlan.deltaUnchanged = true;
+      }
+
+      plan.lastReview = lastReviewPlan;
+    }
+
+    return plan;
+  }, [lastReview, prNumber, previous, repoId, span.head]);
+  const availability: CompareOptionFlags = {
+    previousBrief: comparisonPlan.previousBrief !== undefined,
+    lastReview: comparisonPlan.lastReview !== undefined,
+  };
+  // A checkpoint that EXISTS but cannot be compared gets its honest reason on
+  // the disabled control; an absent field keeps the generic copy.
+  const lastReviewDisabledReason =
+    lastReview?.kind === "unavailable"
+      ? lastReviewUnavailableReasonTitle(t, lastReview.reason)
+      : undefined;
+  const previousBriefDisabledReason =
+    previous?.kind === "unavailable"
+      ? previousBriefUnavailableReasonTitle(t, previous.reason)
+      : undefined;
+
+  // Pin reviews to the viewed span head, never a meta head that advanced while reading.
+  // Use primitive SHAs because poll ticks rebuild span objects passed to memoized cards.
+  const spanBase = span.base;
+  const spanHead = span.head;
+  const submitAction = useCallback<SubmitReviewAction>(
+    (draft: SubmitDraftInput) =>
+      submitReview(
+        repoId,
+        prNumber,
+        { base: spanBase, head: spanHead },
+        buildSubmitPayload(draft),
+      ),
+    [prNumber, repoId, spanBase, spanHead],
+  );
+
+  // Derive own-draft state from PrView and await invalidation before clearing its UI.
+  // The same meta poll observes a ready-elsewhere transition.
+  const queryClient = useQueryClient();
+  const markReadyAction = useMemo(
+    () => createMarkReadyAction(queryClient, repoId, prNumber),
+    [prNumber, queryClient, repoId],
+  );
+  // Per-comment post-now, pinned to THIS span's head, never meta.headSha,
+  // which may have advanced while drafting. Only wired into `ownDraft` at the
+  // current head (below), so a stale-head post cannot be offered.
+  const postCommentAction = useCallback(
+    (draftId: string) =>
+      postInlineComment(
+        repoId,
+        prNumber,
+        { base: spanBase, head: spanHead },
+        { draftId },
+      ),
+    [prNumber, repoId, spanBase, spanHead],
+  );
+  // The mark-ready ACTION (and its soft gate) rides the plan only while the
+  // CURRENT head is in view: the gate lists the rendered Brief's flags and the
+  // contract is "ALL current-head flags", so a historical revision could slip
+  // past flags the head carries. The STATE itself stays on every revision.
+  const ownDraftState = isOwnDraft(meta);
+  const ownDraft = useMemo(() => {
+    if (!ownDraftState) {
+      return undefined;
+    }
+    if (!currentHead) {
+      return {};
+    }
+    return { markReady: markReadyAction, postComment: postCommentAction };
+  }, [currentHead, markReadyAction, postCommentAction, ownDraftState]);
+
+  const briefId = `${DB_BRIEF_ID_PREFIX}${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
+  // The live-conversation plan is always fetched fresh per PR, resolution
+  // flips and replies happen outside our generation cycle. The selected
+  // revision's generation start is a primitive dep, so poll-tick timeline
+  // rebuilds with unchanged content never rebuild the plan.
+  const briefGeneratedAt = timeline?.selected.generatedAt;
+  // The resolve capability is PR-LEVEL and comes off PR META, never the list
+  // payload, whose value is an authorship-only fallback. It rides every
+  // revision on purpose: a thread belongs to the PR, not to the rendered head.
+  const viewerCanResolve = meta.viewerCanResolve;
+  const conversationPlan = useMemo<ConversationPlan>(() => {
+    const plan: Mutable<ConversationPlan> = {
+      queryOptions: buildConversationQueryOptions(repoId, prNumber),
+      mentionRepoId: repoId,
+      postReply: (rootCommentId: number, body: string) =>
+        postConversationReply(
+          repoId,
+          prNumber,
+          { base: spanBase, head: spanHead },
+          rootCommentId,
+          body,
+        ),
+      resolution: {
+        canResolve: viewerCanResolve,
+        setResolved: (rootCommentId: number, resolved: boolean) =>
+          setThreadResolution(repoId, prNumber, rootCommentId, resolved),
+        refetchCapability: () =>
+          void queryClient.invalidateQueries({
+            queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,
+          }),
+      },
+    };
+
+    if (revisionJump !== undefined) {
+      plan.revisionJump = revisionJump;
+    }
+    if (briefGeneratedAt !== undefined) {
+      plan.briefGeneratedAt = briefGeneratedAt;
+    }
+
+    return plan;
+  }, [
+    briefGeneratedAt,
+    prNumber,
+    queryClient,
+    repoId,
+    revisionJump,
+    spanBase,
+    spanHead,
+    viewerCanResolve,
+  ]);
+
+  return {
+    briefId,
+    comparisonPlan,
+    availability,
+    lastReviewDisabledReason,
+    previousBriefDisabledReason,
+    submitAction,
+    conversationPlan,
+    ownDraft,
+  };
+}

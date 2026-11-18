@@ -1,0 +1,11 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 5,
+    "generated-snapshot-concern": 5,
+    "schema-adjacent-fires": 5,
+    "schema-change-dominant": 5,
+    "store-test-is-test-concern": 5
+  }
+}

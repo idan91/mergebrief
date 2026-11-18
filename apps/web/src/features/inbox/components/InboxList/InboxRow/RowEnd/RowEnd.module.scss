@@ -1,0 +1,65 @@
+@use "mixins";
+
+$on-demand-label-min-width: 640px;
+
+@mixin visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@layer components {
+  /* Reads only; the row's link keeps the pointer under the labels. */
+  .end {
+    display: flex;
+    pointer-events: none;
+    gap: var(--space-5);
+    align-items: center;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+
+  .generation,
+  .status {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-2);
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  .status[data-status="merged"] svg {
+    color: var(--color-merged);
+  }
+
+  .status[data-status="closed"] svg {
+    color: var(--color-negative);
+  }
+
+  .generation[data-generation="failed"] {
+    color: var(--color-negative);
+  }
+
+  .generation[data-generation="running"] {
+    color: var(--color-text-1);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .end {
+      gap: var(--space-3);
+    }
+
+    .status .label,
+    .generation:not([data-generation="awaiting-trigger"]) .label {
+      @include visually-hidden;
+    }
+  }
+
+  @media (width < $on-demand-label-min-width) {
+    .generation[data-generation="awaiting-trigger"] .label {
+      @include visually-hidden;
+    }
+  }
+}

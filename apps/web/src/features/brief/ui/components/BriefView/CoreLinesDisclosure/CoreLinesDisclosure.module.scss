@@ -1,0 +1,64 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  /* Unstyled disclosure button: the consumer's trigger content carries the
+     visuals; the button contributes only a visible focus ring (WCAG 2.4.7).
+     Zero specificity (:where) so these UA-button resets can never outrank a
+     consumer class (e.g. the header's `.stat`) in any bundle order. */
+  :where(.trigger) {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+  }
+
+  .trigger {
+    @include mixins.hit-area;
+  }
+
+  .trigger:focus-visible {
+    @include mixins.focus-ring;
+
+    border-radius: var(--radius-sm);
+  }
+
+  .panel {
+    display: block;
+    min-width: functions.to-rem(240px);
+  }
+
+  .rows {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2) var(--space-5);
+    margin: 0;
+    font-size: var(--font-size-2);
+
+    dt {
+      color: var(--color-text-3);
+      font-family: var(--font-sans);
+      white-space: nowrap;
+    }
+
+    dd {
+      margin: 0;
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--font-size-2);
+      text-align: end;
+    }
+  }
+
+  .caveat {
+    display: block;
+    max-width: 26em;
+    margin-top: var(--space-3-5);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-compact);
+  }
+}

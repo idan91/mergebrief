@@ -1,0 +1,14 @@
+@layer components {
+  .mark {
+    display: grid;
+    place-items: center;
+    inline-size: 20px;
+    block-size: 20px;
+    color: var(--color-accent);
+
+    &[data-review="reviewed"],
+    &[data-review="yours"] {
+      color: var(--color-text-2);
+    }
+  }
+}

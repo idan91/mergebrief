@@ -1,0 +1,22 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .root {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-block-size: 0;
+
+    &[data-variant="rail"] {
+      display: grid;
+      grid-template-columns: functions.to-rem(184px) minmax(0, 1fr);
+      column-gap: var(--space-8);
+
+      @include mixins.for-phone {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: var(--space-7);
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1001",
+    "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+    "startLine": null,
+    "line": 120,
+    "originalStartLine": null,
+    "originalLine": 120,
+    "author": "fixture-reviewer",
+    "body": "The scroller hook should cancel its pending RAF on unmount.",
+    "inReplyToId": null,
+    "outdated": false
+  }
+]

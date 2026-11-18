@@ -1,0 +1,168 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .panel {
+    flex: 1;
+    overscroll-behavior: contain;
+
+    @include mixins.rail-scroller;
+  }
+
+  .list {
+    /* The picked timeline's node: a 1.5px ring, and a halo over a gap in the scroller fill when current. */
+    --node-ring-rest: #{functions.inset-ring(var(--color-text-3), 1.5px)};
+    --node-ring-hover: #{functions.inset-ring(var(--color-text-2), 1.5px)};
+    --node-halo:
+      #{functions.ring(var(--scroller-bg), 1.5px)},
+      #{functions.ring(var(--color-accent), 2.5px)};
+    --row-pad-block: var(--space-3);
+    --list-gap: var(--space-1);
+    --node-center: #{functions.to-rem(9px)};
+
+    display: grid;
+    gap: var(--list-gap);
+    margin: 0;
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-3);
+    list-style: none;
+
+    > li:first-child .node::before {
+      inset-block-start: var(--node-center);
+    }
+
+    > li:last-child .node::before {
+      inset-block-end: calc(100% - var(--node-center));
+    }
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: functions.to-rem(24px) minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3-5);
+    inline-size: 100%;
+    padding-block: var(--row-pad-block);
+    padding-inline: var(--space-3-5);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-2);
+    font-family: var(--font-sans);
+    text-align: start;
+    cursor: pointer;
+    transition:
+      background-color var(--motion-fast),
+      color var(--motion-fast);
+
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-1);
+        color: var(--color-text-1);
+
+        .node::after {
+          box-shadow: var(--node-ring-hover);
+        }
+      }
+    }
+
+    &:active {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[data-current] {
+      background: var(--color-accent-tint-subtle);
+      color: var(--color-text-1);
+
+      @include mixins.forced-current;
+
+      .node::after {
+        background: var(--color-accent);
+        box-shadow: var(--node-halo);
+      }
+    }
+  }
+
+  .node {
+    position: relative;
+    grid-row: 1 / span 2;
+    align-self: stretch;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block: calc(-1 * (var(--row-pad-block) + var(--list-gap)))
+        calc(-1 * var(--row-pad-block));
+      inset-inline-start: 50%;
+      inline-size: 1px;
+      background: var(--color-line-strong);
+      transform: translateX(-50%);
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset-block-start: var(--node-center);
+      inset-inline-start: 50%;
+      inline-size: 8px;
+      block-size: 8px;
+      border-radius: var(--radius-circle);
+      background: var(--scroller-bg);
+      box-shadow: var(--node-ring-rest);
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  .name {
+    grid-column: 2;
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    line-height: var(--line-height-compact);
+  }
+
+  .latest {
+    --name-line: calc(var(--font-size-2) * var(--line-height-compact));
+
+    display: inline-flex;
+    grid-column: 3;
+    grid-row: 1;
+    align-items: center;
+    align-self: center;
+    block-size: functions.to-rem(20px);
+
+    // Pulls the chip's box back to the title line's height, so the newest
+    // row is no taller than the others and the chip centres on the title.
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the 20px is the chip's block-size, centring it on the title line */
+    margin-block: calc((var(--name-line) - #{functions.to-rem(20px)}) / 2);
+    padding-inline: var(--space-2-5);
+    border-radius: var(--radius-chip);
+    background: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+    color: var(--color-text-soft);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    line-height: var(--line-height-control);
+  }
+
+  .meta {
+    display: flex;
+    grid-column: 2;
+    column-gap: var(--space-3);
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--line-height-compact);
+  }
+
+  .sha {
+    font-family: var(--font-mono);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row {
+      transition: none;
+    }
+  }
+}

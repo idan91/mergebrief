@@ -1,0 +1,38 @@
+{
+  "name": "persistence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Owns everything DB: Drizzle schema, migrations, the tenant-scoped repository, the ArtifactStore seam, audit emit, and generation projection writes.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "migrate": "drizzle-kit migrate",
+    "generate": "drizzle-kit generate",
+    "check:migrations": "tsx scripts/check-contracts.ts"
+  },
+  "dependencies": {
+    "brief-core": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "logging": "workspace:*",
+    "pg": "^8.22.0",
+    "pg-connection-string": "^2.14.0",
+    "types": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

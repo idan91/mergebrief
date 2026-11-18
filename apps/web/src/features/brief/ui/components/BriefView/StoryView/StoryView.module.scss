@@ -1,0 +1,134 @@
+@use "functions";
+@use "layout";
+@use "mixins";
+
+// The card stacks under the diff below the story breakpoints in
+// layout.when-story-stacks.
+@mixin stack-split {
+  display: flex;
+
+  .chunks {
+    order: 2;
+  }
+
+  > article {
+    position: static;
+    order: 1;
+    max-block-size: none;
+  }
+}
+
+@layer components {
+  .storyView {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4-5);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the room after a change group, 8px from 32 and 48 */
+    margin-block-end: functions.to-rem(40px);
+
+    .chunks {
+      order: 2;
+    }
+  }
+
+  .cardFailure {
+    margin-block-end: functions.to-rem(layout.$chunk-card-gap);
+    padding: var(--space-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+  }
+
+  :global(.main) .group {
+    display: grid;
+    grid-template-columns: layout.story-columns();
+    position: relative;
+    align-items: start;
+    gap: functions.to-rem(layout.$story-group-gap);
+
+    // The card precedes the chunks in the DOM; without a row, sparse
+    // auto-placement drops the chunks to a second row under it.
+    .chunks {
+      order: initial;
+      grid-row: 1;
+      grid-column: 1;
+      min-inline-size: 0;
+    }
+  }
+
+  // A viewport-capped flex column, so GroupCard's .body can be the inner
+  // scroll region under a fixed head.
+  :global(.main) .group > article {
+    position: sticky;
+    inset-block-start: var(--sticky-stack-h);
+    display: flex;
+    flex-direction: column;
+    order: initial;
+    grid-row: 1;
+    grid-column: 2;
+    max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
+  }
+
+  .group {
+    @include layout.when-story-stacks {
+      @include stack-split;
+    }
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    :global(.main) .group > * {
+      align-self: stretch;
+    }
+  }
+
+  // No :has(): it would re-run on every scroll-spy data-current toggle and
+  // tank scroll performance.
+  [data-zen="on"] .group:not([data-active-group]) {
+    display: none;
+  }
+
+  // Child only: a thread comment inside the current chunk is an article too.
+  [data-zen="on"] .chunks > article:not([data-current]) {
+    display: none;
+  }
+
+  // Paints the page into the sticky chunk head's rounded top corners.
+  [data-zen="on"] .chunks article[data-current]::before {
+    content: "";
+    position: sticky;
+    inset-block-start: var(--sticky-stack-h);
+    z-index: functions.get-z-index("chunk-head-corners");
+    display: block;
+    block-size: var(--radius-lg);
+    margin-block-end: calc(-1 * var(--radius-lg));
+    background: var(--color-focus-ground);
+  }
+
+  // margin-inline: auto inside the story view's flex column shrinks the
+  // section to its content without the explicit inline-size.
+  [data-zen="on"] .group {
+    display: block;
+    inline-size: 100%;
+    max-inline-size: var(--focus-max);
+    margin-inline: auto;
+    padding-inline: max(var(--focus-gutter), env(safe-area-inset-left))
+      max(var(--focus-gutter), env(safe-area-inset-right));
+    margin-block-end: 0;
+    transition: translate var(--motion-slide) var(--ease-out);
+  }
+
+  // translate, not transform: the .reveal animation owns transform and
+  // replays when a hidden group shows.
+  :global(.main[data-focus-panel="open"]) .group {
+    translate: calc(-1 * var(--focus-shift)) 0;
+  }
+
+  :global(.main[data-focus-panel="open"]) .chunks article[data-current] {
+    --chunk-head-reserve: max(0px, var(--focus-overlap));
+  }
+}

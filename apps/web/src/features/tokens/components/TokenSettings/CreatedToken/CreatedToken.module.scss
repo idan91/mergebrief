@@ -1,0 +1,56 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .created {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+  }
+
+  .heading {
+    font-size: var(--font-size-3);
+    font-weight: 600;
+  }
+
+  .secret {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    min-block-size: functions.to-rem(44px);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-4) var(--space-2);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-ground);
+  }
+
+  .value {
+    flex: 1;
+    min-inline-size: 0;
+    font-size: var(--font-size-2);
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .disclaimer {
+    max-inline-size: 70ch;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+  }
+
+  .done {
+    justify-self: end;
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .secret {
+      flex-direction: column;
+      align-items: stretch;
+      padding: var(--space-3);
+    }
+  }
+}

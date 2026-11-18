@@ -1,0 +1,35 @@
+{
+  "name": "github",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub App client: JWT + installation-token auth, webhook verification and event parsing, comment operations, and diff/PR fetch.",
+  "license": "FSL-1.1-ALv2",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@octokit/core": "^6.1.6",
+    "@octokit/oauth-app": "^7.1.6",
+    "@octokit/types": "^14.1.0",
+    "@octokit/webhooks": "^13.9.1",
+    "@octokit/webhooks-methods": "^5.1.1",
+    "brief-core": "workspace:*",
+    "logging": "workspace:*",
+    "octokit": "^4.1.4",
+    "persistence": "workspace:*",
+    "types": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

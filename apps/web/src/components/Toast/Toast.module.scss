@@ -1,0 +1,46 @@
+@use "functions";
+
+@layer components {
+  .toast {
+    position: fixed;
+    inset-block-end: calc(
+      #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom)
+    );
+    inset-inline-start: calc((100% - var(--sidebar-covered-w)) / 2);
+    z-index: functions.get-z-index("toast");
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    max-inline-size: min(functions.to-rem(560px), calc(100vw - var(--space-6)));
+    inline-size: max-content;
+    padding-block: var(--space-4);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the toast's side inset, 4px from 16 and 24 */
+    padding-inline: functions.to-rem(20px);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-sheet);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    transform: translate(
+      -50%,
+      calc(100% + #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom))
+    );
+    transition:
+      opacity var(--motion-fast) var(--ease-out),
+      transform var(--motion-fast) var(--ease-out);
+
+    // Hidden with opacity, not visibility: the live region inside must stay in
+    // the accessibility tree, or it can drop the announcement.
+    &[data-state="visible"] {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+      transition-duration: var(--motion-base);
+    }
+  }
+}

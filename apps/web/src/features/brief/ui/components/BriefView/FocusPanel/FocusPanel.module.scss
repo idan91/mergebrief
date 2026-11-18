@@ -1,0 +1,101 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .panel {
+    position: fixed;
+    inset-block: calc(var(--top-bar-h) + #{functions.to-rem(12px)})
+      var(--focus-panel-inset);
+    inset-inline-end: var(--focus-panel-end);
+    z-index: functions.get-z-index("focus-panel");
+    display: flex;
+    flex-direction: column;
+    inline-size: var(--focus-panel-w);
+    border: 1px solid color-mix(in oklch, var(--color-text-1) 8%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-float);
+    transition:
+      opacity var(--motion-base) var(--ease-out),
+      transform var(--motion-slide) var(--ease-drawer),
+      visibility 0s linear 0s;
+
+    &[data-state="closed"] {
+      visibility: hidden;
+      opacity: 0;
+      transform: translateX(16px);
+      transition:
+        opacity var(--motion-fast) ease,
+        transform var(--motion-fast) ease,
+        visibility 0s linear var(--motion-fast);
+    }
+  }
+
+  .tab[data-width] {
+    --icon-button-inset-start: var(--space-4);
+
+    position: fixed;
+    inset-block-start: calc(var(--top-bar-h) + #{functions.to-rem(12px)});
+    inset-inline-end: var(--focus-panel-end);
+    z-index: functions.get-z-index("focus-panel");
+    column-gap: var(--space-3);
+    border-color: var(--color-line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    transition:
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- the tab mounts as the panel closes and holds its fade 80ms, until the panel's exit is under way */
+      opacity var(--motion-base) var(--ease-out) 80ms,
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+
+    @include mixins.hover {
+      &:not([aria-disabled="true"]):hover {
+        border-color: var(--color-line-strong);
+        background: var(--color-surface-3);
+        color: var(--color-text-1);
+      }
+    }
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: functions.get-z-index("focus-scrim");
+    padding: 0;
+    border: 0;
+    background: var(--color-scrim);
+    cursor: default;
+    touch-action: pinch-zoom;
+  }
+
+  .panel[data-variant="sheet"] {
+    inset-block: auto 0;
+    inset-inline: 0;
+    z-index: functions.get-z-index("focus-sheet");
+    inline-size: auto;
+    max-block-size: 70dvh;
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    border-block-end: 0;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    background: var(--color-surface-1);
+    touch-action: pinch-zoom;
+
+    &[data-state="closed"] {
+      transform: translateY(100%);
+    }
+  }
+
+  .tab[data-layout="sheet"] {
+    inset-block: auto
+      calc(#{functions.to-rem(16px)} + env(safe-area-inset-bottom));
+    inset-inline-end: max(functions.to-rem(16px), env(safe-area-inset-right));
+  }
+}

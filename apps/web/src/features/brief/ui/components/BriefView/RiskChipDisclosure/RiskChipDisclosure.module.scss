@@ -1,0 +1,35 @@
+@use "mixins";
+
+@layer components {
+  /* inline-flex: a bare inline wrapper's line box mis-sizes the chip
+     against bare-chip siblings. */
+  .root {
+    display: inline-flex;
+  }
+
+  /* Unstyled disclosure button: the chip inside carries the visuals; the
+     button contributes only a visible focus ring (WCAG 2.4.7). */
+  .chipButton {
+    @include mixins.hit-area;
+
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+  }
+
+  .chipButton:focus-visible {
+    @include mixins.focus-ring;
+
+    border-radius: var(--radius-sm);
+  }
+
+  .detail {
+    display: block;
+    max-width: 36ch;
+  }
+}

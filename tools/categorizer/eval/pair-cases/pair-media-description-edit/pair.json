@@ -1,0 +1,363 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9019
+      },
+      "meta": {
+        "title": "Retry failed webhook deliveries with backoff",
+        "body": "Retries a failed webhook delivery with exponential backoff instead of dropping it. `WEBHOOK_MAX_ATTEMPTS` (default 5) caps the attempts and `WEBHOOK_BASE_DELAY_MS` (default 500) sets the first wait, which doubles after each failure.\n\n## Retry flow\n\n```mermaid\nflowchart LR\n  A[POST delivery] -->|2xx| B[Done]\n  A -->|error or non-2xx| C{Attempts left?}\n  C -->|yes| D[Wait base delay x 2^n] --> A\n  C -->|no| E[Give up]\n```\n\n## Timing\n\n```mermaid\nsequenceDiagram\n  participant W as Worker\n  participant E as Endpoint\n  W->>E: attempt 1\n  E-->>W: 503\n  Note over W: wait 500 ms\n  W->>E: attempt 2\n  E-->>W: 200\n```",
+        "url": "https://github.com/acme/mergebrief/pull/9019",
+        "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+        "baseSha": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+        "commitCount": 3,
+        "files": [
+          {
+            "path": "src/webhooks/backoff.ts",
+            "additions": 8,
+            "deletions": 0
+          },
+          {
+            "path": "src/webhooks/config.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "src/webhooks/deliver.ts",
+            "additions": 26,
+            "deletions": 6
+          }
+        ]
+      },
+      "diff": "diff --git a/src/webhooks/backoff.ts b/src/webhooks/backoff.ts\nnew file mode 100644\nindex 0000000..7410a3b\n--- /dev/null\n+++ b/src/webhooks/backoff.ts\n@@ -0,0 +1,8 @@\n+/** The wait before the next attempt: the base delay, doubled after each failure. */\n+export function computeBackoffMs(baseDelayMs: number, attempt: number): number {\n+  return baseDelayMs * 2 ** (attempt - 1);\n+}\n+\n+export function sleep(ms: number): Promise<void> {\n+  return new Promise((resolve) => setTimeout(resolve, ms));\n+}\ndiff --git a/src/webhooks/config.ts b/src/webhooks/config.ts\nindex f73ab2b..95422a9 100644\n--- a/src/webhooks/config.ts\n+++ b/src/webhooks/config.ts\n@@ -1,6 +1,8 @@\n export interface WebhookConfig {\n   readonly endpointUrl: string;\n   readonly timeoutMs: number;\n+  readonly maxAttempts: number;\n+  readonly baseDelayMs: number;\n }\n \n export function readWebhookConfig(\n@@ -9,5 +11,7 @@ export function readWebhookConfig(\n   return {\n     endpointUrl: env.WEBHOOK_URL ?? \"\",\n     timeoutMs: Number(env.WEBHOOK_TIMEOUT_MS ?? 5000),\n+    maxAttempts: Number(env.WEBHOOK_MAX_ATTEMPTS ?? 5),\n+    baseDelayMs: Number(env.WEBHOOK_BASE_DELAY_MS ?? 500),\n   };\n }\ndiff --git a/src/webhooks/deliver.ts b/src/webhooks/deliver.ts\nindex b367889..b97add7 100644\n--- a/src/webhooks/deliver.ts\n+++ b/src/webhooks/deliver.ts\n@@ -1,3 +1,4 @@\n+import { computeBackoffMs, sleep } from \"./backoff\";\n import type { WebhookConfig } from \"./config\";\n \n export interface Delivery {\n@@ -5,14 +6,33 @@ export interface Delivery {\n   readonly body: string;\n }\n \n+async function postOnce(\n+  config: WebhookConfig,\n+  delivery: Delivery,\n+): Promise<boolean> {\n+  try {\n+    const response = await fetch(config.endpointUrl, {\n+      method: \"POST\",\n+      body: delivery.body,\n+      signal: AbortSignal.timeout(config.timeoutMs),\n+    });\n+    return response.ok;\n+  } catch {\n+    return false;\n+  }\n+}\n+\n export async function deliver(\n   config: WebhookConfig,\n   delivery: Delivery,\n ): Promise<boolean> {\n-  const response = await fetch(config.endpointUrl, {\n-    method: \"POST\",\n-    body: delivery.body,\n-    signal: AbortSignal.timeout(config.timeoutMs),\n-  });\n-  return response.ok;\n+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {\n+    if (await postOnce(config, delivery)) {\n+      return true;\n+    }\n+    if (attempt < config.maxAttempts) {\n+      await sleep(computeBackoffMs(config.baseDelayMs, attempt));\n+    }\n+  }\n+  return false;\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "commitCount": 3
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "acme",
+        "repo": "mergebrief",
+        "number": 9019
+      },
+      "meta": {
+        "title": "Retry failed webhook deliveries with backoff",
+        "body": "Retries a failed webhook delivery with exponential backoff instead of dropping it. `WEBHOOK_MAX_ATTEMPTS` (default 5) caps the attempts and `WEBHOOK_BASE_DELAY_MS` (default 500) sets the first wait, which doubles after each failure.\n\n## Retry flow\n\n```mermaid\nflowchart LR\n  A[POST delivery] -->|2xx| B[Done]\n  A -->|error or non-2xx| C{Attempts left?}\n  C -->|yes| D[Wait base delay x 2^n] --> A\n  C -->|no| E[Give up]\n```\n\n## Timing\n\n```mermaid\nsequenceDiagram\n  participant W as Worker\n  participant E as Endpoint\n  W->>E: attempt 1\n  E-->>W: 503\n  Note over W: wait 500 ms\n  W->>E: attempt 2\n  E-->>W: 503\n  Note over W: wait 1000 ms\n  W->>E: attempt 3\n  E-->>W: 200\n```",
+        "url": "https://github.com/acme/mergebrief/pull/9019",
+        "sha": "231b2b5410a93bf32e67ca7a19b913b4a85806e5",
+        "baseSha": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+        "commitCount": 3,
+        "files": [
+          {
+            "path": "src/webhooks/backoff.ts",
+            "additions": 8,
+            "deletions": 0
+          },
+          {
+            "path": "src/webhooks/config.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "src/webhooks/deliver.ts",
+            "additions": 26,
+            "deletions": 6
+          }
+        ]
+      },
+      "diff": "diff --git a/src/webhooks/backoff.ts b/src/webhooks/backoff.ts\nnew file mode 100644\nindex 0000000..7410a3b\n--- /dev/null\n+++ b/src/webhooks/backoff.ts\n@@ -0,0 +1,8 @@\n+/** The wait before the next attempt: the base delay, doubled after each failure. */\n+export function computeBackoffMs(baseDelayMs: number, attempt: number): number {\n+  return baseDelayMs * 2 ** (attempt - 1);\n+}\n+\n+export function sleep(ms: number): Promise<void> {\n+  return new Promise((resolve) => setTimeout(resolve, ms));\n+}\ndiff --git a/src/webhooks/config.ts b/src/webhooks/config.ts\nindex f73ab2b..95422a9 100644\n--- a/src/webhooks/config.ts\n+++ b/src/webhooks/config.ts\n@@ -1,6 +1,8 @@\n export interface WebhookConfig {\n   readonly endpointUrl: string;\n   readonly timeoutMs: number;\n+  readonly maxAttempts: number;\n+  readonly baseDelayMs: number;\n }\n \n export function readWebhookConfig(\n@@ -9,5 +11,7 @@ export function readWebhookConfig(\n   return {\n     endpointUrl: env.WEBHOOK_URL ?? \"\",\n     timeoutMs: Number(env.WEBHOOK_TIMEOUT_MS ?? 5000),\n+    maxAttempts: Number(env.WEBHOOK_MAX_ATTEMPTS ?? 5),\n+    baseDelayMs: Number(env.WEBHOOK_BASE_DELAY_MS ?? 500),\n   };\n }\ndiff --git a/src/webhooks/deliver.ts b/src/webhooks/deliver.ts\nindex b367889..b97add7 100644\n--- a/src/webhooks/deliver.ts\n+++ b/src/webhooks/deliver.ts\n@@ -1,3 +1,4 @@\n+import { computeBackoffMs, sleep } from \"./backoff\";\n import type { WebhookConfig } from \"./config\";\n \n export interface Delivery {\n@@ -5,14 +6,33 @@ export interface Delivery {\n   readonly body: string;\n }\n \n+async function postOnce(\n+  config: WebhookConfig,\n+  delivery: Delivery,\n+): Promise<boolean> {\n+  try {\n+    const response = await fetch(config.endpointUrl, {\n+      method: \"POST\",\n+      body: delivery.body,\n+      signal: AbortSignal.timeout(config.timeoutMs),\n+    });\n+    return response.ok;\n+  } catch {\n+    return false;\n+  }\n+}\n+\n export async function deliver(\n   config: WebhookConfig,\n   delivery: Delivery,\n ): Promise<boolean> {\n-  const response = await fetch(config.endpointUrl, {\n-    method: \"POST\",\n-    body: delivery.body,\n-    signal: AbortSignal.timeout(config.timeoutMs),\n-  });\n-  return response.ok;\n+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {\n+    if (await postOnce(config, delivery)) {\n+      return true;\n+    }\n+    if (attempt < config.maxAttempts) {\n+      await sleep(computeBackoffMs(config.baseDelayMs, attempt));\n+    }\n+  }\n+  return false;\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "head": "231b2b5410a93bf32e67ca7a19b913b4a85806e5",
+      "commitCount": 3
+    }
+  },
+  "increment": {
+    "filteredSpan": "",
+    "unfilteredSpan": "",
+    "span": {
+      "changedFiles": [],
+      "unchangedFiles": [
+        "src/webhooks/backoff.ts",
+        "src/webhooks/config.ts",
+        "src/webhooks/deliver.ts"
+      ],
+      "unpairableFiles": [],
+      "hop": [
+        {
+          "file": "src/webhooks/backoff.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "src/webhooks/config.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "src/webhooks/deliver.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        }
+      ],
+      "oldSideHop": [
+        {
+          "file": "src/webhooks/backoff.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "src/webhooks/config.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        },
+        {
+          "file": "src/webhooks/deliver.ts",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 0,
+              "newLines": 0
+            }
+          ]
+        }
+      ],
+      "isUnchanged": true
+    }
+  },
+  "reviewComments": [],
+  "baseBrief": {
+    "pr": {
+      "repo": "acme/mergebrief",
+      "number": 9019,
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/acme/mergebrief/pull/9019",
+      "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. `WEBHOOK_MAX_ATTEMPTS` (default 5) caps the attempts and `WEBHOOK_BASE_DELAY_MS` (default 500) sets the first wait, which doubles after each failure.\n\n## Retry flow\n\n```mermaid\nflowchart LR\n  A[POST delivery] -->|2xx| B[Done]\n  A -->|error or non-2xx| C{Attempts left?}\n  C -->|yes| D[Wait base delay x 2^n] --> A\n  C -->|no| E[Give up]\n```\n\n## Timing\n\n```mermaid\nsequenceDiagram\n  participant W as Worker\n  participant E as Endpoint\n  W->>E: attempt 1\n  E-->>W: 503\n  Note over W: wait 500 ms\n  W->>E: attempt 2\n  E-->>W: 200\n```"
+    },
+    "index": 1,
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "commitCount": 3
+    },
+    "generation": {
+      "provider": "fixture",
+      "model": "hand-written",
+      "effort": "medium"
+    },
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "changeGroups": [
+      {
+        "id": "g1",
+        "title": "Compute the backoff wait",
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "id": "g2",
+        "title": "Configure the retry limits",
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "id": "g3",
+        "title": "Retry a failed delivery",
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "dominantCategory": "new-feature",
+        "secondaryCategories": [],
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "id": "c1",
+        "changeGroupId": "g1",
+        "file": "src/webhooks/backoff.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "addedRanges": [
+          {
+            "start": 1,
+            "end": 8
+          }
+        ],
+        "removedRanges": [],
+        "riskSurface": []
+      },
+      {
+        "id": "c2",
+        "changeGroupId": "g2",
+        "file": "src/webhooks/config.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "addedRanges": [
+          {
+            "start": 4,
+            "end": 5
+          },
+          {
+            "start": 14,
+            "end": 15
+          }
+        ],
+        "removedRanges": [],
+        "riskSurface": []
+      },
+      {
+        "id": "c3",
+        "changeGroupId": "g3",
+        "file": "src/webhooks/deliver.ts",
+        "concern": "implementation",
+        "role": "core",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "addedRanges": [
+          {
+            "start": 1,
+            "end": 1
+          },
+          {
+            "start": 9,
+            "end": 24
+          },
+          {
+            "start": 29,
+            "end": 37
+          }
+        ],
+        "removedRanges": [
+          {
+            "start": 12,
+            "end": 17
+          }
+        ],
+        "riskSurface": []
+      }
+    ],
+    "concernView": [
+      {
+        "concern": "implementation",
+        "added": 38,
+        "deleted": 6
+      }
+    ],
+    "unattributed": [],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "intentCheck": {
+      "ticketUrls": [],
+      "ticketTitles": [],
+      "specificity": "precise",
+      "scopeNote": "",
+      "accomplished": [
+        {
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": "",
+          "groupIds": ["g3", "g1"],
+          "acknowledged": false
+        },
+        {
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "`WEBHOOK_MAX_ATTEMPTS` (default 5) caps the attempts and `WEBHOOK_BASE_DELAY_MS` (default 500) sets the first wait",
+          "sourceUrl": "",
+          "groupIds": ["g2"],
+          "acknowledged": false
+        }
+      ],
+      "statedButMissing": [],
+      "doneButUnstated": [],
+      "deviations": [],
+      "maskedFixes": []
+    },
+    "summaryMedia": {
+      "shown": [
+        {
+          "key": "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5",
+          "position": "after-lede"
+        }
+      ],
+      "pointer": {
+        "label": "Retry flow",
+        "items": [
+          "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a"
+        ]
+      }
+    },
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2"
+  }
+}

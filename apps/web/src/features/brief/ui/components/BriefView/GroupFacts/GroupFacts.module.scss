@@ -1,0 +1,40 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .titleLine {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .title {
+    max-inline-size: functions.to-rem(760px);
+    margin-block-start: var(--space-3);
+    color: var(--color-text-1);
+    font-size: var(--font-size-5);
+    font-weight: 600;
+    line-height: var(--line-height-heading);
+    text-wrap: balance;
+
+    &[data-variant="card"] {
+      @include mixins.focus-visible;
+
+      margin-block-start: 0;
+    }
+
+    &[data-variant="panel"]:focus {
+      outline: none;
+    }
+  }
+
+  .summary {
+    max-inline-size: functions.to-rem(690px);
+    margin-block-start: var(--space-3);
+    color: var(--color-text-soft);
+    font-size: var(--font-size-3);
+    line-height: var(--line-height-body);
+    text-wrap: pretty;
+  }
+}

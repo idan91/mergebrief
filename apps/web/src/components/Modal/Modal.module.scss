@@ -1,0 +1,238 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .modal {
+    --modal-box-from: scale(0.98);
+
+    position: fixed;
+    inset: 0;
+    z-index: functions.get-z-index("modal");
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-scrim);
+    opacity: 0;
+    transition:
+      opacity var(--motion-fast) var(--ease-out),
+      display var(--motion-fast) allow-discrete;
+
+    &[data-state="open"] {
+      display: flex;
+      opacity: 1;
+      transition:
+        opacity var(--motion-base) var(--ease-out),
+        display var(--motion-base) allow-discrete;
+
+      @starting-style {
+        opacity: 0;
+      }
+    }
+
+    // A box emptied by its close has nothing to fade: it would collapse.
+    &[data-motion="instant"][data-state],
+    &[data-state="closed"]:has(> .box:empty) {
+      transition: none;
+
+      > .box {
+        transition: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      --modal-box-from: none;
+    }
+  }
+
+  .box {
+    inline-size: functions.to-rem(460px);
+    max-inline-size: 92vw;
+    max-block-size: calc(100dvh - functions.to-rem(24px));
+    overflow-y: auto;
+    padding-block: var(--space-6);
+    padding-inline: var(--space-6);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
+    outline: none;
+    opacity: 0;
+    transform: var(--modal-box-from);
+    transition:
+      opacity var(--motion-fast) var(--ease-out),
+      transform var(--motion-fast) var(--ease-out);
+
+    .modal[data-state="open"] > & {
+      opacity: 1;
+      transform: none;
+      transition:
+        opacity var(--motion-base) var(--ease-out),
+        transform var(--motion-base) var(--ease-out);
+
+      @starting-style {
+        opacity: 0;
+        transform: var(--modal-box-from);
+      }
+    }
+
+    textarea {
+      inline-size: 100%;
+      min-block-size: functions.to-rem(84px);
+      padding-block: var(--space-3-5);
+      padding-inline: var(--space-4);
+      border: 1px solid var(--color-control-edge);
+      border-radius: var(--radius-md);
+      outline: none;
+      background: var(--color-ground);
+      color: var(--color-text-1);
+      font-size: var(--font-size-2);
+      line-height: var(--line-height-body);
+      resize: vertical;
+
+      @include mixins.touch-field-text;
+      @include mixins.focus-visible;
+    }
+  }
+}
+
+// Shared dialog-content vocabulary: the Modal owns its content styling
+// surface; feature modals import these classes.
+@layer components {
+  .copy {
+    margin-block: var(--space-3-5) var(--space-4-5);
+    color: var(--color-text-3);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+  }
+
+  .wideBox {
+    inline-size: functions.to-rem(560px);
+  }
+
+  // Flex margins do not collapse: the lines below the list keep only a top
+  // margin here, restating the gaps .copy's collapsed margins give elsewhere.
+  .box:has(> .unresolvedList) {
+    display: flex;
+    flex-direction: column;
+    max-block-size: min(
+      #{functions.to-rem(720px)},
+      calc(100dvh - #{functions.to-rem(96px)})
+    );
+
+    > .copy,
+    > .postDraftsToggle {
+      margin-block-end: 0;
+    }
+
+    > .copy + .copy,
+    > .copy + .postDraftsToggle {
+      margin-block-start: var(--space-4-5);
+    }
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      max-block-size: calc(100dvh - #{functions.to-rem(24px)});
+      overscroll-behavior: contain;
+    }
+  }
+
+  .unresolvedList {
+    display: grid;
+    flex: 0 1 auto;
+    grid-auto-rows: max-content;
+    min-block-size: max-content;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    gap: var(--space-5);
+
+    // The padding and matching negative margins keep a row's focus ring
+    // inside the list's scrollport, which would otherwise clip it.
+    padding: var(--ring-room);
+    padding-block-end: var(--space-3);
+    margin-block-start: calc(-1 * var(--ring-room));
+    margin-inline: calc(-1 * var(--ring-room));
+    scroll-padding-block: var(--ring-room);
+    border-block-end: 1px solid var(--color-line);
+
+    // A border image, not ::after, so the inset rule stays put on scroll.
+    border-image: linear-gradient(
+        to right,
+        transparent var(--ring-room),
+        var(--color-line) var(--ring-room),
+        var(--color-line) calc(100% - var(--ring-room)),
+        transparent calc(100% - var(--ring-room))
+      )
+      0 0 1 0;
+
+    &:has(li:nth-child(2), > :nth-child(2)) {
+      min-block-size: functions.to-rem(120px);
+    }
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: auto;
+    }
+  }
+
+  .evidenceOptions {
+    display: grid;
+    gap: var(--space-3);
+    margin-block: var(--space-5);
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      color: var(--color-text-2);
+      font-size: var(--font-size-2);
+    }
+  }
+
+  .select {
+    inline-size: 100%;
+    padding-block: var(--space-3-5);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--color-control-edge);
+    border-radius: var(--radius-md);
+    background: var(--color-ground);
+    color: var(--color-text-1);
+
+    @include mixins.touch-field-text;
+  }
+
+  .target {
+    min-block-size: 1lh;
+    margin-block-end: var(--space-5);
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .warn {
+    display: none;
+    margin-block-start: var(--space-4);
+    padding-block: var(--space-4);
+    padding-inline: var(--space-4-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    &[data-state="visible"] {
+      display: block;
+    }
+  }
+
+  .postDraftsToggle {
+    margin-block: var(--space-1) var(--space-2-5);
+  }
+}

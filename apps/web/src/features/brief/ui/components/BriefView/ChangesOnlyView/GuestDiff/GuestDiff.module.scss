@@ -1,0 +1,8 @@
+@layer components {
+  .guestDiff[data-variant="card"] {
+    overflow: hidden;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+  }
+}

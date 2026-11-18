@@ -1,0 +1,42 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .page {
+    flex: 1;
+  }
+
+  .home {
+    display: grid;
+    gap: var(--space-8);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- Home's foot room, 76px past the largest step */
+    padding-block: var(--space-8) functions.to-rem(140px);
+    padding-inline: var(--page-gutter);
+  }
+
+  .lead {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .afterFailure {
+    margin-block-start: var(--space-8);
+  }
+
+  .inbox {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .emptyInbox {
+    justify-self: center;
+    margin-block-start: var(--space-8);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .home {
+      gap: var(--space-7);
+      padding-block-start: var(--space-6);
+    }
+  }
+}

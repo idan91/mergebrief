@@ -1,0 +1,12 @@
+// The demo as a Cloudflare Worker serving the `build:demo` output only, on its
+// own hostname. The workers.dev URL is off.
+{
+  "name": "mergebrief-demo",
+  "compatibility_date": "2026-11-11",
+  "workers_dev": false,
+  "routes": [{ "pattern": "demo.mergebrief.com", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist-demo",
+    "not_found_handling": "404-page",
+  },
+}

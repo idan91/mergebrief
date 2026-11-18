@@ -1,0 +1,109 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Sticky below the header; the component publishes its measured height as
+  // --toolbar-h for sticky chunk headers. flex-wrap: nowrap enforces the
+  // fixed height; NO overflow: hidden, since a fixed-height box with overflow
+  // hidden clips its own anchored panels.
+  .toolbar {
+    position: sticky;
+    inset-block-start: calc(var(--top-bar-h) + var(--reanchor-banner-h, 0px));
+    z-index: functions.get-z-index("reading-toolbar");
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-block-end: var(--space-4);
+    padding: var(--space-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+
+    // The bleed spans .main's inline padding in base.scss, whose end side
+    // carries --sidebar-w; ReadingToolbar.stylesheet.test.ts compares. At
+    // z-index -1 it paints over the bar's own border, so the resting clip
+    // stops inside that border. Its top reaches 1px under the header:
+    // --top-bar-h rounds the header's fractional height, and the sub-pixel
+    // row between them would show the story scrolling behind.
+    &::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset-block: -2px -1px;
+      inset-inline: calc(-1px - var(--main-gutter));
+      border-block-end: 1px solid var(--color-line);
+      background: var(--color-surface-1);
+      clip-path: inset(
+        2px calc(1px + var(--main-gutter)) 1px round
+          functions.inner-radius(var(--radius-lg), 1px)
+      );
+    }
+
+    &[data-stuck] {
+      border-color: transparent;
+
+      &::before {
+        clip-path: inset(0 round 0);
+      }
+    }
+
+    &[data-motion="on"] {
+      transition: border-color var(--motion-base) var(--ease-out);
+
+      &::before {
+        transition: clip-path var(--motion-base) var(--ease-out);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        &,
+        &::before {
+          transition: none;
+        }
+      }
+    }
+  }
+
+  // Hidden, its measured height publishes 0px to the sticky stack.
+  @include mixins.for-phone {
+    .toolbar {
+      display: none;
+    }
+  }
+
+  // Label compression ladder: long label by default, short below 1280px.
+  // display toggling also swaps the accessible name with it.
+  .labelShort {
+    display: none;
+  }
+
+  @media (width <= 1280px) {
+    .labelShort {
+      display: inline;
+    }
+
+    .labelLong {
+      display: none;
+    }
+  }
+
+  .navCluster {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-inline-start: auto;
+  }
+
+  .divider {
+    flex: none;
+    inline-size: 1px;
+    block-size: 18px;
+    background: var(--color-line);
+  }
+
+  .navCluster .readThrough {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+}

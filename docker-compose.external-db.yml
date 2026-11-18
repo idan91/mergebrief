@@ -1,0 +1,43 @@
+# External-Postgres overlay. Layered on docker-compose.yml, it removes the
+# bundled `postgres` service and hands api and worker YOUR database (a managed
+# provider, or any Postgres 16+). It is not a compose file by itself: it names
+# no image and no service of its own. Usage:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.external-db.yml up -d
+#
+# or set this in `.env`, so every plain `docker compose` command reads both:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
+#
+# COMPOSE_FILE turns off the automatic override file. Once you have one, append
+# it: docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml
+#
+# DATABASE_URL comes from `.env` or from the shell that runs compose. A host
+# beyond loopback boots only on `sslmode=verify-full` or `sslmode=disable`.
+# docs/self-host/compose.md has the provider recipes: a CA bundle, why
+# `require` is refused, and the DSN as a secret file.
+services:
+  postgres: !reset null
+
+  api:
+    # No database to wait for. Compose cannot see yours, so the service fails
+    # loudly against an unreachable one where the default file gates on a
+    # healthcheck.
+    depends_on: !reset null
+    environment:
+      # No value: each comes from the shell that runs compose when set there,
+      # else from `.env`. Unset in both, the variable is ABSENT in the
+      # container, so give these no empty default: the loaders tell unset
+      # from empty.
+      DATABASE_URL:
+      DATABASE_URL_FILE:
+      MERGEBRIEF_AUTO_MIGRATE:
+
+  worker:
+    depends_on: !reset null
+    environment:
+      DATABASE_URL:
+      DATABASE_URL_FILE:
+      MERGEBRIEF_AUTO_MIGRATE:
+
+volumes: !reset null

@@ -1,0 +1,23 @@
+@layer components {
+  .branchName {
+    display: inline-flex;
+    min-inline-size: 0;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .name {
+    overflow: hidden;
+    min-inline-size: 0;
+    text-overflow: ellipsis;
+  }
+
+  .branchName[data-variant="base"] {
+    color: var(--color-text-3);
+  }
+
+  .branchName[data-variant="head"] {
+    color: var(--color-accent);
+  }
+}

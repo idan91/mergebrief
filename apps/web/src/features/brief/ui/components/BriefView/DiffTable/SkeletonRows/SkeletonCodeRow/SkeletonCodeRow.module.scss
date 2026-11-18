@@ -1,0 +1,155 @@
+@use "functions";
+@use "mixins";
+
+// Track `DiffRows` and `SplitRows`: a 14px rail, 14px cell padding and a
+// 42px split number cell.
+$rail: functions.to-rem(14px);
+$cell-pad: functions.to-rem(14px);
+$split-number: functions.to-rem(42px);
+$bar-h: 8px;
+
+@layer components {
+  .code {
+    --skeleton-number-width: calc(
+      var(--skeleton-digits) * 1ch + #{$cell-pad * 2}
+    );
+    --skeleton-number-ink: color-mix(
+      in srgb,
+      var(--color-text-1) 5%,
+      transparent
+    );
+    --skeleton-divider: var(--color-line);
+    --skeleton-tint: 4%;
+    --skeleton-hatch-fill: color-mix(
+      in srgb,
+      var(--color-ground) 70%,
+      var(--color-surface-1)
+    );
+    --skeleton-hatch: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--color-line-strong) 55%, transparent) 6px 7px
+    );
+
+    position: relative;
+    display: grid;
+    block-size: calc(var(--diff-line-box) * var(--skeleton-span));
+
+    &[data-view="unified"] {
+      grid-template-columns:
+        var(--skeleton-number-width) var(--skeleton-number-width)
+        minmax(0, 1fr);
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- $rail tracks the 14px rail DiffRows and SplitRows draw */
+      padding-inline-start: $rail;
+
+      @include mixins.for-phone {
+        grid-template-columns: 0 var(--diff-unified-number-w) minmax(0, 1fr);
+
+        > .number:first-child:not([data-variant="removed"])::after {
+          content: none;
+        }
+      }
+    }
+
+    &[data-view="split"] {
+      grid-template-columns:
+        $rail $split-number minmax(0, 1fr)
+        $rail $split-number minmax(0, 1fr);
+      background: linear-gradient(
+          var(--skeleton-divider),
+          var(--skeleton-divider)
+        )
+        no-repeat 50% 0 / 1px 100%;
+
+      > :nth-child(1) {
+        grid-column: 2;
+      }
+
+      > :nth-child(2) {
+        grid-column: 3;
+      }
+
+      > :nth-child(3) {
+        grid-column: 5;
+      }
+
+      > :nth-child(4) {
+        grid-column: 6;
+      }
+    }
+  }
+
+  [data-ink="neutral"] .code {
+    --skeleton-number-ink: color-mix(
+      in srgb,
+      var(--color-text-1) 4.5%,
+      transparent
+    );
+  }
+
+  [data-layer="shine"] .code {
+    --skeleton-number-ink: color-mix(
+      in srgb,
+      var(--color-text-1) 10%,
+      transparent
+    );
+    --skeleton-divider: transparent;
+    --skeleton-tint: 0%;
+    --skeleton-hatch-fill: transparent;
+    --skeleton-hatch: none;
+  }
+
+  .code[data-variant="added"],
+  .number[data-variant="added"] {
+    --skeleton-hue: var(--color-positive);
+    --skeleton-hue-number: 20%;
+  }
+
+  .code[data-variant="removed"],
+  .number[data-variant="removed"] {
+    --skeleton-hue: var(--color-negative);
+    --skeleton-hue-number: 22%;
+  }
+
+  .code[data-view="unified"]:is(
+      [data-variant="added"],
+      [data-variant="removed"]
+    ),
+  .code[data-view="split"]
+    > .number:is([data-variant="added"], [data-variant="removed"]) {
+    background-color: color-mix(
+      in srgb,
+      var(--skeleton-hue) var(--skeleton-tint),
+      transparent
+    );
+  }
+
+  .code[data-view="split"] > .number[data-variant="empty"] {
+    background-color: var(--skeleton-hatch-fill);
+    background-image: var(--skeleton-hatch);
+  }
+
+  .number {
+    position: relative;
+    min-inline-size: 0;
+
+    &:not([data-variant="empty"])::after {
+      position: absolute;
+      inset-block-start: calc((var(--diff-line-box) - #{$bar-h}) / 2);
+      inset-inline-start: $cell-pad;
+      inline-size: calc(var(--skeleton-digits) * 1ch);
+      block-size: $bar-h;
+      border-radius: var(--radius-xs);
+      background: var(--skeleton-number-ink);
+      content: "";
+    }
+
+    &:is([data-variant="added"], [data-variant="removed"])::after {
+      background: color-mix(
+        in srgb,
+        var(--skeleton-hue) var(--skeleton-hue-number),
+        transparent
+      );
+    }
+  }
+}

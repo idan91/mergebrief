@@ -1,0 +1,11 @@
+@layer components {
+  .copyRow {
+    &[data-state="copied"] {
+      color: var(--color-positive);
+    }
+
+    &[data-state="failed"] {
+      color: var(--color-negative);
+    }
+  }
+}

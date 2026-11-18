@@ -1,0 +1,225 @@
+@use "functions";
+@use "mixins";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    color-scheme: dark light;
+    accent-color: var(--color-accent);
+    scroll-behavior: smooth;
+
+    // iOS Safari otherwise inflates some text blocks and not others, so diff
+    // rows with long wrapped lines render larger than their neighbours.
+    /* stylelint-disable-next-line property-no-vendor-prefix -- Safari reads only the prefixed form */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100vh;
+    background: var(--color-ground);
+    color: var(--color-text-1);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-root);
+    line-height: var(--line-height-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  a,
+  button {
+    color: inherit;
+  }
+
+  // Heading LEVEL is outline semantics — pick it for document structure,
+  // never for size. This scale is only the unstyled default; overriding
+  // per-site with tokens is expected.
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+    line-height: var(--line-height-compact);
+  }
+
+  h1 {
+    font-size: var(--font-size-5);
+  }
+
+  h2 {
+    font-size: var(--font-size-4);
+  }
+
+  h3 {
+    font-size: var(--font-size-3);
+  }
+
+  h4 {
+    font-size: var(--font-size-2);
+  }
+
+  h5 {
+    font-size: var(--font-size-2);
+  }
+
+  h6 {
+    font-size: var(--font-size-1);
+  }
+
+  b,
+  strong,
+  th {
+    font-weight: 600;
+  }
+
+  :focus-visible {
+    @include mixins.focus-ring;
+  }
+
+  // Routes programmatically focus the main region on state swaps to re-anchor
+  // screen readers/keyboard. The focus is needed; the ring is not — browsers
+  // treat programmatic focus on load as focus-visible and would paint a
+  // page-wide outline on a reading region.
+  main:focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-text-1) 18%, transparent);
+    color: light-dark(var(--color-surface-1), var(--color-selection-text));
+  }
+
+  .faint {
+    color: var(--color-text-3);
+  }
+
+  .sr-only {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    border: 0;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sr-only clip technique: the -1px margin must stay a physical pixel, never scale */
+    margin: -1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .skip-link {
+    position: fixed;
+    z-index: functions.get-z-index("skip-link");
+    inset-block-start: functions.to-rem(8px);
+    inset-inline-start: functions.to-rem(8px);
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4-5);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    font-weight: 600;
+    text-decoration: none;
+
+    // Off-screen until focused; reduced-motion media query zeroes the transition.
+    transform: translateY(-150%);
+    transition: transform var(--motion-fast) var(--ease-out);
+
+    &:focus-visible {
+      transform: none;
+    }
+  }
+}
+
+@layer layout {
+  .main {
+    // chunk-height-model.ts copies both gutters; chunk-height-model.stylesheets.test.ts compares.
+    --main-gutter: #{functions.to-rem(48px)};
+
+    // The body is a column flexbox, so a page grows to the viewport, where auto
+    // inline margins disable stretch: without an explicit inline-size the region
+    // shrinks to fit its CONTENT and the page width shifts whenever content
+    // changes (revision steps, live diff arriving). Fill, cap, center.
+    inline-size: 100%;
+    max-inline-size: none;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- the story's 36px top room and 140px foot room, both 4px or more from a step */
+    padding-block: functions.to-rem(36px)
+      calc(functions.to-rem(140px) + var(--sidebar-reserve-bottom));
+    padding-inline: var(--main-gutter)
+      calc(var(--main-gutter) + var(--sidebar-w));
+    margin-inline: auto;
+    transition: opacity var(--motion-fast) ease;
+
+    @include mixins.for-breakpoint("small-mobile", "<") {
+      --main-gutter: var(--space-4);
+
+      padding-block-start: var(--space-5);
+    }
+  }
+
+  .reveal {
+    animation: rise var(--motion-slow) var(--ease-out) backwards;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-property:
+      opacity, color, background-color, border-color, outline-color, fill,
+      stroke, box-shadow !important;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@media (prefers-contrast: more) {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-text-1) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}

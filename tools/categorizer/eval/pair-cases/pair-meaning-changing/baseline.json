@@ -1,0 +1,10 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "coverage-exactly-one-group": 5,
+    "description-updates": 5,
+    "id-carried-health.ts": 5,
+    "untouched-survives-redact.ts": 5
+  }
+}
