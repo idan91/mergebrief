@@ -55,10 +55,10 @@ test("search text narrows the Inbox and explains a miss", async ({ page }) => {
   await expect(page).not.toHaveURL(/review=/);
 
   // Nothing matches anywhere: the miss names the text and clears it.
-  await field.fill("no such pull request");
+  await field.fill("kubernetes");
   await expect(
     page.getByRole("heading", {
-      name: "No pull requests match no such pull request",
+      name: "No pull requests match “kubernetes”",
     }),
   ).toBeVisible();
   // The field's own clear button carries the same name without the words.
