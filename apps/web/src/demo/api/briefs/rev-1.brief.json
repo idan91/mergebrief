@@ -355,32 +355,30 @@
   ],
   "intentCheck": {
     "alignment": {
-      "goal": "__Host- prefix on session + state cookies; add an Origin allowlist check on mutating methods; delete the prior session row on re-login and/or add a revoke-all-sessions control.",
+      "goal": "A reviewer whose session cookie leaks can end every one of their sessions from the Account menu, without holding the leaked cookie. API tokens have their own revoke and stay as they are.",
       "read": "partial",
-      "response": "The diff delivers the revoke-all-sessions endpoint. The Account menu row that calls it is not in this push, and the cookie prefix and Origin check belong to the earlier PRs in the stack."
+      "response": "The diff delivers the endpoint that ends every session. The Account menu row the ticket asks for is not in this push."
     },
-    "scopeNote": "The ticket spans the stack; this PR (3 of 3, base fix/2-same-origin-mutations) carries only the revocation control, while the cookie prefix and Origin check land in #623 and #624.",
+    "scopeNote": "",
     "deviations": [],
     "ticketUrls": ["https://www.notion.so/"],
     "maskedFixes": [],
     "specificity": "precise",
     "accomplished": [
       {
-        "quote": "delete the prior session row on re-login and/or add a revoke-all-sessions control.",
-        "intent": "Add a revoke-all-sessions control on the server.",
+        "quote": "A reviewer whose session cookie leaks can end every one of their sessions from the Account menu",
+        "intent": "End every session of the signed-in reviewer on the server.",
         "groupIds": ["g1"],
         "sourceUrl": "https://www.notion.so/",
         "acknowledged": false
       }
     ],
-    "ticketTitles": [
-      "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation"
-    ],
+    "ticketTitles": ["Let a reviewer sign out everywhere"],
     "primaryTicket": {
       "key": "",
       "url": "https://www.notion.so/",
-      "title": "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation",
-      "header": "security: cookie/CSRF hardening — __Host- prefix, Origin check on mutations, session revocation · In review · Backend · Next",
+      "title": "Let a reviewer sign out everywhere",
+      "header": "Let a reviewer sign out everywhere",
       "reason": "",
       "status": "read",
       "foundIn": "description",
