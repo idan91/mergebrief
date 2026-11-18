@@ -18,12 +18,12 @@ These files are the demo build's example: one real pull request of this project,
 
 ## What was edited in the revision 2 brief
 
-The groups, the chunks and their line ranges, the Split, the risk surface, the reading order, the summary and the Intent check's findings are as the product wrote them. These parts are not:
+The groups, the chunks and their line ranges, the Split, the risk surface, the reading order, the summary and what the Intent check found against the description are as the product wrote them. These parts are not:
 
 - **Generation stamp.** Rewritten to an API provider. The brief was generated through a subscription CLI, which the demo must not present as a deployed setup.
 - **Product diff.** Written by hand from the diff and its tests. The brief predates that section.
 - **Repository and owner.** The pull request was opened in a private repository that no longer exists under that name. It is shown under this one.
-- **Ticket.** The ticket key is removed and the ticket's address replaced with the tracker's home page. The ticket's title and what the Intent check read from it stay.
+- **Ticket.** Rewritten for the demo. The real ticket covered a whole stack of pull requests, so its title did not describe this one and the Intent check read it as partly met. The demo's ticket has a title and a goal that match this pull request alone, no key, the tracker's home page for an address, and an alignment written by hand: aligned at revision 2, partial at revision 1, where the menu row is still missing. The note about the stack is removed with it.
 - **Description.** Two parts are cut: the screenshots, which a visitor could not load, with the sentence that described them, and one paragraph of review notes.
 
 ## Why the first revision is derived
