@@ -29,10 +29,7 @@ const BETWEEN_HEADS_DIFFS = new Map([
   [
     "11111111...22222222",
     fileURLToPath(
-      new URL(
-        "../../src/demo/api/previous-brief-span-diffs.json",
-        import.meta.url,
-      ),
+      new URL("../fixtures/previous-brief-span-diffs.json", import.meta.url),
     ),
   ],
 ]);
