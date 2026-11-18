@@ -62,6 +62,8 @@ docker compose up -d --wait
 
 The web app runs on http://localhost:3000. An instance starts closed: nobody signs in until `mergebrief.config.yaml` lists them under `operators`. GitHub must reach your webhook for a push to start a brief, so an instance on localhost needs a public URL or a tunnel for that part. The [self-host guide](./docs/self-host/README.md) covers the GitHub App, sizing and hardening.
 
+A coding agent can run the server steps for you if you point it at the [self-host guide](./docs/self-host/README.md). Register the GitHub App, set the DNS record and paste the secrets into `.env` yourself, so no credential passes through the agent.
+
 ## CLI
 
 The same review loop from the terminal, for people and agents:
