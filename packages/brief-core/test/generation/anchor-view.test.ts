@@ -594,6 +594,19 @@ describe("anchored system prompt", () => {
     );
   });
 
+  it("extends the dropped-claim exception to re-examined groups", () => {
+    const grouping = buildGroupingSystemPrompt(OutlineForms.FULL, {
+      anchored: true,
+    });
+
+    expect(anchored).toContain(
+      "**And one more: a previous claim that nothing in this run's inputs backs.** Drop or correct it, as the summary rule below states.",
+    );
+    expect(grouping).toContain(
+      "The claim exception in the summary rule below applies to a re-examined group's title and summary too.",
+    );
+  });
+
   it("forbids emitting frozen groups except as claim targets", () => {
     expect(anchored.toLowerCase()).toContain("frozen");
     expect(anchored.toLowerCase()).toContain("claim");
