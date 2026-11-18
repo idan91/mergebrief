@@ -34,6 +34,9 @@ const REMOVED_ROW = "-";
 function countPatchLines(patch: string): LineTotals {
   const rows = patch.split("\n");
   const firstHunk = rows.findIndex((row) => row.startsWith(HUNK_HEADER));
+  if (firstHunk === -1) {
+    return { added: 0, deleted: 0 };
+  }
   const body = rows.slice(firstHunk);
 
   return {
