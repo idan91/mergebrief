@@ -22,7 +22,16 @@ import {
   ensureAppSchema,
   type GenerationTarget,
   type TenantContext,
+  type InboxFilters,
+  type InboxListInput,
 } from "../src/index";
+import {
+  InboxArchivedFilters,
+  InboxAuthorFilters,
+  InboxLayouts,
+  InboxSorts,
+  InboxStatuses,
+} from "types/inbox";
 import { parseTenantContext } from "../src/stores/scope-context";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 import { seedGrant } from "../src/testing/seed-grant";
@@ -409,4 +418,34 @@ export async function approveGatedPullRequest(
 export async function countQueuedJobs(shared: SharedPglite): Promise<number> {
   const jobs = await shared.harness.raw("select id from graphile_worker.jobs");
   return jobs.length;
+}
+
+/** The Inbox's opening filters: open and draft rows, everyone's, archived rows hidden. */
+export const DEFAULT_INBOX_FILTERS: InboxFilters = {
+  statuses: [InboxStatuses.OPEN, InboxStatuses.DRAFT],
+  author: InboxAuthorFilters.ALL,
+  archived: InboxArchivedFilters.HIDE,
+};
+
+/** Who is looking and what they reach; the rest of a list input has a default. */
+export type InboxReach = Pick<
+  InboxListInput,
+  "installationIds" | "allowedRepoIds" | "ownerUserId" | "reviewerId"
+>;
+
+/** A first page of the opening view for `reach`, each field open to an override. */
+export function makeInboxListInput(
+  reach: InboxReach,
+  overrides?: Partial<InboxListInput>,
+): InboxListInput {
+  return {
+    ...reach,
+    reviewerLogin: "octocat",
+    filters: DEFAULT_INBOX_FILTERS,
+    sort: InboxSorts.UPDATED,
+    layout: InboxLayouts.FOLDED,
+    page: 1,
+    pageSize: 25,
+    ...overrides,
+  };
 }

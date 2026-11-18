@@ -1,13 +1,6 @@
 // The Inbox list narrowed by search text: words against the title, digits
 // against the pull request number, and the total the other filters hide.
 import { sql } from "drizzle-orm";
-import {
-  InboxArchivedFilters,
-  InboxAuthorFilters,
-  InboxLayouts,
-  InboxSorts,
-  InboxStatuses,
-} from "types/inbox";
 import { describe, expect, it } from "vitest";
 import {
   createInboxStore,
@@ -30,7 +23,13 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, registerSharedPglite } from "./helpers";
+import {
+  DEFAULT_INBOX_FILTERS,
+  brandWith,
+  makeInboxListInput,
+  registerSharedPglite,
+  type InboxReach,
+} from "./helpers";
 
 const shared = registerSharedPglite();
 
@@ -39,10 +38,11 @@ const VIEWER: ReviewerId = brandWith(isReviewerId, 501n);
 const REPO: RepoId = brandWith(isRepoId, 100n);
 const CTX: ScopeContext = { installationId: ACME };
 
-const DEFAULT_FILTERS: InboxFilters = {
-  statuses: [InboxStatuses.OPEN, InboxStatuses.DRAFT],
-  author: InboxAuthorFilters.ALL,
-  archived: InboxArchivedFilters.HIDE,
+const REACH: InboxReach = {
+  installationIds: [ACME],
+  allowedRepoIds: [REPO],
+  ownerUserId: VIEWER,
+  reviewerId: VIEWER,
 };
 
 const OPEN: PullRequestLifecycle = { state: PrStates.OPEN };
@@ -78,20 +78,12 @@ async function seedTitled(
 async function searchInbox(
   handle: AppDatabase,
   searchText: string,
-  filters: InboxFilters = DEFAULT_FILTERS,
+  filters: InboxFilters = DEFAULT_INBOX_FILTERS,
 ): Promise<InboxPage> {
-  return createInboxStore(handle).list({
-    installationIds: [ACME],
-    allowedRepoIds: [REPO],
-    ownerUserId: VIEWER,
-    reviewerId: VIEWER,
-    reviewerLogin: "octocat",
+  const input = makeInboxListInput(REACH, {
     filters: { ...filters, searchText },
-    sort: InboxSorts.UPDATED,
-    layout: InboxLayouts.FOLDED,
-    page: 1,
-    pageSize: 25,
   });
+  return createInboxStore(handle).list(input);
 }
 
 function readNumbers(page: InboxPage): number[] {
