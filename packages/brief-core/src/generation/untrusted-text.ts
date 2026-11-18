@@ -231,18 +231,25 @@ export function sanitizeUntrustedLine(text: string): string {
 /** The one heading the summary rule allows, as the page's `splitBriefSummary` reads it: depth two, any case, an optional closing sequence. */
 const CHANGELOG_HEADING_LINE = /^ {0,3}##[ \t]+changelog(?:[ \t]+#+)?[ \t]*$/i;
 
-/** A Markdown ATX heading line: up to three spaces, one to six `#`, then a space, a tab or the line's end. */
-const HEADING_LINE = /^( {0,3})(#{1,6}(?:[ \t][^\n]*)?)$/gm;
+/** A Markdown ATX heading line, at any indent and inside any block quote or list item: one to six `#`, then a space, a tab or the line's end. */
+const HEADING_LINE = new RegExp(
+  String.raw`^(${CONTAINER_PREFIX})(#{1,6}(?:[ \t][^\n]*)?)$`,
+);
+
+/** A setext underline in the same places, which turns the text line above it into a heading. */
+const SETEXT_UNDERLINE = new RegExp(
+  String.raw`^(${CONTAINER_PREFIX})((?:=+|-+)[ \t]*)$`,
+);
 
 function escapeHeadingLine(
   line: string,
-  indent: string,
+  prefix: string,
   heading: string,
 ): string {
   if (CHANGELOG_HEADING_LINE.test(line)) {
     return line;
   }
-  return `${indent}\\${heading}`;
+  return `${prefix}\\${heading}`;
 }
 
 /** A summary's prose-sanitized text, every line break a `\n`. */
@@ -250,13 +257,26 @@ function splitSummaryLines(text: string): string[] {
   return sanitizeUntrustedText(text).replace(LINE_BREAK, "\n").split("\n");
 }
 
-function escapeSummaryLine(line: string): string {
+/** One summary line with the heading it would open escaped; `previousLine` decides a setext underline. */
+function escapeSummaryLine(
+  line: string,
+  previousLine: string | undefined,
+): string {
+  const followsText = (previousLine ?? "").trim() !== "";
+  if (followsText && SETEXT_UNDERLINE.test(line)) {
+    return line.replace(SETEXT_UNDERLINE, "$1\\$2");
+  }
   return line.replace(HEADING_LINE, escapeHeadingLine);
+}
+
+/** Each line of `lines` as the prompt shows it. */
+function escapeSummaryLines(lines: readonly string[]): string[] {
+  return lines.map((line, index) => escapeSummaryLine(line, lines[index - 1]));
 }
 
 /** For a PR summary sharing a fence with other sections: every heading but the allowed one is escaped, so none starts a section. */
 export function sanitizeUntrustedSummary(text: string): string {
-  return splitSummaryLines(text).map(escapeSummaryLine).join("\n");
+  return escapeSummaryLines(splitSummaryLines(text)).join("\n");
 }
 
 /**
@@ -272,12 +292,12 @@ export function restoreEscapedHeadings(
   const plainLines = splitSummaryLines(shownSummary);
   const plain = new Set(plainLines);
   const headings = new Map<string, string>();
-  for (const line of plainLines) {
-    const escaped = escapeSummaryLine(line);
-    if (escaped !== line && !plain.has(escaped)) {
+  escapeSummaryLines(plainLines).forEach((escaped, index) => {
+    const line = plainLines[index];
+    if (line !== undefined && escaped !== line && !plain.has(escaped)) {
       headings.set(escaped, line);
     }
-  }
+  });
   if (headings.size === 0) {
     return summary;
   }

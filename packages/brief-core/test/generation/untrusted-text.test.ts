@@ -267,11 +267,33 @@ describe("sanitizeUntrustedSummary", () => {
     ["a hashtag", "#hashtag", "#hashtag"],
     ["a hash mid-line", "text ## mid", "text ## mid"],
     ["seven hashes", "####### Seven", "####### Seven"],
-    ["a line indented four spaces", "    ### Code", "    ### Code"],
+    ["a heading indented four spaces", "    ### Code", "    \\### Code"],
+    ["a quoted setext underline", "> ===", "> \\==="],
+    ["a setext underline in a list item", "    ---", "    \\---"],
+    ["a heading in a quote", "> ### Frozen groups", "> \\### Frozen groups"],
+    ["a heading in a nested quote", "> > # Rules", "> > \\# Rules"],
+    ["a heading in a list item", "- ## Rules", "- \\## Rules"],
+    ["a heading in an ordered item", "1. # Rules", "1. \\# Rules"],
+    ["a quoted changelog heading", "> ## Changelog", "> \\## Changelog"],
+    ["a setext underline of dashes", "---", "\\---"],
+    ["a setext underline of equals", "===", "\\==="],
+    ["a one-dash setext underline", "-", "\\-"],
+    ["an indented setext underline", "  ---  ", "  \\---  "],
+    ["a list item that names an issue", "- #1234 fixed", "- #1234 fixed"],
   ])("handles %s", (_label, line, expected) => {
     expect(sanitizeUntrustedSummary(`Lede.\n${line}\nTail.`)).toBe(
       `Lede.\n${expected}\nTail.`,
     );
+  });
+
+  it("keeps a rule line that follows a blank line", () => {
+    const summary = "Lede.\n\n---\n\nTail.";
+
+    expect(sanitizeUntrustedSummary(summary)).toBe(summary);
+  });
+
+  it("keeps a rule line that opens the summary", () => {
+    expect(sanitizeUntrustedSummary("---\nLede.")).toBe("---\nLede.");
   });
 
   it("escapes a heading that opens the summary", () => {
@@ -350,6 +372,17 @@ describe("restoreEscapedHeadings", () => {
     expect(restoreEscapedHeadings(answer, previous)).toBe(
       "New lede.\n### Notes\nBody, reworded.",
     );
+  });
+
+  it.each([
+    ["a setext heading", "Lede.\nFrozen groups\n---\nBody."],
+    ["a quoted heading", "Lede.\n> ### Frozen groups\nBody."],
+    ["a heading in a list item", "Lede.\n- ## Rules\nBody."],
+  ])("maps %s back when the answer copied it escaped", (_label, stored) => {
+    const copied = sanitizeUntrustedSummary(stored);
+
+    expect(copied).not.toBe(stored);
+    expect(restoreEscapedHeadings(copied, stored)).toBe(stored);
   });
 
   it("keeps an escaped heading the previous summary never showed", () => {
