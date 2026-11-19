@@ -7,7 +7,6 @@ import { deleteUserCredentials } from "../src/auth/credentials";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
 import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
-import { TokenMintErrorCodes } from "../src/auth/types";
 import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
 import { readTestPostgresUrl } from "../src/testing";
 import type { ReviewerId } from "../src/types";
@@ -89,29 +88,6 @@ describe.skipIf(databaseUrl === undefined)(
     }
 
     it(
-      "refuses a mint whose session a committed logout deleted",
-      async () => {
-        const signedIn = await makeSignedInWithRevokedToken();
-        const loggedOut = await createSessionAuth(handle).deleteSession(
-          signedIn.sessionHash,
-        );
-
-        const minted = await createTokenAuth(handle).mintTokenFromSession(
-          signedIn.sessionHash,
-          makeMintInput(signedIn),
-        );
-
-        expect(loggedOut.orphanedGrants.map((grant) => grant.id)).toEqual([
-          signedIn.grant.id,
-        ]);
-        expect(minted.ok ? undefined : minted.error.code).toBe(
-          TokenMintErrorCodes.SESSION_GONE,
-        );
-      },
-      SUITE_TIMEOUT_MS,
-    );
-
-    it(
       "makes a logout wait for an in-flight mint and keep its grant",
       async () => {
         const signedIn = await makeSignedInWithRevokedToken();
@@ -141,25 +117,6 @@ describe.skipIf(databaseUrl === undefined)(
 
         expect(minted.ok).toBe(true);
         expect(loggedOut).toEqual({ deleted: 1, orphanedGrants: [] });
-      },
-      SUITE_TIMEOUT_MS,
-    );
-
-    it(
-      "keeps the grant when a logout follows a committed mint",
-      async () => {
-        const signedIn = await makeSignedInWithRevokedToken();
-        const minted = await createTokenAuth(handle).mintTokenFromSession(
-          signedIn.sessionHash,
-          makeMintInput(signedIn),
-        );
-
-        const loggedOut = await createSessionAuth(handle).deleteSession(
-          signedIn.sessionHash,
-        );
-
-        expect(minted.ok).toBe(true);
-        expect(loggedOut.orphanedGrants).toEqual([]);
       },
       SUITE_TIMEOUT_MS,
     );

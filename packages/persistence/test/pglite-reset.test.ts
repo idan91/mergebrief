@@ -73,9 +73,10 @@ async function readMigrationCount(harness: PgliteHarness): Promise<number> {
 }
 
 describe("resetPgliteHarness", () => {
-  it("returns every discovered table to its fresh count, ids restarted", async () => {
+  it("returns every table to its fresh count and ids, keeping the journal", async () => {
     const harness = await openHarness();
     const fresh = await countEveryTable(harness);
+    const migrations = await readMigrationCount(harness);
     const written = await upsertPullRequest(harness, 1);
     await harness.raw("insert into user_settings (gh_user_id) values (1)");
     await harness.raw(
@@ -91,19 +92,11 @@ describe("resetPgliteHarness", () => {
     expect(counts).toEqual(fresh);
     expect(await upsertPullRequest(harness, 1)).toBe(written);
     expect(await addStubJob(harness)).toBe(firstJob);
+    expect(await readMigrationCount(harness)).toBe(migrations);
+    expect(migrations).toBeGreaterThan(0);
   });
 
-  it("leaves the drizzle migration journal alone", async () => {
-    const harness = await openHarness();
-    const before = await readMigrationCount(harness);
-
-    await resetPgliteHarness(harness);
-
-    expect(await readMigrationCount(harness)).toBe(before);
-    expect(before).toBeGreaterThan(0);
-  });
-
-  it("re-inserts the rows the baseline held after the truncate", async () => {
+  it("re-inserts baseline rows and restores identity sequences past them", async () => {
     const harness = await createPgliteHarness();
     onTestFinished(() => harness.close());
     await harness.raw("insert into user_settings (gh_user_id) values (42)");
@@ -111,10 +104,14 @@ describe("resetPgliteHarness", () => {
       "insert into instance_version (id, version) values (true, '0.9.0')",
     );
     await harness.raw("insert into user_settings (gh_user_id) values (43)");
+    const seeded = await upsertPullRequest(harness, 1);
+    const seededJob = await addStubJob(harness);
 
     await resetPgliteHarness(harness);
     await harness.raw("insert into user_settings (gh_user_id) values (44)");
     await harness.raw("update instance_version set version = '2.0.0'");
+    await upsertPullRequest(harness, 2);
+    await addStubJob(harness);
     await resetPgliteHarness(harness);
 
     const settings = await harness.raw(
@@ -123,19 +120,6 @@ describe("resetPgliteHarness", () => {
     expect(settings.map((row) => Number(row["gh_user_id"]))).toEqual([42, 43]);
     const version = await harness.raw("select version from instance_version");
     expect(version[0]?.["version"]).toBe("0.9.0");
-  });
-
-  it("restores an identity column and its sequence past a baseline row", async () => {
-    const harness = await createPgliteHarness();
-    onTestFinished(() => harness.close());
-    const seeded = await upsertPullRequest(harness, 1);
-    const seededJob = await addStubJob(harness);
-
-    await resetPgliteHarness(harness);
-    await upsertPullRequest(harness, 2);
-    await addStubJob(harness);
-    await resetPgliteHarness(harness);
-
     const kept = await harness.raw("select id from pull_request order by id");
     expect(kept.map((row) => Number(row["id"]))).toEqual([Number(seeded)]);
     expect(await upsertPullRequest(harness, 3)).toBe(seeded + 1n);
