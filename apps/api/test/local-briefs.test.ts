@@ -44,6 +44,14 @@ function buildIdPaths(id: string): string[] {
 
 const ALL_PATHS = [LIST_PATH, ...buildIdPaths(SECOND_ID)];
 
+/** One expected answer per path, so a diff names the path that differs. */
+function buildAnswerPerPath(
+  paths: readonly string[],
+  answer: unknown,
+): Record<string, unknown> {
+  return Object.fromEntries(paths.map((path) => [path, answer]));
+}
+
 const ARTIFACTS: Readonly<Record<string, string>> = {
   [`${SECOND_ID}.brief.json`]: buildStoredBriefJson(SECOND_SHA, 2, "Second"),
   [`${SECOND_ID}.comments.json`]: JSON.stringify(REVIEW_COMMENTS),
@@ -194,38 +202,49 @@ describe("/api/local-briefs", () => {
       expect(await res.text()).toBe(ARTIFACTS[`${SECOND_ID}${suffix}`]);
     });
 
-    it.each(ALL_PATHS)("refuses %s without a session", async (path) => {
+    it("refuses every path without a session", async () => {
       const app = buildApp(dir);
 
-      const res = await app.request(path);
-      expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({
-        error: "signed out",
-        code: "signed-out",
-      });
+      const answers: Record<string, unknown> = {};
+      for (const path of ALL_PATHS) {
+        const res = await app.request(path);
+        answers[path] = { status: res.status, body: await res.json() };
+      }
+
+      const refused = {
+        status: 401,
+        body: { error: "signed out", code: "signed-out" },
+      };
+      expect(answers).toEqual(buildAnswerPerPath(ALL_PATHS, refused));
     });
 
-    it.each(buildIdPaths(SECOND_ID))(
-      "answers %s artifact-unreadable for a file it cannot read",
-      async (path) => {
-        await Promise.all(
-          Object.keys(ARTIFACTS).map((name) =>
-            makeUnreadableArtifact(dir, name),
-          ),
-        );
-        const app = buildApp(dir);
+    it("answers every id path artifact-unreadable for an unreadable file", async () => {
+      await Promise.all(
+        Object.keys(ARTIFACTS).map((name) => makeUnreadableArtifact(dir, name)),
+      );
+      const app = buildApp(dir);
 
+      const idPaths = buildIdPaths(SECOND_ID);
+      const answers: Record<string, unknown> = {};
+      for (const path of idPaths) {
         const res = await readSignedIn(app, path);
-        expect(res.status).toBe(500);
-        expect(res.headers.get("cache-control")).toBe("no-store");
         const body = await res.text();
-        expect(JSON.parse(body)).toEqual({
-          error: "artifact unreadable",
-          code: "artifact-unreadable",
-        });
-        expect(body).not.toContain(dir);
-      },
-    );
+        answers[path] = {
+          status: res.status,
+          cacheControl: res.headers.get("cache-control"),
+          body: JSON.parse(body),
+          leaksDir: body.includes(dir),
+        };
+      }
+
+      const unreadable = {
+        status: 500,
+        cacheControl: "no-store",
+        body: { error: "artifact unreadable", code: "artifact-unreadable" },
+        leaksDir: false,
+      };
+      expect(answers).toEqual(buildAnswerPerPath(idPaths, unreadable));
+    });
 
     it("answers the list artifact-unreadable for a directory it cannot read", async () => {
       await writeArtifacts(dir, { "not-a-dir": "" });
@@ -283,19 +302,30 @@ describe("/api/local-briefs", () => {
   });
 
   describe("with no directory configured", () => {
-    it.each(ALL_PATHS)("answers %s as an unmounted path", async (path) => {
+    it("answers every path as an unmounted path", async () => {
       await writeArtifacts(dir, ARTIFACTS);
       const app = buildApp(undefined);
       const unmounted = await readUnmounted(app);
 
-      const anonymous = await app.request(path);
-      expect(anonymous.status).toBe(404);
-      expect(await anonymous.text()).toBe(unmounted);
+      const answers: Record<string, unknown> = {};
+      for (const path of ALL_PATHS) {
+        const anonymous = await app.request(path);
+        const signedIn = await readSignedIn(app, path);
+        answers[path] = {
+          anonymous: { status: anonymous.status, body: await anonymous.text() },
+          signedIn: {
+            status: signedIn.status,
+            version: signedIn.headers.get("mergebrief-version"),
+            body: await signedIn.text(),
+          },
+        };
+      }
 
-      const signedIn = await readSignedIn(app, path);
-      expect(signedIn.status).toBe(404);
-      expect(signedIn.headers.get("mergebrief-version")).toBeNull();
-      expect(await signedIn.text()).toBe(unmounted);
+      const absent = {
+        anonymous: { status: 404, body: unmounted },
+        signedIn: { status: 404, version: null, body: unmounted },
+      };
+      expect(answers).toEqual(buildAnswerPerPath(ALL_PATHS, absent));
     });
 
     it("stays absent in production whatever MERGEBRIEF_OUT_DIR says", async () => {

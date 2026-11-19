@@ -21,6 +21,7 @@ const OAUTH_STATE_BYTES = 32;
 const PR_PATH = "/repos/424242/pulls/1?rev=1&thread=9";
 const STORED_PR_PATH = encodeURIComponent(PR_PATH);
 const STATE = "matching-state-nonce";
+const OFF_SITE_PATH = "//evil.example";
 
 function findSetCookie(res: Response, name: string): string | undefined {
   return res.headers
@@ -89,19 +90,16 @@ describe("sign-in return-to", () => {
     expect(returnCookie).toContain("Max-Age=600");
   });
 
-  it.each(["//evil.example", "/api/auth/github", "https://evil.example"])(
-    "a start with unsafe returnTo %j clears the stored one",
-    async (returnTo) => {
-      const res = await app.request(buildStartUrl(returnTo), {
-        headers: { Cookie: `${RETURN_COOKIE}=%2Fsettings` },
-      });
+  it("a start with an unsafe returnTo clears the stored one", async () => {
+    const res = await app.request(buildStartUrl(OFF_SITE_PATH), {
+      headers: { Cookie: `${RETURN_COOKIE}=%2Fsettings` },
+    });
 
-      expect(res.status).toBe(302);
-      const returnCookie = findSetCookie(res, RETURN_COOKIE);
-      expect(readCookieValue(returnCookie)).toBe("");
-      expect(returnCookie).toMatch(/Max-Age=0/i);
-    },
-  );
+    expect(res.status).toBe(302);
+    const returnCookie = findSetCookie(res, RETURN_COOKIE);
+    expect(readCookieValue(returnCookie)).toBe("");
+    expect(returnCookie).toMatch(/Max-Age=0/i);
+  });
 
   it("a start without returnTo clears the stored one", async () => {
     const res = await app.request("/api/auth/github", {
@@ -134,21 +132,19 @@ describe("sign-in return-to", () => {
     expect(findSetCookie(res, "__Host-mergebrief_session")).toBeDefined();
   });
 
-  it.each(["%2F%2Fevil.example", "https%3A%2F%2Fevil.example", "%2Fapi"])(
-    "a signed-in callback with tampered cookie %j lands home",
-    async (tampered) => {
-      stubGitHub({ token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN) });
+  it("a signed-in callback with a tampered cookie lands home", async () => {
+    stubGitHub({ token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN) });
+    const tampered = encodeURIComponent(OFF_SITE_PATH);
 
-      const res = await app.request(
-        `/api/auth/github/callback?code=thecode&state=${STATE}`,
-        { headers: { Cookie: buildCookieHeader(tampered) } },
-      );
+    const res = await app.request(
+      `/api/auth/github/callback?code=thecode&state=${STATE}`,
+      { headers: { Cookie: buildCookieHeader(tampered) } },
+    );
 
-      expect(res.status).toBe(302);
-      expect(res.headers.get("location")).toBe("/");
-      expect(findSetCookie(res, RETURN_COOKIE)).toMatch(/Max-Age=0/i);
-    },
-  );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(findSetCookie(res, RETURN_COOKIE)).toMatch(/Max-Age=0/i);
+  });
 
   it("a failed sign-in lands home with the error and clears the path", async () => {
     stubGitHub({

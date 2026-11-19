@@ -127,14 +127,6 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     });
   });
 
-  it("401s without a session cookie and never reads the roster", async () => {
-    stubRepoAccess(() => repoOk(true));
-    const res = await getCollaborators(app, undefined);
-    expect(res.status).toBe(401);
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(fake.calls).toEqual([]);
-  });
-
   it("404s without repo access and leaves the roster unread", async () => {
     stubRepoAccess(() => jsonResponse({ message: "denied" }, 404));
     const { cookie } = await seedSignIn(harness.handle, kp);

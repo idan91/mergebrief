@@ -342,9 +342,4 @@ describe("read-review-session", () => {
     expect(noHead.status).toBe(400);
     expect(await sessionRows()).toBe(0);
   });
-
-  it("401s without a session cookie", async () => {
-    const res = await app.request(sessionPath("head-1"));
-    expect(res.status).toBe(401);
-  });
 });

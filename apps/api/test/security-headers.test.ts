@@ -14,6 +14,15 @@ const EXPECTED_HEADERS = {
   "x-frame-options": "DENY",
 };
 
+const ANSWERS = [
+  ["a gate's refusal", "GET", "/api/version", 401],
+  ["the sign-in redirect", "GET", "/api/auth/github", 302],
+  ["the OAuth callback's redirect", "GET", "/api/auth/github/callback", 302],
+  ["an unsigned webhook", "POST", "/api/webhooks/github", 401],
+  ["an unmatched api path", "GET", "/api/no-such-route", 404],
+  ["a path outside /api", "GET", "/no-such-route", 404],
+] as const;
+
 describe("security response headers", () => {
   const harness = registerSharedPglite();
   let app: ApiApp;
@@ -30,18 +39,16 @@ describe("security response headers", () => {
     });
   });
 
-  it.each([
-    ["a gate's refusal", "GET", "/api/version", 401],
-    ["the sign-in redirect", "GET", "/api/auth/github", 302],
-    ["the OAuth callback's redirect", "GET", "/api/auth/github/callback", 302],
-    ["an unsigned webhook", "POST", "/api/webhooks/github", 401],
-    ["an unmatched api path", "GET", "/api/no-such-route", 404],
-    ["a path outside /api", "GET", "/no-such-route", 404],
-  ])("answers %s with every header", async (_answer, method, path, status) => {
-    const res = await app.request(path, { method });
+  it("answers every layer with every header", async () => {
+    const answers: Record<string, unknown> = {};
+    const expected: Record<string, unknown> = {};
+    for (const [answer, method, path, status] of ANSWERS) {
+      const res = await app.request(path, { method });
+      const headers = Object.fromEntries(res.headers.entries());
+      answers[answer] = { status: res.status, headers };
+      expected[answer] = { status, headers: EXPECTED_HEADERS };
+    }
 
-    expect(res.status).toBe(status);
-    const headers = Object.fromEntries(res.headers.entries());
-    expect(headers).toMatchObject(EXPECTED_HEADERS);
+    expect(answers).toMatchObject(expected);
   });
 });

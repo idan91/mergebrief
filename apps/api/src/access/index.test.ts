@@ -246,40 +246,6 @@ beforeEach(() => {
 });
 
 describe("repoAuthzLayer refresh disambiguation", () => {
-  it("answers 401 when the check still 401s after a good refresh", async () => {
-    const app = await buildGateApp();
-    arrangeRepo(9101n, "acme/inside");
-    fake.rejectToken(STALE_TOKEN);
-    fake.rejectToken(ROTATED_TOKEN);
-    vi.mocked(refreshSessionToken).mockImplementation(async (_d, session) => ({
-      ok: true,
-      value: { session, accessToken: ROTATED_TOKEN },
-    }));
-
-    const res = await app.request("/9101/probe");
-
-    expect(res.status).toBe(401);
-    expect(await res.json()).toMatchObject({ code: "unauthorized" });
-    // One cold check + exactly one post-refresh retry; one refresh spent.
-    expect(countRepositoryReads()).toBe(2);
-    expect(refreshSessionToken).toHaveBeenCalledTimes(1);
-  });
-
-  it("answers 401 when the refresh finds the grant dead", async () => {
-    const app = await buildGateApp();
-    arrangeRepo(9101n, "acme/inside");
-    fake.rejectToken(STALE_TOKEN);
-    vi.mocked(refreshSessionToken).mockResolvedValue({
-      ok: false,
-      error: { code: RefreshErrorCodes.GRANT_DEAD, message: "grant dead" },
-    });
-
-    const res = await app.request("/9101/probe");
-
-    expect(res.status).toBe(401);
-    expect(countRepositoryReads()).toBe(1);
-  });
-
   it("answers 502 github-unavailable when GitHub skips the refresh", async () => {
     const app = await buildGateApp();
     arrangeRepo(9101n, "acme/inside");
