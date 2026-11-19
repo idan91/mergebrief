@@ -42,6 +42,7 @@ import {
 const PR = { ...REPO, prNumber: 7 };
 const REPO_ID = requireRepoId(4242n);
 const UPDATED_AT = new Date("2026-10-01T10:00:00Z");
+const CREATED_AT = new Date("2026-09-01T08:00:00Z");
 const AUTHOR_ID = 501n;
 
 const EMPTY_CONVERSATION: PrConversation = {
@@ -159,6 +160,7 @@ function arrangePullRequest(
       authorIsBot: false,
       closedAt: null,
       updatedAt: UPDATED_AT,
+      createdAt: CREATED_AT,
       baseRepo: { owner: "acme", repo: "widgets" },
     },
     files: [{ path: "src/a.ts", additions: 3, deletions: 1 }],

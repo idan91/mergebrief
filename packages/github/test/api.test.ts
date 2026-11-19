@@ -680,6 +680,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         user: { login: "octocat" },
         closed_at: null,
         updated_at: "2026-09-20T10:00:00Z",
+        created_at: "2026-09-01T08:00:00Z",
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -713,6 +714,7 @@ describe("fetchPullRequest / fetchDiff", () => {
       authorIsBot: false,
       closedAt: null,
       updatedAt: new Date("2026-09-20T10:00:00Z"),
+      createdAt: new Date("2026-09-01T08:00:00Z"),
       headRepo: { owner: "contributor", repo: "fork" },
       baseRepo: { owner: "o", repo: "r" },
     });

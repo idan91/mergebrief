@@ -101,6 +101,7 @@ function makePullInfo(overrides?: Partial<PullRequestInfo>): PullRequestInfo {
     authorIsBot: false,
     closedAt: null,
     updatedAt: NOW,
+    createdAt: new Date("2026-09-01T08:00:00Z"),
     ...overrides,
   };
 }

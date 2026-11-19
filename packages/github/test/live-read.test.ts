@@ -25,6 +25,7 @@ const OPEN_PR = {
     title: "Add thing",
     closedAt: null,
     updatedAt: "2026-09-20T10:00:00Z",
+    createdAt: "2026-09-01T08:00:00Z",
     headRefOid: "a".repeat(40),
     author: { login: "octocat" },
   },
@@ -38,6 +39,7 @@ const MERGED_PR = {
     title: "Done thing",
     closedAt: "2026-09-19T10:00:00Z",
     updatedAt: "2026-09-19T10:00:00Z",
+    createdAt: "2026-09-02T08:00:00Z",
     headRefOid: "b".repeat(40),
     author: null,
   },
@@ -74,6 +76,7 @@ describe("readPullRequestFacts", () => {
       title: "Add thing",
       closedAt: null,
       updatedAt: new Date("2026-09-20T10:00:00Z"),
+      createdAt: new Date("2026-09-01T08:00:00Z"),
       headSha: "a".repeat(40),
       authorLogin: "octocat",
     });

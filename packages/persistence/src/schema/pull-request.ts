@@ -71,6 +71,12 @@ export const pullRequest = pgTable(
      */
     githubUpdatedAt: timestamp("github_updated_at", { withTimezone: true }),
     /**
+     * GitHub's `pull_request.created_at`, the Inbox's created sort key. Null
+     * until an event or a live read carries it: a row stored before the
+     * column existed fills in the next time GitHub names it.
+     */
+    githubCreatedAt: timestamp("github_created_at", { withTimezone: true }),
+    /**
      * The live read: when GitHub last answered for this row and the head it
      * reported, which a newer push webhook clears, and, for a url row, when
      * GitHub first stopped showing it to the owner. Null before the first

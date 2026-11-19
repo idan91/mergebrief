@@ -206,6 +206,7 @@ export function makePullRequestBody(prNumber: number): unknown {
     user: { login: "octocat" },
     closed_at: null,
     updated_at: "2026-10-01T10:00:00Z",
+    created_at: "2026-09-01T08:00:00Z",
     head: { sha: "b".repeat(40), ref: "feature", repo: null },
     base: {
       sha: "a".repeat(40),

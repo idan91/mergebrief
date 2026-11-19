@@ -85,6 +85,7 @@ export async function generateBrief(
     title: info.title,
     baseSha: info.baseSha,
     draft: info.draft,
+    githubCreatedAt: info.createdAt,
     liveRead: { readAt, headSha: info.headSha },
   };
   const lifecycle = deriveLifecycle(info, readAt);

@@ -86,6 +86,7 @@ export async function readInboxPage(
     reviewerLogin: input.reviewerLogin,
     filters: input.filters,
     sort: input.sort,
+    direction: input.direction,
     layout: input.layout,
     page: input.page,
     pageSize: INBOX_PAGE_SIZE,

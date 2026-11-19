@@ -11,7 +11,9 @@ import {
   type InboxReviewState,
   type InboxSort,
   InboxLayouts,
+  InboxSortDirections,
 } from "types/inbox";
+import type { Mutable } from "types";
 import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
@@ -21,6 +23,7 @@ import {
   type InboxFilters,
   type InboxListInput,
   type PullRequestLifecycle,
+  type PullRequestUpsertInput,
   type ScopeContext,
 } from "../src/index";
 import { internal } from "../src/db/handle";
@@ -72,6 +75,7 @@ interface SeedRow {
   readonly draft?: boolean;
   readonly lifecycle?: PullRequestLifecycle;
   readonly updatedAt?: Date;
+  readonly createdAt?: Date;
   readonly githubHeadSha?: string;
 }
 
@@ -82,10 +86,7 @@ async function seedRow(
   const lifecycle: PullRequestLifecycle = seed.lifecycle ?? {
     state: PrStates.OPEN,
   };
-  const row = await createTenantRepository(
-    handle,
-    seed.ctx,
-  ).pullRequests.upsert({
+  const input: Mutable<PullRequestUpsertInput> = {
     repoId: seed.repoId,
     prNumber: seed.prNumber,
     repoSlug: `org/repo-${seed.repoId}`,
@@ -94,7 +95,12 @@ async function seedRow(
     draft: seed.draft ?? false,
     githubUpdatedAt: seed.updatedAt ?? new Date("2026-09-01T00:00:00Z"),
     ...lifecycle,
-  });
+  };
+  if (seed.createdAt !== undefined) {
+    input.githubCreatedAt = seed.createdAt;
+  }
+  const pullRequests = createTenantRepository(handle, seed.ctx).pullRequests;
+  const row = await pullRequests.upsert(input);
   if (seed.githubHeadSha !== undefined) {
     await internal(handle).execute(
       sql`update pull_request set github_head_sha = ${seed.githubHeadSha} where id = ${row.id}`,
@@ -685,6 +691,124 @@ describe("createInboxStore.list, fold and sort", () => {
       4, 3, 2, 6, 5, 1,
     ]);
     expect(page.counts.new).toBe(2);
+  });
+});
+
+describe("createInboxStore.list, the created sort and the direction", () => {
+  const makeSeptemberDay = (dayOfMonth: number): Date =>
+    new Date(`2026-09-${String(dayOfMonth).padStart(2, "0")}T00:00:00Z`);
+  const MIXED_BY_CREATED: Partial<InboxListInput> = {
+    sort: InboxSorts.CREATED,
+    layout: InboxLayouts.MIXED,
+  };
+
+  /** Created 1 newest, then 3, then 2; 4 has no creation time. Updated 2 newest, then 4, 3, 1. */
+  async function seedCreatedFixture(handle: AppDatabase): Promise<void> {
+    const rows = [
+      {
+        prNumber: 1,
+        createdAt: makeSeptemberDay(3),
+        updatedAt: makeSeptemberDay(1),
+      },
+      {
+        prNumber: 2,
+        createdAt: makeSeptemberDay(1),
+        updatedAt: makeSeptemberDay(9),
+      },
+      {
+        prNumber: 3,
+        createdAt: makeSeptemberDay(2),
+        updatedAt: makeSeptemberDay(5),
+      },
+      { prNumber: 4, updatedAt: makeSeptemberDay(7) },
+    ];
+    for (const row of rows) {
+      await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, ...row });
+    }
+  }
+
+  it("lists the newest created pull request first", async () => {
+    const handle = shared.handle;
+    await seedCreatedFixture(handle);
+
+    expect(await listNumbers(handle, MIXED_BY_CREATED)).toEqual([1, 3, 2, 4]);
+  });
+
+  it("ascending lists the oldest created first, the unknown still last", async () => {
+    const handle = shared.handle;
+    await seedCreatedFixture(handle);
+
+    expect(
+      await listNumbers(handle, {
+        ...MIXED_BY_CREATED,
+        direction: InboxSortDirections.ASCENDING,
+      }),
+    ).toEqual([2, 3, 1, 4]);
+  });
+
+  it("the direction turns the update sort too", async () => {
+    const handle = shared.handle;
+    await seedCreatedFixture(handle);
+
+    expect(
+      await listNumbers(handle, {
+        sort: InboxSorts.UPDATED,
+        layout: InboxLayouts.MIXED,
+        direction: InboxSortDirections.ASCENDING,
+      }),
+    ).toEqual([1, 3, 4, 2]);
+  });
+
+  it("the fold stays first whichever way the sort runs", async () => {
+    const handle = shared.handle;
+    const reviewed = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+      createdAt: makeSeptemberDay(1),
+    });
+    const reviewedBrief = await seedBrief(handle, CTX_ACME, reviewed, "h1");
+    await openSession(handle, CTX_ACME, reviewedBrief, VIEWER, true);
+    for (const prNumber of [2, 3]) {
+      const fresh = await seedRow(handle, {
+        ctx: CTX_ACME,
+        repoId: REPO_A,
+        prNumber,
+        createdAt: makeSeptemberDay(prNumber),
+      });
+      await seedBrief(handle, CTX_ACME, fresh, `h${prNumber}`);
+    }
+
+    const ascending = await listNumbers(handle, {
+      sort: InboxSorts.CREATED,
+      direction: InboxSortDirections.ASCENDING,
+    });
+    const descending = await listNumbers(handle, { sort: InboxSorts.CREATED });
+
+    expect(ascending).toEqual([2, 3, 1]);
+    expect(descending).toEqual([3, 2, 1]);
+  });
+
+  it("rows created at one instant page in a stable order", async () => {
+    const handle = shared.handle;
+    for (const prNumber of [1, 2, 3]) {
+      await seedRow(handle, {
+        ctx: CTX_ACME,
+        repoId: REPO_A,
+        prNumber,
+        createdAt: makeSeptemberDay(1),
+      });
+    }
+    const ascending: Partial<InboxListInput> = {
+      ...MIXED_BY_CREATED,
+      direction: InboxSortDirections.ASCENDING,
+      pageSize: 2,
+    };
+
+    const first = await listNumbers(handle, { ...ascending, page: 1 });
+    const second = await listNumbers(handle, { ...ascending, page: 2 });
+
+    expect([...first, ...second]).toEqual([1, 2, 3]);
   });
 });
 

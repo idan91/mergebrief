@@ -49,6 +49,7 @@ export {
   InboxFoldStates,
   InboxLayouts,
   InboxReviewStates,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   type InboxArchivedFilter,
@@ -57,6 +58,7 @@ export {
   type InboxLayout,
   type InboxReviewState,
   type InboxSort,
+  type InboxSortDirection,
   type InboxStatus,
 } from "./inbox";
 export {

@@ -58,6 +58,7 @@ export function shapeInboxItem(
     generation: buildGenerationSummary(latestGeneration, undefined),
     latestBriefAt: latestBrief?.createdAt.toISOString() ?? null,
     githubUpdatedAt: pullRequest.githubUpdatedAt?.toISOString() ?? null,
+    githubCreatedAt: pullRequest.githubCreatedAt?.toISOString() ?? null,
     stack: liveStack === undefined ? storedStack : liveStack,
   };
 }

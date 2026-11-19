@@ -31,8 +31,17 @@ export const InboxSorts = {
   UPDATED: "updated",
   /** By the latest Brief's creation time. */
   GENERATED: "generated",
+  /** By GitHub's `created_at`; a row whose creation time was never read sorts last. */
+  CREATED: "created",
 } as const;
 export type InboxSort = ValueOf<typeof InboxSorts>;
+
+/** Which way a sort runs: newest first, the default, or oldest first. */
+export const InboxSortDirections = {
+  DESCENDING: "desc",
+  ASCENDING: "asc",
+} as const;
+export type InboxSortDirection = ValueOf<typeof InboxSortDirections>;
 
 export const InboxAuthorFilters = {
   MINE: "mine",

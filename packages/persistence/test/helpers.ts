@@ -29,6 +29,7 @@ import {
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxLayouts,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
 } from "types/inbox";
@@ -443,6 +444,7 @@ export function makeInboxListInput(
     reviewerLogin: "octocat",
     filters: DEFAULT_INBOX_FILTERS,
     sort: InboxSorts.UPDATED,
+    direction: InboxSortDirections.DESCENDING,
     layout: InboxLayouts.FOLDED,
     page: 1,
     pageSize: 25,

@@ -54,6 +54,7 @@ function buildFixturePull(number) {
     user: { login: "e2e-author" },
     closed_at: null,
     updated_at: new Date(0).toISOString(),
+    created_at: new Date(0).toISOString(),
     head: {
       sha: "22222222eeee3333ffff4444aaaa5555bbbb6666",
       ref: "e2e-fixture",
@@ -273,6 +274,7 @@ function answerLiveRead(init) {
               updatedAt: new Date(
                 Date.now() - row.updatedMinutesAgo * MINUTE_MS,
               ).toISOString(),
+              createdAt: new Date(0).toISOString(),
               headRefOid: row.headSha,
               author: { login: row.author },
             },

@@ -60,6 +60,8 @@ export interface PullRequestInfo {
   readonly closedAt: Date | null;
   /** GitHub's `updated_at`, the Inbox's default sort key. */
   readonly updatedAt: Date;
+  /** GitHub's `created_at`, the Inbox's created sort key. */
+  readonly createdAt: Date;
   readonly headRepo?: RepoIdentity;
   readonly baseRepo?: RepoIdentity;
 }

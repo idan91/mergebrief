@@ -232,6 +232,9 @@ function shapePullRequestUpsert(
   if (event.updatedAt !== undefined) {
     upsert.githubUpdatedAt = event.updatedAt;
   }
+  if (event.createdAt !== undefined) {
+    upsert.githubCreatedAt = event.createdAt;
+  }
 
   return upsert;
 }
@@ -578,6 +581,9 @@ async function triggerGeneration(
   }
   if ("updatedAt" in event && event.updatedAt !== undefined) {
     pullRequest.githubUpdatedAt = event.updatedAt;
+  }
+  if ("createdAt" in event && event.createdAt !== undefined) {
+    pullRequest.githubCreatedAt = event.createdAt;
   }
   const input: Mutable<TriggerGenerationInput> = {
     pullRequest,

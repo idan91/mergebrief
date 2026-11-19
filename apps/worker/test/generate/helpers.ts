@@ -643,6 +643,7 @@ export function makePullRequestInfo(headSha: string): PullRequestInfo {
     authorIsBot: false,
     closedAt: null,
     updatedAt: new Date("2026-09-20T10:00:00Z"),
+    createdAt: new Date("2026-09-01T08:00:00Z"),
     headRepo: { owner: "acme", repo: "widget" },
     baseRepo: { owner: "acme", repo: "widget" },
   };

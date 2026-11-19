@@ -76,6 +76,7 @@ export async function fetchPullRequest(
       authorIsBot: data.user?.type === GitHubAccountTypes.BOT,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),
       updatedAt: new Date(data.updated_at),
+      createdAt: new Date(data.created_at),
     };
     if (typeof data.base.ref === "string" && data.base.ref !== "") {
       info.baseRef = data.base.ref;

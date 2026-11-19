@@ -3,6 +3,7 @@ import {
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxReviewStates,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   InboxLayouts,
@@ -40,6 +41,9 @@ export const inboxQuerySchema = z.object({
     .max(MAX_INBOX_PAGE)
     .default(1),
   [InboxQueryKeys.SORT]: z.enum(InboxSorts).default(InboxSorts.UPDATED),
+  [InboxQueryKeys.DIRECTION]: z
+    .enum(InboxSortDirections)
+    .default(InboxSortDirections.DESCENDING),
   [InboxQueryKeys.LAYOUT]: z.enum(InboxLayouts).default(InboxLayouts.FOLDED),
   [InboxQueryKeys.STATE]: z
     .array(z.enum(InboxStatuses))

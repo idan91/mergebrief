@@ -24,6 +24,14 @@ deprecation note here, removal only at a major.
   search text matches whatever the filters or the view, beside `total`, and
   `archivedSearchMatchTotal`, the rows of that count the viewer archived.
   Both are 0 without search text.
+- **Added** `sort=created` on `GET /api/inbox`: the list ordered by GitHub's
+  creation time of each pull request. Each item carries `githubCreatedAt`,
+  null until a webhook or a live read names the pull request after this
+  version; a row with no creation time sorts last.
+- **Added** `direction` on `GET /api/inbox`: `desc`, the default, lists the
+  newest first under any sort, and `asc` the oldest first. A row with no
+  value for the sort stays last either way, and the folded layout still
+  leads with the rows that need the reviewer. Any other value is a 400.
 
 ## dev (2026-11-14)
 

@@ -81,6 +81,7 @@ const LIVE_READ_REPOSITORY = {
     title: "Add widgets",
     closedAt: null,
     updatedAt: "2026-10-01T10:00:00Z",
+    createdAt: "2026-09-01T08:00:00Z",
     headRefOid: HEAD_SHA,
     author: { login: "octocat" },
   },

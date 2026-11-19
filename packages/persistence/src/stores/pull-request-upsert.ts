@@ -138,6 +138,9 @@ export async function upsertPullRequestRow(
   if (input.githubUpdatedAt !== undefined) {
     set.githubUpdatedAt = input.githubUpdatedAt;
   }
+  if (input.githubCreatedAt !== undefined) {
+    set.githubCreatedAt = input.githubCreatedAt;
+  }
   if (input.liveRead !== undefined) {
     Object.assign(set, buildLiveReadColumns(input.liveRead));
   }
@@ -153,6 +156,7 @@ export async function upsertPullRequestRow(
     draft: input.draft,
     authorLogin: input.authorLogin,
     githubUpdatedAt: input.githubUpdatedAt,
+    githubCreatedAt: input.githubCreatedAt,
     githubReadAt: input.liveRead?.readAt,
     githubHeadSha: input.liveRead?.headSha,
     ...lifecycle,
