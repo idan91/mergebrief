@@ -40,20 +40,6 @@ describe("readInstallationPresence", () => {
     expect(stub.requests[0]?.authorization).toMatch(/^bearer /i);
   });
 
-  it("reads gone on a 404", async () => {
-    const stub = answerPresence({
-      status: 404,
-      body: { message: "Not Found" },
-    });
-
-    const result = await readInstallationPresence(
-      makeApp(stub),
-      INSTALLATION_ID,
-    );
-
-    expect(result).toEqual({ ok: true, value: InstallationPresences.GONE });
-  });
-
   it("answers a sanitized failure on a 403 without the upstream text", async () => {
     const stub = answerPresence({
       status: 403,

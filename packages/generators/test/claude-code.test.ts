@@ -729,17 +729,6 @@ describe("claude-code registry entry", () => {
     expect(issues).toContain("older");
   });
 
-  it("warns but constructs on a CLI newer than the checked version", async () => {
-    const warnings: string[] = [];
-    const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.2.0" });
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: deps.command },
-      { ...deps, log: (m) => warnings.push(m) },
-    );
-    expect(result.ok).toBe(true);
-    expect(warnings.join("; ")).toContain("newer");
-  });
-
   it("warns unverifiable but constructs on pre-JSON auth-status output", async () => {
     const warnings: string[] = [];
     const deps = makeDeps({

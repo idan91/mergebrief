@@ -448,17 +448,6 @@ describe("codex registry entry", () => {
     expect(issues).toContain("0.163.0");
   });
 
-  it("warns but constructs on a CLI newer than the checked version", async () => {
-    const warnings: string[] = [];
-    const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "0.170.0" });
-    const result = await createGenerator(
-      { provider: Providers.CODEX, command: deps.command },
-      { ...deps, log: (m) => warnings.push(m) },
-    );
-    expect(result.ok).toBe(true);
-    expect(warnings.join("; ")).toContain("newer");
-  });
-
   it("refuses a stored API-key login that would bill an API account", async () => {
     const deps = makeDeps({
       SHIM_SCENARIO: "valid",

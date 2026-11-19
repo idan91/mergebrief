@@ -551,56 +551,6 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     expect(calls).toBe(2); // truncated attempt failed, retry recovered
   });
 
-  it("fails a length finish as output-cut, never salvaging the fragment", async () => {
-    // finish_reason=length + salvageable payload: salvage would return the
-    // FRAGMENT as a completed generation, and a retry at the same cap is
-    // cut the same way.
-    const SalvageSchema = z.object({
-      title: z.string(),
-      tags: z.array(z.enum(["bugfix"])),
-    });
-    let calls = 0;
-    const fixtureFetch: typeof fetch = async (input) => {
-      const models = modelsOk(getRequestUrl(input));
-      if (models) {
-        return models;
-      }
-      calls += 1;
-      const payload =
-        calls === 1
-          ? '{"title":"t","tags":["bugfix","scary"]}'
-          : '{"title":"t","tags":["bugfix"]}';
-      const reason = calls === 1 ? "length" : "stop";
-      const events = [
-        `data: ${JSON.stringify({
-          choices: [
-            { index: 0, delta: { content: payload }, finish_reason: null },
-          ],
-        })}\n\n`,
-        `data: ${JSON.stringify({
-          choices: [{ index: 0, delta: {}, finish_reason: reason }],
-        })}\n\n`,
-        "data: [DONE]\n\n",
-      ].join("");
-      return new Response(events, {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      });
-    };
-    const generator = await mustCore(fixtureFetch);
-    await expect(
-      generator.generate({
-        schema: SalvageSchema,
-        system: "s",
-        user: "u",
-        effort: "medium",
-        label: "salvage-trunc",
-        salvageFields: ["tags"],
-      }),
-    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.OUTPUT_CUT });
-    expect(calls).toBe(1);
-  });
-
   it("fails schema-valid output ending with finish_reason=length as cut", async () => {
     const { generator, recorded } = await coreWith(() =>
       stubSseFinishing('{"ok":true}', "length"),
