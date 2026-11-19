@@ -71,6 +71,8 @@ export interface PrBriefContentProps {
   /** The route's URL writes. */
   address: BriefAddressPort;
   readOnly?: { reason: string } | undefined;
+  /** Session writes stay open; posting to GitHub is off. */
+  postingDisabled?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
   /** Present only when a newer briefed revision exists to move to. */
@@ -94,6 +96,7 @@ export function PrBriefContent({
   searchParams,
   address: port,
   readOnly,
+  postingDisabled,
   staleHead,
   onGoToNewest,
   timeline,
@@ -319,6 +322,7 @@ export function PrBriefContent({
   const review = buildPrReview({
     submitReview: submitAction,
     readOnly,
+    postingDisabled,
     staleHead: staleHead === true,
     ownDraft,
     session: session.data,

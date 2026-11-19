@@ -12,6 +12,8 @@ export interface PrReviewInput {
   submitReview: SubmitReviewAction;
   /** Base drift; wins over the session's reason. */
   readOnly: { reason: string } | undefined;
+  /** The demo build: session writes stay open, posting to GitHub is off. */
+  postingDisabled: { reason: string } | undefined;
   staleHead: boolean;
   ownDraft: OwnDraftPlan | undefined;
   /** Absent while the read has not landed or has failed. */
@@ -40,6 +42,9 @@ export function buildPrReview(input: PrReviewInput): ReviewCapability {
   };
   if (input.readOnly !== undefined) {
     review.readOnly = input.readOnly;
+  }
+  if (input.postingDisabled !== undefined) {
+    review.postingDisabled = input.postingDisabled;
   }
   if (session === undefined) {
     review.readOnly ??= { reason: input.sessionUnavailableReason };

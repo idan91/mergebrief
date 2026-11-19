@@ -261,6 +261,8 @@ export interface ReviewCapability {
   submitReview?: SubmitReviewAction | undefined;
   /** Base drift: anchors can land wrong, so nothing is written. */
   readOnly?: { reason: string } | undefined;
+  /** Session writes stay open while everything that posts to GitHub is off. */
+  postingDisabled?: { reason: string } | undefined;
   /** Head drift: the composer stays live, Submit gates behind an ack. */
   staleHead: boolean;
   ownDraft?: OwnDraftPlan | undefined;
@@ -477,6 +479,8 @@ export interface ConversationReadOnly {
 export interface BriefReviewFlowState {
   writesDisabledReason: string | undefined;
   writesDisabled: boolean;
+  /** Why a GitHub write is off: every session-write reason, plus posting being off. */
+  postingDisabledReason: string | undefined;
   conversationReadOnly: ConversationReadOnly;
   draftCommentCount: number;
   reanchorArmed: boolean;
@@ -567,6 +571,7 @@ export interface UseReviewCommandsInput {
     | "submitOpen"
     | "writesDisabled"
     | "writesDisabledReason"
+    | "postingDisabledReason"
   >;
   riskModalOpen: boolean;
   conversationWiring: Pick<ConversationWiring, "invalidateConversation">;

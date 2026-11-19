@@ -84,10 +84,14 @@ function useWritePosture(t: TFunction, review: ReviewCapability | undefined) {
     sessionFrozen,
   );
 
+  const postingDisabledReason =
+    writesDisabledReason ?? review?.postingDisabled?.reason;
+
   return {
     writesDisabledReason,
     writesDisabled: writesDisabledReason !== undefined,
-    conversationReadOnly: deriveConversationReadOnly(writesDisabledReason),
+    postingDisabledReason,
+    conversationReadOnly: deriveConversationReadOnly(postingDisabledReason),
     draftCommentCount,
   };
 }

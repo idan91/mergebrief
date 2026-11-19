@@ -19,6 +19,7 @@ function makeInput(overrides: Partial<PrReviewInput> = {}): PrReviewInput {
   return {
     submitReview: vi.fn<SubmitReviewAction>(),
     readOnly: undefined,
+    postingDisabled: undefined,
     staleHead: false,
     ownDraft: undefined,
     session: emptySessionPayload(),
@@ -31,6 +32,17 @@ function makeInput(overrides: Partial<PrReviewInput> = {}): PrReviewInput {
 }
 
 describe("buildPrReview", () => {
+  it("keeps session writes open while posting is off", () => {
+    const postingDisabled = { reason: "demo" };
+    const input = makeInput({ postingDisabled });
+
+    const review = buildPrReview(input);
+
+    expect(review.readOnly).toBeUndefined();
+    expect(review.postingDisabled).toBe(postingDisabled);
+    expect(review.writes).toBe(input.writes);
+  });
+
   it("writes through the session once one is in hand", () => {
     const input = makeInput();
 

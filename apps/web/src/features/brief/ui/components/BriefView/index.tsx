@@ -113,6 +113,7 @@ function BriefViewContent(props: BriefViewProps) {
     ownDraftActive,
     writesDisabled,
     writesDisabledReason,
+    postingDisabledReason,
     session,
     regions,
     band,
@@ -582,18 +583,18 @@ function BriefViewContent(props: BriefViewProps) {
                           unresolvedItems={session.unresolvedItems}
                           jumpToItem={jumpToSubmitItem}
                           submitPending={
-                            liveSubmit && !writesDisabled
+                            liveSubmit && postingDisabledReason === undefined
                               ? submitFlow.pending
                               : false
                           }
-                          blockedReasonOverride={writesDisabledReason}
+                          blockedReasonOverride={postingDisabledReason}
                           blockedReasonWith={
                             liveSubmit
                               ? submitFlow.blockedReasonWith
                               : undefined
                           }
                           submitError={
-                            liveSubmit && !writesDisabled
+                            liveSubmit && postingDisabledReason === undefined
                               ? submitFlow.error
                               : null
                           }

@@ -99,6 +99,8 @@ export interface PrBriefBodyProps {
   address: BriefAddressPort;
   /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
+  /** Session writes stay open; posting to GitHub is off. */
+  postingDisabled?: { reason: string } | undefined;
   /**
    * The rendered span's head is not the PR head: writable, but Submit
    * requires the stale ack in the receipt.
@@ -128,6 +130,7 @@ function PrBriefBodyState({
   searchParams,
   address,
   readOnly,
+  postingDisabled,
   staleHead,
   onGoToNewest,
   timeline,
@@ -153,6 +156,7 @@ function PrBriefBodyState({
           address={address}
           onSelectRevision={onSelectRevision}
           prNumber={prNumber}
+          postingDisabled={postingDisabled}
           readOnly={readOnly}
           repoId={repoId}
           revisionJump={revisionJump}

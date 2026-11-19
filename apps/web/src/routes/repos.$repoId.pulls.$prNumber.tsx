@@ -383,6 +383,7 @@ function PrBriefRoute() {
             conversationFocusThreadId={page.conversationFocusThreadId}
             onSelectRevision={page.onSelectRevision}
             onGoToNewest={page.onGoToNewest}
+            postingDisabled={page.postingDisabled}
             prNumber={prNumber}
             readOnly={page.readOnly}
             repoId={params.repoId}
