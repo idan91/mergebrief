@@ -178,43 +178,15 @@ jobs:
             exit 1
           fi
 
-  checks:
-    name: ${{ matrix.check }}
+  select:
+    name: Select affected packages
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        # `slug` mirrors `check` with a filename-safe spelling: artifact
-        # names reject `:`.
-        include:
-          - check: typecheck
-            slug: typecheck
-          - check: test
-            slug: test
-          - check: build
-            slug: build
-          - check: docs:check
-            slug: docs-check
-
-    # The real-Postgres suites, test leg only: the runner skips a service
-    # whose image is empty. Throwaway credentials for an ephemeral container.
-    services:
-      postgres:
-        image: ${{ matrix.check == 'test' && 'postgres:17-alpine' || '' }}
-        env:
-          POSTGRES_USER: mergebrief
-          POSTGRES_PASSWORD: mergebrief
-          POSTGRES_DB: mergebrief_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U mergebrief -d mergebrief_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    outputs:
+      packages: ${{ steps.resolve.outputs.packages }}
+      test_shards: ${{ steps.resolve.outputs.test_shards }}
 
     steps:
       - name: Check out repository
@@ -225,7 +197,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Select affected packages
+      - name: Read what changed
         id: affected
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -277,14 +249,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run ${{ matrix.check }} on affected packages
+      # The one place the selection is decided. `checks` and `test` both run
+      # the package names it emits, so neither needs the base history.
+      - name: Resolve the selection
+        id: resolve
         env:
-          CHECK: ${{ matrix.check }}
-          SLUG: ${{ matrix.slug }}
           BASE: ${{ steps.affected.outputs.base }}
           RUN_ALL: ${{ steps.affected.outputs.run_all }}
           DOCS_CHANGED: ${{ steps.affected.outputs.docs_changed }}
-          MERGEBRIEF_TEST_POSTGRES_URL: postgres://mergebrief:mergebrief@127.0.0.1:5432/mergebrief_test
         run: |
           set -euo pipefail
 
@@ -294,15 +266,14 @@ jobs:
           # suite too.
           filters=(--filter "!$WORKSPACE_ROOT_PROJECT")
           if [ "$RUN_ALL" = "true" ]; then
-            echo "Root-level change detected; running the full workspace."
+            echo "Root-level change detected; selecting the full workspace."
           else
             filters+=(--filter "...[$BASE]")
             # The two cross-process consumers. Their suites start the real
             # `api` executable over HTTP, and pnpm's graph cannot see an edge
             # that is not an import, so an API-only change would otherwise
             # run neither.
-            selected="$(pnpm -r --filter "!$WORKSPACE_ROOT_PROJECT" \
-              --filter "...[$BASE]" list --depth -1 --json | jq -r '.[].name')"
+            selected="$(pnpm -r "${filters[@]}" list --depth -1 --json | jq -r '.[].name')"
             if grep -qx 'api' <<<"$selected"; then
               echo "API changed; adding its HTTP consumers to the selection."
               filters+=(--filter "web" --filter "mergebrief")
@@ -313,12 +284,91 @@ jobs:
             fi
           fi
 
+          # An empty selection prints nothing, which is the skip.
+          listed="$(pnpm -r "${filters[@]}" list --depth -1 --json)"
+          packages="$(jq -c '[.[].name] | unique' <<<"${listed:-[]}")"
+
+          # The names become `--filter` arguments in other jobs.
+          if ! jq -e 'all(.[]; test("^[a-z0-9][a-z0-9-]*$"))' <<<"$packages" >/dev/null; then
+            echo "::error::a selected package name is not a plain workspace name: $packages"
+            exit 1
+          fi
+
+          # web, api and worker each fill a runner. Sharing one made every
+          # suite wait on the other two, so each gets its own and the light
+          # suites share a fourth. Only web has no real-Postgres suite.
+          test_shards="$(jq -c '
+            ["web", "api", "worker"] as $heavy
+            | . as $names
+            | [$heavy[]
+                | select(. as $name | $names | index($name))
+                | {name: ., packages: [.], postgres: (. != "web")}]
+              + (($names - $heavy)
+                | if length > 0 then [{name: "rest", packages: ., postgres: true}] else [] end)
+          ' <<<"$packages")"
+
+          echo "Selected: $packages"
+          echo "Test shards: $test_shards"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "test_shards=$test_shards" >> "$GITHUB_OUTPUT"
+
+  checks:
+    name: ${{ matrix.check }}
+    needs: select
+    if: needs.select.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # `slug` mirrors `check` with a filename-safe spelling: artifact
+        # names reject `:`.
+        include:
+          - check: typecheck
+            slug: typecheck
+          - check: build
+            slug: build
+          - check: docs:check
+            slug: docs-check
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ${{ matrix.check }} on affected packages
+        env:
+          CHECK: ${{ matrix.check }}
+          SLUG: ${{ matrix.slug }}
+          PACKAGES: ${{ needs.select.outputs.packages }}
+        run: |
+          set -euo pipefail
+
+          filters=()
+          while IFS= read -r name; do
+            filters+=(--filter "$name")
+          done < <(jq -r '.[]' <<<"$PACKAGES")
+
           # `--if-present` because the matrix is one script name across the
           # whole selection: only apps/web, the CLI and the docs site have
-          # `build`, only the CLI has `docs:check`. An empty selection exits
-          # 0: that is the skip.
+          # `build`, only the CLI has `docs:check`.
           #
-          # `pipefail` is already set, so `tee` cannot mask a failing suite.
+          # `pipefail` is already set, so `tee` cannot mask a failing check.
           mkdir -p ci-logs
           pnpm -r "${filters[@]}" run --if-present "$CHECK" 2>&1 | tee "ci-logs/$SLUG.log"
 
@@ -330,6 +380,86 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-${{ matrix.slug }}-diagnostics
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test:
+    name: test (${{ matrix.shard.name }})
+    needs: select
+    if: needs.select.outputs.test_shards != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.select.outputs.test_shards) }}
+
+    # The real-Postgres suites: the runner skips a service whose image is
+    # empty. Throwaway credentials for an ephemeral container.
+    services:
+      postgres:
+        image: ${{ matrix.shard.postgres && 'postgres:17-alpine' || '' }}
+        env:
+          POSTGRES_USER: mergebrief
+          POSTGRES_PASSWORD: mergebrief
+          POSTGRES_DB: mergebrief_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mergebrief -d mergebrief_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run test on ${{ matrix.shard.name }}
+        env:
+          SHARD: ${{ matrix.shard.name }}
+          PACKAGES: ${{ toJSON(matrix.shard.packages) }}
+          # Empty where the shard has no service: a suite that reads it then
+          # fails under CI instead of skipping unseen.
+          MERGEBRIEF_TEST_POSTGRES_URL: ${{ matrix.shard.postgres && 'postgres://mergebrief:mergebrief@127.0.0.1:5432/mergebrief_test' || '' }}
+        run: |
+          set -euo pipefail
+
+          filters=()
+          while IFS= read -r name; do
+            filters+=(--filter "$name")
+          done < <(jq -r '.[]' <<<"$PACKAGES")
+
+          # `--if-present`: not every selected package has a suite.
+          # `pipefail` is already set, so `tee` cannot mask a failing suite.
+          mkdir -p ci-logs
+          pnpm -r "${filters[@]}" run --if-present test 2>&1 | tee "ci-logs/test-$SHARD.log"
+
+      # Failure only: a green run's logs are already in the job output, and
+      # a 7-day window is long enough to triage a red PR without paying
+      # storage for every merge.
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-test-${{ matrix.shard.name }}-diagnostics
           # Anchored to the workspace globs in pnpm-workspace.yaml. An
           # unanchored `**/coverage/**` would make the uploader stat the
           # whole pnpm node_modules tree on every red run.
@@ -537,7 +667,9 @@ jobs:
       - lint
       - catalog
       - secrets
+      - select
       - checks
+      - test
       - e2e
       - image
 
