@@ -4,8 +4,8 @@
 //
 // The first write here materializes the viewer's review session on the
 // fixture PR, which the Inbox then counts as in progress for the rest of
-// the run. Files run in path order on the one worker, so this file's name
-// sorts after the inbox specs; keep it that way.
+// the run. That is why this file is one of the config's mutating specs,
+// which start only after every read-only spec has finished.
 import {
   expect,
   type Locator,

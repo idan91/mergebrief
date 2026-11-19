@@ -11,16 +11,38 @@ import {
   STORAGE_STATE_PATH,
 } from "./e2e/harness/env";
 
+/**
+ * The specs that write to the seeded database: they archive or erase Inbox
+ * rows, or open the viewer's review session on the fixture pull request.
+ * Everything else only reads the seed, and some of it counts those rows.
+ */
+const MUTATING_SPECS = [
+  "**/inboxArchive.e2e.ts",
+  "**/inboxBulk.e2e.ts",
+  "**/inboxDelete.e2e.ts",
+  "**/review-from-changes.e2e.ts",
+];
+
+/**
+ * A CI runner has four cores for the browsers, the web server, the API and
+ * postgres. Two browsers leave the servers a core each; a third starves the
+ * one process that renders every page.
+ */
+const CI_WORKERS = 2;
+const CI_RETRIES = 2;
+/** Playwright's own default, spelled out: half the machine's cores. */
+const LOCAL_WORKERS = "50%";
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
   // Vitest's default include is `**/*.{test,spec}.*`, which `.e2e.ts` does
   // not match, the two runners cannot pick up each other's files, and
   // `e2e/` sits outside the `src/**` coverage include set.
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: process.env["CI"] ? CI_WORKERS : LOCAL_WORKERS,
   forbidOnly: Boolean(process.env["CI"]),
-  retries: process.env["CI"] ? 2 : 0,
+  retries: process.env["CI"] ? CI_RETRIES : 0,
   reporter: process.env["CI"]
     ? [["github"], ["html", { open: "never" }]]
     : [["list"]],
@@ -34,18 +56,24 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      // Every test gets its own browser context and none writes to the
+      // database, so they run in any order on every worker.
+      name: "readonly",
       use: devices["Desktop Chrome"],
-      testIgnore: "**/signedOut.e2e.ts",
+      testIgnore: MUTATING_SPECS,
     },
     {
-      // No storage state: the one project that arrives without a session.
-      name: "signed-out",
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: { cookies: [], origins: [] },
-      },
-      testMatch: "**/signedOut.e2e.ts",
+      // Starts once `readonly` has finished, on one worker in file order.
+      // `--no-deps` runs one of these specs without the read-only ones first.
+      // No retry: an erased row stays erased, so a second attempt at the
+      // delete specs could only fail differently.
+      name: "mutating",
+      use: devices["Desktop Chrome"],
+      testMatch: MUTATING_SPECS,
+      dependencies: ["readonly"],
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
     },
   ],
   // Only the web tier. The API is started by `globalSetup`, after the database

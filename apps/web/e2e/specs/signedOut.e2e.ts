@@ -1,5 +1,5 @@
-// Signed-out Home, under the project that carries no session: one heading,
-// Sign in with GitHub, and no URL box.
+// Signed-out Home, in contexts that carry no session: one heading, Sign in
+// with GitHub, and no URL box.
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_PR_PATH } from "../fixtures/ids";
@@ -8,6 +8,8 @@ import { collectPageFaults } from "../support/console";
 
 /** A sign-in wall, never a server error: crawlers and monitors read the status. */
 const SIGNED_OUT_STATUS = 401;
+
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test("signed out shows one heading and Sign in, never the URL box", async ({
   page,
