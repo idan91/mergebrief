@@ -1757,6 +1757,13 @@
       "caughtUp": "You are all caught up",
       "caughtUpDetail": "Nothing is waiting on you."
     },
+    "search": {
+      "ariaLabel": "Search briefs by title or number",
+      "placeholder": "Search title or number",
+      "clear": "Clear search",
+      "results_one": "{{count}} pull request matches “{{text}}”",
+      "results_other": "{{count}} pull requests match “{{text}}”"
+    },
     "urlBox": {
       "ariaLabel": "Pull request URL",
       "placeholder": "Paste a pull request URL",
@@ -1981,6 +1988,7 @@
       "cursorDownInList": "Move the cursor down, with focus in the list",
       "cursorUpInList": "Move the cursor up, with focus in the list",
       "openRow": "Open the brief under the cursor",
+      "focusSearch": "Search the briefs",
       "focusUrl": "Focus the URL box",
       "toggleShortcuts": "Toggle this shortcuts list",
       "closeMenu": "Close a menu or this list"

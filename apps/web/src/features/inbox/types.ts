@@ -151,6 +151,8 @@ export interface InboxQueryParams {
   readonly author?: InboxAuthorFilter;
   readonly installation?: readonly string[];
   readonly archived?: InboxArchivedFilter;
+  /** The search text, trimmed and within the wire's bound. */
+  readonly q?: string;
 }
 
 /**
@@ -167,8 +169,22 @@ export interface InboxSearch {
   readonly author?: InboxAuthorFilter;
   readonly installation?: string;
   readonly archived?: InboxArchivedFilter;
+  /** The search text; whole digits ride as a number so the router prints them bare. */
+  readonly q?: string | number;
   /** Why the last sign-in failed; only a signed-out Home carries it. */
   readonly error?: SignInFailure;
+}
+
+/**
+ * The search text someone other than the search field put in place, which
+ * the field takes at once: Clear empties it, and a Back, a Forward or a link
+ * carries its target's. The URL on screen cannot say so while that target is
+ * still loading, or when it holds the text the URL already showed.
+ */
+export interface SearchTextOverride {
+  /** Steps on each one, so the same text twice still registers. */
+  readonly count: number;
+  readonly text: string;
 }
 
 /** A change to the URL's state; an explicit `undefined` unsets a key. */

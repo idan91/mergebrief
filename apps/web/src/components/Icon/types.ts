@@ -37,6 +37,7 @@ export const IconNames = {
   LIST_BULLETS: "list-bullets",
   LIST_CHECKS: "list-checks",
   LIST_NUMBERS: "list-numbers",
+  MAGNIFYING_GLASS: "magnifying-glass",
   OPENAI: "openai",
   OPENROUTER: "openrouter",
   PENCIL_SIMPLE_LINE: "pencil-simple-line",

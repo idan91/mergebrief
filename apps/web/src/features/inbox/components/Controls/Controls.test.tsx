@@ -22,6 +22,8 @@ beforeEach(() => {
   setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
 });
 
+const NO_OVERRIDE = { count: 0, text: "" };
+
 function makeFilter(id: string, name: string): FilterView {
   return {
     id,
@@ -52,7 +54,12 @@ describe("Controls", () => {
         filters={[makeFilter("review", "Review")]}
         layout={makeFilter("layout", "View")}
         sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -81,7 +88,12 @@ describe("Controls", () => {
         ]}
         layout={makeFilter("layout", "View")}
         sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
@@ -105,12 +117,39 @@ describe("Controls", () => {
         ]}
         layout={makeFilter("layout", "View")}
         sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
         onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
       />,
     );
 
     expect(
       screen.getByRole("button", { name: "More filters (1)" }),
     ).toBeTruthy();
+  });
+
+  it("search text is not counted on the collapsed Filters button", () => {
+    setMediaQueryMatches("(width < 760px)", true);
+    render(
+      <Controls
+        changedCount={2}
+        filters={[{ ...makeFilter("review", "Review"), changed: true }]}
+        layout={makeFilter("layout", "View")}
+        sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText="anchor"
+        total={3}
+        onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Filters/ }).textContent).toBe(
+      "Filters 1 changed",
+    );
   });
 });

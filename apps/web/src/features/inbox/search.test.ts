@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearInboxFilters,
   countChangedFilters,
+  dropPendingSearchText,
   EVERY_STATUS_PARAM,
   hasDefaultStatus,
   hasEveryStatus,
@@ -124,6 +125,7 @@ describe("readInboxParams and readInboxChoices", () => {
       author: InboxAuthorFilters.ALL,
       installations: [],
       archived: InboxArchivedFilters.HIDE,
+      searchText: "",
     });
   });
 });
@@ -233,5 +235,78 @@ describe("readLastPage and listRepoOptions", () => {
       { value: "1", label: "a/first" },
       { value: "2", label: "z/last" },
     ]);
+  });
+});
+
+describe("the search text", () => {
+  it("reads the text trimmed and drops a blank one", () => {
+    expect(parseInboxSearch({ q: "  anchor ids " })).toEqual({
+      q: "anchor ids",
+    });
+    expect(parseInboxSearch({ q: "   " })).toEqual({});
+  });
+
+  it("cuts text past the bound by whole characters", () => {
+    const filler = "a".repeat(InboxQueryBounds.MAX_SEARCH_TEXT_LENGTH - 1);
+
+    const parsed = parseInboxSearch({ q: `${filler}\u{1F680}zzz` });
+
+    expect(parsed.q).toBe(`${filler}\u{1F680}`);
+  });
+
+  it("keeps digits as the number the router prints back bare", () => {
+    expect(parseInboxSearch({ q: 1412 })).toEqual({ q: 1412 });
+    expect(parseInboxSearch({ q: "1412" })).toEqual({ q: 1412 });
+    expect(parseInboxSearch({ q: "0141" })).toEqual({ q: "0141" });
+    expect(readInboxParams({ q: 1412 }).q).toBe("1412");
+  });
+
+  it("reads a value the router decoded as something else as its text", () => {
+    expect(parseInboxSearch({ q: true })).toEqual({ q: "true" });
+    expect(parseInboxSearch({ q: null })).toEqual({ q: "null" });
+    expect(parseInboxSearch({ q: { nested: 1 } })).toEqual({});
+  });
+
+  it("goes to the wire and fills the controls with an empty default", () => {
+    expect(readInboxParams({ q: "anchor" })).toEqual({ q: "anchor" });
+    expect(readInboxChoices({ q: "anchor" }).searchText).toBe("anchor");
+    expect(readInboxChoices({}).searchText).toBe("");
+  });
+
+  it("counts as a changed filter, restarts the pages and clears", () => {
+    const searched = writeInboxSearch({ page: 4 }, { q: "anchor" });
+
+    expect(searched).toEqual({ q: "anchor" });
+    expect(countChangedFilters(searched)).toBe(1);
+    expect(
+      clearInboxFilters({ ...searched, sort: InboxSorts.GENERATED }),
+    ).toEqual({ sort: InboxSorts.GENERATED });
+  });
+
+  it("an emptied field removes the key", () => {
+    expect(writeInboxSearch({ q: "anchor" }, { q: "" })).toEqual({});
+  });
+});
+
+describe("dropPendingSearchText", () => {
+  it("goes back to the list on screen when only the search was loading", () => {
+    const shown = parseInboxSearch({ page: 3, review: "new", q: "fo" });
+    const loading = parseInboxSearch({ review: "new", q: "foo" });
+
+    expect(dropPendingSearchText(loading, shown)).toEqual(shown);
+  });
+
+  it("keeps a filter change that was loading too", () => {
+    const shown = parseInboxSearch({ page: 3, review: "new" });
+    const loading = parseInboxSearch({
+      review: "new",
+      author: "mine",
+      q: "fo",
+    });
+
+    expect(dropPendingSearchText(loading, shown)).toEqual({
+      review: "new",
+      author: "mine",
+    });
   });
 });

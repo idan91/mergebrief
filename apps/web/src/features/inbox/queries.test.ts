@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archivePull,
   buildInboxQueryOptions,
+  cancelInboxReadWhenSuperseded,
   deleteOwnPull,
   deletePull,
   purgeAttachments,
@@ -319,5 +320,52 @@ describe("archivePull and unarchivePull", () => {
 
     expect(await unarchivePull("424242", 7)).toEqual({ kind: "unauthorized" });
     expect(assign).toHaveBeenCalledWith("/api/auth/github");
+  });
+});
+
+describe("cancelInboxReadWhenSuperseded", () => {
+  function hangFetchUntilAborted(): void {
+    fetchMock.mockImplementation(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+  }
+
+  it("aborts the request once a newer navigation supersedes it", async () => {
+    hangFetchUntilAborted();
+    const client = new QueryClient();
+    const params = { q: "anc" };
+    const superseded = new AbortController();
+    const read = client.fetchQuery(buildInboxQueryOptions(params));
+    const outcome = read.then(
+      () => "settled",
+      () => "cancelled",
+    );
+    cancelInboxReadWhenSuperseded(client, params, read, superseded.signal);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    superseded.abort();
+
+    expect(await outcome).toBe("cancelled");
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it("leaves a read that already settled alone", async () => {
+    answerWith(200, WIRE_PAGE);
+    const client = new QueryClient();
+    const params = { q: "anc" };
+    const superseded = new AbortController();
+    const read = client.fetchQuery(buildInboxQueryOptions(params));
+    cancelInboxReadWhenSuperseded(client, params, read, superseded.signal);
+    await read;
+    const cancelQueries = vi.spyOn(client, "cancelQueries");
+
+    superseded.abort();
+
+    expect(cancelQueries).not.toHaveBeenCalled();
   });
 });

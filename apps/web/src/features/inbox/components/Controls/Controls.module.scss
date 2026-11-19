@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -10,8 +11,14 @@
     min-inline-size: 0;
   }
 
+  .search {
+    flex: 0 1 functions.to-rem(220px);
+    min-inline-size: functions.to-rem(140px);
+  }
+
   .filters {
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: wrap;
     gap: var(--space-3);
     align-items: center;
@@ -34,7 +41,12 @@
   @include mixins.for-breakpoint("small-mobile", "<") {
     .controls {
       flex-basis: 100%;
+      flex-wrap: wrap;
       justify-content: flex-start;
+    }
+
+    .search {
+      flex-basis: 100%;
     }
   }
 

@@ -8,6 +8,7 @@ import {
 } from "@web/components/Button";
 import { Icon } from "@web/components/Icon";
 import { IconNames } from "@web/components/Icon/types";
+import { Kbd, KbdSizes } from "@web/components/Kbd";
 import styles from "./UrlBox.module.scss";
 import { UrlBoxStates } from "./types";
 import { useUrlBoxFacade } from "./useUrlBoxFacade";
@@ -18,7 +19,7 @@ export interface UrlBoxProps {
 }
 
 /**
- * The quiet paste form: a link icon, the field, a slash hint that gives way
+ * The quiet paste form: a link icon, the field, a key hint that gives way
  * to the Generate button once text is entered. While submitting, the field
  * is replaced by one line of status and a thin accent sweep. The result of
  * a submit is a navigation; a refusal lands in the alert line below.
@@ -59,9 +60,9 @@ export function UrlBox({
         <span aria-live="polite" className={styles["progress"]} role="status">
           {facade.submitting ? t("home.urlBox.reading") : null}
         </span>
-        <kbd aria-hidden="true" className={styles["hint"]}>
-          /
-        </kbd>
+        <span aria-hidden="true" className={styles["hint"]}>
+          <Kbd size={KbdSizes.SM}>U</Kbd>
+        </span>
         <Button
           className={styles["submit"]}
           disabled={facade.submitting}
