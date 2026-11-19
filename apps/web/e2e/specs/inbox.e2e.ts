@@ -160,11 +160,8 @@ test("the keyboard cursor carries focus, so Tab goes on from its row", async ({
   await page.goto("/");
   await waitForFirstLoad(page);
   const cursorRow = page.locator('li[data-cursor="true"]');
-  // A key sent before hydration is lost; press until the cursor lands.
-  await expect(async () => {
-    await page.keyboard.press("j");
-    await expect(cursorRow).toBeVisible({ timeout: 500 });
-  }).toPass();
+  await page.keyboard.press("j");
+  await expect(cursorRow).toBeVisible();
 
   const rowLink = readBriefLink(cursorRow);
   await expect(rowLink).toBeFocused();

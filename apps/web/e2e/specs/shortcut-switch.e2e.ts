@@ -2,7 +2,11 @@
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief, shortcutsDialog } from "../support/page";
+import {
+  gotoBrief,
+  shortcutsDialog,
+  waitForShortcutsBound,
+} from "../support/page";
 
 test("single-key shortcuts turn off and back on from the shortcuts dialog", async ({
   page,
@@ -22,12 +26,11 @@ test("single-key shortcuts turn off and back on from the shortcuts dialog", asyn
   await expect(page).not.toHaveURL(/focus=true/);
 
   await page.reload();
-  // The key that usually proves hydration is off, so the button is pressed
-  // until the hydrated page answers it.
-  await expect(async () => {
-    await page.getByRole("button", { name: "Keyboard shortcuts" }).click();
-    await expect(dialog).toBeVisible({ timeout: 800 });
-  }).toPass();
+  // The key that usually shows the page answers is off, so only the bound
+  // listener is waited for.
+  await waitForShortcutsBound(page);
+  await page.getByRole("button", { name: "Keyboard shortcuts" }).click();
+  await expect(dialog).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: "Single-key shortcuts" }),
   ).not.toBeChecked();

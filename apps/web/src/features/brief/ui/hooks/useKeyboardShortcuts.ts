@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { isTypingTarget } from "../../../../utils/typingTarget";
 import { isInsideMenuOrDialog } from "../../../../utils/overlay-target";
 import { isSuppressedSingleKey } from "@web/utils/single-key-shortcuts";
+import { SHORTCUTS_LIVE_ATTRIBUTE } from "./consts";
 
 export interface KeyboardShortcutsOptions {
   chunkIds: string[];
@@ -281,6 +282,10 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
     }
 
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    document.documentElement.setAttribute(SHORTCUTS_LIVE_ATTRIBUTE, "");
+    return () => {
+      document.documentElement.removeAttribute(SHORTCUTS_LIVE_ATTRIBUTE);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 }

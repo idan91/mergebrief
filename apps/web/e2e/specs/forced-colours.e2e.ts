@@ -221,10 +221,8 @@ test("the inbox cursor row carries a dashed ring", async ({ page }) => {
   await waitForFirstLoad(page);
   const colors = await readSystemColors(page);
   const cursorRow = page.locator('li[data-cursor="true"]');
-  await expect(async () => {
-    await page.keyboard.press("j");
-    await expect(cursorRow).toBeVisible({ timeout: 500 });
-  }).toPass();
+  await page.keyboard.press("j");
+  await expect(cursorRow).toBeVisible();
 
   expect(await readStyle(cursorRow, "outline-style")).toBe("dashed");
   expect(await readStyle(cursorRow, "outline-color")).toBe(colors.highlight);

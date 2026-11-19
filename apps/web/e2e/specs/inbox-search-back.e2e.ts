@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 
 import { collectPageFaults } from "../support/console";
-import { waitForFirstLoad, waitForInteractive } from "../support/page";
+import { waitForFirstLoad } from "../support/page";
 
 const SEARCH_READS = "**/api/inbox?*q=*";
 /** Longer than the field's pause, so each burst of typing is written. */
@@ -16,7 +16,6 @@ test("Back onto an older search puts that search in the field", async ({
   const faults = collectPageFaults(page);
   await page.goto("/?q=ledg&review=updated");
   await waitForFirstLoad(page);
-  await waitForInteractive(page);
   const field = page.getByRole("searchbox", {
     name: "Search briefs by title or number",
   });

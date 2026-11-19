@@ -5,11 +5,7 @@ import { expect, test } from "@playwright/test";
 
 import { INBOX_ROWS } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
-import {
-  clickUntilLanded,
-  waitForFirstLoad,
-  waitForInteractive,
-} from "../support/page";
+import { clickUntilLanded, waitForFirstLoad } from "../support/page";
 
 const PAYOUT_TITLE = "Let operators pause a payout batch";
 
@@ -19,7 +15,6 @@ test("search text narrows the Inbox and explains a miss", async ({ page }) => {
 
   await page.goto("/");
   await waitForFirstLoad(page);
-  await waitForInteractive(page);
   const field = page.getByRole("searchbox", {
     name: "Search briefs by title or number",
   });

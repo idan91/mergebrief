@@ -3,11 +3,12 @@
 // (local path) the key is a no-op that must NOT be swallowed: the early
 // return sits before preventDefault, which the pure resolver tests cannot
 // reach.
-import { renderHook } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { writeSingleKeyShortcutsOn } from "@web/utils/single-key-shortcuts";
 
+import { SHORTCUTS_LIVE_ATTRIBUTE } from "./consts";
 import {
   useKeyboardShortcuts,
   type KeyboardShortcutsOptions,
@@ -93,6 +94,43 @@ describe("useKeyboardShortcuts inside an overlay", () => {
 
     expect(toggleFocusMode).toHaveBeenCalledTimes(1);
     toggle.remove();
+  });
+});
+
+function readShortcutsLive(): boolean {
+  return document.documentElement.hasAttribute(SHORTCUTS_LIVE_ATTRIBUTE);
+}
+
+describe("useKeyboardShortcuts live mark", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("marks the root element only while the listener is bound", () => {
+    cleanup();
+    expect(readShortcutsLive()).toBe(false);
+
+    const { unmount } = renderHook(() => useKeyboardShortcuts(options({})));
+    expect(readShortcutsLive()).toBe(true);
+
+    unmount();
+    expect(readShortcutsLive()).toBe(false);
+  });
+
+  it("writes the mark after the listener is bound, never before", () => {
+    const bind = vi.spyOn(window, "addEventListener");
+    const mark = vi.spyOn(document.documentElement, "setAttribute");
+
+    renderHook(() => useKeyboardShortcuts(options({})));
+
+    const boundTypes: string[] = bind.mock.calls.map(([type]) => type);
+    const keydownBind = boundTypes.indexOf("keydown");
+    const markedNames = mark.mock.calls.map(([name]) => name);
+    const liveMark = markedNames.indexOf(SHORTCUTS_LIVE_ATTRIBUTE);
+    const boundAt = bind.mock.invocationCallOrder[keydownBind] ?? Infinity;
+    const markedAt = mark.mock.invocationCallOrder[liveMark] ?? -Infinity;
+    expect(markedAt).toBeGreaterThan(boundAt);
   });
 });
 
