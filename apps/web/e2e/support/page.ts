@@ -2,9 +2,12 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 import { SHORTCUTS_LIVE_ATTRIBUTE } from "../../src/features/brief/ui/hooks/consts";
 
+export const SHORTCUTS_DIALOG_SELECTOR =
+  '[aria-labelledby="shortcuts-modal-heading"]';
+
 /** The shortcuts dialog's outer wrapper, `display:none` while closed. */
 export function shortcutsDialog(page: Page): Locator {
-  return page.locator('[aria-labelledby="shortcuts-modal-heading"]');
+  return page.locator(SHORTCUTS_DIALOG_SELECTOR);
 }
 
 /**

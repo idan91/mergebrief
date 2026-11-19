@@ -25,13 +25,21 @@ function describe(violation: AxeViolation): string {
   return `${violation.impact ?? "unknown"} · ${violation.id} — ${violation.help} (${String(violation.nodes.length)} node(s): ${targets})`;
 }
 
+export interface AxeScanOptions {
+  /**
+   * A selector for the one region to scan: a dialog or a row opened on a page
+   * another test already swept whole.
+   */
+  include?: string;
+}
+
 /**
  * Run axe-core over the current page state and assert the gate.
  *
  * Serious/critical violations fail the spec with the rule id and the first
- * offending selectors inline, since a bare count is not actionable. Moderate and
- * minor ones are attached to the test report instead of thrown, so the
- * backlog stays visible without turning every advisory rule into a blocker.
+ * offending selectors inline, since a bare count is not actionable. The
+ * failure is soft, so the steps after a scan still run and report. Moderate
+ * and minor ones are attached to the test report instead of thrown.
  *
  * `stateName` names the page state under test (a page can be swept several
  * times) and keys the attachment.
@@ -40,12 +48,19 @@ export async function expectNoSeriousAxeViolations(
   page: Page,
   testInfo: TestInfo,
   stateName: string,
+  { include }: AxeScanOptions = {},
 ): Promise<void> {
   testInfo.setTimeout(testInfo.timeout + AXE_SCAN_BUDGET_MS + SETTLE_BUDGET_MS);
   await waitForSettledPaint(page);
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
+  const whole = new AxeBuilder({ page }).withTags([
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa",
+  ]);
+  const scan = include === undefined ? whole : whole.include(include);
+  const results = await scan.analyze();
 
   const violations: AxeViolation[] = results.violations;
   const blocking = violations.filter((violation) =>
@@ -62,10 +77,12 @@ export async function expectNoSeriousAxeViolations(
     });
   }
 
-  expect(
-    blocking.map(describe),
-    `serious/critical axe violations on "${stateName}"`,
-  ).toEqual([]);
+  expect
+    .soft(
+      blocking.map(describe),
+      `serious/critical axe violations on "${stateName}"`,
+    )
+    .toEqual([]);
 }
 
 /**

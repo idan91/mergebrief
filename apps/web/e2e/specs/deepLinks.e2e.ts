@@ -15,10 +15,7 @@ import { gotoBrief } from "../support/page";
 test("a Changes Only deep link renders the comparison span", async ({
   page,
 }) => {
-  await gotoBrief(
-    page,
-    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
-  );
+  await page.goto(`${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`);
 
   await expect(page.getByRole("radio", { name: "Changes only" })).toBeChecked();
   await expect(
@@ -37,7 +34,7 @@ test("a Changes Only deep link renders the comparison span", async ({
 test("unrecognized params fall back to the product default", async ({
   page,
 }) => {
-  await gotoBrief(page, `${FIXTURE_ROUTE_REV2}&view=bogus&compare=bogus`);
+  await page.goto(`${FIXTURE_ROUTE_REV2}&view=bogus&compare=bogus`);
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
   // default applies: the page renders rather than 404ing or erroring.
@@ -52,10 +49,7 @@ test("a comparison the revision cannot offer normalizes down", async ({
 }) => {
   // Revision 1 has no baseline, so `changes + previous-brief` is not
   // satisfiable: it collapses to the full brief with comparison off.
-  await gotoBrief(
-    page,
-    `${FIXTURE_ROUTE_REV1}&view=changes&compare=previous-brief`,
-  );
+  await page.goto(`${FIXTURE_ROUTE_REV1}&view=changes&compare=previous-brief`);
 
   await expect(page.getByRole("radio", { name: "Full brief" })).toBeChecked();
   await expect(page.getByRole("radio", { name: "Off" })).toBeChecked();
@@ -99,7 +93,7 @@ test("the Revisions tab navigates between the fixture's revisions", async ({
 test("an old span link opens its revision and is rewritten to rev", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV1_LEGACY_SPAN);
+  await page.goto(FIXTURE_ROUTE_REV1_LEGACY_SPAN);
 
   await expect(
     page.getByRole("heading", {
@@ -265,7 +259,7 @@ test("a line link this brief cannot scroll to drops the param and says so", asyn
 test("the tab title leads with the PR title, then names the home page", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await page.goto(FIXTURE_ROUTE_REV2);
 
   await expect(page).toHaveTitle(new RegExp(`^${FIXTURE_PR_TITLE} · #\\d+`));
 
