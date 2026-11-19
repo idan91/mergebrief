@@ -101,26 +101,21 @@ test("focus mode quiets the header and lands the chunk below the pill", async ({
       return chunkBox.y - (pillBox.y + pillBox.height);
     })
     .toBeGreaterThanOrEqual(0);
-});
 
-test("the chunk footer steps on and keeps focus on its button", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await page.keyboard.press("z");
-  const footer = page.getByTestId("chunk-footer");
-  const current = page.locator("main article[data-current]");
-  const firstId = await current.getAttribute("id");
+  await test.step("the chunk footer steps on and keeps focus on its button", async () => {
+    const footer = page.getByTestId("chunk-footer");
+    const firstId = await chunk.getAttribute("id");
 
-  await expect(
-    footer.getByRole("button", { name: "Previous chunk" }),
-  ).toHaveAttribute("aria-disabled", "true");
-  const next = footer.getByRole("button", { name: /^Next/ });
-  await next.focus();
-  await page.keyboard.press("Enter");
+    await expect(
+      footer.getByRole("button", { name: "Previous chunk" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    const next = footer.getByRole("button", { name: /^Next/ });
+    await next.focus();
+    await page.keyboard.press("Enter");
 
-  await expect(current).not.toHaveAttribute("id", firstId ?? "");
-  await expect(next).toBeFocused();
+    await expect(chunk).not.toHaveAttribute("id", firstId ?? "");
+    await expect(next).toBeFocused();
+  });
 });
 
 test("focus mode and its chunk survive a reload through the URL", async ({
@@ -151,6 +146,18 @@ test("the focus panel hides for a group and returns on the next", async ({
 
   await page.keyboard.press("s");
   await expect(panel).toHaveAttribute("data-state", "closed");
+
+  await test.step("S from the panel's tab reopens it with focus on the heading", async () => {
+    await page.getByTestId("focus-panel-tab").focus();
+    await page.keyboard.press("s");
+
+    await expect(panel).toHaveAttribute("data-state", "open");
+    await expect(panel.getByRole("heading", { level: 2 })).toBeFocused();
+
+    await page.keyboard.press("s");
+    await expect(panel).toHaveAttribute("data-state", "closed");
+  });
+
   await page.keyboard.press("j");
   await expect(page.locator("main article[data-current]")).toHaveId("c2");
   await expect(panel).toHaveAttribute("data-state", "closed");
@@ -164,24 +171,7 @@ test("the focus panel hides for a group and returns on the next", async ({
   await expect(page.getByTestId("focus-indicator")).toHaveCount(0);
 });
 
-test("S reopening the panel from its tab moves focus to the heading", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await page.keyboard.press("z");
-  const panel = page.getByTestId("focus-panel");
-  await expect(panel).toHaveAttribute("data-state", "open");
-
-  await page.keyboard.press("s");
-  const tab = page.getByTestId("focus-panel-tab");
-  await tab.focus();
-  await page.keyboard.press("s");
-
-  await expect(panel).toHaveAttribute("data-state", "open");
-  await expect(panel.getByRole("heading", { level: 2 })).toBeFocused();
-});
-
-test("the card's chunk strip follows the scroll and jumps on Enter", async ({
+test("the chunk strip follows the scroll and lands its jumps under the stack", async ({
   page,
 }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
@@ -204,17 +194,8 @@ test("the card's chunk strip follows the scroll and jumps on Enter", async ({
   await marks.nth(0).focus();
   await page.keyboard.press("Enter");
   await expect(marks.nth(0)).toHaveAttribute("aria-current", "true");
-});
 
-test("a strip jump lands the chunk below the stack and keeps its mark", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const marks = page
-    .getByRole("toolbar", { name: "Chunks in this group" })
-    .first()
-    .getByRole("button");
-
+  // A strip jump lands the chunk below the stack and keeps its mark.
   await marks.nth(1).click();
 
   await expect(marks.nth(1)).toHaveAttribute("aria-current", "true");
@@ -258,22 +239,18 @@ test("a diff table is one Tab stop and the arrows step its lines", async ({
     () => document.activeElement?.hasAttribute("data-line-stop") ?? false,
   );
   expect(focusIsOnALine).toBe(false);
-});
 
-test("a focused diff line keeps focus across the D view switch", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  // c1 changes one line, so it pairs a deletion with its addition in split.
-  const card = page.locator("article#c1");
-  const table = card.locator("table").first();
-  await expect(table).toHaveAttribute("data-view", "unified");
-  await table.locator("[data-line-stop]").first().focus();
+  await test.step("a focused diff line keeps focus across the D view switch", async () => {
+    // c1 changes one line, so it pairs a deletion with its addition in split.
+    const card = page.locator("article#c1");
+    await expect(table).toHaveAttribute("data-view", "unified");
+    await lines.first().focus();
 
-  await page.keyboard.press("d");
+    await page.keyboard.press("d");
 
-  await expect(table).toHaveAttribute("data-view", "split");
-  await expect(card.locator("[data-line-stop]:focus")).toHaveCount(1);
+    await expect(table).toHaveAttribute("data-view", "split");
+    await expect(card.locator("[data-line-stop]:focus")).toHaveCount(1);
+  });
 });
 
 /** Lines the keyboard steps over a sticky edge in the line-stop tests. */

@@ -20,11 +20,14 @@ function findGroupChunks(page: Page, groupTitle: string): Locator {
     .getByTestId("brief-chunk");
 }
 
-test("renders the fixture brief with no browser faults", async ({ page }) => {
+test("renders the fixture brief and its Product diff with no faults", async ({
+  page,
+}) => {
   const faults = collectPageFaults(page);
 
   const response = await page.goto(FIXTURE_ROUTE_REV2);
   expect(response?.status()).toBe(200);
+  await expect(page).toHaveTitle(new RegExp(`^${FIXTURE_PR_TITLE} · #\\d+`));
 
   // The receipt drawer carries its own `<h1>`, so name the one under test.
   await expect(
@@ -55,6 +58,21 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
 
   await waitForInteractive(page);
 
+  await test.step("the Product diff shows a change as before and after", async () => {
+    const toggle = page.getByRole("button", { name: /Product diff/ });
+    await expect(toggle).toContainText("5 product changes");
+    await toggle.click();
+
+    const bar = page.getByTestId("product-diff-bar");
+    await expect(
+      bar.getByRole("heading", { name: "When a link to the app is shared" }),
+    ).toBeVisible();
+    await expect(bar.getByText("Not shown in this diff")).toBeVisible();
+    await expect(bar.getByText("Did not exist before this PR")).toBeVisible();
+    await expect(bar.getByText("per the PR description")).toBeVisible();
+    await toggle.click();
+  });
+
   // The two unattributed chunks are the remainder group's cards. A hydrated
   // page mounts no card for a group far below the screen, so they are counted
   // once the reader has scrolled to it.
@@ -65,23 +83,4 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
     CHUNKS_PER_GROUP,
   );
   expect(faults).toEqual([]);
-});
-
-test("opens the Product diff and shows a change as before and after", async ({
-  page,
-}) => {
-  await page.goto(FIXTURE_ROUTE_REV2);
-  await waitForInteractive(page);
-
-  const toggle = page.getByRole("button", { name: /Product diff/ });
-  await expect(toggle).toContainText("5 product changes");
-  await toggle.click();
-
-  const bar = page.getByTestId("product-diff-bar");
-  await expect(
-    bar.getByRole("heading", { name: "When a link to the app is shared" }),
-  ).toBeVisible();
-  await expect(bar.getByText("Not shown in this diff")).toBeVisible();
-  await expect(bar.getByText("Did not exist before this PR")).toBeVisible();
-  await expect(bar.getByText("per the PR description")).toBeVisible();
 });

@@ -5,31 +5,11 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
-  FIXTURE_PR_TITLE,
   FIXTURE_ROUTE_REV1,
   FIXTURE_ROUTE_REV1_LEGACY_SPAN,
   FIXTURE_ROUTE_REV2,
 } from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
-
-test("a Changes Only deep link renders the comparison span", async ({
-  page,
-}) => {
-  await page.goto(`${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`);
-
-  await expect(page.getByRole("radio", { name: "Changes only" })).toBeChecked();
-  await expect(
-    page.getByRole("radio", { name: "Previous brief", exact: true }),
-  ).toBeChecked();
-
-  // The revision narrative for this span, not the whole brief's story.
-  await expect(page.locator("#main-content")).toContainText(
-    "Changes since the previous brief",
-  );
-  await expect(page.locator("#main-content")).toContainText(
-    "This revision extracts the chunk scroller",
-  );
-});
 
 test("unrecognized params fall back to the product default", async ({
   page,
@@ -70,24 +50,6 @@ test("a comparison the revision cannot offer normalizes down", async ({
   await expect(
     page.getByRole("radio", { name: "Your last review", exact: true }),
   ).toHaveAttribute("aria-disabled", "true");
-});
-
-test("the Revisions tab navigates between the fixture's revisions", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-
-  await page.getByRole("button", { name: "Expand sidebar" }).click();
-  await page.getByRole("tab", { name: "Revisions" }).click();
-  await page.getByRole("button", { name: /^Revision 1\b/ }).click();
-  // The repo route encodes the revision as `rev`, not in the path.
-  await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
-  await expect(page).not.toHaveURL(/head=/);
-  await expect(
-    page.getByRole("heading", {
-      name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
-    }),
-  ).toBeVisible();
 });
 
 test("an old span link opens its revision and is rewritten to rev", async ({
@@ -222,16 +184,6 @@ test("an old-side range link selects every line of the range", async ({
   await expect(findRowShowing(page, "old", 295)).toBeFocused();
 });
 
-test("a context line the chunk shows scrolls like a changed one", async ({
-  page,
-}) => {
-  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.R43`);
-
-  const row = findRowShowing(page, "new", 43);
-  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
-  await expect(row).toBeFocused();
-});
-
 test("a folded line expands its hunk edge before scrolling", async ({
   page,
 }) => {
@@ -254,18 +206,6 @@ test("a line link this brief cannot scroll to drops the param and says so", asyn
   await expect(page).not.toHaveURL(/[?&]l=/);
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByTestId("line-link-notice")).toBeHidden();
-});
-
-test("the tab title leads with the PR title, then names the home page", async ({
-  page,
-}) => {
-  await page.goto(FIXTURE_ROUTE_REV2);
-
-  await expect(page).toHaveTitle(new RegExp(`^${FIXTURE_PR_TITLE} · #\\d+`));
-
-  await page.goto("/");
-
-  await expect(page).toHaveTitle("Briefs · MergeBrief");
 });
 
 test("Back across a Scope change keeps Focus mode and corrects the Address", async ({

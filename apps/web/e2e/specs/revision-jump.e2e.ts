@@ -14,6 +14,8 @@ import {
 import { gotoBrief } from "../support/page";
 
 const SHORT_SHA = 7;
+const REV1_GROUP_TITLE =
+  "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen";
 const LANDING_TIMEOUT_MS = 15_000;
 
 function getSectionRow(page: Page, threadId: number) {
@@ -28,13 +30,17 @@ function getJumpButton(page: Page, sha: string) {
   });
 }
 
-async function expandThread(page: Page, threadId: number): Promise<void> {
-  await page.locator("#conversation-heading").click();
+async function expandRow(page: Page, threadId: number): Promise<void> {
   const rowButton = getSectionRow(page, threadId)
     .getByTestId("thread-row")
     .first();
   await rowButton.click();
   await expect(rowButton).toHaveAttribute("aria-expanded", "true");
+}
+
+async function expandThread(page: Page, threadId: number): Promise<void> {
+  await page.locator("#conversation-heading").click();
+  await expandRow(page, threadId);
 }
 
 async function expectLandedOn(page: Page, threadId: number): Promise<void> {
@@ -59,7 +65,9 @@ test("jump switches to the anchor revision and lands on the thread row", async (
   await page.getByRole("button", { name: "Expand sidebar" }).click();
   await page.getByRole("tab", { name: "Revisions" }).click();
   await page.getByRole("button", { name: /^Revision 2\b/ }).click();
+  // The repo route encodes the revision as `rev`, not in the path or a head.
   await expect(page).toHaveURL(/[?&]rev=2(?:&|$)/);
+  await expect(page).not.toHaveURL(/head=/);
 
   await expandThread(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
   await getJumpButton(page, FIXTURE_REV1_HEAD).click();
@@ -68,30 +76,33 @@ test("jump switches to the anchor revision and lands on the thread row", async (
   const threadParam = String(FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
   await expect(page).toHaveURL(new RegExp(`[?&]thread=${threadParam}(?:&|$)`));
   await expectLandedOn(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
+  await expect(
+    page.getByRole("heading", { name: REV1_GROUP_TITLE }),
+  ).toBeVisible();
 });
 
-test("jump lands when the target revision is not cached yet", async ({
+test("a jump lands on an uncached revision, and a second one lands again", async ({
   page,
 }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
   await expandThread(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
 
+  await test.step("an anchor never briefed keeps the button disabled with its reason", async () => {
+    await expandRow(page, FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID);
+    const button = getJumpButton(page, FIXTURE_UNBRIEFED_SHA);
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAccessibleDescription(
+      "This revision was never briefed. Open it on GitHub.",
+    );
+  });
+
+  // The first jump lands although the target revision is not cached yet.
   const rev1Read = page.waitForResponse((response) =>
     isRev1BriefRead(response.url()),
   );
   await getJumpButton(page, FIXTURE_REV1_HEAD).click();
   await rev1Read;
-
   await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
-  await expectLandedOn(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
-});
-
-test("a second jump on the anchor revision lands on the row again", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await expandThread(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
-  await getJumpButton(page, FIXTURE_REV1_HEAD).click();
   await expectLandedOn(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
 
   await page.evaluate(() => {
@@ -115,17 +126,4 @@ test("a second jump on the anchor revision lands on the row again", async ({
   });
 
   await expectLandedOn(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
-});
-
-test("an anchor never briefed keeps the button disabled with its reason", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await expandThread(page, FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID);
-
-  const button = getJumpButton(page, FIXTURE_UNBRIEFED_SHA);
-  await expect(button).toBeDisabled();
-  await expect(button).toHaveAccessibleDescription(
-    "This revision was never briefed. Open it on GitHub.",
-  );
 });

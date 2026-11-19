@@ -49,11 +49,25 @@ const FIRST_REVISION: SweptState = {
 const CHANGES_ONLY: SweptState = {
   title: "the Changes Only span",
   key: "changes-only",
-  reach: (page) =>
-    gotoBrief(
+  reach: async (page) => {
+    await gotoBrief(
       page,
       `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
-    ),
+    );
+    // The deep link lands on the comparison, with the revision narrative for
+    // this span and not the whole brief's story.
+    await expect(
+      page.getByRole("radio", { name: "Changes only" }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole("radio", { name: "Previous brief", exact: true }),
+    ).toBeChecked();
+    const main = page.locator("#main-content");
+    await expect(main).toContainText("Changes since the previous brief");
+    await expect(main).toContainText(
+      "This revision extracts the chunk scroller",
+    );
+  },
 };
 
 const FOCUS_MODE: SweptState = {
