@@ -23,7 +23,15 @@ import {
 import { seedGrant, type PgliteHarness } from "persistence/testing";
 import { ApiErrorCodes, DIFF_MODE_HEADER, DiffModes } from "contract";
 import { PrStates, AccessLevels } from "types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runDelta } from "../src/commands/read/run";
@@ -185,18 +193,17 @@ describe("read commands over the real api app", () => {
   let configDir: string;
   let cacheDir: string;
 
-  beforeEach(async () => {
+  async function startWorld(): Promise<void> {
     world = await startCliApiHarness();
     harness = world.harness;
     kp = world.keyProvider;
     appFetch = world.fetch;
+    stubGitHub(world);
+  }
+
+  beforeEach(() => {
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
-    stubGitHub(world);
-  });
-
-  afterEach(async () => {
-    await world.close();
   });
 
   async function seedToken(): Promise<string> {
@@ -296,185 +303,203 @@ describe("read commands over the real api app", () => {
     return createApiClient({ fetch: appFetch, baseUrl: BASE_URL, token });
   }
 
-  it("pr --json is byte-identical passthrough and TTY renders lines", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
-
-    const token = await seedToken();
-    const list = await reference(token).request({ path: "/api/inbox" });
-    const listRun = await run(["pr", "--json"]);
-    expect(listRun.code).toBe(ExitCodes.OK);
-    expect(listRun.out).toBe(list.bodyText);
-
-    const meta = await reference(token).request({
-      path: `/api/repos/${REPO_A}/pulls/7`,
+  // One world for every test here: a test that writes a row or asserts a gate
+  // verdict belongs in the per-test describe below, since it would leak.
+  describe("reads over one shared brief seed", () => {
+    beforeAll(async () => {
+      await startWorld();
+      await seedBriefedPr(harness.handle);
     });
-    const metaRun = await run(["pr", "7", "--json"]);
-    expect(metaRun.code).toBe(ExitCodes.OK);
-    expect(metaRun.out).toBe(meta.bodyText);
 
-    // TTY split: non-contractual rendering, but never raw JSON.
-    const tty = await run(["pr"]);
-    expect(tty.code).toBe(ExitCodes.OK);
-    expect(tty.out).toContain("octo/hello#7");
-    expect(tty.out.startsWith("{")).toBe(false);
+    afterAll(async () => {
+      await world.close();
+    });
+
+    it("pr --json is byte-identical passthrough and TTY renders lines", async () => {
+      await login();
+
+      const token = await seedToken();
+      const list = await reference(token).request({ path: "/api/inbox" });
+      const listRun = await run(["pr", "--json"]);
+      expect(listRun.code).toBe(ExitCodes.OK);
+      expect(listRun.out).toBe(list.bodyText);
+
+      const meta = await reference(token).request({
+        path: `/api/repos/${REPO_A}/pulls/7`,
+      });
+      const metaRun = await run(["pr", "7", "--json"]);
+      expect(metaRun.code).toBe(ExitCodes.OK);
+      expect(metaRun.out).toBe(meta.bodyText);
+
+      // TTY split: non-contractual rendering, but never raw JSON.
+      const tty = await run(["pr"]);
+      expect(tty.code).toBe(ExitCodes.OK);
+      expect(tty.out).toContain("octo/hello#7");
+      expect(tty.out.startsWith("{")).toBe(false);
+    });
+
+    it("groups --json is the brief artifact body, verbatim", async () => {
+      await login();
+      const result = await run(["groups", "7", "--json"]);
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toBe(BRIEF_BODY);
+    });
+
+    it("product-diff lifts and renders the stored brief's Product diff", async () => {
+      await login();
+      const stored: { productDiff: unknown } = JSON.parse(BRIEF_BODY);
+
+      const result = await run(["product-diff", "7", "--json"]);
+
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toBe(
+        `${JSON.stringify({ productDiff: stored.productDiff })}\n`,
+      );
+
+      const tty = await run(["product-diff", "7"]);
+      expect(tty.code).toBe(ExitCodes.OK);
+      expect(tty.out).toBe(
+        [
+          "PR 7 · Product diff · available · 1 change",
+          "user-flow\ta reviewer opens the brief",
+          "  before (not-shown)\t-",
+          "  after\tthe brief opens in full",
+          "  groups\tgrp-1",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    it("conversation --json is verbatim passthrough", async () => {
+      await login();
+      const token = await seedToken();
+      const wire = await reference(token).request({
+        path: `/api/repos/${REPO_A}/pulls/7/conversation`,
+      });
+      const result = await run(["conversation", "7", "--json"]);
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toBe(wire.bodyText);
+    });
+
+    it("diff relays the raw diff; --group keeps the group's whole hunks", async () => {
+      await login();
+
+      const raw = await run(["diff", "7"]);
+      expect(raw.code).toBe(ExitCodes.OK);
+      expect(raw.out).toBe(RAW_DIFF);
+      expect(raw.err).toEqual([
+        `diff mode: ${DiffModes.COMPARE}`,
+        `revision 1 ${BASE_SHA.slice(0, 7)}..${HEAD_SHA.slice(0, 7)}`,
+      ]);
+
+      const filtered = await run(["diff", "7", "--group", "grp-1"]);
+      expect(filtered.code).toBe(ExitCodes.OK);
+      expect(filtered.out).toContain("@@ -8,3 +8,5 @@");
+      expect(filtered.out).toContain("+added two");
+      expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
+      expect(filtered.out).not.toContain("src/other.ts");
+
+      const unknown = await run(["diff", "7", "--group", "nope"]);
+      expect(unknown.code).toBe(ExitCodes.NOT_FOUND);
+      expect(unknown.err[0]).toContain('change group "nope"');
+    });
   });
 
-  it("generation --json is verbatim and TTY renders the claims line", async () => {
-    await seedBriefedPr(harness.handle);
-    const pr = await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).pullRequests.upsert({
-      repoId: brand(isRepoId, REPO_A),
-      prNumber: 7,
-      state: PrStates.OPEN,
+  describe("reads over rows each test writes for itself", () => {
+    beforeEach(async () => {
+      await startWorld();
     });
-    await createGenerationProjection(harness.handle, CTX).upsertPending({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: HEAD_SHA,
-      baselineSha: null,
+
+    afterEach(async () => {
+      await world.close();
     });
-    await login();
 
-    const token = await seedToken();
-    const claims = await reference(token).request({
-      path: `/api/repos/${REPO_A}/pulls/7/generation`,
+    it("generation --json is verbatim and TTY renders the claims line", async () => {
+      await seedBriefedPr(harness.handle);
+      const pr = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).pullRequests.upsert({
+        repoId: brand(isRepoId, REPO_A),
+        prNumber: 7,
+        state: PrStates.OPEN,
+      });
+      await createGenerationProjection(harness.handle, CTX).upsertPending({
+        pullRequestId: pr.id,
+        kind: GenerationKinds.BRIEF,
+        headSha: HEAD_SHA,
+        baselineSha: null,
+      });
+      await login();
+
+      const token = await seedToken();
+      const claims = await reference(token).request({
+        path: `/api/repos/${REPO_A}/pulls/7/generation`,
+      });
+      const jsonRun = await run(["generation", "7", "--json"]);
+      expect(jsonRun.code).toBe(ExitCodes.OK);
+      expect(jsonRun.out).toBe(claims.bodyText);
+
+      const tty = await run(["generation", "7"]);
+      expect(tty.code).toBe(ExitCodes.OK);
+      expect(tty.out).toBe(
+        `PR 7 · head ${HEAD_SHA.slice(0, 7)} · pending · claims 0 of 3\n`,
+      );
     });
-    const jsonRun = await run(["generation", "7", "--json"]);
-    expect(jsonRun.code).toBe(ExitCodes.OK);
-    expect(jsonRun.out).toBe(claims.bodyText);
 
-    const tty = await run(["generation", "7"]);
-    expect(tty.code).toBe(ExitCodes.OK);
-    expect(tty.out).toBe(
-      `PR 7 · head ${HEAD_SHA.slice(0, 7)} · pending · claims 0 of 3\n`,
-    );
-  });
+    it("delta with explicit baseline and head wraps the artifact verbatim", async () => {
+      await seedBriefedPr(harness.handle);
+      const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
+      const prRow = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
+      if (prRow === undefined) {
+        throw new Error("seed missing");
+      }
+      await createArtifactStore(harness.handle, CTX).deltas.write({
+        pullRequestId: prRow.id,
+        baselineSha: BASE_SHA,
+        headSha: HEAD_SHA,
+        provider: "anthropic",
+        model: "claude-fable-5",
+        effort: "high",
+        bodyVersion: FIXTURE_BODY_VERSION,
+        body: deltaBody,
+      });
+      await login();
 
-  it("groups --json is the brief artifact body, verbatim", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
-    const result = await run(["groups", "7", "--json"]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(BRIEF_BODY);
-  });
+      const ok = await run([
+        "delta",
+        "7",
+        "--baseline",
+        BASE_SHA,
+        "--head",
+        HEAD_SHA,
+        "--json",
+      ]);
+      expect(ok.code).toBe(ExitCodes.OK);
+      expect(JSON.parse(ok.out)).toEqual({
+        available: true,
+        baselineSha: BASE_SHA,
+        headSha: HEAD_SHA,
+        artifact: JSON.parse(deltaBody),
+      });
+      // The artifact bytes are spliced verbatim into the envelope.
+      expect(ok.out).toContain(deltaBody);
 
-  it("product-diff lifts and renders the stored brief's Product diff", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
-    const stored: { productDiff: unknown } = JSON.parse(BRIEF_BODY);
-
-    const result = await run(["product-diff", "7", "--json"]);
-
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(
-      `${JSON.stringify({ productDiff: stored.productDiff })}\n`,
-    );
-
-    const tty = await run(["product-diff", "7"]);
-    expect(tty.code).toBe(ExitCodes.OK);
-    expect(tty.out).toBe(
-      [
-        "PR 7 · Product diff · available · 1 change",
-        "user-flow\ta reviewer opens the brief",
-        "  before (not-shown)\t-",
-        "  after\tthe brief opens in full",
-        "  groups\tgrp-1",
-        "",
-      ].join("\n"),
-    );
-  });
-
-  it("conversation --json is verbatim passthrough", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
-    const token = await seedToken();
-    const wire = await reference(token).request({
-      path: `/api/repos/${REPO_A}/pulls/7/conversation`,
+      const missing = await run([
+        "delta",
+        "7",
+        "--baseline",
+        "f".repeat(40),
+        "--head",
+        HEAD_SHA,
+        "--json",
+      ]);
+      expect(missing.code).toBe(ExitCodes.NOT_FOUND);
+      expect(missing.out).toBe("");
     });
-    const result = await run(["conversation", "7", "--json"]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(wire.bodyText);
-  });
-
-  it("diff relays the raw diff; --group keeps the group's whole hunks", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
-
-    const raw = await run(["diff", "7"]);
-    expect(raw.code).toBe(ExitCodes.OK);
-    expect(raw.out).toBe(RAW_DIFF);
-    expect(raw.err).toEqual([
-      `diff mode: ${DiffModes.COMPARE}`,
-      `revision 1 ${BASE_SHA.slice(0, 7)}..${HEAD_SHA.slice(0, 7)}`,
-    ]);
-
-    const filtered = await run(["diff", "7", "--group", "grp-1"]);
-    expect(filtered.code).toBe(ExitCodes.OK);
-    expect(filtered.out).toContain("@@ -8,3 +8,5 @@");
-    expect(filtered.out).toContain("+added two");
-    expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
-    expect(filtered.out).not.toContain("src/other.ts");
-
-    const unknown = await run(["diff", "7", "--group", "nope"]);
-    expect(unknown.code).toBe(ExitCodes.NOT_FOUND);
-    expect(unknown.err[0]).toContain('change group "nope"');
-  });
-
-  it("delta with explicit baseline and head wraps the artifact verbatim", async () => {
-    await seedBriefedPr(harness.handle);
-    const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
-    const prRow = await createTenantRepository(
-      harness.handle,
-      CTX,
-    ).pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
-    if (prRow === undefined) {
-      throw new Error("seed missing");
-    }
-    await createArtifactStore(harness.handle, CTX).deltas.write({
-      pullRequestId: prRow.id,
-      baselineSha: BASE_SHA,
-      headSha: HEAD_SHA,
-      provider: "anthropic",
-      model: "claude-fable-5",
-      effort: "high",
-      bodyVersion: FIXTURE_BODY_VERSION,
-      body: deltaBody,
-    });
-    await login();
-
-    const ok = await run([
-      "delta",
-      "7",
-      "--baseline",
-      BASE_SHA,
-      "--head",
-      HEAD_SHA,
-      "--json",
-    ]);
-    expect(ok.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(ok.out)).toEqual({
-      available: true,
-      baselineSha: BASE_SHA,
-      headSha: HEAD_SHA,
-      artifact: JSON.parse(deltaBody),
-    });
-    // The artifact bytes are spliced verbatim into the envelope.
-    expect(ok.out).toContain(deltaBody);
-
-    const missing = await run([
-      "delta",
-      "7",
-      "--baseline",
-      "f".repeat(40),
-      "--head",
-      HEAD_SHA,
-      "--json",
-    ]);
-    expect(missing.code).toBe(ExitCodes.NOT_FOUND);
-    expect(missing.out).toBe("");
   });
 });
 
