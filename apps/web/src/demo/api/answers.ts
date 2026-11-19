@@ -31,6 +31,8 @@ import {
   tokensAnswer,
   versionAnswer,
 } from "./fixtures";
+import { answerSessionRequest } from "./session/answers";
+import type { DemoSessionStore } from "./session";
 import type { DemoRead, PullReadId } from "./types";
 import {
   answerEmpty,
@@ -152,11 +154,6 @@ const READS: readonly DemoRead[] = [
     path: buildPullPath(ProductQueryIds.READ_NARRATIVE),
     answer: answerNarrative,
   },
-  // No session row ever exists, so the screen reads only and writes nothing.
-  {
-    path: buildPullPath(ProductQueryIds.READ_REVIEW_SESSION),
-    answer: () => answerRefusal(ApiErrorCodes.NOT_FOUND),
-  },
   // No file contents travel with the fixture: every hunk edge stays folded.
   {
     path: buildPullPath(ProductQueryIds.READ_FILE_RANGE),
@@ -175,7 +172,7 @@ function answerRead(url: URL): Response {
   return read.answer(url.searchParams);
 }
 
-/** Sign out has no session to end and succeeds; every other write is refused. */
+/** Sign out has no session to end and succeeds; every write outside the review session is refused. */
 function answerWrite(method: string, url: URL): Response {
   const logout =
     method === HttpMethods.POST && url.pathname === AUTH_LOGOUT_PATH;
@@ -185,8 +182,23 @@ function answerWrite(method: string, url: URL): Response {
   return answerRefusal(ApiErrorCodes.FORBIDDEN);
 }
 
-/** What the demo answers for one `/api/*` request; the path and query decide. */
-export function answerDemoRequest(method: string, url: URL): Response {
+/** What one `/api/*` request carries to the demo. */
+export interface DemoRequest {
+  readonly method: string;
+  readonly url: URL;
+  readonly body?: unknown;
+}
+
+/** What the demo answers for one `/api/*` request; the review session lives in `store`, the rest is the fixtures. */
+export function answerDemoRequest(
+  request: DemoRequest,
+  store: DemoSessionStore,
+): Response {
+  const { method, url } = request;
+  const session = answerSessionRequest(store, method, url, request.body);
+  if (session !== undefined) {
+    return session;
+  }
   if (method === HttpMethods.GET) {
     return answerRead(url);
   }

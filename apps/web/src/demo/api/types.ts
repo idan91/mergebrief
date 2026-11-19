@@ -11,7 +11,6 @@ export type PullReadId =
   | typeof ProductQueryIds.READ_DIFF
   | typeof ProductQueryIds.READ_MARKS
   | typeof ProductQueryIds.READ_NARRATIVE
-  | typeof ProductQueryIds.READ_REVIEW_SESSION
   | typeof ProductQueryIds.READ_FILE_RANGE;
 
 /** A diffs sidecar for one exact span, and the read the api serves it as. */
