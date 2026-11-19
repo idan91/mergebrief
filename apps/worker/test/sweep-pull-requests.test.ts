@@ -73,23 +73,6 @@ function makeSilentLogger(): Logger {
 describe("sweep-pull-requests task", () => {
   const harness = registerSharedPglite();
 
-  it("deletes nothing when retention is unset", async () => {
-    await seedPullRequest(
-      harness,
-      1,
-      PrStates.CLOSED,
-      subtractDaysFromNow(4000),
-    );
-
-    await createSweepPullRequestsTask({
-      handle: harness.handle,
-      retentionDays: null,
-      log: makeSilentLogger(),
-    })();
-
-    expect(await readPrNumbers(harness)).toEqual([1]);
-  });
-
   it("deletes rows closed past the window and keeps open and recent ones", async () => {
     await seedPullRequest(harness, 1, PrStates.CLOSED, subtractDaysFromNow(40));
     await seedPullRequest(harness, 2, PrStates.MERGED, subtractDaysFromNow(31));

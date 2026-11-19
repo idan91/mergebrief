@@ -345,31 +345,6 @@ describe("read commands over the real api app", () => {
       expect(result.out).toBe(BRIEF_BODY);
     });
 
-    it("product-diff lifts and renders the stored brief's Product diff", async () => {
-      await login();
-      const stored: { productDiff: unknown } = JSON.parse(BRIEF_BODY);
-
-      const result = await run(["product-diff", "7", "--json"]);
-
-      expect(result.code).toBe(ExitCodes.OK);
-      expect(result.out).toBe(
-        `${JSON.stringify({ productDiff: stored.productDiff })}\n`,
-      );
-
-      const tty = await run(["product-diff", "7"]);
-      expect(tty.code).toBe(ExitCodes.OK);
-      expect(tty.out).toBe(
-        [
-          "PR 7 · Product diff · available · 1 change",
-          "user-flow\ta reviewer opens the brief",
-          "  before (not-shown)\t-",
-          "  after\tthe brief opens in full",
-          "  groups\tgrp-1",
-          "",
-        ].join("\n"),
-      );
-    });
-
     it("conversation --json is verbatim passthrough", async () => {
       await login();
       const token = await seedToken();

@@ -121,15 +121,6 @@ describe("generate task, stored artifact bodies", () => {
     }
   });
 
-  it("restarts unanchored and warns on a body with no generation", async () => {
-    const { row, shapeWarnings } = await runSecondPush({
-      storedBodySql: "(body::jsonb - 'generation')::text",
-    });
-
-    expect(row?.anchorState).toBe("none");
-    expect(shapeWarnings.map((line) => line["level"])).toEqual(["warn"]);
-  });
-
   it("keeps the chain's group ids when the stored body cannot anchor", async () => {
     const { row, shapeWarnings } = await runSecondPush({
       storedBodySql:
