@@ -3,7 +3,6 @@
 // harness). Rows are seeded through the harness's raw window because ageing a
 // row is not something the audit writer offers.
 import { describe, expect, it } from "vitest";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { createLogger, type Logger } from "logging";
 import { assertScheduledTasksRegistered, startWorker } from "../src/runner";
 import {
@@ -11,6 +10,7 @@ import {
   SWEEP_AUDIT_CRONTAB,
   SWEEP_AUDIT_TASK,
 } from "../src/task/sweep-audit";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const TENANT = 4001n;
 const OTHER_TENANT = 4002n;
@@ -22,7 +22,7 @@ function daysAgo(days: number): Date {
 }
 
 async function seedAged(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   installationId: bigint,
   occurredAt: Date,
 ): Promise<void> {
@@ -34,7 +34,7 @@ async function seedAged(
 }
 
 async function auditRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
 ): Promise<Record<string, unknown>[]> {
   return harness.raw("select * from audit_log order by id");
 }
@@ -73,8 +73,9 @@ describe("sweep-audit schedule", () => {
 });
 
 describe("sweep-audit task", () => {
+  const harness = registerSharedPglite();
+
   it("deletes nothing when retention is unset", async () => {
-    const harness = await createPgliteHarness();
     await seedAged(harness, TENANT, daysAgo(4000));
 
     await createSweepAuditTask({
@@ -84,11 +85,9 @@ describe("sweep-audit task", () => {
     })();
 
     expect(await auditRows(harness)).toHaveLength(1);
-    await harness.close();
   });
 
   it("erases rows past the window in every installation, counting each", async () => {
-    const harness = await createPgliteHarness();
     await seedAged(harness, TENANT, daysAgo(120));
     await seedAged(harness, TENANT, daysAgo(90));
     await seedAged(harness, TENANT, daysAgo(10));
@@ -114,11 +113,9 @@ describe("sweep-audit task", () => {
         [String(OTHER_TENANT), { count: 1 }],
       ]),
     );
-    await harness.close();
   });
 
   it("refuses a retention window under the floor", async () => {
-    const harness = await createPgliteHarness();
     await expect(
       createSweepAuditTask({
         handle: harness.handle,
@@ -126,6 +123,5 @@ describe("sweep-audit task", () => {
         log: silentLogger(),
       })(),
     ).rejects.toThrow(/30/);
-    await harness.close();
   });
 });

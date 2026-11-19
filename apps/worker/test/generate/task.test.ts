@@ -60,6 +60,7 @@ import {
   runAfterEachPost,
   runWithPullRequestsOffline,
   seedViewerGrant,
+  openPerTestHarness,
   setUpHarness,
   stubGenerator,
   stubMultiCallGenerator,
@@ -1724,6 +1725,7 @@ describe("generate task", () => {
   });
 
   it("a last attempt whose first read throws keeps the briefed row", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     await makeTask({ github })(payload);

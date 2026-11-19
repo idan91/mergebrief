@@ -58,6 +58,7 @@ import {
   runAfterEachPost,
   SECOND_ATTEMPT,
   seedViewerGrant,
+  openPerTestHarness,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -274,6 +275,7 @@ describe("generate task, failed Entry comment", () => {
   });
 
   it("a swap that throws deletes the comment it just posted", async () => {
+    await openPerTestHarness();
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     let posts = 0;
@@ -300,6 +302,7 @@ describe("generate task, failed Entry comment", () => {
   });
 
   it("a swap that stored its id before throwing keeps tracking the comment", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     let posts = 0;

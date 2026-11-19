@@ -69,6 +69,7 @@ import {
   readLiveBodies,
   REPO,
   SECOND_ATTEMPT,
+  openPerTestHarness,
   setUpHarness,
   stubGenerator,
   stubThreeGroupGenerator,
@@ -498,6 +499,7 @@ describe("a multi-call run", () => {
   });
 
   it("goes on when the large Entry's fallback repost cannot store its id", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeMultiCallGitHub(HEAD_1);
     // The generating comment is gone when the edit lands, so it reposts.
@@ -627,6 +629,7 @@ describe("a multi-call run", () => {
   });
 
   it("fails transient when a part write fails after a paid call and resumes", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeMultiCallGitHub(HEAD_1);
     await failNextPartWrite("detail:1");
@@ -695,6 +698,7 @@ describe("a multi-call run", () => {
   });
 
   it("re-sends a detail call stored under a grouping that then ran fresh", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeMultiCallGitHub(HEAD_1);
     await failFirstBriefWrite();
@@ -940,6 +944,7 @@ describe("a multi-call run", () => {
   });
 
   it("fails transient before a single call when the part store fails", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     await storeResumableParts(
       pr,
@@ -1250,6 +1255,7 @@ describe("a multi-call run", () => {
   });
 
   it("lets a held detail call finish and store when another fails", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeMultiCallGitHub(HEAD_1, FIVE_GROUP_PATHS);
     const grouping = makeInOrderGrouping(FIVE_GROUP_PATHS.length);
@@ -1483,6 +1489,7 @@ describe("a multi-call run", () => {
   });
 
   it("succeeds with a warn when the parts cannot be deleted after the write", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     await failPartDeletes();
     const { logger, readLines } = captureLogger();
@@ -1508,6 +1515,7 @@ describe("a multi-call run", () => {
   });
 
   it("settles a stored brief with a warn when its parts cannot be deleted", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     await failPartDeletes();
     const github = makeMultiCallGitHub(HEAD_1);

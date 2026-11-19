@@ -22,13 +22,13 @@ import {
   PR_REF,
   REPO,
   seedViewerGrant,
-  setUpFileHarness,
+  setUpHarness,
   HEAD_1,
   VIEWER_TOKEN,
 } from "./generate/helpers";
 import { createNoopLogger } from "../src/task/generate/utils";
 
-setUpFileHarness();
+setUpHarness();
 
 const OWNER = makeReviewerId(555n);
 const OPERATOR_TOKEN = "ghp_operator";

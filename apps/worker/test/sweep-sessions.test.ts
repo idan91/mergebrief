@@ -4,11 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOAuthApp } from "github";
-import {
-  createPgliteHarness,
-  seedGrant,
-  type PgliteHarness,
-} from "persistence/testing";
+import { seedGrant } from "persistence/testing";
 import {
   createEnvKeyProvider,
   createSessionAuth,
@@ -24,6 +20,11 @@ import {
   type SweepSessionsTaskDeps,
 } from "../src/task/sweep-sessions";
 import { captureLogger } from "./generate/helpers";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "./shared-pglite";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const NO_CONTENT = 204;
@@ -50,7 +51,7 @@ function shiftNowByDays(days: number): Date {
 }
 
 async function makeGrant(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   reviewerId: ReviewerId,
   refreshExpiresAt: Date,
 ): Promise<GithubGrantRow> {
@@ -65,7 +66,7 @@ async function makeGrant(
 }
 
 async function seedSession(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   hash: string,
   reviewerId: ReviewerId,
   expiresAt: Date,
@@ -80,7 +81,7 @@ async function seedSession(
 }
 
 async function makeRevokedTokenGrant(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   name = "revoked",
   revokedAt: Date = shiftNowByDays(-1),
 ): Promise<void> {
@@ -97,14 +98,14 @@ async function makeRevokedTokenGrant(
   await tokens.revokeToken(REVIEWER, minted.id, revokedAt);
 }
 
-async function readSessionHashes(harness: PgliteHarness): Promise<unknown[]> {
+async function readSessionHashes(harness: SharedPglite): Promise<unknown[]> {
   const rows = await harness.raw(
     "select session_token_hash from auth_session order by id",
   );
   return rows.map((row) => row["session_token_hash"]);
 }
 
-async function countGrants(harness: PgliteHarness): Promise<number> {
+async function countGrants(harness: SharedPglite): Promise<number> {
   return (await harness.raw("select id from github_grant")).length;
 }
 
@@ -113,7 +114,7 @@ function makeSilentLogger(): Logger {
 }
 
 function makeDeps(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   log: Logger = makeSilentLogger(),
   overrides: Partial<SweepSessionsTaskDeps> = {},
 ): SweepSessionsTaskDeps {
@@ -165,9 +166,10 @@ afterEach(() => {
 });
 
 describe("sweep-sessions task", () => {
+  const harness = registerSharedPglite();
+
   it("deletes expired sessions of every reviewer and keeps live ones", async () => {
     stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     await seedSession(harness, "expired-a", REVIEWER, shiftNowByDays(-1));
     await seedSession(
       harness,
@@ -181,35 +183,29 @@ describe("sweep-sessions task", () => {
 
     expect(await readSessionHashes(harness)).toEqual(["live"]);
     expect(await countGrants(harness)).toBe(1);
-    await harness.close();
   });
 
   it("revokes at GitHub the token of each grant an expired session took", async () => {
     const fetchFn = stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     await seedSession(harness, "expired", REVIEWER, shiftNowByDays(-1));
 
     await createSweepSessionsTask(makeDeps(harness))();
 
     expect(readRevokedTokens(fetchFn)).toEqual([ACCESS_TOKEN]);
-    await harness.close();
   });
 
   it("deletes a grant only a revoked token holds and revokes it at GitHub", async () => {
     const fetchFn = stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     await makeRevokedTokenGrant(harness);
 
     await createSweepSessionsTask(makeDeps(harness))();
 
     expect(await countGrants(harness)).toBe(0);
     expect(readRevokedTokens(fetchFn)).toEqual([ACCESS_TOKEN]);
-    await harness.close();
   });
 
   it("deletes a grant no row referenced for a day and revokes its token", async () => {
     const fetchFn = stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     await makeGrant(harness, REVIEWER, shiftNowByDays(30));
     await harness.raw(
       "update github_grant set created_at = now() - interval '2 days'",
@@ -219,12 +215,10 @@ describe("sweep-sessions task", () => {
 
     expect(await countGrants(harness)).toBe(0);
     expect(readRevokedTokens(fetchFn)).toEqual([ACCESS_TOKEN]);
-    await harness.close();
   });
 
   it("revokes a grant once when both sweeps return it", async () => {
     const fetchFn = stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     const grant = await makeGrant(harness, REVIEWER, shiftNowByDays(30));
     await createSessionAuth(harness.handle).createSession({
       sessionTokenHash: "expired",
@@ -247,12 +241,10 @@ describe("sweep-sessions task", () => {
 
     expect(await countGrants(harness)).toBe(0);
     expect(readRevokedTokens(fetchFn)).toEqual([ACCESS_TOKEN]);
-    await harness.close();
   });
 
   it("warns when GitHub refuses a revoke and still deletes the grant", async () => {
     stubTokenDelete(SERVER_ERROR);
-    const harness = await createPgliteHarness();
     await makeRevokedTokenGrant(harness);
     const capture = captureLogger();
 
@@ -264,12 +256,10 @@ describe("sweep-sessions task", () => {
       .filter((line) => line["evt"] === "grant.revoke.fail");
     expect(warned).toHaveLength(1);
     expect(JSON.stringify(warned)).not.toContain(ACCESS_TOKEN);
-    await harness.close();
   });
 
   it("logs one line with what the sweep deleted", async () => {
     stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
     await makeRevokedTokenGrant(harness);
     const capture = captureLogger();
 
@@ -281,31 +271,28 @@ describe("sweep-sessions task", () => {
     expect(lines.map((line) => line["msg"])).toEqual([
       "sweep-sessions: 0 expired sessions and 0 tokens deleted, 1 grants orphaned",
     ]);
-    await harness.close();
   });
 
   it("revokes what earlier batches removed when a later batch throws", async () => {
     const fetchFn = stubTokenDelete(NO_CONTENT);
-    const harness = await createPgliteHarness();
-    await seedSession(harness, "expired", REVIEWER, shiftNowByDays(-1));
-    await makeRevokedTokenGrant(harness, "old", shiftNowByDays(-31));
-    await harness.raw(
+    const isolated = await openPerTestPglite();
+    await seedSession(isolated, "expired", REVIEWER, shiftNowByDays(-1));
+    await makeRevokedTokenGrant(isolated, "old", shiftNowByDays(-31));
+    await isolated.raw(
       "create function refuse_token_delete() returns trigger language plpgsql as $$ begin raise exception 'token delete refused'; end $$",
     );
-    await harness.raw(
+    await isolated.raw(
       "create trigger refuse_token_delete before delete on api_token for each row execute function refuse_token_delete()",
     );
 
-    const sweep = createSweepSessionsTask(makeDeps(harness))();
+    const sweep = createSweepSessionsTask(makeDeps(isolated))();
 
     await expect(sweep).rejects.toThrow(/delete from "api_token"/);
     expect(readRevokedTokens(fetchFn)).toEqual([ACCESS_TOKEN, ACCESS_TOKEN]);
-    await harness.close();
   });
 
   it("skips the revokes its time budget does not reach and warns once", async () => {
     vi.stubGlobal("fetch", vi.fn(stubHangingFetch));
-    const harness = await createPgliteHarness();
     for (const name of ["a", "b", "c", "d", "e"]) {
       await makeRevokedTokenGrant(harness, name);
     }
@@ -327,6 +314,5 @@ describe("sweep-sessions task", () => {
     expect(failed).toHaveLength(3);
     expect(skipped.map((line) => line["skipped"])).toEqual([2]);
     expect(await countGrants(harness)).toBe(0);
-    await harness.close();
   });
 });
