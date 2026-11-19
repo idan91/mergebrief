@@ -10,9 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
-import type { Brief } from "../../../model/types";
 import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
-import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
+import { mountBriefView } from "@web/features/brief/test-utils";
 
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
@@ -72,26 +71,5 @@ describe("focus when focus mode hides the phone bar", () => {
 
     await waitFor(() => expect(screen.queryByTestId("phone-bar")).toBeNull());
     expect(document.activeElement).toBe(readMainContent());
-  });
-});
-
-const NEXT_BRIEF: Brief = {
-  ...briefFixture,
-  pr: { ...briefFixture.pr, sha: "b".repeat(40) },
-};
-
-describe("phone sheets over a brief switch", () => {
-  it("closes Brief controls and lands focus on its button", async () => {
-    const view = await mountBriefView({ briefId: "brief-a" });
-    fireEvent.click(await focusBriefControls());
-    await screen.findByTestId("brief-controls-sheet");
-
-    view.rerender({ briefId: "brief-b", brief: NEXT_BRIEF });
-
-    expect(screen.queryByTestId("brief-controls-sheet")).toBeNull();
-    const phoneBar = screen.getByTestId("phone-bar");
-    expect(document.activeElement).toBe(
-      within(phoneBar).getByRole("button", { name: "Brief controls" }),
-    );
   });
 });

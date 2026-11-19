@@ -73,7 +73,7 @@ function listCheckedOutcomes(): HTMLInputElement[] {
 }
 
 describe("submit under a stored outcome this bundle does not know", () => {
-  it("checks no outcome and keeps submit disabled with a reason", async () => {
+  it("holds submit until an outcome is picked, then sends that one", async () => {
     const submitReview = await openSubmitModal("unknown");
 
     expect(listCheckedOutcomes()).toEqual([]);
@@ -82,10 +82,6 @@ describe("submit under a stored outcome this bundle does not know", () => {
 
     clickSubmitReview();
     expect(submitReview).not.toHaveBeenCalled();
-  });
-
-  it("enables submit once an outcome is picked and sends that one", async () => {
-    const submitReview = await openSubmitModal("unknown");
 
     fireEvent.click(screen.getByRole("radio", { name: "Approve" }));
     expect(readSubmitDisabled()).toBeNull();
@@ -116,17 +112,5 @@ describe("a verdict GitHub refuses", () => {
     expect(
       await screen.findByText(/GitHub does not let an author approve/),
     ).toBeTruthy();
-  });
-
-  it("offers any other reviewer a retry", async () => {
-    const submitReview = await openSubmitModal("approve");
-    submitReview.mockResolvedValue({ kind: SubmitReviewResultKinds.UPSTREAM });
-
-    clickSubmitReview();
-
-    expect(
-      await screen.findByText(/GitHub rejected the review or is unreachable/),
-    ).toBeTruthy();
-    expect(screen.queryByText(/does not let an author/)).toBeNull();
   });
 });

@@ -68,9 +68,14 @@ async function renderFailingRoute(path = "/failing"): Promise<string> {
 }
 
 describe("an error no route boundary catches, on the server render", () => {
-  it("is the router's default error screen", () => {
-    expect(getRouter().options.defaultErrorComponent).toBe(PageError);
+  it("is the router's default error screen, reached without a retry", () => {
+    const { options } = getRouter();
+
+    expect(options.defaultErrorComponent).toBe(PageError);
     expect(appRootRoute.options.errorComponent).toBe(PageError);
+    expect(options.context.queryClient.getDefaultOptions().queries?.retry).toBe(
+      false,
+    );
   });
 
   it("renders curated copy inside the document", async () => {
