@@ -8,7 +8,11 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../../errors";
-import { CONFIRMATION_READ_TIMEOUT_MS, runWithinDeadline } from "../deadline";
+import {
+  CONFIRMATION_READ_TIMEOUT_MS,
+  runWithinDeadline,
+  type ConfirmationReadOptions,
+} from "../deadline";
 import type { RepositoryRef } from "../pull-request/types";
 import { CollaboratorPermissions, type CollaboratorPermission } from "./types";
 
@@ -18,7 +22,8 @@ const permissionResponseSchema = z.object({
   permission: z.enum(CollaboratorPermissions),
 });
 
-export interface ReadCollaboratorPermissionInput extends RepositoryRef {
+export interface ReadCollaboratorPermissionInput
+  extends RepositoryRef, ConfirmationReadOptions {
   readonly login: string;
 }
 
@@ -39,7 +44,7 @@ export async function readCollaboratorPermission(
             request: { retries: 0, signal },
           },
         ),
-      CONFIRMATION_READ_TIMEOUT_MS,
+      input.deadlineMs ?? CONFIRMATION_READ_TIMEOUT_MS,
     );
     const parsed = permissionResponseSchema.safeParse(response.data);
     if (!parsed.success) {

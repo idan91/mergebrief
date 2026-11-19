@@ -13,7 +13,11 @@ import {
   type GitHubApiError,
 } from "../../errors";
 import { repoIdSchema } from "../../ids";
-import { CONFIRMATION_READ_TIMEOUT_MS, runWithinDeadline } from "../deadline";
+import {
+  CONFIRMATION_READ_TIMEOUT_MS,
+  runWithinDeadline,
+  type ConfirmationReadOptions,
+} from "../deadline";
 import { INSTALLATION_REPOSITORIES_PAGE_SIZE } from "../repo";
 import { InstallationPresences, type InstallationPresence } from "./types";
 
@@ -21,6 +25,7 @@ import { InstallationPresences, type InstallationPresence } from "./types";
 export async function readInstallationPresence(
   app: AppClient,
   installationId: InstallationId,
+  options: ConfirmationReadOptions = {},
 ): Promise<Result<InstallationPresence, GitHubApiError>> {
   try {
     await runWithinDeadline(
@@ -29,7 +34,7 @@ export async function readInstallationPresence(
           installation_id: Number(installationId),
           request: { retries: 0, signal },
         }),
-      CONFIRMATION_READ_TIMEOUT_MS,
+      options.deadlineMs ?? CONFIRMATION_READ_TIMEOUT_MS,
     );
     return { ok: true, value: InstallationPresences.PRESENT };
   } catch (error) {
@@ -76,11 +81,12 @@ async function collectRepoIds(
  */
 export async function listInstallationRepoIds(
   octokit: Octokit,
+  options: ConfirmationReadOptions = {},
 ): Promise<Result<ReadonlySet<RepoId>, GitHubApiError>> {
   try {
     const repoIds = await runWithinDeadline(
       (signal) => collectRepoIds(octokit, signal),
-      CONFIRMATION_READ_TIMEOUT_MS,
+      options.deadlineMs ?? CONFIRMATION_READ_TIMEOUT_MS,
     );
     if (repoIds === undefined) {
       return {

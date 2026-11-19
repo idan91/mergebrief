@@ -18,6 +18,11 @@ export type AppClient = App;
  */
 export const MINT_TIMEOUT_MS = 3_000;
 
+interface AppClientOptions {
+  /** Overrides `MINT_TIMEOUT_MS`; production leaves it unset. */
+  readonly mintTimeoutMs?: number;
+}
+
 /** The mint's route, as a hook sees its template and as fetch sees its path. */
 const MINT_ROUTE_PATTERN =
   /\/app\/installations\/(?:\{installation_id\}|\d+)\/access_tokens$/;
@@ -30,8 +35,8 @@ function readRequestPath(input: Parameters<typeof fetch>[0]): string {
 }
 
 /** Every request goes out as before; the token mint alone gets a deadline. */
-function createMintBoundedFetch(): typeof fetch {
-  const timedFetch = createTimedFetch(MINT_TIMEOUT_MS);
+function createMintBoundedFetch(mintTimeoutMs: number): typeof fetch {
+  const timedFetch = createTimedFetch(mintTimeoutMs);
   return function fetchWithMintDeadline(input, init) {
     if (MINT_ROUTE_PATTERN.test(readRequestPath(input))) {
       return timedFetch(input, init);
@@ -50,7 +55,11 @@ function askMintOnce(octokit: CoreOctokit): void {
 }
 
 /** No network call: octokit defers JWT signing until a request needs it. */
-export function createAppClient(config: GitHubConfig): AppClient {
+export function createAppClient(
+  config: GitHubConfig,
+  options: AppClientOptions = {},
+): AppClient {
+  const mintTimeoutMs = options.mintTimeoutMs ?? MINT_TIMEOUT_MS;
   return new App({
     appId: config.appId,
     privateKey: config.privateKey,
@@ -65,7 +74,7 @@ export function createAppClient(config: GitHubConfig): AppClient {
     // diff-too-large answer.
     Octokit: Octokit.plugin(askMintOnce).defaults({
       retry: retryOptions(),
-      request: { fetch: createMintBoundedFetch() },
+      request: { fetch: createMintBoundedFetch(mintTimeoutMs) },
     }),
   });
 }

@@ -4,7 +4,7 @@ import {
   listHookDeliveries,
   redeliverHookDelivery,
 } from "../src/operations/hook-deliveries";
-import { makeAppConfig, stubGitHubFetch } from "./client/helpers";
+import { makeApp, makeAppConfig, stubGitHubFetch } from "./client/helpers";
 
 const LIST_PATH = "/app/hook/deliveries";
 const BIG_DELIVERY_ID = "3852189609249234945";
@@ -115,10 +115,12 @@ describe("redeliverHookDelivery", () => {
   });
 
   it("answers a refusal as a failure", async () => {
-    stubGitHub(() => ({ status: 422, body: { message: "spammed" } }));
+    const stub = stubGitHubFetch(() => ({
+      status: 422,
+      body: { message: "spammed" },
+    }));
 
-    const appClient = createAppClient(makeAppConfig());
-    const sent = await redeliverHookDelivery(appClient, BIG_DELIVERY_ID);
+    const sent = await redeliverHookDelivery(makeApp(stub), BIG_DELIVERY_ID);
 
     expect(sent.ok).toBe(false);
   });

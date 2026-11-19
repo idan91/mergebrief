@@ -2,7 +2,6 @@
 // cannot mint a token, so 404 is the answer "gone", never a failure.
 import { describe, expect, it } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
-import { CONFIRMATION_READ_TIMEOUT_MS } from "../src/operations/deadline";
 import { readInstallationPresence } from "../src/operations/installation";
 import { InstallationPresences } from "../src/operations/installation/types";
 import {
@@ -14,7 +13,8 @@ import {
 
 const INSTALLATION_ID = requireInstallationId(99n);
 const PRESENCE_PATH = "/app/installations/99";
-/** Room past the read's own budget before the test itself gives up. */
+const SHORT_DEADLINE_MS = 50;
+/** Room past the read's own budget, still short of the production deadline. */
 const TEST_SLACK_MS = 2_000;
 
 function answerPresence(answer: StubResponse) {
@@ -93,7 +93,7 @@ describe("readInstallationPresence", () => {
 
   it(
     "answers request-failed, never gone, when GitHub misses the deadline",
-    { timeout: CONFIRMATION_READ_TIMEOUT_MS + TEST_SLACK_MS },
+    { timeout: SHORT_DEADLINE_MS + TEST_SLACK_MS },
     async () => {
       const stub = stubGitHubFetch(() => undefined);
       const started = Date.now();
@@ -101,6 +101,7 @@ describe("readInstallationPresence", () => {
       const result = await readInstallationPresence(
         makeApp(stub),
         INSTALLATION_ID,
+        { deadlineMs: SHORT_DEADLINE_MS },
       );
 
       expect(result).toMatchObject({
@@ -108,7 +109,7 @@ describe("readInstallationPresence", () => {
         error: { code: GitHubApiErrorCodes.REQUEST_FAILED },
       });
       expect(Date.now() - started).toBeLessThan(
-        CONFIRMATION_READ_TIMEOUT_MS + TEST_SLACK_MS,
+        SHORT_DEADLINE_MS + TEST_SLACK_MS,
       );
     },
   );

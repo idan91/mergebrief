@@ -12,6 +12,7 @@ import {
   postEntryComment,
 } from "../operations/comments";
 import { listOpenPullRequests } from "../operations/pull-request";
+import type { ConfirmationReadOptions } from "../operations/deadline";
 import type { RepositoryRef } from "../operations/pull-request/types";
 import { buildRepoReader } from "./repo-reader";
 import type { CallRunner, InstallationRepoClient } from "./types";
@@ -23,6 +24,7 @@ import type { CallRunner, InstallationRepoClient } from "./types";
 export function buildInstallationRepoClient(
   repo: RepositoryRef,
   run: CallRunner,
+  confirmationReads: ConfirmationReadOptions,
 ): InstallationRepoClient {
   return {
     ...buildRepoReader(repo, run),
@@ -34,7 +36,12 @@ export function buildInstallationRepoClient(
     },
     readCollaboratorPermission(login) {
       return run(
-        (octokit) => readCollaboratorPermission(octokit, { ...repo, login }),
+        (octokit) =>
+          readCollaboratorPermission(octokit, {
+            ...repo,
+            ...confirmationReads,
+            login,
+          }),
         "read collaborator permission",
       );
     },
