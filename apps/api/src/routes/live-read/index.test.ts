@@ -680,6 +680,19 @@ describe("readInboxRowsLive for installation rows", () => {
     });
   }
 
+  /** `REPO#1..count` like `seedInstallationRow`, the copies past the first in one statement. */
+  async function seedInstallationRowsInBulk(count: number): Promise<void> {
+    const source = await seedInstallationRow(REPO, 1);
+    await harness.raw(
+      `insert into pull_request
+         (installation_id, owner_user_id, source, repo_id, pr_number, repo_slug, state, draft)
+       select installation_id, owner_user_id, source, repo_id, number, repo_slug, state, draft
+       from pull_request, generate_series(2, $2) as number
+       where id = $1`,
+      [source.id.toString(), count],
+    );
+  }
+
   async function readInstallationRow(
     repoId: RepoId,
     prNumber: number,
@@ -721,7 +734,7 @@ describe("readInboxRowsLive for installation rows", () => {
   it("spends one chunk budget across url and installation rows", async () => {
     const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
     arrangePulls(cap);
-    await seedRows(cap);
+    await seedRowsInBulk(cap);
     await seedInstallationRow(REPO, 1);
 
     const outcome = await readInstallationRowsLive(
@@ -739,9 +752,7 @@ describe("readInboxRowsLive for installation rows", () => {
     arrangePulls(1);
     await seedRows(1);
     await readOwnerRowsLive(buildLiveDeps({ now: TEN_MINUTES_AGO }), OWNER);
-    for (let prNumber = 1; prNumber <= cap; prNumber += 1) {
-      await seedInstallationRow(REPO, prNumber);
-    }
+    await seedInstallationRowsInBulk(cap);
 
     await readInstallationRowsLive(buildLiveDeps(), INSTALLATION, [REPO]);
 
