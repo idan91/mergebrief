@@ -16,7 +16,7 @@ export const DEMO_VIEWER_LOGIN = "demo-reviewer";
 export const DEMO_VERSION = "0.1.0";
 
 /** A made-up colleague: the person whose review the demo's conversation holds. */
-export const DEMO_REVIEWER_LOGIN = "mira-k";
+export const DEMO_REVIEWER_LOGIN = "nightowl";
 
 /** Auth bootstrap paths sit outside the operation table. */
 export const AUTH_SESSION_PATH = "/api/auth/session";
