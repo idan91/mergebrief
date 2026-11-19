@@ -63,6 +63,8 @@ export interface InboxFixtureRow {
   readonly draft?: boolean;
   /** Minutes before the seed ran; the list sorts by it. */
   readonly updatedMinutesAgo: number;
+  /** Days before the seed ran that GitHub opened it; the created sort's key, in no order the update times share. */
+  readonly createdDaysAgo: number;
 }
 
 export const INBOX_ROWS: readonly InboxFixtureRow[] = [
@@ -73,6 +75,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Retry failed webhook deliveries with backoff",
     state: InboxSeedStates.NEW,
     updatedMinutesAgo: 20,
+    createdDaysAgo: 20,
   },
   {
     installationId: 7001,
@@ -81,6 +84,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Move invoice rounding into the `ledger` package",
     state: InboxSeedStates.UPDATED,
     updatedMinutesAgo: 95,
+    createdDaysAgo: 18,
   },
   {
     installationId: 7001,
@@ -89,6 +93,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Add a per-tenant rate limit to the export endpoint",
     state: InboxSeedStates.IN_PROGRESS,
     updatedMinutesAgo: 190,
+    createdDaysAgo: 40,
   },
   {
     installationId: 7002,
@@ -98,6 +103,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     state: InboxSeedStates.REVIEWED,
     draft: true,
     updatedMinutesAgo: 340,
+    createdDaysAgo: 14,
   },
   {
     installationId: 7002,
@@ -106,6 +112,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Let operators pause a payout batch",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 420,
+    createdDaysAgo: 3,
   },
   {
     installationId: 7001,
@@ -114,6 +121,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Drop the legacy settlement exporter",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 500,
+    createdDaysAgo: 10,
   },
   {
     installationId: 7001,
@@ -122,6 +130,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Fold the refund ledger into settlements",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 560,
+    createdDaysAgo: 8,
   },
   {
     installationId: 7002,
@@ -130,6 +139,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Index ledger entries by posting date",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 620,
+    createdDaysAgo: 6,
   },
   {
     installationId: 7002,
@@ -138,6 +148,7 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
     title: "Cache the ledger summary per account",
     state: InboxSeedStates.YOURS,
     updatedMinutesAgo: 680,
+    createdDaysAgo: 5,
   },
 ];
 

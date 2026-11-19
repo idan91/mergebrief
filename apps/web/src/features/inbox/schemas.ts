@@ -53,6 +53,7 @@ export const inboxItemSchema = dropNullKeys(
     generation: inboxGenerationSchema.exactOptional(),
     latestBriefAt: z.string().exactOptional(),
     githubUpdatedAt: z.string().exactOptional(),
+    githubCreatedAt: z.string().exactOptional(),
     stack: inboxStackPositionSchema.exactOptional(),
   }),
   [
@@ -63,6 +64,7 @@ export const inboxItemSchema = dropNullKeys(
     "generation",
     "latestBriefAt",
     "githubUpdatedAt",
+    "githubCreatedAt",
     "stack",
     "reviewState",
   ],

@@ -7,6 +7,7 @@ import { CollapsedFilters } from "./CollapsedFilters";
 import styles from "./Controls.module.scss";
 import { Filter } from "./Filter";
 import { MoreFilters } from "./MoreFilters";
+import { SortMenu } from "./SortMenu";
 import { SearchField } from "./SearchField";
 import type { FilterView } from "./types";
 import { useNarrowViewport } from "./useNarrowViewport";
@@ -14,6 +15,7 @@ import { useNarrowViewport } from "./useNarrowViewport";
 export interface ControlsProps {
   filters: readonly FilterView[];
   sort: FilterView;
+  direction: FilterView;
   /** Folded or mixed; the control is named View. */
   layout: FilterView;
   changedCount: number;
@@ -39,6 +41,7 @@ export interface ControlsProps {
 export function Controls({
   filters,
   sort,
+  direction,
   layout,
   changedCount,
   searchText,
@@ -91,7 +94,7 @@ export function Controls({
           </LinkButton>
         )}
         <Filter filter={layout} placement="bottom-end" />
-        <Filter filter={sort} placement="bottom-end" />
+        <SortMenu direction={direction} sort={sort} />
       </div>
     </div>
   );

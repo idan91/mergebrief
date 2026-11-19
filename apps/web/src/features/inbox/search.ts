@@ -7,12 +7,14 @@ import {
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxReviewStates,
+  InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxReviewState,
   type InboxSort,
+  type InboxSortDirection,
   type InboxStatus,
   InboxLayouts,
   type InboxLayout,
@@ -144,6 +146,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   } = {};
   const page = readPage(search["page"]);
   const sort = readOne(search["sort"], InboxSorts);
+  const direction = readOne(search["direction"], InboxSortDirections);
   const layout = readOne(search["layout"], InboxLayouts);
   const states = keepKnown(readList(search["state"]), InboxStatuses);
   const repos = readIds(search["repo"]);
@@ -159,6 +162,9 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   }
   if (sort !== undefined && sort !== InboxSorts.UPDATED) {
     parsed.sort = sort;
+  }
+  if (direction === InboxSortDirections.ASCENDING) {
+    parsed.direction = direction;
   }
   if (layout !== undefined && layout !== InboxLayouts.FOLDED) {
     parsed.layout = layout;
@@ -215,6 +221,9 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
   if (search.sort !== undefined) {
     params.sort = search.sort;
   }
+  if (search.direction !== undefined) {
+    params.direction = search.direction;
+  }
   if (search.layout !== undefined) {
     params.layout = search.layout;
   }
@@ -246,6 +255,7 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
 export interface InboxChoices {
   readonly page: number;
   readonly sort: InboxSort;
+  readonly direction: InboxSortDirection;
   readonly layout: InboxLayout;
   readonly states: readonly InboxStatus[];
   readonly repos: readonly string[];
@@ -262,6 +272,7 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
   return {
     page: params.page ?? FIRST_PAGE,
     sort: params.sort ?? InboxSorts.UPDATED,
+    direction: params.direction ?? InboxSortDirections.DESCENDING,
     layout: search.layout ?? InboxLayouts.FOLDED,
     states: params.state ?? DEFAULT_STATES,
     repos: params.repo ?? [],
@@ -318,6 +329,7 @@ export function writeInboxSearch(
 const KEYS_BESIDE_SEARCH_TEXT: readonly (keyof InboxSearch)[] = [
   ...FILTER_KEYS,
   "sort",
+  "direction",
   "layout",
   "error",
 ];
@@ -357,11 +369,14 @@ export function widenInboxFilters(
   return widest;
 }
 
-/** Every filter back to its default; the sort and the layout stay. */
+/** Every filter back to its default; the sort, its direction and the layout stay. */
 export function clearInboxFilters(current: InboxSearch): InboxSearch {
   const kept: Record<string, unknown> = {};
   if (current.sort !== undefined) {
     kept["sort"] = current.sort;
+  }
+  if (current.direction !== undefined) {
+    kept["direction"] = current.direction;
   }
   if (current.layout !== undefined) {
     kept["layout"] = current.layout;

@@ -46,6 +46,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
   if (params.sort !== undefined) {
     search.set(InboxQueryKeys.SORT, params.sort);
   }
+  if (params.direction !== undefined) {
+    search.set(InboxQueryKeys.DIRECTION, params.direction);
+  }
   if (params.layout !== undefined) {
     search.set(InboxQueryKeys.LAYOUT, params.layout);
   }
@@ -106,6 +109,9 @@ export function pickAgeAt(
 ): string | undefined {
   if (sort === InboxSorts.GENERATED) {
     return item.latestBriefAt ?? item.githubUpdatedAt;
+  }
+  if (sort === InboxSorts.CREATED) {
+    return item.githubCreatedAt ?? item.githubUpdatedAt;
   }
   return item.githubUpdatedAt ?? item.latestBriefAt;
 }

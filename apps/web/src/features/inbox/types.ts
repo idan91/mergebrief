@@ -6,6 +6,7 @@ import type {
   InboxLayout,
   InboxReviewState,
   InboxSort,
+  InboxSortDirection,
   InboxStatus,
   PrState,
   PullRequestSource,
@@ -66,6 +67,8 @@ export interface InboxItem {
   generation?: InboxGeneration;
   latestBriefAt?: string;
   githubUpdatedAt?: string;
+  /** GitHub's creation time; absent until the server has read it. */
+  githubCreatedAt?: string;
   stack?: InboxStackPosition;
 }
 
@@ -167,6 +170,7 @@ export type InboxState =
 export interface InboxQueryParams {
   readonly page?: number;
   readonly sort?: InboxSort;
+  readonly direction?: InboxSortDirection;
   readonly layout?: InboxLayout;
   readonly state?: readonly InboxStatus[];
   readonly repo?: readonly string[];
@@ -185,6 +189,8 @@ export interface InboxQueryParams {
 export interface InboxSearch {
   readonly page?: number;
   readonly sort?: InboxSort;
+  /** Which way the sort runs; absent is newest first. */
+  readonly direction?: InboxSortDirection;
   readonly layout?: InboxLayout;
   readonly state?: string;
   readonly repo?: string;

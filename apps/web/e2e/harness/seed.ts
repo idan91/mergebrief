@@ -57,6 +57,7 @@ import {
 import { buildSeedBrief, SEED_ORIGIN } from "./seed-brief";
 
 const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 const SEED_BASE_SHA = "0000000099998888777766665555444433332222";
 const SEED_COMMIT_COUNT = 1;
 
@@ -175,6 +176,7 @@ async function seedInboxRow(
   const updatedAt = new Date(
     seededAt.getTime() - row.updatedMinutesAgo * MINUTE_MS,
   );
+  const createdAt = new Date(seededAt.getTime() - row.createdDaysAgo * DAY_MS);
   const lifecycle: PullRequestLifecycle = { state: PrStates.OPEN };
   const written = await createTenantRepository(handle, ctx).pullRequests.upsert(
     {
@@ -188,6 +190,7 @@ async function seedInboxRow(
           : E2E_OTHER_LOGIN,
       draft: row.draft ?? false,
       githubUpdatedAt: updatedAt,
+      githubCreatedAt: createdAt,
       ...lifecycle,
     },
   );

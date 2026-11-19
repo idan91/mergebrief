@@ -1,5 +1,6 @@
 import {
   InboxReviewStates,
+  InboxSortDirections,
   InboxSorts,
   InboxArchivedFilters,
 } from "types/inbox";
@@ -56,6 +57,15 @@ describe("buildInboxSearch", () => {
         review: [InboxReviewStates.UPDATED],
       }),
     ).toBe("?page=3&sort=generated&state=open&state=draft&review=updated");
+  });
+
+  it("sends the direction beside the sort", () => {
+    const search = buildInboxSearch({
+      sort: InboxSorts.CREATED,
+      direction: InboxSortDirections.ASCENDING,
+    });
+
+    expect(search).toBe("?sort=created&direction=asc");
   });
 
   it("sends the search text as q", () => {
@@ -123,6 +133,17 @@ describe("pickAgeAt", () => {
         InboxSorts.UPDATED,
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("pickAgeAt under the created sort", () => {
+  it("reads the creation time, else the update time", () => {
+    const created = makeItem({ githubCreatedAt: "2026-09-01T08:00:00Z" });
+
+    expect(pickAgeAt(created, InboxSorts.CREATED)).toBe("2026-09-01T08:00:00Z");
+    expect(pickAgeAt(makeItem(), InboxSorts.CREATED)).toBe(
+      "2026-09-20T10:00:00Z",
+    );
   });
 });
 

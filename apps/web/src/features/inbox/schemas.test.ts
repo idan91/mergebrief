@@ -60,6 +60,16 @@ describe("parseInboxResponse", () => {
     });
   });
 
+  it("keeps GitHub's creation time when the wire carries it", () => {
+    const dated = { ...ITEM, githubCreatedAt: "2026-09-01T08:00:00Z" };
+    const parsed = parseInboxResponse({ ...WIRE_PAGE, items: [dated] });
+
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.items[0]?.githubCreatedAt).toBe("2026-09-01T08:00:00Z");
+  });
+
   it("reads a pasted row's wire nulls as absent fields", () => {
     const pasted = {
       ...ITEM,
@@ -70,6 +80,7 @@ describe("parseInboxResponse", () => {
       generation: null,
       latestBriefAt: null,
       githubUpdatedAt: null,
+      githubCreatedAt: null,
       stack: null,
     };
     const parsed = parseInboxResponse({
@@ -91,6 +102,7 @@ describe("parseInboxResponse", () => {
       generation: _generation,
       latestBriefAt: _latestBriefAt,
       githubUpdatedAt: _githubUpdatedAt,
+      githubCreatedAt: _githubCreatedAt,
       stack: _stack,
       ...present
     } = pasted;

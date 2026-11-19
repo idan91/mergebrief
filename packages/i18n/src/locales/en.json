@@ -1945,8 +1945,15 @@
       "view": "View",
       "viewFolded": "Needs you first",
       "viewMixed": "Mixed",
-      "sortUpdated": "Recently updated",
-      "sortGenerated": "Recently generated",
+      "sortBy": "Sort by",
+      "sortUpdated": "Updated",
+      "sortGenerated": "Generated",
+      "sortCreated": "Created",
+      "sortOrder": "Order",
+      "sortNewestFirst": "Newest first",
+      "sortOldestFirst": "Oldest first",
+      "sortOldestFirst_inline": "oldest first",
+      "sortValueWithDirection": "{{sort}}, {{direction}}",
       "ariaLabelControls": "Filters, view and sort"
     },
     "pager": {
