@@ -6,12 +6,19 @@ export function shortcutsDialog(page: Page): Locator {
 }
 
 /**
- * Resolve once the Inbox rows have settled after their first-load fade. The
- * first visit also compiles the app on a cold dev server, hence the budget.
+ * How long a page gets to hydrate. A built page takes well under a second on
+ * a developer machine; the rest is margin for a loaded CI runner.
  */
+const HYDRATION_BUDGET_MS = 10_000;
+
+interface WaitOptions {
+  timeout?: number;
+}
+
+/** Resolve once the Inbox rows have settled after their first-load fade. */
 export async function waitForFirstLoad(
   page: Page,
-  { timeout = 20_000 }: { timeout?: number } = {},
+  { timeout = HYDRATION_BUDGET_MS }: WaitOptions = {},
 ): Promise<void> {
   await expect(page.locator('[data-first-load="false"]')).toBeAttached({
     timeout,
@@ -25,7 +32,7 @@ export async function waitForFirstLoad(
 export async function clickUntilLanded(
   target: Locator,
   landed: () => Promise<void>,
-  { timeout = 20_000 }: { timeout?: number } = {},
+  { timeout = HYDRATION_BUDGET_MS }: WaitOptions = {},
 ): Promise<void> {
   await expect(async () => {
     await target.click();
@@ -43,7 +50,7 @@ export async function clickUntilLanded(
  */
 export async function waitForInteractive(
   page: Page,
-  { timeout = 20_000 }: { timeout?: number } = {},
+  { timeout = HYDRATION_BUDGET_MS }: WaitOptions = {},
 ): Promise<void> {
   const dialog = shortcutsDialog(page);
   await expect(async () => {
@@ -58,7 +65,7 @@ export async function waitForInteractive(
 export async function gotoBrief(
   page: Page,
   path: string,
-  options?: { timeout?: number },
+  options?: WaitOptions,
 ): Promise<void> {
   await page.goto(path);
   await waitForInteractive(page, options);

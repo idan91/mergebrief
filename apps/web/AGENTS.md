@@ -21,7 +21,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **One `.svg` asset file per mark or icon**, imported via svgr. Never a collection of path data grouped into one `.tsx`.
 - **Every interactive change declares its accessibility contract** before review, not during: where focus lands, how async outcomes are announced, targets ≥ 24px.
 - **Client code may `console.error` on unexpected failure**; the user sees the failure via UI state, never a raw message.
-- **The version notice is one feature folder** (`features/version`): the band under the Header on Home and the brief page, the per-user dismissal, and the Account menu's dismissed row and avatar dot all read one query (`buildVersionQueryOptions` over `GET /api/version`); the menu's row and dot go through `useVersionPresence`. A security release has no dismiss; a `dev` server never shows it, so the browser suite cannot see it.
+- **The version notice is one feature folder** (`features/version`): the band under the Header on Home and the brief page, the per-user dismissal, and the Account menu's dismissed row and avatar dot all read one query (`buildVersionQueryOptions` over `GET /api/version`); the menu's row and dot go through `useVersionPresence`. A security release has no dismiss; an API whose `SERVER_VERSION` is `dev` never shows it, and the browser suite's API sets none, so the suite cannot see it.
 
 ## Hooks and JSX
 
@@ -87,7 +87,8 @@ pnpm -C apps/web test      # characterization harness included
 pnpm -C apps/web lint      # stylelint (prettier rides repo-root pnpm lint);
                            # exit code is the judge
 pnpm -C apps/web build     # REQUIRED for isomorphic/server-only changes
-pnpm -C apps/web test:e2e  # playwright; global setup runs its own postgres container
+pnpm -C apps/web test:e2e  # playwright against a fresh production build;
+                           # global setup runs its own postgres container
 pnpm -C apps/web perf:fixture && pnpm -C apps/web perf:measure
                            # perf suite; the fixture is generated, never committed
 ```

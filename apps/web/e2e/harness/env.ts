@@ -287,11 +287,15 @@ export function buildApiServerEnv(): Record<string, string> {
 
 /**
  * The web process env. No credentials, no database and no files: the tier
- * proxies `/api/*` to the API.
+ * proxies `/api/*` to the API. The listener variables are the production
+ * process's; `vite dev`, which the perf suite runs, takes its port from the
+ * command line and ignores them.
  */
 export function buildWebServerEnv(): Record<string, string> {
   return {
     PUBLIC_BASE_URL: E2E_BASE_URL,
     MERGEBRIEF_API_ORIGIN: E2E_API_ORIGIN,
+    MERGEBRIEF_WEB_HOST: "127.0.0.1",
+    MERGEBRIEF_WEB_PORT: String(E2E_PORT),
   };
 }

@@ -11,9 +11,7 @@ import {
 import { collectPageFaults } from "../support/console";
 import { waitForFirstLoad } from "../support/page";
 
-// The module TanStack Start's dev server hydrates from; holding it keeps the
-// page server-rendered until the test lets it go.
-const DEV_CLIENT_ENTRY_URL = /\/@id\/virtual:tanstack-start-dev-client-entry/;
+const CLIENT_ENTRY_SCRIPT = /<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/;
 
 const [, , , nonAdminRow] = INBOX_ROWS;
 const deleteRow = INBOX_ROWS.find(
@@ -103,18 +101,32 @@ interface HeldClientEntry {
   release: () => void;
 }
 
+/** The document's one module script: the built entry the page hydrates from. */
+async function readClientEntryPath(page: Page): Promise<string> {
+  const served = await page.request.get("/");
+  const entry = CLIENT_ENTRY_SCRIPT.exec(await served.text())?.[1];
+  if (entry === undefined) {
+    throw new Error("the served document names no client entry");
+  }
+  return entry;
+}
+
 /** Holds the client entry so the page stays server-rendered until released. */
 async function holdClientEntry(page: Page): Promise<HeldClientEntry> {
+  const entryPath = await readClientEntryPath(page);
   let release: () => void = () => undefined;
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
   let held = false;
-  await page.route(DEV_CLIENT_ENTRY_URL, async (route) => {
-    held = true;
-    await released;
-    await route.continue();
-  });
+  await page.route(
+    (url) => url.pathname === entryPath,
+    async (route) => {
+      held = true;
+      await released;
+      await route.continue();
+    },
+  );
   return { isHeld: () => held, release };
 }
 
@@ -130,9 +142,7 @@ test("the page checkbox keeps a tick made before the page hydrates", async ({
   await expect.poll(clientEntry.isHeld).toBe(true);
   clientEntry.release();
 
-  await expect(bar.getByText(/^\d+ selected/)).toBeVisible({
-    timeout: 20_000,
-  });
+  await expect(bar.getByText(/^\d+ selected/)).toBeVisible();
   await expect(bar.getByRole("checkbox")).toBeChecked();
   expect(faults).toEqual([]);
 });
@@ -152,7 +162,7 @@ test("rows then the page ticked before hydration select every row", async ({
   await expect.poll(clientEntry.isHeld).toBe(true);
   clientEntry.release();
 
-  await expect(bar.getByRole("checkbox")).toBeChecked({ timeout: 20_000 });
+  await expect(bar.getByRole("checkbox")).toBeChecked();
   const rowCount = await rows.count();
   const everyRowSelected = new RegExp(`^${String(rowCount)} selected`);
   await expect(bar.getByText(everyRowSelected)).toBeVisible();

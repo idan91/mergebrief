@@ -1,9 +1,9 @@
-// E2E v2: the seeded-database suite over the repo route.
-// Chromium only, single worker, network-free. GitHub is stubbed inside the
-// server process and postgres is a disposable container this harness owns,
-// so no live spend and no dev-database contact. Retries are the ADR's single
-// carve-out from the no-retry flake policy: the browser layer is the one
-// place a retry buys signal instead of hiding a bug.
+// The seeded-database browser suite: Chromium against a production build of
+// the web tier, an API process and a disposable postgres this harness owns.
+// GitHub is stubbed inside the API process, so no live spend and no
+// dev-database contact. Retries are the one carve-out from the no-retry flake
+// policy: the browser layer is the one place a retry buys signal instead of
+// hiding a bug.
 import { defineConfig, devices } from "@playwright/test";
 import {
   buildWebServerEnv,
@@ -48,18 +48,16 @@ export default defineConfig({
       testMatch: "**/signedOut.e2e.ts",
     },
   ],
-  // Both tiers, in order: the API owns the database and the credentials, the
-  // web app proxies `/api/*` to it. `reuseExistingServer` is OFF
-  // unconditionally on both, a reused process would be composed over the
-  // wrong database and without the GitHub stub.
   // Only the web tier. The API is started by `globalSetup`, after the database
   // exists: Playwright starts and awaits every webServer entry BEFORE
   // globalSetup runs, and the API connects to Postgres before it listens.
+  // `reuseExistingServer` is OFF: a reused process would proxy to another
+  // run's API.
   webServer: [
     {
-      // The real server entry (`src/server.ts`) in dev mode: same request
-      // pipeline as production, without paying a full build per run.
-      command: `pnpm exec vite dev --port ${String(E2E_PORT)} --strictPort`,
+      // The production process over a fresh build, every run: a `dist/` left
+      // by another branch must never be the code under test.
+      command: "pnpm build && pnpm start",
       url: `http://localhost:${String(E2E_PORT)}/healthz`,
       reuseExistingServer: false,
       timeout: 120_000,
