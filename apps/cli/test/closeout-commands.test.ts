@@ -71,6 +71,8 @@ function stubGitHub(world: CliApiHarness): void {
         commits: 3,
         user: { login: "octocat" },
         closed_at: null,
+        updated_at: "2026-10-01T10:00:00Z",
+        created_at: "2026-09-01T08:00:00Z",
       });
     }
     if (/\/repositories\/\d+$/.test(url)) {
