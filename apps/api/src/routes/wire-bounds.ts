@@ -77,6 +77,8 @@ export function parsePrNumberParam(
 /** Rows per Inbox page; the client asks for a page number, never a size. */
 export const INBOX_PAGE_SIZE = InboxQueryBounds.PAGE_SIZE;
 export const MAX_INBOX_FILTER_VALUES = InboxQueryBounds.MAX_FILTER_VALUES;
+export const MAX_INBOX_SEARCH_TEXT_LENGTH =
+  InboxQueryBounds.MAX_SEARCH_TEXT_LENGTH;
 /** The contract's number is the `int4` offset ceiling; this holds it to that. */
 export const MAX_INBOX_PAGE: number = Math.min(
   InboxQueryBounds.MAX_PAGE,

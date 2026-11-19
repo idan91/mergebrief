@@ -39,7 +39,13 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, registerSharedPglite } from "./helpers";
+import {
+  DEFAULT_INBOX_FILTERS,
+  brandWith,
+  makeInboxListInput,
+  registerSharedPglite,
+  type InboxReach,
+} from "./helpers";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
@@ -172,30 +178,24 @@ async function stampSubmittedReviews(
   await internal(handle).update(reviewSubmittedReview).set({ createdAt });
 }
 
-const DEFAULT_FILTERS: InboxFilters = {
-  statuses: [InboxStatuses.OPEN, InboxStatuses.DRAFT],
-  author: InboxAuthorFilters.ALL,
-  archived: InboxArchivedFilters.HIDE,
-};
+const DEFAULT_FILTERS = DEFAULT_INBOX_FILTERS;
 const ARCHIVED_ONLY: InboxFilters = {
   ...DEFAULT_FILTERS,
   archived: InboxArchivedFilters.ONLY,
 };
 
+const REACH: InboxReach = {
+  installationIds: [ACME, OCTO],
+  allowedRepoIds: [REPO_A, REPO_B],
+  ownerUserId: VIEWER,
+  reviewerId: VIEWER,
+};
+
 function makeListInput(overrides?: Partial<InboxListInput>): InboxListInput {
-  return {
-    installationIds: [ACME, OCTO],
-    allowedRepoIds: [REPO_A, REPO_B],
-    ownerUserId: VIEWER,
-    reviewerId: VIEWER,
+  return makeInboxListInput(REACH, {
     reviewerLogin: VIEWER_LOGIN,
-    filters: DEFAULT_FILTERS,
-    sort: InboxSorts.UPDATED,
-    layout: InboxLayouts.FOLDED,
-    page: 1,
-    pageSize: 25,
     ...overrides,
-  };
+  });
 }
 
 async function listNumbers(

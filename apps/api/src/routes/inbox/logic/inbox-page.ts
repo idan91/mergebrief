@@ -108,6 +108,7 @@ export async function readInboxPage(
     pageSize: page.pageSize,
     total: page.total,
     archivedTotal: page.archivedTotal,
+    searchMatchTotal: page.searchMatchTotal,
     counts: page.counts,
     viewer: shapeViewer(input.reviewerId, input.reviewerLogin),
     reachableInstallations: input.installations.map((entry) => ({

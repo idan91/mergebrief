@@ -21,6 +21,7 @@ export const InboxQueryKeys = {
   AUTHOR: "author",
   INSTALLATION: "installation",
   ARCHIVED: "archived",
+  SEARCH_TEXT: "q",
 } as const;
 export type InboxQueryKey = ValueOf<typeof InboxQueryKeys>;
 
@@ -31,6 +32,8 @@ export const InboxQueryBounds = {
   MAX_FILTER_VALUES: 100,
   /** The last page whose offset still fits Postgres's int4 at PAGE_SIZE rows. */
   MAX_PAGE: 85_899_345,
+  /** Characters of search text kept; a longer value is cut, never refused. */
+  MAX_SEARCH_TEXT_LENGTH: 100,
 } as const;
 
 /** One numbered page. A page past the end carries no items and the true total. */
@@ -106,6 +109,8 @@ export interface InboxRepositoryView {
 export interface InboxResponse extends Page<InboxItem> {
   /** The viewer's archived rows, whatever the filters or the view, so an empty page can say how many there are. */
   readonly archivedTotal: number;
+  /** The viewer's rows the search text matches, whatever the filters or the view, so an empty page can say how many they hide; 0 without search text. */
+  readonly searchMatchTotal: number;
   readonly counts: InboxCountsView;
   readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];

@@ -13,6 +13,17 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-18)
+
+- **Added** `q` on `GET /api/inbox`: search text that narrows the list
+  together with the other filters. Every word must match, in any order: a
+  word matches a title that contains it, whatever its case, and a word of
+  digits (with or without a leading `#`) also matches a pull request number
+  that starts with it. The value is trimmed and cut to 100 characters, never
+  refused. The response carries `searchMatchTotal`, the viewer's rows the
+  search text matches whatever the filters or the view, beside `total`; it
+  is 0 without search text.
+
 ## dev (2026-11-14)
 
 No server change; the CLI reads the same route.

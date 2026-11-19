@@ -15,6 +15,7 @@ import {
   type SQL,
   type SQLWrapper,
 } from "drizzle-orm";
+import { buildSearchTextPredicate } from "./inbox-search-text";
 import { traceStore } from "./trace-store";
 import {
   InboxArchivedFilters,
@@ -55,6 +56,8 @@ export interface InboxFilters {
   readonly installationIds?: readonly InstallationId[];
   /** The viewer's archived rows: hidden, or the only rows listed. */
   readonly archived: InboxArchivedFilter;
+  /** The words the reviewer typed; absent or blank narrows nothing. */
+  readonly searchText?: string;
 }
 
 /** `page` and `pageSize` are whole numbers of at least 1; the route parses, the store asserts. */
@@ -121,6 +124,8 @@ export interface InboxPage {
   readonly total: number;
   /** The viewer's archived rows among the viewable, whatever the filters or the view. */
   readonly archivedTotal: number;
+  /** The viewable rows the search text matches, whatever the filters or the view; 0 without search text. */
+  readonly searchMatchTotal: number;
   /** The four review-state totals over the open, non-draft, unarchived viewable rows, whatever the filters or the view. */
   readonly counts: InboxCounts;
   /** The repositories the rows in view name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
@@ -144,6 +149,8 @@ interface ViewableGroup {
   readonly inView: number;
   /** Archived by the viewer. */
   readonly archived: number;
+  /** Matching the search text, in either view. */
+  readonly searchMatches: number;
 }
 
 /** The four totals summed over the open, non-draft, unarchived rows of each group; the viewer's own rows carry none. */
@@ -409,6 +416,13 @@ function buildRowFilters(input: InboxListInput, facts: RowFacts): SQL[] {
       filters.push(chosen);
     }
   }
+  const matchesSearch = buildSearchTextPredicate(input.filters.searchText, {
+    title: pullRequest.title,
+    prNumber: pullRequest.prNumber,
+  });
+  if (matchesSearch !== undefined) {
+    filters.push(matchesSearch);
+  }
   return filters;
 }
 
@@ -586,6 +600,14 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         inView,
       );
       const open = sql`${buildOpenPredicate(viewable.state, viewable.draft)} and not ${viewable.archived}`;
+      const searchPredicate = buildSearchTextPredicate(
+        input.filters.searchText,
+        {
+          title: viewable.title,
+          prNumber: viewable.prNumber,
+        },
+      );
+      const matchesSearch = searchPredicate ?? sql`false`;
       const groupsQuery = db
         .select({
           state: viewable.reviewState,
@@ -595,6 +617,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
           matching: sql<number>`count(*) filter (where ${matches})::int`,
           inView: sql<number>`count(*) filter (where ${inView})::int`,
           archived: sql<number>`count(*) filter (where ${viewable.archived})::int`,
+          searchMatches: sql<number>`count(*) filter (where ${matchesSearch})::int`,
         })
         .from(viewable)
         .groupBy(viewable.reviewState, viewable.repoId);
@@ -605,6 +628,10 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         (sum, group) => sum + group.archived,
         0,
       );
+      const searchMatchTotal = grouped.reduce(
+        (sum, group) => sum + group.searchMatches,
+        0,
+      );
 
       return {
         items: rows.map((row) => shapeRow(row)),
@@ -612,6 +639,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         pageSize: input.pageSize,
         total,
         archivedTotal,
+        searchMatchTotal,
         counts: shapeCounts(grouped),
         repositories: shapeRepositories(grouped),
       };
