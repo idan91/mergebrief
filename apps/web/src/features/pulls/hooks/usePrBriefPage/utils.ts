@@ -38,19 +38,26 @@ export function deriveRevisionPosture(
   };
 }
 
-/** The demo build reads only; otherwise base drift alone takes writes away. */
+/** Base drift alone takes every write away. */
 export function deriveReadOnlyReason(
   t: TFunction,
   posture: Pick<RevisionPosture, "baseDrift">,
-  demoBuild: boolean,
 ): ReadOnlyReason | undefined {
-  if (demoBuild) {
-    return { reason: t("brief.demoReadOnlyReason") };
-  }
   if (posture.baseDrift) {
     return { reason: t("brief.baseDriftReason") };
   }
   return undefined;
+}
+
+/** The demo build keeps the review session in the tab and posts nothing to GitHub. */
+export function derivePostingDisabledReason(
+  t: TFunction,
+  demoBuild: boolean,
+): ReadOnlyReason | undefined {
+  if (!demoBuild) {
+    return undefined;
+  }
+  return { reason: t("brief.demoPostingReason") };
 }
 
 /** Full-span identity: duplicate-head revisions differ only by base. */

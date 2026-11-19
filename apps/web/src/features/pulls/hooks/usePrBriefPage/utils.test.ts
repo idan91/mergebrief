@@ -7,6 +7,7 @@ import type {
 } from "../../utils/dbTimeline";
 import {
   buildRevisionSpansKey,
+  derivePostingDisabledReason,
   deriveReadOnlyReason,
   deriveRevisionPosture,
   deriveSelectedSpanKey,
@@ -164,25 +165,30 @@ describe("findJumpRevision", () => {
 
 describe("deriveReadOnlyReason", () => {
   const translate = ((key: string) => key) as unknown as TFunction;
-  const drifted = { baseDrift: true };
-  const current = { baseDrift: false };
-
-  it("names the demo ahead of base drift", () => {
-    expect(deriveReadOnlyReason(translate, drifted, true)).toEqual({
-      reason: "brief.demoReadOnlyReason",
-    });
-    expect(deriveReadOnlyReason(translate, current, true)).toEqual({
-      reason: "brief.demoReadOnlyReason",
-    });
-  });
 
   it("names base drift on a superseded base", () => {
-    expect(deriveReadOnlyReason(translate, drifted, false)).toEqual({
+    expect(deriveReadOnlyReason(translate, { baseDrift: true })).toEqual({
       reason: "brief.baseDriftReason",
     });
   });
 
-  it("stays writable on the current base outside the demo", () => {
-    expect(deriveReadOnlyReason(translate, current, false)).toBeUndefined();
+  it("stays writable on the current base", () => {
+    expect(
+      deriveReadOnlyReason(translate, { baseDrift: false }),
+    ).toBeUndefined();
+  });
+});
+
+describe("derivePostingDisabledReason", () => {
+  const translate = ((key: string) => key) as unknown as TFunction;
+
+  it("turns posting off in the demo build", () => {
+    expect(derivePostingDisabledReason(translate, true)).toEqual({
+      reason: "brief.demoPostingReason",
+    });
+  });
+
+  it("leaves posting on outside the demo", () => {
+    expect(derivePostingDisabledReason(translate, false)).toBeUndefined();
   });
 });

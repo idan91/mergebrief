@@ -29,7 +29,7 @@ export function useReviewCommands(
   input: UseReviewCommandsInput,
 ): ReviewCommands {
   const { t, viewStore, session, flow } = input;
-  const { writesDisabledReason, announce } = flow;
+  const { postingDisabledReason, announce } = flow;
 
   const inFlight = useInFlightDraftPosts();
   const submitFlow = useSubmitFlow(input, inFlight);
@@ -47,8 +47,8 @@ export function useReviewCommands(
 
   const { setSubmitOpen } = viewStore.getState().actions;
   const submitFromModal = () => {
-    if (writesDisabledReason !== undefined) {
-      announce(writesDisabledReason);
+    if (postingDisabledReason !== undefined) {
+      announce(postingDisabledReason);
       return;
     }
     if (liveSubmit) {

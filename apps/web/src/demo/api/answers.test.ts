@@ -29,10 +29,12 @@ import { inboxResponseSchema } from "@web/features/inbox/schemas";
 import { prSummarySchema, pullStackSchema } from "@web/features/pulls/schemas";
 import { spendViewSchema } from "@web/features/settings/schemas";
 import { tokensViewSchema } from "@web/features/tokens/schemas";
+import { parseReviewSessionPayload } from "@web/features/review/session";
 import { parseVersion } from "@web/features/version/schemas";
 import { answerDemoRequest } from "./answers";
 import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
 import { DEMO_PR, DEMO_VIEWER_LOGIN } from "./consts";
+import { createDemoSessionStore } from "./session";
 import type { PullReadId } from "./types";
 
 const ORIGIN = "http://demo.local";
@@ -49,7 +51,11 @@ const REV1_FILE_COUNT = 13;
 const REV2_FILE_COUNT = 18;
 
 function readGet(path: string): Response {
-  return answerDemoRequest(HttpMethods.GET, new URL(path, ORIGIN));
+  const url = new URL(path, ORIGIN);
+  return answerDemoRequest(
+    { method: HttpMethods.GET, url },
+    createDemoSessionStore(),
+  );
 }
 
 function readPullOperation(id: PullReadId, query = ""): Response {
@@ -313,17 +319,21 @@ describe("answerDemoRequest reads", () => {
     expect(spendViewSchema.parse(await spend.json()).startedRuns).toBe(0);
   });
 
-  it("has no review session and no file ranges", async () => {
-    const session = readPullOperation(
-      ProductQueryIds.READ_REVIEW_SESSION,
-      REV2_SPAN,
+  it("opens on an empty review session and serves no file ranges", async () => {
+    const session = readGet(
+      `${buildOperationPath(ProductQueryIds.READ_REVIEW_SESSION, {
+        repoId: DEMO_PR.repoId,
+        prNumber: DEMO_PR.prNumber,
+      })}?${REV2_SPAN}`,
     );
     const range = readPullOperation(
       ProductQueryIds.READ_FILE_RANGE,
       `ref=${DEMO_REV2_HEAD}&path=README.md&from=1&to=10`,
     );
 
-    expect(session.status).toBe(HttpStatuses.NOT_FOUND);
+    const payload = parseReviewSessionPayload(await session.json());
+    expect(payload.ok && payload.value.materialized).toBe(false);
+    expect(payload.ok && payload.value.draftComments).toEqual([]);
     expect(parseApiErrorBody(await range.json())?.code).toBe(
       ApiErrorCodes.FILE_NOT_FOUND,
     );
@@ -343,24 +353,34 @@ describe("answerDemoRequest reads", () => {
 });
 
 describe("answerDemoRequest writes", () => {
-  it("refuses every write as forbidden", async () => {
-    const draft = answerDemoRequest(
-      HttpMethods.POST,
-      new URL(
-        buildOperationPath(ProductActionIds.CREATE_DRAFT_COMMENT, {
-          repoId: DEMO_PR.repoId,
-          prNumber: DEMO_PR.prNumber,
-        }),
-        ORIGIN,
-      ),
+  it("refuses every write outside the review session as forbidden", async () => {
+    const store = createDemoSessionStore();
+    const submit = answerDemoRequest(
+      {
+        method: HttpMethods.POST,
+        url: new URL(
+          `${buildOperationPath(ProductActionIds.SUBMIT_REVIEW, {
+            repoId: DEMO_PR.repoId,
+            prNumber: DEMO_PR.prNumber,
+          })}?${REV2_SPAN}`,
+          ORIGIN,
+        ),
+      },
+      store,
     );
     const generate = answerDemoRequest(
-      HttpMethods.POST,
-      new URL(buildOperationPath(ProductActionIds.GENERATE_BRIEF, {}), ORIGIN),
+      {
+        method: HttpMethods.POST,
+        url: new URL(
+          buildOperationPath(ProductActionIds.GENERATE_BRIEF, {}),
+          ORIGIN,
+        ),
+      },
+      store,
     );
 
-    expect(draft.status).toBe(HttpStatuses.FORBIDDEN);
-    expect(parseApiErrorBody(await draft.json())?.code).toBe(
+    expect(submit.status).toBe(HttpStatuses.FORBIDDEN);
+    expect(parseApiErrorBody(await submit.json())?.code).toBe(
       ApiErrorCodes.FORBIDDEN,
     );
     expect(generate.status).toBe(HttpStatuses.FORBIDDEN);
@@ -368,8 +388,8 @@ describe("answerDemoRequest writes", () => {
 
   it("lets sign out succeed without a session to end", () => {
     const response = answerDemoRequest(
-      HttpMethods.POST,
-      new URL("/api/auth/logout", ORIGIN),
+      { method: HttpMethods.POST, url: new URL("/api/auth/logout", ORIGIN) },
+      createDemoSessionStore(),
     );
 
     expect(response.status).toBe(HttpStatuses.NO_CONTENT);

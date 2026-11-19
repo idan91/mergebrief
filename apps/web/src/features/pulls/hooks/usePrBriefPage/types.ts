@@ -27,8 +27,10 @@ export interface PrBriefPage {
   meta: PrSummary;
   state: BriefRouteState;
   timeline: DbTimelineSelection | undefined;
-  /** The demo build, or base drift: the rendered anchors may land wrong on GitHub. */
+  /** Base drift: the rendered anchors may land wrong on GitHub. */
   readOnly: ReadOnlyReason | undefined;
+  /** The demo build: session writes stay in the tab, nothing posts to GitHub. */
+  postingDisabled: ReadOnlyReason | undefined;
   /** Head mismatch: writable behind the receipt's ack. */
   staleHead: boolean;
   searchParams: BriefSearchParams;

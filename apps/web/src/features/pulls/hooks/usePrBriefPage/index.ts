@@ -17,6 +17,7 @@ import type { PrBriefPage, UsePrBriefPageInput } from "./types";
 import { useConversationFilterParams } from "./useConversationFilterParams";
 import { useRevisionWrites } from "./useRevisionWrites";
 import {
+  derivePostingDisabledReason,
   deriveReadOnlyReason,
   deriveRevisionPosture,
   deriveSelectedSpanKey,
@@ -81,8 +82,12 @@ export function usePrBriefPage({
   const posture = deriveRevisionPosture(meta, timeline, renderedHead);
   // An inline literal busts every ChunkCard's memo boundary per poll tick.
   const readOnly = useMemo(
-    () => deriveReadOnlyReason(t, posture, isDemoBuild()),
+    () => deriveReadOnlyReason(t, posture),
     [posture, t],
+  );
+  const postingDisabled = useMemo(
+    () => derivePostingDisabledReason(t, isDemoBuild()),
+    [t],
   );
   const searchParams = useMemo(
     () => parseBriefSearchParams({ view, compare, diff, focus }),
@@ -98,6 +103,7 @@ export function usePrBriefPage({
     state,
     timeline,
     readOnly,
+    postingDisabled,
     staleHead: posture.staleHead,
     searchParams,
     conversationFilter: filter.conversationFilter,

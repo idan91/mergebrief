@@ -5,6 +5,7 @@ import { HttpMethods } from "types";
 
 import { answerDemoRequest } from "./answers";
 import { API_PATH_PREFIX, DEMO_URL_BASE } from "./consts";
+import { createDemoSessionStore } from "./session";
 
 function readRequestUrl(input: RequestInfo | URL): URL {
   if (input instanceof URL) {
@@ -29,14 +30,46 @@ function readRequestMethod(
   return HttpMethods.GET;
 }
 
-/** The browser's `fetch` with the API answered from the fixtures. */
+/** The JSON a request sends, or undefined when it sends none or none that parses. */
+async function readRequestBody(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<unknown> {
+  const raw = await readRequestText(input, init);
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  try {
+    const body: unknown = JSON.parse(raw);
+    return body;
+  } catch {
+    return undefined;
+  }
+}
+
+async function readRequestText(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<string | undefined> {
+  if (typeof init?.body === "string") {
+    return init.body;
+  }
+  if (input instanceof Request) {
+    return input.text();
+  }
+  return undefined;
+}
+
+/** The browser's `fetch` with the API answered from the fixtures and one in-tab review session. */
 export function createDemoFetch(passThrough: typeof fetch): typeof fetch {
-  return (input, init) => {
+  const store = createDemoSessionStore();
+  return async (input, init) => {
     const url = readRequestUrl(input);
     if (!url.pathname.startsWith(API_PATH_PREFIX)) {
       return passThrough(input, init);
     }
     const method = readRequestMethod(input, init);
-    return Promise.resolve(answerDemoRequest(method, url));
+    const body = await readRequestBody(input, init);
+    return answerDemoRequest({ method, url, body }, store);
   };
 }
