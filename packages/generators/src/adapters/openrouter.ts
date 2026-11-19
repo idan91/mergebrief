@@ -52,6 +52,8 @@ export interface OpenRouterAssemblyOptions {
    * host in tests. */
   fetch?: typeof globalThis.fetch | undefined;
   baseUrl?: string | undefined;
+  /** Injected so tests skip the SDK's retry backoff; absent keeps its default. */
+  maxRetries?: number;
 }
 
 /** The `/models` entry slice the preflight reads. */
@@ -88,6 +90,9 @@ export async function createOpenRouterCore(
 
   if (options.fetch) {
     clientOptions.fetch = options.fetch;
+  }
+  if (options.maxRetries !== undefined) {
+    clientOptions.maxRetries = options.maxRetries;
   }
 
   const client = new OpenAI(clientOptions);

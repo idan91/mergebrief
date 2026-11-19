@@ -524,7 +524,7 @@ describe("CursorGenerator stderr taxonomy", () => {
   it("classifies a silent hang as a wall-clock timeout", async () => {
     const generator = makeGenerator(
       { SHIM_SCENARIO: "hang" },
-      { timeouts: { hardMs: 400, killGraceMs: 200 } },
+      { timeouts: { hardMs: 100, killGraceMs: 200 } },
     );
     const caught = await rejection(generator.generate(request()));
     expect(caught.kind).toBe(GeneratorErrorKinds.TIMEOUT);

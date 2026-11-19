@@ -292,7 +292,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
   it("classifies a silent hang as a timeout", async () => {
     const generator = makeGenerator(
       { SHIM_SCENARIO: "hang" },
-      { timeouts: { hardMs: 8000, inactivityMs: 300, killGraceMs: 200 } },
+      { timeouts: { hardMs: 8000, inactivityMs: 100, killGraceMs: 200 } },
     );
     const promise = generator.generate(request());
     await expect(promise).rejects.toMatchObject({

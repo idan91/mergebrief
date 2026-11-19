@@ -32,8 +32,8 @@ const FAKE_CLAUDE = join(shimDir, "fake-claude.cjs");
 
 /**
  * Node startup under full-suite load can outlast 400ms, so a run that must
- * exit cleanly gets a budget no startup reaches. The 400ms tier is only for
- * runs meant to trip a timer.
+ * exit cleanly gets a budget no startup reaches. The 400ms tier is for runs
+ * that must be up when a timer trips; a plain hang trips the same either way.
  */
 const CLEAN_EXIT_TIMEOUTS: HarnessTimeouts = {
   hardMs: 10_000,
@@ -44,6 +44,12 @@ const CLEAN_EXIT_TIMEOUTS: HarnessTimeouts = {
 const WATCHDOG_TIMEOUTS: HarnessTimeouts = {
   hardMs: 4000,
   inactivityMs: 400,
+  killGraceMs: 150,
+};
+
+const SILENT_HANG_TIMEOUTS: HarnessTimeouts = {
+  hardMs: 4000,
+  inactivityMs: 100,
   killGraceMs: 150,
 };
 
@@ -134,13 +140,13 @@ describe("runHarnessProcess", () => {
   });
 
   it("fires the inactivity watchdog on a silent hang", async () => {
-    const result = await run("hang", { timeouts: WATCHDOG_TIMEOUTS });
+    const result = await run("hang", { timeouts: SILENT_HANG_TIMEOUTS });
     expect(result.timedOut).toBe("inactivity");
     expect(result.exitCode).not.toBe(0);
 
     // The watchdog killed the run, so it cannot have been shorter than that budget.
     expect(result.durationMs).toBeGreaterThanOrEqual(
-      WATCHDOG_TIMEOUTS.inactivityMs,
+      SILENT_HANG_TIMEOUTS.inactivityMs,
     );
     expect(Number.isFinite(result.durationMs)).toBe(true);
 
@@ -151,13 +157,13 @@ describe("runHarnessProcess", () => {
   });
 
   it("does not fire the watchdog while output drips slower than the hard cap", async () => {
-    // Total drip time (10 x 200ms) exceeds inactivityMs (1500ms): only the
+    // Total drip time (8 x 150ms) exceeds inactivityMs (1000ms): only the
     // resets keep it alive. Then the shim exits cleanly.
     const result = await run("slow-drip", {
-      timeouts: { hardMs: 10_000, inactivityMs: 1500, killGraceMs: 150 },
+      timeouts: { hardMs: 10_000, inactivityMs: 1000, killGraceMs: 150 },
       env: {
-        SHIM_DRIP_MS: "200",
-        SHIM_DRIP_COUNT: "10",
+        SHIM_DRIP_MS: "150",
+        SHIM_DRIP_COUNT: "8",
         SHIM_DRIP_THEN: "exit",
         SHIM_OUTPUT: '{"title":"t"}',
       },
@@ -169,7 +175,7 @@ describe("runHarnessProcess", () => {
   it("still bounds a dripping-forever run with the hard timeout", async () => {
     const result = await run("slow-drip", {
       env: { SHIM_DRIP_MS: "100", SHIM_DRIP_COUNT: "1000" },
-      timeouts: { hardMs: 1200, inactivityMs: 10_000, killGraceMs: 150 },
+      timeouts: { hardMs: 300, inactivityMs: 10_000, killGraceMs: 150 },
     });
     expect(result.timedOut).toBe("hard");
   });
@@ -242,10 +248,10 @@ describe("runHarnessProcess", () => {
     const promise = run("ignores-sigint", {
       signal: controller.signal,
       env: { SHIM_MARKER_FILE: markerFile },
-      timeouts: { hardMs: 4000, inactivityMs: 300, killGraceMs: 600 },
+      timeouts: { hardMs: 4000, inactivityMs: 300, killGraceMs: 300 },
     });
-    // Well inside the grace window: watchdog (300ms) fired, SIGKILL (900ms) not yet.
-    setTimeout(() => controller.abort(new Error("late abort")), 600);
+    // Well inside the grace window: watchdog (300ms) fired, SIGKILL (600ms) not yet.
+    setTimeout(() => controller.abort(new Error("late abort")), 450);
     const result = await promise;
     expect(result.timedOut).toBe("inactivity");
   });
@@ -435,7 +441,7 @@ describe("runHarnessProcess", () => {
     const controller = new AbortController();
     let abortScheduled = false;
     // The flood passes the cap within a few chunks of its first line; the
-    // abort lands 600ms after that line, inside the 1500ms grace.
+    // abort lands 250ms after that line, inside the 600ms grace.
     const promise = runHarnessProcess({
       cliEnv: SHIM_CLI_ENV,
       env: process.env,
@@ -445,7 +451,7 @@ describe("runHarnessProcess", () => {
         "process.on('SIGINT', () => {}); const b = 'x'.repeat(65536) + '\\n'; setInterval(() => process.stdout.write(b), 5)",
       ],
       stdin: "",
-      timeouts: { hardMs: 10_000, inactivityMs: 10_000, killGraceMs: 1500 },
+      timeouts: { hardMs: 10_000, inactivityMs: 10_000, killGraceMs: 600 },
       maxStdoutUnits: 256 * 1024,
       signal: controller.signal,
       onStdoutLine: () => {
@@ -453,7 +459,7 @@ describe("runHarnessProcess", () => {
           return;
         }
         abortScheduled = true;
-        setTimeout(() => controller.abort(new Error("late abort")), 600);
+        setTimeout(() => controller.abort(new Error("late abort")), 250);
       },
     });
 

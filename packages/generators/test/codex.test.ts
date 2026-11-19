@@ -370,7 +370,7 @@ describe("CodexGenerator answer selection and classification", () => {
   it("classifies a silent hang as a timeout", async () => {
     const generator = makeGenerator(
       { SHIM_SCENARIO: "hang" },
-      { timeouts: { hardMs: 8000, inactivityMs: 300, killGraceMs: 200 } },
+      { timeouts: { hardMs: 8000, inactivityMs: 100, killGraceMs: 200 } },
     );
     await expect(generator.generate(request())).rejects.toMatchObject({
       kind: GeneratorErrorKinds.TIMEOUT,

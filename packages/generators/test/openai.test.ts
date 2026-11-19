@@ -9,7 +9,10 @@ import {
   GeneratorWarningKinds,
   type GeneratorWarning,
 } from "../src/contract/types";
-import { createOpenAiCore } from "../src/adapters/openai";
+import {
+  createOpenAiCore,
+  type OpenAiAssemblyOptions,
+} from "../src/adapters/openai";
 import { createGenerator, Providers } from "../src/config/registry";
 import {
   expectNoAmbientAccountHeaders,
@@ -92,9 +95,14 @@ interface Recorded {
   bodies: Record<string, unknown>[];
 }
 
+type ClientOverrides = Pick<OpenAiAssemblyOptions, "maxRetries">;
+
+const NO_SDK_RETRIES: ClientOverrides = { maxRetries: 0 };
+
 /** Build a core whose chat endpoint plays the scripted responses in order. */
 async function coreWith(
   responses: (body: Record<string, unknown>) => Response | Promise<Response>,
+  overrides: ClientOverrides = {},
 ): Promise<{
   generator: Awaited<ReturnType<typeof mustCore>>;
   recorded: Recorded;
@@ -112,17 +120,21 @@ async function coreWith(
     recorded.bodies.push(parsed);
     return responses(parsed);
   };
-  const generator = await mustCore(fixtureFetch);
+  const generator = await mustCore(fixtureFetch, overrides);
   return { generator, recorded };
 }
 
-async function mustCore(fixtureFetch: typeof fetch) {
+async function mustCore(
+  fixtureFetch: typeof fetch,
+  overrides: ClientOverrides = {},
+) {
   const core = await createOpenAiCore({
     apiKey: "test-key",
     model: "gpt-test-1",
     failureDir: tempDir("openai-fail-"),
     provider: "openai",
     fetch: fixtureFetch,
+    ...overrides,
   });
   if (!core.ok) {
     throw new Error(core.error.issues.join("; "));
@@ -391,7 +403,7 @@ describe("OpenAiCompatibleCore on a redirect the client refused", () => {
       }
       throw new TypeError("fetch failed", { cause: refused });
     };
-    const generator = await mustCore(fixtureFetch);
+    const generator = await mustCore(fixtureFetch, NO_SDK_RETRIES);
 
     await expect(generator.generate(request())).rejects.toMatchObject({
       kind: GeneratorErrorKinds.CONFIG,
@@ -405,6 +417,7 @@ describe("OpenAiCompatibleCore on a redirect the client refused", () => {
       model: "gpt-test-1",
       failureDir: tempDir("openai-redirect-"),
       provider: "openai",
+      ...NO_SDK_RETRIES,
       fetch: fetchWith(() => {
         throw new TypeError("fetch failed", {
           cause: new Error("unexpected redirect"),
@@ -430,7 +443,7 @@ describe("OpenAiCompatibleCore effort-retry classification boundary", () => {
       return calls === 1
         ? jsonError(400, "Unsupported parameter: 'reasoning_effort'.")
         : jsonError(429, "rate limited");
-    });
+    }, NO_SDK_RETRIES);
     await expect(generator.generate(request())).rejects.toMatchObject({
       kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
     });
@@ -689,7 +702,7 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
       }
       throw Object.assign(new TypeError("fetch failed"), { cause: nested });
     };
-    const generator = await mustCore(fixtureFetch);
+    const generator = await mustCore(fixtureFetch, NO_SDK_RETRIES);
     const caught = await generator.generate(request()).then(
       () => {
         throw new Error("expected rejection");
@@ -747,8 +760,9 @@ describe("OpenAiCompatibleCore error classification", () => {
     [429, GeneratorErrorKinds.PROVIDER_TRANSIENT],
     [500, GeneratorErrorKinds.PROVIDER_TRANSIENT],
   ])("maps status %d to kind %s", async (status, kind) => {
-    const { generator } = await coreWith(() =>
-      jsonError(status, `http ${status}`),
+    const { generator } = await coreWith(
+      () => jsonError(status, `http ${status}`),
+      NO_SDK_RETRIES,
     );
     const caught = await generator.generate(request()).then(
       () => {
@@ -787,6 +801,7 @@ describe("openai preflight and registry entry", () => {
       model: "gpt-test-1",
       failureDir: tempDir("openai-503-"),
       provider: "openai",
+      ...NO_SDK_RETRIES,
       fetch: fetchWith(() => jsonError(503, "upstream overloaded")),
     });
     expect(on503.ok).toBe(false);
@@ -800,6 +815,7 @@ describe("openai preflight and registry entry", () => {
       model: "gpt-test-1",
       failureDir: tempDir("openai-net-"),
       provider: "openai",
+      ...NO_SDK_RETRIES,
       fetch: fetchWith(() => {
         throw new Error("getaddrinfo ENOTFOUND api.openai.com");
       }),
