@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readPrSpan, type PrSpanRefs } from "../../../src/diff/pr-span";
-import { LINE_DIFF_TIMEOUT_MS } from "../../../src/diff/pr-span/consts";
+import {
+  LINE_DIFF_MAX_EDIT_LENGTH,
+  LINE_DIFF_TIMEOUT_MS,
+} from "../../../src/diff/pr-span/consts";
+import { formatLineDiffPatch } from "../../../src/diff/pr-span/logic/line-diff";
 import {
   insertAfter,
   makeBaseLines,
@@ -84,6 +88,27 @@ describe("readPrSpan when a line diff hits its time limit", () => {
     expect(span?.unpairableFiles).toEqual(PATHS);
     expect(span?.hop).toEqual(PATHS.map((file) => ({ file, hunks: [] })));
     expect(span?.filteredDiff).toContain("+p3");
+  });
+});
+
+describe("formatLineDiffPatch under a time limit its caller passes", () => {
+  it("answers no patch at that limit where the default still diffs", () => {
+    const input = {
+      contents: {
+        prevPath: "a.ts",
+        path: "a.ts",
+        prevContent: baseText,
+        newContent: headText,
+      },
+      maxEditLength: LINE_DIFF_MAX_EDIT_LENGTH,
+    };
+    stepClock(Date, ONE_SECOND_MS);
+
+    const underDefault = formatLineDiffPatch(input);
+    const underPassedLimit = formatLineDiffPatch(input, ONE_SECOND_MS - 1);
+
+    expect(underDefault).toContain("+p3");
+    expect(underPassedLimit).toBeUndefined();
   });
 });
 
