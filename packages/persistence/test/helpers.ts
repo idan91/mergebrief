@@ -252,10 +252,10 @@ export interface QueryLog {
   readonly statements: string[];
 }
 
-/** A fresh database whose every statement lands in `statements`, for query-shape tests. */
-export async function createQueryLog(): Promise<QueryLog> {
+/** A handle over `client` whose every statement lands in `statements`, for query-shape tests. */
+export function createQueryLog(client: PGlite): QueryLog {
   const statements: string[] = [];
-  const db = drizzle(await freshPglite(), {
+  const db = drizzle(client, {
     logger: {
       logQuery(query) {
         statements.push(query);
@@ -366,6 +366,47 @@ export async function virginPglite(): Promise<PGlite> {
     }
   });
   return client;
+}
+
+export interface DraftCopies {
+  /** A draft the store wrote; each copy takes its scope, session and anchor. */
+  readonly sourceDraftId: bigint;
+  readonly bodyPrefix: string;
+  readonly first: number;
+  readonly last: number;
+}
+
+/** One insert of drafts `first` to `last`, bodies numbered after the prefix; the new ids in order. */
+export async function seedDraftCopies(
+  client: PGlite,
+  copies: DraftCopies,
+): Promise<bigint[]> {
+  const result = await client.query<{ id: string }>(
+    `insert into review_draft_comment
+       (installation_id, review_session_id, file_path, kind, side, start_side,
+        start_line, end_line, body)
+     select source.installation_id, source.review_session_id, source.file_path,
+            source.kind, source.side, source.start_side, source.start_line,
+            source.end_line, $2::text || copy_number
+       from review_draft_comment source
+      cross join generate_series($3::int, $4::int) as copy_number
+      where source.id = $1
+      order by copy_number
+     returning id::text as id`,
+    [
+      copies.sourceDraftId.toString(),
+      copies.bodyPrefix,
+      copies.first,
+      copies.last,
+    ],
+  );
+  const expected = copies.last - copies.first + 1;
+  if (result.rows.length !== expected) {
+    throw new Error(
+      `seeded ${result.rows.length} drafts, expected ${expected}`,
+    );
+  }
+  return result.rows.map((row) => BigInt(row.id));
 }
 
 /** A well-formed run id no attempt row holds. */

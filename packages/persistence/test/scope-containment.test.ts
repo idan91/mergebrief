@@ -191,7 +191,13 @@ function collectWorldUses(file: string): string[] {
   return uses;
 }
 
+const functionTextsByFile = new Map<string, Map<string, string>>();
+
 function readFunctionTexts(file: string): Map<string, string> {
+  const cached = functionTextsByFile.get(file);
+  if (cached !== undefined) {
+    return cached;
+  }
   const texts = new Map<string, string>();
 
   function visit(node: Node): void {
@@ -203,6 +209,7 @@ function readFunctionTexts(file: string): Map<string, string> {
   }
   visit(parseSource(file));
 
+  functionTextsByFile.set(file, texts);
   return texts;
 }
 

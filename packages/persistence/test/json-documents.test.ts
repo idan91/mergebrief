@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cleanJsonText } from "../src/db/json-text";
 import {
+  type AppDatabase,
   createArtifactStore,
   createTenantRepository,
   type TenantContext,
@@ -15,15 +16,17 @@ import { PrStates } from "types/pull-requests";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 import { brandWith, registerSharedPglite } from "./helpers";
 
-const shared = registerSharedPglite();
-
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX: TenantContext = { installationId: TENANT };
 const REPLACEMENT = String.fromCodePoint(0xfffd);
 
-async function seedBrief(body: string, repoConfig?: string) {
-  const repo = createTenantRepository(shared.handle, CTX);
+async function seedBrief(
+  handle: AppDatabase,
+  body: string,
+  repoConfig?: string,
+) {
+  const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,
@@ -42,7 +45,7 @@ async function seedBrief(body: string, repoConfig?: string) {
     bodyVersion: STORED_BODY_VERSION,
     body,
   };
-  const written = await createArtifactStore(shared.handle, CTX).briefs.write(
+  const written = await createArtifactStore(handle, CTX).briefs.write(
     repoConfig === undefined ? write : { ...write, repoConfig },
   );
   return { pr, written };
@@ -125,10 +128,12 @@ describe("cleanJsonText", () => {
 });
 
 describe("JSON document columns", () => {
+  const shared = registerSharedPglite();
+
   it("stores a NUL-bearing body a later jsonb cast can read", async () => {
     const body = JSON.stringify({ summary: "x\u0000y", tail: "cut\ud83d" });
 
-    await seedBrief(body, JSON.stringify({ note: "\u0000" }));
+    await seedBrief(shared.handle, body, JSON.stringify({ note: "\u0000" }));
 
     const rows = await shared.harness.raw(
       `select body::jsonb ->> 'summary' as summary,
@@ -142,8 +147,8 @@ describe("JSON document columns", () => {
   });
 
   it("stores a rewrite through the same guard", async () => {
-    await seedBrief('{"v":1}');
-    await seedBrief(JSON.stringify({ v: "\u0000" }));
+    await seedBrief(shared.handle, '{"v":1}');
+    await seedBrief(shared.handle, JSON.stringify({ v: "\u0000" }));
 
     const rows = await shared.harness.raw(
       "select body::jsonb ->> 'v' as v from brief",
@@ -152,7 +157,7 @@ describe("JSON document columns", () => {
   });
 
   it("keeps an omitted repo config null", async () => {
-    await seedBrief('{"v":1}');
+    await seedBrief(shared.handle, '{"v":1}');
 
     const rows = await shared.harness.raw("select repo_config from brief");
     expect(rows[0]?.["repo_config"]).toBeNull();
@@ -163,13 +168,15 @@ describe("JSON document columns", () => {
     ["a JSON array", "[1]"],
     ["a JSON string", '"text"'],
   ])("refuses a brief body that is %s", async (_label, body) => {
-    await expect(seedBrief(body)).rejects.toMatchObject({
+    await expect(seedBrief(shared.handle, body)).rejects.toMatchObject({
       cause: { constraint: "brief_body_check" },
     });
   });
 
   it("refuses a brief repo config that is not a JSON object", async () => {
-    await expect(seedBrief('{"v":1}', "[1]")).rejects.toMatchObject({
+    await expect(
+      seedBrief(shared.handle, '{"v":1}', "[1]"),
+    ).rejects.toMatchObject({
       cause: { constraint: "brief_repo_config_check" },
     });
   });

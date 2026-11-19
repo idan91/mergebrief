@@ -472,7 +472,7 @@ describe("owner-scoped span artifact query shape", () => {
   }
 
   async function makeLoggedOwnerStore() {
-    const log = await createQueryLog();
+    const log = createQueryLog(shared.client);
     const pr = await createTenantRepository(
       log.handle,
       CTX_A,

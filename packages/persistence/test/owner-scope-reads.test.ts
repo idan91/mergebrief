@@ -25,7 +25,12 @@ import {
   type BriefRowId,
   type ReviewerId,
 } from "../src/types";
-import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
+import {
+  brandWith,
+  makeBriefTarget,
+  registerSharedPglite,
+  seedDraftCopies,
+} from "./helpers";
 
 const shared = registerSharedPglite();
 
@@ -51,6 +56,8 @@ const RECOVERY_DELAY_SECONDS = 125;
 const OTHER_REGION_START = 30;
 const OTHER_REGION_END = 40;
 const DRAFT_LIMIT = 64;
+/** The draft-limit case sends its last drafts through the store, the rest in one insert. */
+const STORE_WRITTEN_DRAFTS = 2;
 const WINDOW = {
   from: new Date("2000-01-01T00:00:00.000Z"),
   to: new Date("2100-01-01T00:00:00.000Z"),
@@ -372,7 +379,14 @@ describe("another owner on its own session addressing the owner's rows", () => {
 
   it("the owner's drafts count toward none of the other's draft limit", async () => {
     const { owner, other, otherKey } = await openMirror();
-    for (let held = 1; held < DRAFT_LIMIT; held++) {
+    const firstStoreDraft = DRAFT_LIMIT - STORE_WRITTEN_DRAFTS;
+    await seedDraftCopies(shared.client, {
+      sourceDraftId: owner.draftId,
+      bodyPrefix: "a's draft ",
+      first: 1,
+      last: firstStoreDraft - 1,
+    });
+    for (let held = firstStoreDraft; held < DRAFT_LIMIT; held++) {
       readDraftId(
         await owner.sessions.addDraft(owner.key, {
           anchor: LINE_ANCHOR,
