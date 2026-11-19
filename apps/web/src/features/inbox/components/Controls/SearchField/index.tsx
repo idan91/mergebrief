@@ -1,4 +1,5 @@
 import { InboxQueryBounds } from "contract";
+import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Icon } from "@web/components/Icon";
@@ -21,6 +22,8 @@ export interface SearchFieldProps {
   onSearch: (text: string) => void;
   /** The reviewer typed past a write whose list is still loading; stop waiting for it. */
   onDropPendingSearch: () => void;
+  /** The input, for a caller that hands focus to it. */
+  fieldRef?: RefObject<HTMLInputElement | null> | undefined;
 }
 
 /**
@@ -34,10 +37,11 @@ export function SearchField({
   override,
   onSearch,
   onDropPendingSearch,
+  fieldRef,
 }: SearchFieldProps) {
   const { t } = useTranslation();
   const actions = { onSearch, onDropPendingSearch };
-  const facade = useSearchFieldFacade(value, override, actions);
+  const facade = useSearchFieldFacade(value, override, actions, fieldRef);
   const searching = value !== "";
   const state: FilterState = searching
     ? FilterStates.CHANGED

@@ -60,6 +60,8 @@ async function loadHome(): Promise<void> {
       pageSize: 25,
       total: 0,
       archivedTotal: 0,
+      searchMatchTotal: 0,
+      archivedSearchMatchTotal: 0,
       counts: { new: 0, inProgress: 0, reviewed: 0, updated: 0 },
       viewer: { login: "octocat", avatarUrl: "https://avatars.example/o.png" },
       reachableInstallations: [],

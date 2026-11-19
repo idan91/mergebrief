@@ -7,7 +7,7 @@ export {
   type PersonalLineProps,
 } from "./components/PersonalLine";
 export { Controls, type ControlsProps } from "./components/Controls";
-export { EmptyInbox, type EmptyInboxProps } from "./components/EmptyInbox";
+export { MissingRows, type MissingRowsProps } from "./components/MissingRows";
 export { FailedInbox, type FailedInboxProps } from "./components/FailedInbox";
 export {
   FailedReadLine,

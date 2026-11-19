@@ -1,8 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { InboxArchivedFilters } from "types/inbox";
 
 import { GhostMark } from "@web/components/GhostMark";
 import { Header } from "@web/components/Header";
@@ -20,7 +19,7 @@ import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/model";
 import {
   Controls,
-  EmptyInbox,
+  MissingRows,
   FailedInbox,
   FailedReadLine,
   InboxList,
@@ -40,8 +39,6 @@ import {
 } from "../features/inbox/queries";
 import {
   countChangedFilters,
-  EVERY_STATUS_PARAM,
-  hasDefaultStatus,
   parseInboxSearch,
   readInboxParams,
 } from "../features/inbox/search";
@@ -276,6 +273,7 @@ function SignedInHome({
   search,
   onRetry,
 }: SignedInHomeProps) {
+  const searchFieldRef = useRef<HTMLInputElement>(null);
   const state = useInboxSearchState(search, page.total, page.pageSize);
   const controls = useControlsFacade(page, search, state.choices, state.write);
   const changedCount = countChangedFilters(search);
@@ -296,33 +294,19 @@ function SignedInHome({
     // A text the URL already holds is no change, so the page stays put.
     state.write((live) => (live.searchText === text ? {} : { q: text }));
   }
-  function showHidden(): void {
-    state.write({ state: EVERY_STATUS_PARAM });
-  }
-  function showArchived(): void {
-    state.write({ archived: InboxArchivedFilters.ONLY });
-  }
-  function showInbox(): void {
-    state.write({ archived: undefined });
-  }
-
-  let list: ReactNode = null;
-  if (
-    emptiness !== InboxEmptinesses.ROWS &&
-    emptiness !== InboxEmptinesses.EMPTY
-  ) {
-    list = (
-      <EmptyInbox
-        archivedTotal={page.archivedTotal}
-        defaultStatus={hasDefaultStatus(search)}
-        reason={emptiness}
-        onClear={state.clear}
-        onShowArchived={showArchived}
-        onShowHidden={showHidden}
-        onShowInbox={showInbox}
-      />
-    );
-  }
+  const rowsMissing =
+    emptiness !== InboxEmptinesses.ROWS && emptiness !== InboxEmptinesses.EMPTY;
+  const list = rowsMissing ? (
+    <MissingRows
+      choices={state.choices}
+      emptiness={emptiness}
+      page={page}
+      search={search}
+      onClear={state.clear}
+      onSearchMissAction={() => searchFieldRef.current?.focus()}
+      onWrite={state.write}
+    />
+  ) : null;
 
   return (
     <>
@@ -359,6 +343,7 @@ function SignedInHome({
                 total={page.total}
                 onClear={state.clear}
                 onDropPendingSearch={state.dropPendingSearchText}
+                searchFieldRef={searchFieldRef}
                 onSearch={writeSearchText}
               />
             }

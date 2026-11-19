@@ -49,6 +49,17 @@ describe("parseInboxResponse", () => {
     });
   });
 
+  it("reads a page from an API that predates the search counts", () => {
+    const { searchMatchTotal, archivedSearchMatchTotal, ...older } = WIRE_PAGE;
+
+    const parsed = parseInboxResponse(older);
+
+    expect(parsed).toEqual({
+      ok: true,
+      value: { ...older, searchMatchTotal, archivedSearchMatchTotal },
+    });
+  });
+
   it("reads a pasted row's wire nulls as absent fields", () => {
     const pasted = {
       ...ITEM,

@@ -474,6 +474,10 @@ _Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
 A reviewer putting a pull request out of their own **Inbox**, anchored on the latest **Brief**'s head: a Brief at a new head brings it back, a retarget at the same head does not. Per reviewer, never shared, never a GitHub action.
 _Avoid_: hide, dismiss (that is a **Flag**), close (GitHub's)
 
+**Search text**:
+The words a **Reviewer** types to narrow the **Inbox**. Every word must match a pull request: its title holds the word, or the word is digits and its number starts with them. It narrows together with the filters, never in place of them, and never reads inside a **Brief**.
+_Avoid_: query (the whole Inbox request), Inbox search (in code, the address's query string)
+
 **PR stack**:
 The chain of pull requests a PR belongs to, as GitHub links them: linear (each member has at most one open child, with the PR's 1-based index) or a fork (a parent and children). The **Brief** stores its snapshot from generation time; the **Header** shows the live one as a chip and says when the two differ.
 _Avoid_: stacked diffs, train, dependency chain

@@ -17,8 +17,9 @@ import {
   splitTitleCode,
   readFailedReadCode,
   readInboxEmptiness,
+  readSearchMissReason,
 } from "./utils";
-import { InboxEmptinesses, type InboxItem } from "./types";
+import { InboxEmptinesses, SearchMissKinds, type InboxItem } from "./types";
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -286,5 +287,49 @@ describe("readFailedReadCode", () => {
     expect(readFailedReadCode(new TypeError("Failed to fetch"))).toBe(
       ApiErrorCodes.INTERNAL_ERROR,
     );
+  });
+});
+
+describe("readSearchMissReason", () => {
+  const HIDE = InboxArchivedFilters.HIDE;
+  const ONLY = InboxArchivedFilters.ONLY;
+
+  function makeCounts(searchMatchTotal: number, archivedSearchMatchTotal = 0) {
+    return { total: 0, searchMatchTotal, archivedSearchMatchTotal };
+  }
+
+  it("is nothing without search text or while rows show", () => {
+    expect(readSearchMissReason(makeCounts(0), "", HIDE)).toBeUndefined();
+    expect(
+      readSearchMissReason({ ...makeCounts(4), total: 2 }, "anchor", HIDE),
+    ).toBeUndefined();
+  });
+
+  it("counts the matches the filters hide in the view on screen", () => {
+    expect(readSearchMissReason(makeCounts(3, 1), "anchor", HIDE)).toEqual({
+      kind: SearchMissKinds.HIDDEN_BY_FILTERS,
+      count: 2,
+    });
+    expect(readSearchMissReason(makeCounts(3, 1), "anchor", ONLY)).toEqual({
+      kind: SearchMissKinds.HIDDEN_BY_FILTERS,
+      count: 1,
+    });
+  });
+
+  it("points at the other view when only it holds a match", () => {
+    expect(readSearchMissReason(makeCounts(2, 2), "anchor", HIDE)).toEqual({
+      kind: SearchMissKinds.IN_OTHER_VIEW,
+      count: 2,
+    });
+    expect(readSearchMissReason(makeCounts(2, 0), "anchor", ONLY)).toEqual({
+      kind: SearchMissKinds.IN_OTHER_VIEW,
+      count: 2,
+    });
+  });
+
+  it("says nowhere when no row the reviewer reaches matches", () => {
+    expect(readSearchMissReason(makeCounts(0), "anchor", HIDE)).toEqual({
+      kind: SearchMissKinds.NOWHERE,
+    });
   });
 });

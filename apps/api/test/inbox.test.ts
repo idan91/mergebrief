@@ -220,6 +220,7 @@ interface InboxBody {
   pageSize: number;
   total: number;
   searchMatchTotal: number;
+  archivedSearchMatchTotal: number;
   counts: Record<string, number>;
   viewer: Record<string, unknown>;
   reachableInstallations: Array<Record<string, unknown>>;
@@ -642,6 +643,7 @@ describe("GET /api/inbox", () => {
 
     expect(body.total).toBe(0);
     expect(body.searchMatchTotal).toBe(1);
+    expect(body.archivedSearchMatchTotal).toBe(0);
   });
 
   it("no state key on the wire reads as open and draft", async () => {
