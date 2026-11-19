@@ -4,12 +4,12 @@
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief, waitForFirstLoad } from "../support/page";
+import { gotoSettledBrief, waitForFirstLoad } from "../support/page";
 
 test("a move to another page names it and lands focus on its main region", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const arrival = page.getByTestId("route-arrival");
   const main = page.locator("#main-content");
   await expect(arrival).toHaveText("");

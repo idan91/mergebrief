@@ -11,7 +11,7 @@ import {
   FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID,
   FIXTURE_UNBRIEFED_SHA,
 } from "../fixtures/ids";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief } from "../support/page";
 
 const SHORT_SHA = 7;
 const REV1_GROUP_TITLE =
@@ -61,7 +61,7 @@ function isRev1BriefRead(url: string): boolean {
 test("jump switches to the anchor revision and lands on the thread row", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV1);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV1);
   await page.getByRole("button", { name: "Expand sidebar" }).click();
   await page.getByRole("tab", { name: "Revisions" }).click();
   await page.getByRole("button", { name: /^Revision 2\b/ }).click();
@@ -84,7 +84,7 @@ test("jump switches to the anchor revision and lands on the thread row", async (
 test("a jump lands on an uncached revision, and a second one lands again", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   await expandThread(page, FIXTURE_BRIEFED_ANCHOR_THREAD_ID);
 
   await test.step("an anchor never briefed keeps the button disabled with its reason", async () => {

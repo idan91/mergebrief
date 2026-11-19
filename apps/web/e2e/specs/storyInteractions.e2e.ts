@@ -4,10 +4,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief } from "../support/page";
 
 test("chunk cards collapse and expand", async ({ page }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
 
   // `#c1` stays: chunk ids ARE the deep-link anchor contract. The toggle
   // rides its testid instead of DOM order.
@@ -28,7 +28,7 @@ test("chunk cards collapse and expand", async ({ page }) => {
 test("the risk-attrs disclosure jumps to the carrying group", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
 
   // Collapse the target BEFORE opening the rail disclosure (an outside
   // click would dismiss it): a risk-attr jump is wayfinding, and a
@@ -74,7 +74,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
 test("focus mode quiets the header and lands the chunk below the pill", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const readTopBar = () =>
     page.evaluate(() =>
       Number.parseFloat(
@@ -121,7 +121,7 @@ test("focus mode quiets the header and lands the chunk below the pill", async ({
 test("focus mode and its chunk survive a reload through the URL", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   await page.keyboard.press("z");
   await page.keyboard.press("j");
   const current = page.locator("main article[data-current]");
@@ -139,7 +139,7 @@ test("focus mode and its chunk survive a reload through the URL", async ({
 test("the focus panel hides for a group and returns on the next", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   await page.keyboard.press("z");
   const panel = page.getByTestId("focus-panel");
   await expect(panel).toHaveAttribute("data-state", "open");
@@ -174,7 +174,7 @@ test("the focus panel hides for a group and returns on the next", async ({
 test("the chunk strip follows the scroll and lands its jumps under the stack", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const strip = page
     .getByRole("toolbar", { name: "Chunks in this group" })
     .first();
@@ -219,7 +219,7 @@ test("the chunk strip follows the scroll and lands its jumps under the stack", a
 test("a diff table is one Tab stop and the arrows step its lines", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const table = page.locator("article#c1 table").first();
   const lines = table.locator("[data-line-stop]");
   await expect(table.locator('[tabindex="0"][data-line-stop]')).toHaveCount(1);
@@ -298,18 +298,12 @@ function readRingClearance(line: Locator): Promise<number> {
   });
 }
 
-/** Highlighting lands after first paint and can move a line already placed. */
-async function waitForHighlightedDiffs(page: Page): Promise<void> {
-  await expect(page.locator('tbody[data-tokens="pending"]')).toHaveCount(0);
-}
-
 /**
  * Focuses the last line of `#c2` and scrolls the line `LINE_STEPS` above it
  * under the card's pinned head; returns that covered line.
  */
 async function coverLineUnderHead(page: Page): Promise<Locator> {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await waitForHighlightedDiffs(page);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const lines = page.locator("article#c2 table [data-line-stop]");
   const lineCount = await lines.count();
   const target = lines.nth(lineCount - 1 - LINE_STEPS);
@@ -367,8 +361,7 @@ test("a line stepped to over the bottom bar comes out above it", async ({
   page,
 }) => {
   await page.setViewportSize(BOTTOM_BAR_VIEWPORT);
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  await waitForHighlightedDiffs(page);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const bar = page.getByTestId("sidebar-bar");
   await expect(bar).toBeVisible();
   const lines = page.locator("article#c2 table [data-line-stop]");

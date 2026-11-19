@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import {
-  gotoBrief,
+  gotoSettledBrief,
   shortcutsDialog,
   waitForShortcutsBound,
 } from "../support/page";
@@ -11,7 +11,7 @@ import {
 test("single-key shortcuts turn off and back on from the shortcuts dialog", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const dialog = shortcutsDialog(page);
   const toggle = page.getByText("Single-key shortcuts", { exact: true });
 

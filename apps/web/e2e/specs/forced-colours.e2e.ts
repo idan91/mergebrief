@@ -5,7 +5,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { DiffViews } from "../../src/components/DiffRows/types";
 import { DIFF_VIEW_COOKIE } from "../../src/features/brief/ui/components/BriefView/diff-view/consts";
 import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief, waitForFirstLoad } from "../support/page";
+import { gotoSettledBrief, waitForFirstLoad } from "../support/page";
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
@@ -63,7 +63,7 @@ const RESTING_BAR_OPACITY = "0.45";
 test("the view options and the current chunk keep their marks", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
   const selected = page.locator("input[type=radio]:checked + label").first();
 
@@ -244,7 +244,7 @@ async function readFocusVisible(target: Locator): Promise<boolean> {
 test("the sidebar's current row and selected tab keep their marks", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
   await page.getByRole("button", { name: "Expand sidebar" }).click();
 
@@ -296,7 +296,7 @@ test("a viewed sidebar chunk row shows its tick and an unviewed one none", async
     (url) => CHUNK_READ_WRITE.test(url.pathname),
     (route) => route.fulfill({ status: 200, json: {} }),
   );
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
   const viewedBox = page.getByRole("checkbox", { name: /^Viewed / }).first();
   // The input is visually hidden under its drawn box, which takes the click.

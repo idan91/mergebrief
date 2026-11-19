@@ -4,7 +4,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief, waitForSettledDiffs } from "../support/page";
 
 const COMPARED_FULL = `${FIXTURE_ROUTE_REV2}&view=full&compare=previous-brief`;
 const SETTLE_SAMPLE_MS = 150;
@@ -20,6 +20,18 @@ async function readVisibleRailKeys(page: Page): Promise<string[]> {
 }
 
 /**
+ * The rails ride the diff rows, which are fetched after the page: resolves
+ * with every rail once the first has drawn and no diff is still loading.
+ */
+async function readRailKeysOnceDrawn(page: Page): Promise<string[]> {
+  await expect
+    .poll(async () => (await readVisibleRailKeys(page)).length)
+    .toBeGreaterThan(0);
+  await waitForSettledDiffs(page);
+  return readVisibleRailKeys(page);
+}
+
+/**
  * The document's last rail: a group far off screen mounts no cards, so the
  * rails mounted at load stop short of it. Read at the page's end, then back
  * at the top where the walk starts.
@@ -28,9 +40,7 @@ async function readLastRailKey(page: Page): Promise<string | undefined> {
   await page.evaluate(() => {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" });
   });
-  await expect
-    .poll(async () => (await readVisibleRailKeys(page)).length)
-    .toBeGreaterThan(0);
+  await readRailKeysOnceDrawn(page);
   await waitForScrollToSettle(page);
   const last = (await readVisibleRailKeys(page)).at(-1);
   await page.evaluate(() => {
@@ -77,8 +87,8 @@ async function stepTo(
 test("the change stepper steps through rails in order and back", async ({
   page,
 }) => {
-  await gotoBrief(page, COMPARED_FULL);
-  const keys = await readVisibleRailKeys(page);
+  await gotoSettledBrief(page, COMPARED_FULL);
+  const keys = await readRailKeysOnceDrawn(page);
   expect(keys.length).toBeGreaterThanOrEqual(3);
 
   await stepTo(page, "Next change", keys[0]);
@@ -90,8 +100,8 @@ test("the change stepper steps through rails in order and back", async ({
 test("the change stepper wraps from the last change back to the first", async ({
   page,
 }) => {
-  await gotoBrief(page, COMPARED_FULL);
-  const keys = await readVisibleRailKeys(page);
+  await gotoSettledBrief(page, COMPARED_FULL);
+  const keys = await readRailKeysOnceDrawn(page);
   const lastKey = await readLastRailKey(page);
   const announcement = page.getByTestId("brief-live");
 

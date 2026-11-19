@@ -17,7 +17,7 @@ import {
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief } from "../support/page";
 
 const CHANGES = `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`;
 /** The fixture's Header chunk: its one added line, which its own card renders. */
@@ -207,7 +207,7 @@ test("a comment from a card joins the session and shows in Full", async ({
     "Comment made from the Changes Only card",
     testInfo,
   );
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const row = findFirstCommentableRow(page);
   await row.scrollIntoViewIfNeeded();
   await row.locator("[data-comment-anchor]").first().click();
@@ -221,7 +221,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
   page,
 }, testInfo) => {
   const body = makeDraftBody("Comment made from the raw span diff", testInfo);
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   await page.getByRole("button", { name: "Raw diff" }).click();
   const row = findSpanRowOnLine(page, SPAN_LINE.file, SPAN_LINE.line);
   await row.scrollIntoViewIfNeeded();
@@ -247,7 +247,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
 test("a flag dismissed from a section reads dismissed on the group card", async ({
   page,
 }) => {
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const fileLabel = page
     .locator("label")
     .filter({ has: page.getByRole("checkbox", { name: /Select flags on/ }) })
@@ -278,7 +278,7 @@ test("a flag dismissed from a section reads dismissed on the group card", async 
 test("Changes Only with a composer and a reason row open is clean", async ({
   page,
 }, testInfo) => {
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const row = findFirstCommentableRow(page);
   await row.scrollIntoViewIfNeeded();
   await row.locator("[data-comment-anchor]").first().click();

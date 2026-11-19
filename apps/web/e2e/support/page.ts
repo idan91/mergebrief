@@ -86,7 +86,30 @@ export async function waitForInteractive(
   await expect(dialog).toBeHidden();
 }
 
-/** Navigate to a brief URL (repo route) and wait for it to be interactive. */
+/**
+ * Resolve once no diff is still loading or waiting on its colours. Both land
+ * after first paint and move the rows below them, so a click aimed before
+ * then can land on whatever moved under the pointer.
+ */
+export async function waitForSettledDiffs(
+  page: Page,
+  { timeout = HYDRATION_BUDGET_MS }: WaitOptions = {},
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const loading = document.querySelector("main [aria-busy='true']");
+      const uncoloured = document.querySelector('tbody[data-tokens="pending"]');
+      return loading === null && uncoloured === null;
+    },
+    undefined,
+    { timeout },
+  );
+}
+
+/**
+ * Navigate to a brief URL (repo route) and wait for it to answer its keys.
+ * The perf suite's gate: it does not wait for the diffs.
+ */
 export async function gotoBrief(
   page: Page,
   path: string,
@@ -94,4 +117,13 @@ export async function gotoBrief(
 ): Promise<void> {
   await page.goto(path);
   await waitForInteractive(page, options);
+}
+
+/** `gotoBrief`, then the diffs at rest: the way onto a brief a test will click. */
+export async function gotoSettledBrief(
+  page: Page,
+  path: string,
+): Promise<void> {
+  await gotoBrief(page, path);
+  await waitForSettledDiffs(page);
 }

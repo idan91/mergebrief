@@ -9,7 +9,7 @@ import {
   FIXTURE_ROUTE_REV1_LEGACY_SPAN,
   FIXTURE_ROUTE_REV2,
 } from "../fixtures/ids";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief, waitForSettledDiffs } from "../support/page";
 
 test("unrecognized params fall back to the product default", async ({
   page,
@@ -204,6 +204,7 @@ test("a line link this brief cannot scroll to drops the param and says so", asyn
     timeout: 15_000,
   });
   await expect(page).not.toHaveURL(/[?&]l=/);
+  await waitForSettledDiffs(page);
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByTestId("line-link-notice")).toBeHidden();
 });
@@ -211,7 +212,7 @@ test("a line link this brief cannot scroll to drops the param and says so", asyn
 test("Back across a Scope change keeps Focus mode and corrects the Address", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const focusIndicator = page.getByRole("group", {
     name: "Focus mode",
     exact: true,

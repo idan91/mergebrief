@@ -5,7 +5,7 @@ import { expect, test, type CDPSession, type Page } from "@playwright/test";
 import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import {
-  gotoBrief,
+  gotoSettledBrief,
   SHORTCUTS_DIALOG_SELECTOR,
   shortcutsDialog,
   waitForFirstLoad,
@@ -37,20 +37,20 @@ const PICKER: SweptState = {
 const FULL_BRIEF: SweptState = {
   title: "the full brief",
   key: "full-brief",
-  reach: (page) => gotoBrief(page, FIXTURE_ROUTE_REV2),
+  reach: (page) => gotoSettledBrief(page, FIXTURE_ROUTE_REV2),
 };
 
 const FIRST_REVISION: SweptState = {
   title: "the first revision",
   key: "first-revision",
-  reach: (page) => gotoBrief(page, FIXTURE_ROUTE_REV1),
+  reach: (page) => gotoSettledBrief(page, FIXTURE_ROUTE_REV1),
 };
 
 const CHANGES_ONLY: SweptState = {
   title: "the Changes Only span",
   key: "changes-only",
   reach: async (page) => {
-    await gotoBrief(
+    await gotoSettledBrief(
       page,
       `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
     );
@@ -73,7 +73,7 @@ const CHANGES_ONLY: SweptState = {
 const FOCUS_MODE: SweptState = {
   title: "focus mode",
   key: "focus-mode",
-  reach: (page) => gotoBrief(page, FOCUS_ROUTE),
+  reach: (page) => gotoSettledBrief(page, FOCUS_ROUTE),
 };
 
 const SETTINGS: SweptState = {
@@ -164,7 +164,7 @@ test.describe("at phone width", () => {
 
 test("the brief never scrolls sideways at 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const widths = await page.evaluate(() => ({
     scroll: document.documentElement.scrollWidth,
     inner: window.innerWidth,
@@ -282,7 +282,7 @@ for (const viewport of SIDEWAYS_PHONES) {
     test("the full brief is clean, keeps one bar and ends chunk heads", async ({
       page,
     }, testInfo) => {
-      await gotoBrief(page, FIXTURE_ROUTE_REV2);
+      await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
 
       await test.step("is clean", () =>
         expectNoSeriousAxeViolations(
@@ -315,7 +315,7 @@ for (const viewport of SIDEWAYS_PHONES) {
     test("focus mode is clean and keeps Back and the PR title", async ({
       page,
     }, testInfo) => {
-      await gotoBrief(page, FOCUS_ROUTE);
+      await gotoSettledBrief(page, FOCUS_ROUTE);
 
       await test.step("is clean", () =>
         expectNoSeriousAxeViolations(
@@ -347,7 +347,7 @@ for (const viewport of SIDEWAYS_PHONES) {
         width: viewport.height,
         height: viewport.width,
       });
-      await gotoBrief(page, FOCUS_ROUTE);
+      await gotoSettledBrief(page, FOCUS_ROUTE);
       await page.setViewportSize(viewport);
 
       await expect
@@ -360,7 +360,7 @@ for (const viewport of SIDEWAYS_PHONES) {
     }) => {
       const session = await page.context().newCDPSession(page);
       for (const route of [FIXTURE_ROUTE_REV2, FOCUS_ROUTE]) {
-        await gotoBrief(page, route);
+        await gotoSettledBrief(page, route);
         for (const notch of NOTCH_INSETS) {
           await overrideSideInsets(page, session, notch);
           const edges = await readControlEdges(page);
@@ -370,7 +370,7 @@ for (const viewport of SIDEWAYS_PHONES) {
         }
       }
 
-      await gotoBrief(page, LINE_LINK_MISS_ROUTE);
+      await gotoSettledBrief(page, LINE_LINK_MISS_ROUTE);
       await expect(page.getByTestId("line-link-notice")).toBeVisible({
         timeout: LINE_LINK_SETTLE_MS,
       });
@@ -478,7 +478,7 @@ const SUBPIXEL = 0.5;
 test("the shortcuts dialog and every submit modal view are clean", async ({
   page,
 }, testInfo) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
 
   await test.step("the shortcuts dialog", async () => {
     await page.keyboard.press("Shift+Slash");
