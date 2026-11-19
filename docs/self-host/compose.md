@@ -6,15 +6,16 @@ worker that generates Briefs as pull requests are pushed.
 
 ```sh
 mkdir mergebrief && cd mergebrief
-curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
-curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/download/v0.1.0/env.example
-curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
+curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.yml
+curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/latest/download/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/latest/download/mergebrief.config.example.yaml
 cp .env.example .env      # fill in (see the first-boot table below)
 cp mergebrief.config.example.yaml mergebrief.config.yaml   # your GitHub user id under operators
 docker compose up -d --wait
 ```
 
-Replace `v0.1.0`, the first release, with the release you want; the
+These fetch the newest release. For another one, replace `latest/download`
+with `download/vX.Y.Z`; the
 [releases page](https://github.com/idan91/mergebrief/releases) lists them.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
@@ -85,8 +86,8 @@ command, `migrate`, applies pending migrations and exits. The image is built for
 that matches the host. Postgres runs the official `postgres:17-alpine`
 image, never bundled into ours.
 
-**Exact pin, never `latest`.** The shipped compose file names one release,
-`ghcr.io/idan91/mergebrief:0.1.0`, and that pin is what makes the
+**Exact pin, never `latest`.** The shipped compose file names its own
+release's image, such as `ghcr.io/idan91/mergebrief:1.4.0`, and that pin is what makes the
 [upgrade](./operations.md#the-upgrade-step) and the
 [rollback](./operations.md#rolling-back) a matter of swapping one file. The
 registry also publishes a `latest` tag that moves to every release, majors
@@ -219,7 +220,7 @@ from the release beside the default file and name both in `.env`, in this
 order, so every plain `docker compose` command in these pages reads them:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
+curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.external-db.yml
 # .env: DATABASE_URL=postgres://...?sslmode=verify-full&sslrootcert=...
 # .env: COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
 docker compose up -d --wait

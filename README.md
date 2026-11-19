@@ -47,9 +47,9 @@ Fetch the release files:
 
 ```bash
 mkdir mergebrief && cd mergebrief
-curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
-curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/download/v0.1.0/env.example
-curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
+curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.yml
+curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/latest/download/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/latest/download/mergebrief.config.example.yaml
 cp .env.example .env
 cp mergebrief.config.example.yaml mergebrief.config.yaml
 ```

@@ -261,19 +261,20 @@ Caddy does not include a rate limiter.
 
 ## 3. Select an exact application version
 
-Download the assets of the exact release you intend to deploy, as in the
+Download the assets of the release you intend to deploy, as in the
 [Compose installation guide](compose.md). The host holds one folder, with no
-checkout of the repository and no build. These commands select `v0.1.0`, the
-first release; replace that version in every URL to select another one from
-the [releases page](https://github.com/idan91/mergebrief/releases).
+checkout of the repository and no build. These commands fetch the newest
+release; for another one, replace `latest/download` with `download/vX.Y.Z` in
+every URL, from the
+[releases page](https://github.com/idan91/mergebrief/releases).
 
 ```sh
 mkdir -p ~/deploy/mergebrief
 cd ~/deploy/mergebrief
 umask 077
-curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
-curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/download/v0.1.0/env.example
-curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/download/v0.1.0/mergebrief.config.example.yaml
+curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.yml
+curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/latest/download/env.example
+curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/latest/download/mergebrief.config.example.yaml
 cp .env.example .env
 cp mergebrief.config.example.yaml mergebrief.config.yaml
 ```
@@ -283,11 +284,11 @@ release. Section 5B names it in `COMPOSE_FILE` after `docker-compose.yml`, and
 Compose then reads both, the overlay removing the bundled database:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
+curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.external-db.yml
 ```
 
 Each release's Compose files pin that release's exact image tag,
-`ghcr.io/idan91/mergebrief:0.1.0` here, never `latest`. Do not edit them: an
+such as `ghcr.io/idan91/mergebrief:1.4.0`, never `latest`. Do not edit them: an
 upgrade replaces them byte for byte. Your own settings go in `.env` and
 `docker-compose.override.yml`. Finish sections 4 and 5 before starting the
 services.
@@ -736,12 +737,12 @@ Never add `-v`: that deletes the Postgres volume. An H1 folder installed from
 a release holds no external-database overlay, because section 3 downloads
 it only for the external tracks. Download it now, from the release this
 instance runs: the first command prints the version `docker-compose.yml` pins,
-and a pin of `0.1.0` is `v0.1.0` in the URL. A source build skips this step,
+and a pin of `1.4.0` is `v1.4.0` in the URL. A source build skips this step,
 because its checkout already holds the file.
 
 ```sh
 grep 'image: ghcr.io/idan91/mergebrief' docker-compose.yml
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
+curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v1.4.0/docker-compose.external-db.yml
 ```
 
 Then follow your provider's steps and
