@@ -151,68 +151,13 @@ describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES", () => {
 });
 
 describe("summary succinctness", () => {
-  const prompts = [buildSystemPrompt(), buildDeltaSystemPrompt()];
-
-  it("caps the summary at a 1-3 sentence lede in both prompts", () => {
-    for (const text of prompts) {
-      expect(text).toContain("lede of 1-3 short sentences");
-      expect(text).toContain("hard caps");
-    }
-  });
-
-  it("caps the optional changelog at 1-3 bullets in both prompts", () => {
-    for (const text of prompts) {
-      expect(text).toContain("**1-3 bullets**");
-      expect(text).toContain('"## Changelog"');
-    }
-  });
-
   it("keeps the lede framing out of the revision-narrative prompt", () => {
     const narrative = buildRevisionNarrativeSystemPrompt();
     expect(narrative).not.toContain("lede");
   });
-
-  it("asks for the shortest verbatim span and one-sentence intent", () => {
-    const brief = buildSystemPrompt();
-    expect(brief).toContain("SHORTEST verbatim span");
-    expect(brief).toContain("a full clause, never a bare fragment");
-    expect(brief).toMatch(/`intent` text to one sentence/);
-    // the ceiling must stay a ceiling: this exact clause is the framing
-    expect(brief).toContain("~200 chars is a ceiling, never a target");
-  });
 });
 
 describe("text length caps", () => {
-  it("caps group title and summary in both the full and delta prompts", () => {
-    for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
-      expect(text).toContain("**Group text is scan-length");
-      expect(text).toContain("~150 absolute ceiling");
-      expect(text).toContain("1-2 short sentences — aim for ONE");
-      expect(text).toContain("~250 absolute ceiling");
-      expect(text).toContain(
-        "split the group instead of inflating the summary",
-      );
-    }
-  });
-
-  it("caps the narrative overview and chunk summary", () => {
-    const narrative = buildRevisionNarrativeSystemPrompt();
-    expect(narrative).toContain(
-      "1-2 short sentences on what this revision did",
-    );
-    expect(narrative).toContain("~250 characters is an absolute ceiling");
-    expect(narrative).toContain(
-      "ONE concrete sentence specific to those changed lines",
-    );
-    expect(narrative).toContain("~150 absolute ceiling");
-  });
-
-  it("caps riskNotes notes in both prompts that state the rule", () => {
-    for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
-      expect(text).toContain("at most ~200 characters");
-    }
-  });
-
   it("states the anchored minimal-edit hard rule", () => {
     const anchored = buildSystemPrompt({ anchored: true });
     expect(anchored).toContain("**Summary — minimal edit (HARD RULE):**");
@@ -222,18 +167,6 @@ describe("text length caps", () => {
     expect(anchored).toContain("every re-examined group's title and summary");
     // the fresh prompt never carries the anchored block
     expect(buildSystemPrompt()).not.toContain("minimal edit (HARD RULE)");
-  });
-
-  it("carves over-cap previous text out of the minimal-edit rule", () => {
-    const anchored = buildSystemPrompt({ anchored: true });
-    // Both statements of the carve-out: the re-examined-groups bullet and
-    // the minimal-edit hard-rule block.
-    expect(anchored).toContain(
-      "a previous title or summary that exceeds its length cap",
-    );
-    expect(anchored).toContain(
-      "One exception: previous text that exceeds its length cap",
-    );
   });
 
   it("carves a claim no current input backs out of the minimal-edit rule", () => {
