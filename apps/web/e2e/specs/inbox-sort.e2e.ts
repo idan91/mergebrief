@@ -4,7 +4,7 @@ import { expect, test, type Locator } from "@playwright/test";
 
 import { INBOX_ROWS } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
-import { waitForFirstLoad, waitForInteractive } from "../support/page";
+import { waitForFirstLoad } from "../support/page";
 
 /** Updated 20 minutes ago and opened 20 days ago. */
 const RETRY_TITLE = "Retry failed webhook deliveries with backoff";
@@ -36,7 +36,6 @@ test("the Inbox sorts by creation time, oldest first on request", async ({
 
   await page.goto("/");
   await waitForFirstLoad(page);
-  await waitForInteractive(page);
   const titles = page.getByTestId("inbox-row-title");
   await expect
     .poll(() => isListedBefore(titles, RETRY_TITLE, ROUNDING_TITLE_START))

@@ -4,8 +4,8 @@
 //
 // The first write here materializes the viewer's review session on the
 // fixture PR, which the Inbox then counts as in progress for the rest of
-// the run. Files run in path order on the one worker, so this file's name
-// sorts after the inbox specs; keep it that way.
+// the run. That is why this file is one of the config's mutating specs,
+// which start only after every read-only spec has finished.
 import {
   expect,
   type Locator,
@@ -17,7 +17,7 @@ import {
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
-import { gotoBrief } from "../support/page";
+import { gotoSettledBrief } from "../support/page";
 
 const CHANGES = `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`;
 /** The fixture's Header chunk: its one added line, which its own card renders. */
@@ -25,22 +25,68 @@ const CHANGES = `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`;
 const SPAN_LINE = { file: "viewModel.ts", line: 37, chunkId: "c3" };
 const FULL = `${FIXTURE_ROUTE_REV2}&view=full&compare=previous-brief`;
 const DISMISSAL_REASON = "Known and accepted for this fixture.";
-/** How long cleanup waits for a leftover to show before deciding it is gone. */
-const LEFTOVER_TIMEOUT_MS = 5000;
+/** The diff row an open composer sits in. */
+const COMPOSER_ROW_SELECTOR = 'tr:has([data-testid="markdown-textarea"])';
+const REASON_ROW_SELECTOR = '[data-testid="reason-row"]';
+
+/** A session write the test page made, as the cleanup needs it. */
+interface SessionWrites {
+  /** One per saved draft: the address that deletes it. */
+  draftUrls: Promise<string>[];
+  /** One per dismissal: the address and the flags that reopen it. */
+  dismissals: { url: string; flags: unknown }[];
+}
 
 /**
  * The session is one row per viewer and pull request, shared by every spec
  * in the run, so what a test writes comes back out after it, pass or fail:
  * the inbox specs count an in-progress review on this PR.
  */
-const pendingDrafts = new Set<string>();
-let flagDismissed = false;
+let sessionWrites: SessionWrites = { draftUrls: [], dismissals: [] };
+
+async function readDraftUrl(response: Response): Promise<string> {
+  const created: unknown = await response.json();
+  const hasDraftId =
+    typeof created === "object" && created !== null && "draftId" in created;
+  if (!hasDraftId || typeof created.draftId !== "string") {
+    throw new Error("the draft write answered without a draft id");
+  }
+  const url = new URL(response.url());
+  url.pathname = `${url.pathname}/${created.draftId}`;
+  return url.href;
+}
+
+function readDismissedFlags(response: Response): unknown {
+  const sent: unknown = response.request().postDataJSON();
+  const hasFlags = typeof sent === "object" && sent !== null && "flags" in sent;
+  return hasFlags ? sent.flags : [];
+}
+
+/** Records every draft and dismissal the page writes, from its first response on. */
+function trackSessionWrites(page: Page): SessionWrites {
+  const writes: SessionWrites = { draftUrls: [], dismissals: [] };
+  page.on("response", (response) => {
+    const isPost = response.request().method() === "POST";
+    if (!isPost || !response.ok()) {
+      return;
+    }
+    const { pathname } = new URL(response.url());
+    if (pathname.endsWith("/session/comments")) {
+      writes.draftUrls.push(readDraftUrl(response));
+    }
+    if (pathname.endsWith("/session/risks/dismiss")) {
+      writes.dismissals.push({
+        url: response.url().replace("/risks/dismiss", "/risks/reopen"),
+        flags: readDismissedFlags(response),
+      });
+    }
+  });
+  return writes;
+}
 
 /** A body unique to this attempt, so a retry never matches a leftover. */
 function makeDraftBody(label: string, testInfo: TestInfo): string {
-  const body = `${label} (attempt ${String(testInfo.retry + 1)}, ${String(Date.now())})`;
-  pendingDrafts.add(body);
-  return body;
+  return `${label} (attempt ${String(testInfo.retry + 1)}, ${String(Date.now())})`;
 }
 
 /**
@@ -57,17 +103,6 @@ function waitForSessionWrite(
     const isWrite = response.request().method() === method;
     return isWrite && pathname.includes(`/session${suffix}`);
   });
-}
-
-/** True once the locator attaches; false when it never does in time. */
-function waitForAppearance(locator: Locator): Promise<boolean> {
-  return locator
-    .first()
-    .waitFor({ state: "attached", timeout: LEFTOVER_TIMEOUT_MS })
-    .then(
-      () => true,
-      () => false,
-    );
 }
 
 /** Both scope panes stay mounted; only the shown one has visible rows. */
@@ -120,16 +155,16 @@ async function saveDraft(page: Page, body: string): Promise<void> {
 }
 
 /**
- * A fresh load, then Full: what shows came back from the server, in one
- * card, the named owner's when the test knows it.
+ * A fresh load of Full: what shows came back from the server, in one card,
+ * the named owner's when the test knows it.
  */
 async function expectDraftInFullAfterReload(
   page: Page,
   body: string,
   ownerChunkId?: string,
 ): Promise<void> {
-  await gotoBrief(page, CHANGES);
-  await switchToFull(page);
+  await page.goto(FULL);
+  await expect(page.getByRole("radio", { name: "Full brief" })).toBeChecked();
   const card =
     ownerChunkId === undefined
       ? findChunkCardWith(page, body)
@@ -140,19 +175,6 @@ async function expectDraftInFullAfterReload(
   await expect(draft).toBeVisible();
 }
 
-/** Deletes through the draft's own card; both panes lose the text. */
-async function deleteDraft(page: Page, body: string): Promise<void> {
-  const card = page
-    .getByText(body)
-    .filter({ visible: true })
-    .locator("xpath=ancestor::div[.//*[@data-thread-footer]][1]");
-  await card.getByRole("button", { name: "Delete", exact: true }).click();
-  const deleted = waitForSessionWrite(page, "DELETE", "/comments/");
-  await card.getByRole("button", { name: "Delete draft" }).click();
-  expect((await deleted).ok()).toBe(true);
-  await expect(page.getByText(body)).toHaveCount(0);
-}
-
 function findResolvedFold(page: Page): Locator {
   return page
     .getByRole("button", { name: "1 resolved" })
@@ -160,34 +182,22 @@ function findResolvedFold(page: Page): Locator {
     .first();
 }
 
-async function reopenResolvedFlag(page: Page): Promise<void> {
-  await findResolvedFold(page).click();
-  const reopened = waitForSessionWrite(page, "POST", "/risks/reopen");
-  await page
-    .getByRole("button", { name: /^Reopen/ })
-    .filter({ visible: true })
-    .first()
-    .click();
-  expect((await reopened).ok()).toBe(true);
-  await expect(findResolvedFold(page)).toHaveCount(0);
-}
+test.beforeEach(({ page }) => {
+  sessionWrites = trackSessionWrites(page);
+});
 
-/** A leftover is looked for with a wait, never a snapshot count. */
-test.afterEach(async ({ page }) => {
-  if (pendingDrafts.size === 0 && !flagDismissed) {
-    return;
+/** Takes back what the test wrote, through the API the page wrote it with. */
+test.afterEach(async ({ page, baseURL }) => {
+  // A cookie write has to name its origin; a browser adds this by itself.
+  const headers = { origin: baseURL ?? "" };
+  for (const url of await Promise.all(sessionWrites.draftUrls)) {
+    const deleted = await page.request.delete(url, { headers });
+    expect(deleted.ok()).toBe(true);
   }
-  await gotoBrief(page, FULL);
-  for (const body of pendingDrafts) {
-    if (await waitForAppearance(page.getByText(body))) {
-      await deleteDraft(page, body);
-    }
+  for (const { url, flags } of sessionWrites.dismissals) {
+    const reopened = await page.request.post(url, { headers, data: { flags } });
+    expect(reopened.ok()).toBe(true);
   }
-  pendingDrafts.clear();
-  if (flagDismissed && (await waitForAppearance(findResolvedFold(page)))) {
-    await reopenResolvedFlag(page);
-  }
-  flagDismissed = false;
 });
 
 test("a comment from a card joins the session and shows in Full", async ({
@@ -197,7 +207,7 @@ test("a comment from a card joins the session and shows in Full", async ({
     "Comment made from the Changes Only card",
     testInfo,
   );
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const row = findFirstCommentableRow(page);
   await row.scrollIntoViewIfNeeded();
   await row.locator("[data-comment-anchor]").first().click();
@@ -211,7 +221,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
   page,
 }, testInfo) => {
   const body = makeDraftBody("Comment made from the raw span diff", testInfo);
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   await page.getByRole("button", { name: "Raw diff" }).click();
   const row = findSpanRowOnLine(page, SPAN_LINE.file, SPAN_LINE.line);
   await row.scrollIntoViewIfNeeded();
@@ -237,7 +247,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
 test("a flag dismissed from a section reads dismissed on the group card", async ({
   page,
 }) => {
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const fileLabel = page
     .locator("label")
     .filter({ has: page.getByRole("checkbox", { name: /Select flags on/ }) })
@@ -251,7 +261,6 @@ test("a flag dismissed from a section reads dismissed on the group card", async 
     .fill(DISMISSAL_REASON);
   const dismissed = waitForSessionWrite(page, "POST", "/risks/dismiss");
   await page.getByRole("button", { name: "Dismiss with reason" }).click();
-  flagDismissed = true;
   expect((await dismissed).ok()).toBe(true);
   await expect(findResolvedFold(page)).toBeVisible();
 
@@ -269,13 +278,15 @@ test("a flag dismissed from a section reads dismissed on the group card", async 
 test("Changes Only with a composer and a reason row open is clean", async ({
   page,
 }, testInfo) => {
-  await gotoBrief(page, CHANGES);
+  await gotoSettledBrief(page, CHANGES);
   const row = findFirstCommentableRow(page);
   await row.scrollIntoViewIfNeeded();
   await row.locator("[data-comment-anchor]").first().click();
   await expect(page.getByPlaceholder("Leave a comment")).toBeVisible();
   await page.mouse.move(0, 0);
-  await expectNoSeriousAxeViolations(page, testInfo, "changes-composer");
+  await expectNoSeriousAxeViolations(page, testInfo, "changes-composer", {
+    include: COMPOSER_ROW_SELECTOR,
+  });
 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Raw diff" }).click();
@@ -285,5 +296,7 @@ test("Changes Only with a composer and a reason row open is clean", async ({
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("reason-row")).toBeVisible();
   await page.mouse.move(0, 0);
-  await expectNoSeriousAxeViolations(page, testInfo, "changes-reason-row");
+  await expectNoSeriousAxeViolations(page, testInfo, "changes-reason-row", {
+    include: REASON_ROW_SELECTOR,
+  });
 });

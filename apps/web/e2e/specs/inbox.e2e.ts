@@ -18,6 +18,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
 
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
+  await expect(page).toHaveTitle("Briefs · MergeBrief");
 
   // The personal line counts every row above the fold and names their states.
   await expect(
@@ -110,31 +111,29 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   await expect(
     page.getByTestId("inbox-row").first().getByText("New commits"),
   ).toHaveCount(0);
-});
 
-test("the Generate button waits for a pasted URL", async ({ page }) => {
-  await page.goto("/");
-  await waitForFirstLoad(page);
-  const generate = page.getByRole("button", { name: "Generate brief" });
-  await expect(generate).toBeHidden();
+  await test.step("the Generate button waits for a pasted URL", async () => {
+    const generate = page.getByRole("button", { name: "Generate brief" });
+    await expect(generate).toBeHidden();
 
-  await page
-    .getByLabel("Pull request URL")
-    .fill("https://github.com/acme/payments/pull/101");
-  await expect(generate).toBeVisible();
-});
+    const urlBox = page.getByLabel("Pull request URL");
+    await urlBox.fill("https://github.com/acme/payments/pull/101");
+    await expect(generate).toBeVisible();
+    await urlBox.fill("");
+  });
 
-test("the View control unfolds the list into one", async ({ page }) => {
-  await page.goto("/");
-  await waitForFirstLoad(page);
-  await expect(page.getByText("Not waiting on you")).toBeVisible();
+  await test.step("the View control unfolds the list into one", async () => {
+    await expect(page.getByText("Not waiting on you")).toBeVisible();
 
-  await page.getByRole("button", { name: "View", exact: true }).click();
-  await page.getByRole("option", { name: "Mixed" }).click();
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("option", { name: "Mixed" }).click();
 
-  await expect(page).toHaveURL(/layout=mixed/);
-  await expect(page.getByText("Not waiting on you")).toBeHidden();
-  await expect(page.getByRole("button", { name: "View Mixed" })).toBeVisible();
+    await expect(page).toHaveURL(/layout=mixed/);
+    await expect(page.getByText("Not waiting on you")).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "View Mixed" }),
+    ).toBeVisible();
+  });
 });
 
 test("the controls never scroll the page sideways at 320px", async ({
@@ -160,11 +159,8 @@ test("the keyboard cursor carries focus, so Tab goes on from its row", async ({
   await page.goto("/");
   await waitForFirstLoad(page);
   const cursorRow = page.locator('li[data-cursor="true"]');
-  // A key sent before hydration is lost; press until the cursor lands.
-  await expect(async () => {
-    await page.keyboard.press("j");
-    await expect(cursorRow).toBeVisible({ timeout: 500 });
-  }).toPass();
+  await page.keyboard.press("j");
+  await expect(cursorRow).toBeVisible();
 
   const rowLink = readBriefLink(cursorRow);
   await expect(rowLink).toBeFocused();

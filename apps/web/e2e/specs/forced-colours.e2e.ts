@@ -5,7 +5,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { DiffViews } from "../../src/components/DiffRows/types";
 import { DIFF_VIEW_COOKIE } from "../../src/features/brief/ui/components/BriefView/diff-view/consts";
 import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief, waitForFirstLoad } from "../support/page";
+import { gotoSettledBrief, waitForFirstLoad } from "../support/page";
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
@@ -58,39 +58,78 @@ async function readStyle(
   );
 }
 
-test("the selected view option is filled and the others are not", async ({
+const RESTING_BAR_OPACITY = "0.45";
+
+test("the view options and the current chunk keep their marks", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
-
   const selected = page.locator("input[type=radio]:checked + label").first();
-  const unselected = page
-    .locator("input[type=radio]:not(:checked) + label")
-    .first();
 
-  expect(await readFill(selected)).toBe(colors.highlight);
-  expect(await readFill(unselected)).not.toBe(colors.highlight);
+  await test.step("the selected view option is filled, the others not", async () => {
+    const unselected = page
+      .locator("input[type=radio]:not(:checked) + label")
+      .first();
 
-  await selected.hover();
-  expect(await readFill(selected)).toBe(colors.highlight);
-});
+    expect.soft(await readFill(selected)).toBe(colors.highlight);
+    expect.soft(await readFill(unselected)).not.toBe(colors.highlight);
 
-test("a focused selected view option rings in the highlight colour", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const colors = await readSystemColors(page);
-  const radio = page.locator("input[type=radio]:checked").first();
-  const label = page.locator("input[type=radio]:checked + label").first();
+    await selected.hover();
+    expect.soft(await readFill(selected)).toBe(colors.highlight);
+  });
 
-  // The last interaction was a key, so a scripted focus is focus-visible.
-  await page.keyboard.press("Shift");
-  await radio.focus();
-  expect(await readFocusVisible(radio)).toBe(true);
+  await page.keyboard.press("j");
 
-  expect(await readStyle(label, "outline-style")).toBe("solid");
-  expect(await readStyle(label, "outline-color")).toBe(colors.highlight);
+  await test.step("the chunk strip keeps its marks and names the current one", async () => {
+    const marks = page.getByRole("button", { name: /chunk \d+ of \d+/ });
+    const current = marks.and(page.locator('[aria-current="true"]')).first();
+    await expect(current).toBeVisible();
+    const resting = marks.and(page.locator(":not([aria-current])")).first();
+
+    // The bar's fill eases between states.
+    await expect
+      .poll(() => readFill(current, "::before"))
+      .toBe(colors.highlight);
+    await expect
+      .poll(() => readFill(resting, "::before"))
+      .toBe(colors.canvasText);
+
+    // Highlight and CanvasText sit too close in some themes to carry state alone.
+    expect.soft(await readStyle(current, "opacity", "::before")).toBe("1");
+    expect
+      .soft(await readStyle(resting, "opacity", "::before"))
+      .toBe(RESTING_BAR_OPACITY);
+  });
+
+  await test.step("the chunk the reader is on has a dashed highlighted edge", async () => {
+    const head = page.locator("article[data-current] > div").first();
+    await expect(head).toBeVisible();
+    const restingHead = page
+      .locator('[data-testid="brief-chunk"]:not([data-current]) > div')
+      .first();
+
+    expect
+      .soft(await readStyle(head, "border-top-color"))
+      .toBe(colors.highlight);
+    expect.soft(await readStyle(head, "border-top-style")).toBe("dashed");
+    expect.soft(await readStyle(head, "border-top-width")).toBe("1px");
+    expect.soft(await readStyle(restingHead, "border-top-style")).toBe("solid");
+  });
+
+  await test.step("a focused selected view option rings in the highlight", async () => {
+    const radio = page.locator("input[type=radio]:checked").first();
+
+    // The last interaction was a key, so a scripted focus is focus-visible.
+    await page.keyboard.press("Shift");
+    await radio.focus();
+    expect.soft(await readFocusVisible(radio)).toBe(true);
+
+    expect.soft(await readStyle(selected, "outline-style")).toBe("solid");
+    expect
+      .soft(await readStyle(selected, "outline-color"))
+      .toBe(colors.highlight);
+  });
 });
 
 const LINE_LINK_ROUTE = `${FIXTURE_ROUTE_REV1}&l=c1.R45`;
@@ -170,122 +209,78 @@ test("a phone hides the old link number's digits and the new number", async ({
   expect(await readStyle(newCell, "color")).toBe(TRANSPARENT);
 });
 
-const RESTING_BAR_OPACITY = "0.45";
-
-test("the chunk strip keeps its marks and names the current one", async ({
+test("the inbox cursor row and the URL box show where the keyboard is", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const colors = await readSystemColors(page);
-  await page.keyboard.press("j");
-
-  const marks = page.getByRole("button", { name: /chunk \d+ of \d+/ });
-  const current = marks.and(page.locator('[aria-current="true"]')).first();
-  await expect(current).toBeVisible();
-  const resting = marks.and(page.locator(":not([aria-current])")).first();
-
-  // The bar's fill eases between states.
-  await expect.poll(() => readFill(current, "::before")).toBe(colors.highlight);
-  await expect
-    .poll(() => readFill(resting, "::before"))
-    .toBe(colors.canvasText);
-
-  // Highlight and CanvasText sit too close in some themes to carry state alone.
-  expect(await readStyle(current, "opacity", "::before")).toBe("1");
-  expect(await readStyle(resting, "opacity", "::before")).toBe(
-    RESTING_BAR_OPACITY,
-  );
-});
-
-test("the chunk the reader is on has a dashed highlighted edge", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const colors = await readSystemColors(page);
-  await page.keyboard.press("j");
-
-  const head = page.locator("article[data-current] > div").first();
-  await expect(head).toBeVisible();
-  const restingHead = page
-    .locator('[data-testid="brief-chunk"]:not([data-current]) > div')
-    .first();
-
-  expect(await readStyle(head, "border-top-color")).toBe(colors.highlight);
-  expect(await readStyle(head, "border-top-style")).toBe("dashed");
-  expect(await readStyle(head, "border-top-width")).toBe("1px");
-  expect(await readStyle(restingHead, "border-top-style")).toBe("solid");
-});
-
-test("the inbox cursor row carries a dashed ring", async ({ page }) => {
   await page.goto("/");
   await waitForFirstLoad(page);
   const colors = await readSystemColors(page);
-  const cursorRow = page.locator('li[data-cursor="true"]');
-  await expect(async () => {
+
+  await test.step("the inbox cursor row carries a dashed ring", async () => {
+    const cursorRow = page.locator('li[data-cursor="true"]');
     await page.keyboard.press("j");
-    await expect(cursorRow).toBeVisible({ timeout: 500 });
-  }).toPass();
+    await expect(cursorRow).toBeVisible();
 
-  expect(await readStyle(cursorRow, "outline-style")).toBe("dashed");
-  expect(await readStyle(cursorRow, "outline-color")).toBe(colors.highlight);
-});
+    expect.soft(await readStyle(cursorRow, "outline-style")).toBe("dashed");
+    expect
+      .soft(await readStyle(cursorRow, "outline-color"))
+      .toBe(colors.highlight);
+  });
 
-test("the URL box shows keyboard focus", async ({ page }) => {
-  await page.goto("/");
-  await waitForFirstLoad(page);
-  const colors = await readSystemColors(page);
-  const field = page.getByRole("textbox", { name: "Pull request URL" });
-  await field.focus();
-  const box = page.locator("form").filter({ has: field });
+  await test.step("the URL box shows keyboard focus", async () => {
+    const field = page.getByRole("textbox", { name: "Pull request URL" });
+    await field.focus();
+    const box = page.locator("form").filter({ has: field });
 
-  expect(await readStyle(box, "outline-width")).toBe("2px");
-  expect(await readStyle(box, "outline-color")).toBe(colors.highlight);
+    expect.soft(await readStyle(box, "outline-width")).toBe("2px");
+    expect.soft(await readStyle(box, "outline-color")).toBe(colors.highlight);
+  });
 });
 
 async function readFocusVisible(target: Locator): Promise<boolean> {
   return target.evaluate((element) => element.matches(":focus-visible"));
 }
 
-test("a focused selected tab rings in a colour its fill does not use", async ({
+test("the sidebar's current row and selected tab keep their marks", async ({
   page,
 }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
   await page.getByRole("button", { name: "Expand sidebar" }).click();
-  await page.getByRole("tab", { name: "Revisions" }).click();
 
-  // Arrows select as they move, so the focused tab is the selected one.
-  await page.keyboard.press("ArrowLeft");
-  const tab = page.getByRole("tab", { name: "This PR", selected: true });
-  await expect(tab).toBeFocused();
-  expect(await readFocusVisible(tab)).toBe(true);
+  await test.step("the current row is dashed until focus makes it solid", async () => {
+    await page.keyboard.press("j");
 
-  expect(await readFill(tab)).toBe(colors.highlight);
-  expect(await readStyle(tab, "outline-color")).toBe(colors.highlightText);
-});
+    // The rail's position lines are current buttons too; a row is the one with a name.
+    const row = page
+      .getByTestId("sidebar")
+      .locator("button[data-current]")
+      .filter({ hasText: /\S/ })
+      .first();
+    await expect(row).toBeVisible();
+    expect.soft(await readStyle(row, "outline-style")).toBe("dashed");
+    expect.soft(await readStyle(row, "outline-color")).toBe(colors.highlight);
 
-test("the current sidebar row is dashed until focus makes it solid", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const colors = await readSystemColors(page);
-  await page.getByRole("button", { name: "Expand sidebar" }).click();
-  await page.keyboard.press("j");
+    // The last interaction was a key, so a scripted focus is focus-visible.
+    await row.focus();
+    expect.soft(await readFocusVisible(row)).toBe(true);
+    expect.soft(await readStyle(row, "outline-style")).toBe("solid");
+  });
 
-  // The rail's position lines are current buttons too; a row is the one with a name.
-  const row = page
-    .getByTestId("sidebar")
-    .locator("button[data-current]")
-    .filter({ hasText: /\S/ })
-    .first();
-  await expect(row).toBeVisible();
-  expect(await readStyle(row, "outline-style")).toBe("dashed");
-  expect(await readStyle(row, "outline-color")).toBe(colors.highlight);
+  await test.step("a focused selected tab rings in a colour its fill lacks", async () => {
+    await page.getByRole("tab", { name: "Revisions" }).click();
 
-  // The last interaction was a key, so a scripted focus is focus-visible.
-  await row.focus();
-  expect(await readFocusVisible(row)).toBe(true);
-  expect(await readStyle(row, "outline-style")).toBe("solid");
+    // Arrows select as they move, so the focused tab is the selected one.
+    await page.keyboard.press("ArrowLeft");
+    const tab = page.getByRole("tab", { name: "This PR", selected: true });
+    await expect(tab).toBeFocused();
+    expect.soft(await readFocusVisible(tab)).toBe(true);
+
+    expect.soft(await readFill(tab)).toBe(colors.highlight);
+    expect
+      .soft(await readStyle(tab, "outline-color"))
+      .toBe(colors.highlightText);
+  });
 });
 
 // Narrow enough for the sidebar's sheet, which lists each group's chunks.
@@ -301,7 +296,7 @@ test("a viewed sidebar chunk row shows its tick and an unviewed one none", async
     (url) => CHUNK_READ_WRITE.test(url.pathname),
     (route) => route.fulfill({ status: 200, json: {} }),
   );
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+  await gotoSettledBrief(page, FIXTURE_ROUTE_REV2);
   const colors = await readSystemColors(page);
   const viewedBox = page.getByRole("checkbox", { name: /^Viewed / }).first();
   // The input is visually hidden under its drawn box, which takes the click.
