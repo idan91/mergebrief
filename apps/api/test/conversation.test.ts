@@ -326,16 +326,6 @@ describe("conversation surface", () => {
   }
 
   describe("GET conversation on an Installation row", () => {
-    it("401s without a session cookie and never reads GitHub", async () => {
-      arrangeFakeGate(fake, { repoId: REPO_ID });
-      const res = await getConversation(makeApp(), undefined);
-      expect(res.status).toBe(401);
-      // Gate denials are per-viewer state too, the no-store contract covers
-      // EVERY response of a gated route, middleware denials included.
-      expect(res.headers.get("cache-control")).toBe("no-store");
-      expect(fake.calls).toEqual([]);
-    });
-
     it("returns no-store conversation data on the App with one row read", async () => {
       arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);

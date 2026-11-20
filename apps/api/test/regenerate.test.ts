@@ -30,7 +30,6 @@ import {
   SECRET,
   brandInstallationId,
   brandRepoId,
-  brandReviewerId,
   createKeyProvider,
 } from "./fixtures";
 import {
@@ -51,9 +50,6 @@ const NEXT_HEAD = "b".repeat(40);
 const PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/regenerate`;
 const TENANT: ScopeContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
-};
-const OWNER: ScopeContext = {
-  ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
 };
 const TIMEOUT: GenerationFailure = {
   code: GenerationFailureCodes.PROVIDER_TIMEOUT,
@@ -358,16 +354,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     });
 
     expect(res.status).toBe(202);
-  });
-
-  it("answers 404 on a repo in no installation", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
-    await seedHead(harness, OWNER, "failed");
-
-    const res = await postAsCookie();
-
-    expect(res.status).toBe(404);
-    expect(await readGenerateJobs(harness)).toHaveLength(0);
   });
 
   it("answers 409 generation-held while a run holds the head", async () => {

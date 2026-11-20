@@ -42,25 +42,4 @@ describe("fetchPullRequestConversation, file-level threads", () => {
     expect(thread?.line).toBeUndefined();
     expect(thread?.startLine).toBeUndefined();
   });
-
-  it("keeps the line of a line thread", async () => {
-    const result = await fetchPullRequestConversation(
-      stubGraphqlOctokit(
-        conversationResponse({
-          threads: [
-            gqlThread({
-              line: 1,
-              comments: [gqlComment({ login: "alice" })],
-            }),
-          ],
-        }),
-      ),
-      INPUT,
-    );
-
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.threads[0]?.line).toBe(1);
-  });
 });

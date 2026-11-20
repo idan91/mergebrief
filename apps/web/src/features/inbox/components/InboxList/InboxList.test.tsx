@@ -761,11 +761,13 @@ describe("InboxList", () => {
     scrollIntoView.mockRestore();
   });
 
-  it("a re-read that takes the focused cursor row hands focus to the heading", async () => {
+  it("a re-read taking the focused cursor row focuses the heading in place", async () => {
     const first = makeItem({ prNumber: 1, title: "First" });
     const second = makeItem({ prNumber: 2, title: "Second" });
     const host = await renderReReadHarness([first, second]);
     fireEvent.keyDown(window, { key: "j" });
+    const heading = screen.getByRole("heading", { name: "Briefs" });
+    const focus = vi.spyOn(heading, "focus");
 
     act(() => host.setItems?.([second]));
 
@@ -774,6 +776,7 @@ describe("InboxList", () => {
         screen.getByRole("heading", { name: "Briefs" }),
       );
     });
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
   it("a re-read taking the row whose menu holds focus focuses the heading", async () => {
@@ -854,21 +857,6 @@ describe("InboxList", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
     scrollIntoView.mockRestore();
     move.mockRestore();
-  });
-
-  it("a re-read that takes the focused row focuses the heading in place", async () => {
-    const first = makeItem({ prNumber: 1, title: "First" });
-    const second = makeItem({ prNumber: 2, title: "Second" });
-    const host = await renderReReadHarness([first, second]);
-    fireEvent.keyDown(window, { key: "j" });
-    const heading = screen.getByRole("heading", { name: "Briefs" });
-    const focus = vi.spyOn(heading, "focus");
-
-    act(() => host.setItems?.([second]));
-
-    await waitFor(() => {
-      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
-    });
   });
 
   it("a window blur keeps the cursor row's focus through a later re-read", async () => {

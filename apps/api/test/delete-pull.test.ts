@@ -369,16 +369,6 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await countRows(harness, "brief")).toBe(1);
   });
 
-  it("an unknown pull request in the resolved world is a 404", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeFreshRead(fake, true);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await del(cookie);
-
-    expect(res.status).toBe(404);
-  });
-
   it("a cross-origin cookie request is forbidden", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);

@@ -62,7 +62,6 @@ import {
   buildOverriddenAuthDeps,
   listFakeCallTokens,
   arrangeFakeGate,
-  DENIED_GATE_CALLS,
   OPERATOR_GATE_CALLS,
   listCallTokens,
   listCallsPastGate,
@@ -550,25 +549,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     );
     return String(rows[0]?.["id"]);
   }
-
-  it("401s absent session cookies without calling GitHub", async () => {
-    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
-    const res = await postSubmit(app, undefined, makeValidBody());
-    expect(res.status).toBe(401);
-    expect(gate.repositoryReads()).toBe(0);
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("404 collapse when the viewer has no access to the repo", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 403 });
-    arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedSessionDrafts(harness.handle);
-    const res = await postSubmit(app, cookie, makeValidBody());
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
-  });
 
   it("400s invalid or absent outcomes and non-JSON bodies", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });

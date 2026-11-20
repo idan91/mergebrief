@@ -757,6 +757,28 @@ describe("unclaimed transitions", () => {
     expect(capped.status).toBe(GenerationStatuses.CAPPED);
     expect(capped.runId).toBeNull();
   });
+
+  it.each([GenerationStatuses.AWAITING_TRIGGER, GenerationStatuses.SUCCEEDED])(
+    "unclaimed marks keep a %s row",
+    async (status) => {
+      const world = await makeClaimWorld();
+      await world.harness.raw("update generation set status = $1", [status]);
+      const { gen, target } = world;
+
+      const marks = [
+        await gen.markFailed(target, FAILED_RUN.failure),
+        await gen.markSuperseded(target),
+        await gen.markCapped(target),
+      ];
+
+      expect(marks.map((mark) => !mark.ok && mark.error.code)).toEqual([
+        GenerationErrorCodes.STATUS_KEPT,
+        GenerationErrorCodes.STATUS_KEPT,
+        GenerationErrorCodes.STATUS_KEPT,
+      ]);
+      expect((await gen.get(target))?.status).toBe(status);
+    },
+  );
 });
 
 describe("endLapsedClaim", () => {
@@ -815,6 +837,21 @@ describe("endReleasedClaim", () => {
 
     expect(ended.status).toBe(GenerationStatuses.FAILED);
     expect(ended.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
+    expect(ended.awaitsRecovery).toBe(false);
+  });
+
+  it("a trigger clears a row's hand-back to recovery", async () => {
+    const world = await makeClaimWorld();
+    await world.harness.raw(
+      "update generation set claims = 1, awaits_recovery = true",
+    );
+
+    await world.gen.upsertPending(world.target);
+
+    expect((await world.gen.readClaim(world.target))?.awaitsRecovery).toBe(
+      false,
+    );
+    expectClaimLost(await world.gen.endReleasedClaim(world.target, FAILED_RUN));
   });
 
   it("refuses a pending row a regular run's shutdown released", async () => {

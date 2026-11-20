@@ -1137,14 +1137,4 @@ describe("the Review Session writes", () => {
       ),
     ).toEqual([{ evidence_status: null, resolves: true }]);
   });
-
-  it("401s without a credential", async () => {
-    await seedBrief(harness.handle, 1);
-    const res = await app.request(pathFor("/chunks/c1/read", "head-1"), {
-      method: "POST",
-      headers: SAME_ORIGIN_HEADERS,
-    });
-    expect(res.status).toBe(401);
-    expect(await countRows("review_session")).toBe(0);
-  });
 });

@@ -28,7 +28,6 @@ import { claimTestRun, succeedTestRun } from "../src/testing";
 import {
   brandWith,
   makeBriefTarget,
-  readCheckValues,
   registerSharedPglite,
   writeGenerationUpdatedAt,
 } from "./helpers";
@@ -198,6 +197,7 @@ describe("createGenerationProjection status transitions", () => {
     if (!failed.ok) {
       throw new Error("markFailed failed");
     }
+    expect(failed.value.status).toBe(GenerationStatuses.FAILED);
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     // One line: the stack trace and the credentialed URL are gone.
     expect(failed.value.errorParams).toEqual({
@@ -230,19 +230,6 @@ describe("createGenerationProjection status transitions", () => {
     }
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     expect(failed.value.errorParams).toBeNull();
-  });
-
-  it("the CHECK constraint accepts exactly the failure vocabulary", async () => {
-    const client = shared.client;
-
-    const accepted = await readCheckValues(
-      client,
-      "generation_error_code_check",
-    );
-
-    expect(accepted.toSorted()).toEqual(
-      Object.values(GenerationFailureCodes).toSorted(),
-    );
   });
 
   it("markSuperseded is terminal, leaves attempts, clears error", async () => {

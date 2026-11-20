@@ -1,6 +1,7 @@
 // Every operation's descriptor policy, driven off the composed registry: the
 // router enforces it before the handler runs, so the denial a request meets
 // follows the agreed check order whatever the route's own code does.
+import { tmpdir } from "node:os";
 import {
   createTenantRepository,
   type AppDatabase,
@@ -26,7 +27,7 @@ import {
   createKeyProvider,
   getRequestUrl,
 } from "./fixtures";
-import { REPO_ID, seedPullRequest } from "./session/fixtures";
+import { CTX, REPO_ID } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
@@ -34,6 +35,15 @@ import { registerSharedPglite } from "./shared-pglite";
 vi.setConfig({ testTimeout: 30_000 });
 
 const PER_PR_SEGMENT = "/pulls/:prNumber";
+/** The credential's own bookkeeping, which a refused request may still touch. */
+const CREDENTIAL_TABLES = [
+  "audit_log",
+  "auth_session",
+  "github_grant",
+  "api_token",
+];
+const QUEUE_TABLE = "graphile_worker.jobs";
+const DENIED_GATE_FETCHES = [`GET /repositories/${REPO_ID}`];
 const OWNER: ScopeContext = {
   ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
 };
@@ -57,11 +67,26 @@ function answerJson(body: unknown, status = 200): Response {
   });
 }
 
+/** Each GitHub call as `METHOD /path`, in the order the requests sent them. */
+interface GitHubCalls {
+  readonly sent: string[];
+}
+
+function describeCall(
+  input: string | URL | Request,
+  init: RequestInit | undefined,
+): string {
+  const method = init?.method ?? "GET";
+  return `${method} ${new URL(getRequestUrl(input)).pathname}`;
+}
+
 /** The gate's two reads: the repo by id, then which installation holds it. */
-function stubGitHub(stub: RepoStub): void {
+function stubGitHub(stub: RepoStub): GitHubCalls {
+  const calls: GitHubCalls = { sent: [] };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
+    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      calls.sent.push(describeCall(input, init));
       const url = getRequestUrl(input);
       const heldBy = stub.reach === RepoReaches.INSTALLATION ? [REPO_ID] : [];
       const membership = answerInstallationRepositories(url, heldBy);
@@ -82,6 +107,18 @@ function stubGitHub(stub: RepoStub): void {
       throw new Error(`unexpected fetch in the access table: ${url}`);
     }),
   );
+  return calls;
+}
+
+/** A draft, so a refused mark-ready that still wrote would show in the row. */
+async function seedDraftPullRequest(handle: AppDatabase): Promise<void> {
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
+    repoId: brandRepoId(BigInt(REPO_ID)),
+    prNumber: PR_NUMBER,
+    repoSlug: REPO_SLUG,
+    draft: true,
+    state: PrStates.OPEN,
+  });
 }
 
 async function seedUrlRow(handle: AppDatabase): Promise<void> {
@@ -119,6 +156,30 @@ function hasBody(descriptor: ProductOperationDescriptor): boolean {
 }
 
 const harness = registerSharedPglite();
+
+/** Every table a product operation writes, each as its rows' text. */
+async function readStoredWorld(): Promise<Record<string, string>> {
+  const tables = await harness.raw(
+    "select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and not (table_name = any($1))",
+    [CREDENTIAL_TABLES],
+  );
+  const names = tables.map((row) => `public.${String(row["table_name"])}`);
+  const world: Record<string, string> = {};
+  for (const name of [...names, QUEUE_TABLE]) {
+    const rows = await harness.raw(
+      `select coalesce(string_agg(t::text, '|' order by t::text), '') as rows from ${name} t`,
+    );
+    world[name] = String(rows[0]?.["rows"]);
+  }
+  return world;
+}
+
+function listChangedTables(
+  before: Record<string, string>,
+  after: Record<string, string>,
+): string[] {
+  return Object.keys(after).filter((name) => before[name] !== after[name]);
+}
 
 describe("the descriptor policy over every operation", () => {
   let kp: KeyProvider;
@@ -163,20 +224,44 @@ describe("the descriptor policy over every operation", () => {
     return app.request(path, init);
   }
 
-  /** Each operation's status where it differs from `expected`. */
-  async function collectMismatches(
-    operations: readonly ProductOperationDescriptor[],
-    expected: number,
-    send: (
+  interface RefusalSweep {
+    readonly operations: readonly ProductOperationDescriptor[];
+    readonly status: number;
+    readonly calls: GitHubCalls;
+    /** What one request sends GitHub once the gate has met this credential. */
+    readonly gateCalls: readonly string[];
+    readonly send: (
       descriptor: ProductOperationDescriptor,
-    ) => Response | Promise<Response>,
-  ): Promise<string[]> {
+    ) => Response | Promise<Response>;
+  }
+
+  /**
+   * Each operation whose status differs from the sweep's, or that called
+   * GitHub past the gate, and any table the refusals changed.
+   */
+  async function collectMismatches(sweep: RefusalSweep): Promise<string[]> {
+    const storedBefore = await readStoredWorld();
+    const [warmUp] = sweep.operations;
+    if (warmUp !== undefined) {
+      await sweep.send(warmUp);
+    }
+
     const mismatches: string[] = [];
-    for (const descriptor of operations) {
-      const res = await send(descriptor);
-      if (res.status !== expected) {
+    for (const descriptor of sweep.operations) {
+      const sentBefore = sweep.calls.sent.length;
+      const res = await sweep.send(descriptor);
+      const sent = sweep.calls.sent.slice(sentBefore);
+      if (res.status !== sweep.status) {
         mismatches.push(`${descriptor.id}: ${res.status}`);
       }
+      if (sent.join() !== sweep.gateCalls.join()) {
+        mismatches.push(`${descriptor.id} called ${sent.join(", ")}`);
+      }
+    }
+
+    const changed = listChangedTables(storedBefore, await readStoredWorld());
+    if (changed.length > 0) {
+      mismatches.push(`rows changed in ${changed.join(", ")}`);
     }
     return mismatches;
   }
@@ -190,28 +275,69 @@ describe("the descriptor policy over every operation", () => {
     expect(misplaced).toEqual([]);
   });
 
+  it("answers every operation 401 signed-out without a credential", async () => {
+    const calls = stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
+    await seedDraftPullRequest(harness.handle);
+    const storedBefore = await readStoredWorld();
+    const withLocalBriefs = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      localBriefsDir: tmpdir(),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+
+    const operations = listOperations(() => true);
+    const answers: string[] = [];
+    for (const descriptor of operations) {
+      const { method, path } = buildOperationRequest(descriptor);
+      const res = await withLocalBriefs.request(path, {
+        method,
+        headers: SAME_ORIGIN_HEADERS,
+      });
+      const body = (await res.json()) as { code?: string };
+      const cacheControl = res.headers.get("cache-control");
+      answers.push(
+        `${descriptor.id}: ${res.status} ${body.code ?? ""} ${cacheControl}`,
+      );
+    }
+
+    expect(answers).toEqual(
+      operations.map(
+        (descriptor) => `${descriptor.id}: 401 signed-out no-store`,
+      ),
+    );
+    expect(calls.sent).toEqual([]);
+    expect(await readStoredWorld()).toEqual(storedBefore);
+  });
+
   it("answers 404 to a viewer without repo access", async () => {
-    stubGitHub({ reach: RepoReaches.DENIED, push: false });
-    await seedPullRequest(harness.handle);
+    const calls = stubGitHub({ reach: RepoReaches.DENIED, push: false });
+    await seedDraftPullRequest(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations(isPerPullRequest),
-      404,
-      (descriptor) => sendAsCookie(descriptor, cookie),
-    );
+    const mismatches = await collectMismatches({
+      operations: listOperations(isPerPullRequest),
+      status: 404,
+      calls,
+      gateCalls: DENIED_GATE_FETCHES,
+      send: (descriptor) => sendAsCookie(descriptor, cookie),
+    });
 
     expect(mismatches).toEqual([]);
   });
 
   it("answers 404 to a malformed pull request number", async () => {
-    stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
+    const calls = stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations(isPerPullRequest),
-      404,
-      (descriptor) => {
+    const mismatches = await collectMismatches({
+      operations: listOperations(isPerPullRequest),
+      status: 404,
+      calls,
+      gateCalls: [],
+      send: (descriptor) => {
         const { method, path } = buildOperationRequest(descriptor);
         const malformed = path.replace(`/pulls/${PR_NUMBER}`, "/pulls/abc");
         return app.request(malformed, {
@@ -222,43 +348,49 @@ describe("the descriptor policy over every operation", () => {
           },
         });
       },
-    );
+    });
 
     expect(mismatches).toEqual([]);
   });
 
   it("answers 404 when requiresStoredPullRequest finds no stored PR", async () => {
-    stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
+    const calls = stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.requiresStoredPullRequest),
-      404,
-      (descriptor) => sendAsCookie(descriptor, cookie),
-    );
+    const mismatches = await collectMismatches({
+      operations: listOperations(
+        (descriptor) => descriptor.requiresStoredPullRequest,
+      ),
+      status: 404,
+      calls,
+      gateCalls: [],
+      send: (descriptor) => sendAsCookie(descriptor, cookie),
+    });
 
     expect(mismatches).toEqual([]);
   });
 
   it("answers a malformed body on a missing row with 404, not 400", async () => {
-    stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
+    const calls = stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations(
+    const mismatches = await collectMismatches({
+      operations: listOperations(
         (descriptor) =>
           descriptor.requiresStoredPullRequest && hasBody(descriptor),
       ),
-      404,
-      (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
-    );
+      status: 404,
+      calls,
+      gateCalls: [],
+      send: (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
+    });
 
     expect(mismatches).toEqual([]);
   });
 
   it("refuses a Bearer token on a browserSessionOnly operation with 403", async () => {
     stubGitHub({ reach: RepoReaches.INSTALLATION, push: true });
-    await seedPullRequest(harness.handle);
+    await seedDraftPullRequest(harness.handle);
     const bearer = await seedApiToken(
       harness.handle,
       kp,
@@ -286,29 +418,35 @@ describe("the descriptor policy over every operation", () => {
   });
 
   it("answers 404 to requiresInstallation on a repo in no Installation", async () => {
-    stubGitHub({ reach: RepoReaches.OWNER, push: true });
+    const calls = stubGitHub({ reach: RepoReaches.OWNER, push: true });
     await seedUrlRow(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.requiresInstallation),
-      404,
-      (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
-    );
+    const mismatches = await collectMismatches({
+      operations: listOperations(
+        (descriptor) => descriptor.requiresInstallation,
+      ),
+      status: 404,
+      calls,
+      gateCalls: [],
+      send: (descriptor) => sendAsCookie(descriptor, cookie, "{not json"),
+    });
 
     expect(mismatches).toEqual([]);
   });
 
   it("answers 404 to requiresPushAccess for a viewer without push", async () => {
-    stubGitHub({ reach: RepoReaches.INSTALLATION, push: false });
-    await seedPullRequest(harness.handle);
+    const calls = stubGitHub({ reach: RepoReaches.INSTALLATION, push: false });
+    await seedDraftPullRequest(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
-    const mismatches = await collectMismatches(
-      listOperations((descriptor) => descriptor.requiresPushAccess),
-      404,
-      (descriptor) => sendAsCookie(descriptor, cookie),
-    );
+    const mismatches = await collectMismatches({
+      operations: listOperations((descriptor) => descriptor.requiresPushAccess),
+      status: 404,
+      calls,
+      gateCalls: [],
+      send: (descriptor) => sendAsCookie(descriptor, cookie),
+    });
 
     expect(mismatches).toEqual([]);
   });

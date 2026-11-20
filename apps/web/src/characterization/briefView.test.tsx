@@ -258,11 +258,13 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("offers no comment composer: a file-backed brief is read-only", async () => {
+  it("offers no composer or disposition controls on a file-backed brief", async () => {
     // No `brief` row, no installation and no reviewer, so there is no session
-    // to save a comment into and the gutter never opens one.
+    // to save a comment or a dismissal into.
     await renderBriefView();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    expect(statText("Flags")).toBe("0/2");
+    expect(screen.queryByText("Dismiss…")).toBeNull();
 
     fireEvent.keyDown(window, { key: "z" });
     await screen.findByRole("complementary", {
@@ -299,14 +301,6 @@ describe("brief screen characterization", () => {
     });
     fireEvent.click(screen.getByText("Dismiss with reason"));
     await waitFor(() => expect(stat()).toBe("2/2"));
-  });
-
-  it("offers no disposition controls: a file-backed brief is read-only", async () => {
-    // Same reason the composer never opens here, since there is no session to
-    // record a dismissal in, so the affordance does not render at all.
-    await renderBriefView();
-    expect(statText("Flags")).toBe("0/2");
-    expect(screen.queryByText("Dismiss…")).toBeNull();
   });
 
   it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {

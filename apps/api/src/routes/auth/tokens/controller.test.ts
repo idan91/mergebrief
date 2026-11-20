@@ -42,14 +42,6 @@ describe("tokensController.mintToken", () => {
     );
   }
 
-  it("mints on the signed-in session's grant", async () => {
-    const session = await makeSignedInPrincipal();
-
-    const minted = await mintFor(session);
-
-    expect(minted.ok).toBe(true);
-  });
-
   it("answers session-gone when a logout deleted the session first", async () => {
     const session = await makeSignedInPrincipal();
     await createSessionAuth(harness.handle).deleteSession(

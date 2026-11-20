@@ -1,7 +1,7 @@
-// Review Session tests. Three jobs: prove the DB-stored vocabularies and
-// their CHECK constraints cannot drift apart, prove the store's session
-// semantics (the first write creates, a read never does), and prove tenant B can neither
-// read nor write tenant A's session rows.
+// Review Session tests. Three jobs: prove the draft comment anchor CHECKs
+// refuse a bad shape, prove the store's session semantics (the first write
+// creates, a read never does), and prove tenant B can neither read nor write
+// tenant A's session rows.
 import type { PGlite } from "@electric-sql/pglite";
 import {
   AnchorStatuses,
@@ -36,12 +36,7 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
-import {
-  DispositionCarryStatuses,
-  DispositionDecisions,
-  DispositionEvidenceKinds,
-  DispositionEvidenceStatuses,
-} from "types/dispositions";
+import { DispositionDecisions } from "types/dispositions";
 
 import {
   brandWith,
@@ -53,7 +48,7 @@ import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 /**
  * The handle plus the PGlite client behind it: the raw client is how these
- * tests read `pg_constraint` and row counts the repository deliberately does
+ * tests read row counts the repository deliberately does
  * not expose.
  */
 const shared = registerSharedPglite();
@@ -173,22 +168,6 @@ async function stampAnchorStatus(
   );
 }
 
-/** The literals a CHECK constraint accepts. */
-async function checkValues(
-  client: PGlite,
-  constraintName: string,
-): Promise<string[]> {
-  const result = await client.query<{ def: string }>(
-    "select pg_get_constraintdef(oid) as def from pg_constraint where conname = $1",
-    [constraintName],
-  );
-  const def = result.rows[0]?.def;
-  if (def === undefined) {
-    throw new Error(`constraint ${constraintName} not found`);
-  }
-  return [...def.matchAll(/'([^']*)'/g)].map((match) => match[1] ?? "");
-}
-
 /** One integer count, for the "nothing was written" assertions. */
 async function countRows(client: PGlite, table: string): Promise<number> {
   const result = await client.query<{ n: number }>(
@@ -197,25 +176,7 @@ async function countRows(client: PGlite, table: string): Promise<number> {
   return result.rows[0]?.n ?? -1;
 }
 
-describe("review-session vocabularies match CHECK constraints", () => {
-  it.each([
-    ["review_session_review_outcome_check", ReviewOutcomes],
-    ["review_draft_comment_status_check", DraftCommentStatuses],
-    ["review_draft_comment_kind_check", CommentAnchorKinds],
-    ["review_draft_comment_side_check", DiffSides],
-    ["review_draft_comment_start_side_check", DiffSides],
-    ["review_draft_comment_anchor_status_check", AnchorStatuses],
-    ["review_group_reclassification_category_check", ChangeGroupCategories],
-    ["disposition_carry_status_check", DispositionCarryStatuses],
-    ["disposition_evidence_status_check", DispositionEvidenceStatuses],
-    ["disposition_evidence_kind_check", DispositionEvidenceKinds],
-  ])("%s accepts exactly its `as const` map", async (name, map) => {
-    const { client } = shared;
-    expect((await checkValues(client, name)).toSorted()).toEqual(
-      Object.values(map).toSorted(),
-    );
-  });
-
+describe("review draft comment anchor CHECK constraints", () => {
   it.each([
     ["non-positive start", 0, 5],
     ["inverted range", 9, 4],

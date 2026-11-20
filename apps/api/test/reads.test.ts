@@ -214,13 +214,6 @@ describe("reviewer read API + authz gate", () => {
     });
   });
 
-  it("401s absent session cookies without calling GitHub", async () => {
-    const counts = stubGate(fake);
-    const res = await app.request(briefPath("base", "head"));
-    expect(res.status).toBe(401);
-    expect(counts.repositories()).toBe(0);
-  });
-
   it("401s unknown session cookies without calling GitHub", async () => {
     const counts = stubGate(fake);
     const res = await app.request(briefPath("base", "head"), {
@@ -294,6 +287,7 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: "unauthorized" });
     expect(counts.repositories()).toBe(2);
     expect(counts.refreshes()).toBe(1);
     // The refresh succeeded, so the session it rotated stays.
@@ -433,7 +427,7 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("401 from GitHub → refresh FAILS → 401 and the session is deleted", async () => {
-    stubGate(fake, answerDeadRefresh, { viewerStatus: 401 });
+    const counts = stubGate(fake, answerDeadRefresh, { viewerStatus: 401 });
     const { cookie } = await seedSignIn(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -441,6 +435,7 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(res.status).toBe(401);
+    expect(counts.repositories()).toBe(1);
     const rows = await harness.raw(
       "select count(*)::int as n from auth_session",
     );

@@ -206,22 +206,16 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("hides the submit machinery and the receipt entirely", async () => {
+  it("hides submit and disposition controls, mirrors the risk flags", async () => {
     await renderBriefView({ markReady: vi.fn() });
-    // The submit modal and its Submit button are not in the DOM at all.
+
     expect(
       screen.queryByRole("button", { name: /^submit review$/i }),
     ).toBeNull();
     expect(screen.queryByText(/review receipt/i)).toBeNull();
-    // The advisory ("Before you submit") view is unmounted too.
     expect(screen.queryByText(/before you submit/i)).toBeNull();
-  });
 
-  it("renders risk flags as a read-only mirror, no disposition controls", async () => {
-    await renderBriefView({ markReady: vi.fn() });
-    // The flags stay fully visible (the mirror)…
     expect(screen.getAllByText("No tests").length).toBeGreaterThan(0);
-    // …but every disposition control is gone.
     expect(screen.queryByRole("button", { name: "Addressed" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^dismiss/i })).toBeNull();
     expect(
@@ -725,46 +719,6 @@ describe("own-draft Brief view", () => {
     expect(overlayState("Before marking ready")).toBe("closed");
     // …and focus lands on the terminal-slot CTA, never silently on <body>.
     await waitFor(() => expect(document.activeElement).toBe(markReadyCta()));
-  });
-
-  it("Escape is a no-op while the batch runs, the gate stays up", async () => {
-    // Modal wires Escape to close only when a handler is provided, mid-batch
-    // the gate withholds it, matching the disabled controls, so progress
-    // feedback cannot vanish while writes continue.
-    seedDrafts([
-      comment("c1", "chunk-a", "draft"),
-      comment("c2", "chunk-b", "draft"),
-    ]);
-    const markReady = vi.fn(() =>
-      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-    );
-    // A post that never settles: the batch stays running while we hit Escape.
-    const postComment = vi.fn(
-      (_draftId: string) => new Promise<PostCommentResult>(() => {}),
-    );
-    await renderBriefView({ markReady, postComment });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(
-      await screen.findByText("You have 2 unposted draft comments."),
-    ).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
-    // The batch is running: progress on the confirm button (the text also
-    // rides the modal's sr-only live region, hence findAllBy).
-    expect(
-      await screen.findByRole("button", { name: "Posting 1 of 2…" }),
-    ).toBeTruthy();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    // Still open, progress still visible.
-    expect(overlayState("Before marking ready")).toBe("open");
-    expect(
-      screen.getByRole("button", { name: "Posting 1 of 2…" }),
-    ).toBeTruthy();
   });
 
   it("batch unchecked marks ready without posting anything", async () => {

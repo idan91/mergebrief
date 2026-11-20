@@ -41,7 +41,6 @@ import {
   buildFakeInstallationDeps,
   listFakeCallTokens,
   arrangeFakeGate,
-  DENIED_GATE_CALLS,
   REVIEWER_GATE_CALLS,
   listCallsPastGate,
 } from "./reviewer-github";
@@ -183,33 +182,6 @@ describe("thread resolve and unresolve routes", () => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = buildApp();
-  });
-
-  it("401 without a session cookie and no GitHub call", async () => {
-    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
-    const res = await post(app, undefined, RESOLVE_PATH);
-    expect(res.status).toBe(401);
-    expect(gate.repositoryReads()).toBe(0);
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("404 collapse when the viewer has no access to the repo", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 403 });
-    arrangeThread(false);
-    await seedPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await post(app, cookie, RESOLVE_PATH);
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
-  });
-
-  it("404 when the PR is outside the tenant, with no GitHub call", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeThread(false);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await post(app, cookie, RESOLVE_PATH);
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("400 on a malformed comment id, 404 on a malformed PR number", async () => {

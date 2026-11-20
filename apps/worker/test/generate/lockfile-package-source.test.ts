@@ -253,30 +253,24 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
   });
 
-  it.each([
-    ["an off-registry entry", MIRROR, [CHANGES_PACKAGE_SOURCE]],
-    ["only registry entries", REGISTRY, undefined],
-  ])(
-    "reads an added lockfile holding %s",
-    async (_label, resolution, risks) => {
-      const { pr, payload } = await trigger(HEAD_1);
-      const github = makeGitHub(HEAD_1);
-      github.addPullRequest(PR_REF, {
-        info: makePullRequestInfo(HEAD_1),
-        files: [{ path: LOCKFILE, additions: 1, deletions: 0 }],
-        diff: ADDED_DIFF,
-      });
-      github.addRepoFile(
-        REPO,
-        { path: LOCKFILE, ref: HEAD_1 },
-        buildRepoFile(makePnpmLockfile("foo@1.0.0", resolution), "sha-head"),
-      );
+  it("reads an added lockfile holding only registry entries", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.addPullRequest(PR_REF, {
+      info: makePullRequestInfo(HEAD_1),
+      files: [{ path: LOCKFILE, additions: 1, deletions: 0 }],
+      diff: ADDED_DIFF,
+    });
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: HEAD_1 },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-head"),
+    );
 
-      await makeTask({ github })(payload);
+    await makeTask({ github })(payload);
 
-      expect(await readLockfileRisks(pr.id)).toEqual(risks);
-    },
-  );
+    expect(await readLockfileRisks(pr.id)).toBeUndefined();
+  });
 
   it.each([
     ["a server error", FakeFailures.SERVER_ERROR],

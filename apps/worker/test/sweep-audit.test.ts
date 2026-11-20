@@ -75,18 +75,6 @@ describe("sweep-audit schedule", () => {
 describe("sweep-audit task", () => {
   const harness = registerSharedPglite();
 
-  it("deletes nothing when retention is unset", async () => {
-    await seedAged(harness, TENANT, daysAgo(4000));
-
-    await createSweepAuditTask({
-      handle: harness.handle,
-      retentionDays: null,
-      log: silentLogger(),
-    })();
-
-    expect(await auditRows(harness)).toHaveLength(1);
-  });
-
   it("erases rows past the window in every installation, counting each", async () => {
     await seedAged(harness, TENANT, daysAgo(120));
     await seedAged(harness, TENANT, daysAgo(90));

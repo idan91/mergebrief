@@ -56,7 +56,6 @@ import {
   buildFakeInstallationDeps,
   buildOverriddenAuthDeps,
   arrangeFakeGate,
-  DENIED_GATE_CALLS,
   listCallsPastGate,
   type RepoClientOverrides,
 } from "./reviewer-github";
@@ -373,34 +372,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   async function cacheGatePass(cookie: string): Promise<void> {
     expect((await post(app, cookie, "{not json")).status).toBe(400);
   }
-
-  it("401s absent session cookies without calling GitHub", async () => {
-    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
-    const res = await post(app, undefined, named(1n));
-    expect(res.status).toBe(401);
-    expect(gate.repositoryReads()).toBe(0);
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("404 collapse when the viewer has no access to the repo", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 403 });
-    arrangeGitHub(fake);
-    await seedPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const { draftId } = await seedDraft(harness.handle);
-    const res = await post(app, cookie, named(draftId));
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
-  });
-
-  it("404s PRs outside the tenant without writing to GitHub", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeGitHub(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await post(app, cookie, named(1n));
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake)).toEqual([]);
-  });
 
   it("404s a denied fresh repo resolution after the gate passes", async () => {
     // A viewer whose access was revoked inside the positive-cache TTL: the

@@ -40,7 +40,6 @@ import {
   listFakeCallTokens,
   makeFakePullRequestInfo,
   arrangeFakeGate,
-  DENIED_GATE_CALLS,
   REVIEWER_GATE_CALLS,
   listCallsPastGate,
 } from "./reviewer-github";
@@ -158,29 +157,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     app = buildApp();
   });
 
-  it("401s an absent session cookie without calling GitHub", async () => {
-    const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
-
-    const res = await markReady(undefined);
-
-    expect(res.status).toBe(401);
-    expect(gate.repositoryReads()).toBe(0);
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("collapses a gate denial to 404 with no mutation", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 403 });
-    arrangeRepository(fake);
-    await seedDraftPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await markReady(cookie);
-
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
-    expect(await readDraft(harness.handle)).toBe(true);
-  });
-
   it("collapses a denied fresh repo read to the uniform 404", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);
@@ -216,17 +192,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
         input: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
       }),
     ]);
-  });
-
-  it("404s a PR with no row before any call past the gate", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeRepository(fake);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await markReady(cookie);
-
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("204s a fresh flip with the mirror, the audit and one row read", async () => {
