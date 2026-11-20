@@ -1,7 +1,7 @@
 import { LINE_DIFF_TIMEOUT_MS } from "brief-core/pr-span";
 
 /** Covers a cold start: the thread loads its module through tsx before its first step. */
-const THREAD_START_ALLOWANCE_MS = 5_000;
+export const THREAD_START_ALLOWANCE_MS = 5_000;
 
 /** A thread that has not answered one step by now is stuck, not slow: jsdiff stops itself at its own limit, and the span's other steps are one pass over their input. */
 export const THREAD_ANSWER_LIMIT_MS =

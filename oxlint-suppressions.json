@@ -117,11 +117,6 @@
       "count": 1
     }
   },
-  "packages/persistence/test/ping.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/repo-config/test/instructions.test.ts": {
     "house/test-title": {
       "count": 1

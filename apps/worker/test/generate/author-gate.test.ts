@@ -51,6 +51,7 @@ import {
   runWithPullRequestsOffline,
   SECOND_ATTEMPT,
   seedViewerGrant,
+  openPerTestHarness,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -276,6 +277,7 @@ describe("generate task, author gate", () => {
   });
 
   it("keeps a gated head held when its first read throws", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1, {
       requiresTriggerApproval: true,
     });

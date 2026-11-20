@@ -80,9 +80,17 @@ export interface SpanThread {
   terminate(): Promise<void>;
 }
 
+/** What the thread starts with, as its `workerData`. */
+export interface SpanThreadData {
+  /** Absent in production: the thread keeps brief-core's own timeout. */
+  readonly lineDiffTimeoutMs?: number | undefined;
+}
+
 export interface SpanThreadOptions {
   /** The thread's module; tests point it at a stand-in. */
   readonly entry?: URL;
+  /** jsdiff's time limit on the thread, which the default answer limit then follows; tests shorten it. */
+  readonly lineDiffTimeoutMs?: number;
   /** How long one step may go unanswered before the thread is stopped as stuck. */
   readonly answerLimitMs?: number;
   /** The wait before a restart after the second stop in a row, doubling per further stop. */

@@ -277,7 +277,7 @@ describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
 
 describe("createSessionAuth.deleteSessionsForReviewer", () => {
   it("locks the candidate grants in id order", async () => {
-    const log = await createQueryLog();
+    const log = createQueryLog(shared.client);
     await seedSession(log.handle, {});
     await seedSession(log.handle, { hash: OTHER_HASH });
     log.statements.length = 0;

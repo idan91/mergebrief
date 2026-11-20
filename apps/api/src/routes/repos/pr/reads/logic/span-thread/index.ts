@@ -11,6 +11,7 @@ import {
   STOPS_BEFORE_RESPAWN_BACKOFF,
   THREAD_ANSWER_LIMIT_MS,
   THREAD_RESPAWN_BACKOFF_MS,
+  THREAD_START_ALLOWANCE_MS,
 } from "./consts";
 import { SpanStepAnswerSchema } from "./schemas";
 import {
@@ -20,6 +21,7 @@ import {
   type SpanStepAnswer,
   type SpanStepRequest,
   type SpanThread,
+  type SpanThreadData,
   type SpanThreadOptions,
 } from "./types";
 
@@ -39,6 +41,7 @@ interface PendingStep {
 /** One step in flight at a time, so a queued step whose request aborted is never sent. */
 interface ThreadState {
   readonly entry: URL;
+  readonly lineDiffTimeoutMs: number | undefined;
   readonly answerLimitMs: number;
   readonly respawnBackoffMs: number;
   thread: Worker | undefined;
@@ -134,7 +137,14 @@ function receiveAnswer(
 function spawnThread(state: ThreadState): Worker {
   // No flags: the process's `--import` preloads (tracing, config) would run
   // again in the thread. No env: no secret reaches it.
-  const thread = new Worker(state.entry, { execArgv: [], env: {} });
+  const threadData: SpanThreadData = {
+    lineDiffTimeoutMs: state.lineDiffTimeoutMs,
+  };
+  const thread = new Worker(state.entry, {
+    execArgv: [],
+    env: {},
+    workerData: threadData,
+  });
   thread.on("message", (message: unknown) => {
     receiveAnswer(state, thread, message);
   });
@@ -293,9 +303,16 @@ async function terminateThread(state: ThreadState): Promise<void> {
  * flight runs to its end.
  */
 export function createSpanThread(options: SpanThreadOptions = {}): SpanThread {
+  const { lineDiffTimeoutMs } = options;
+  const defaultAnswerLimitMs =
+    lineDiffTimeoutMs === undefined
+      ? THREAD_ANSWER_LIMIT_MS
+      : lineDiffTimeoutMs + THREAD_START_ALLOWANCE_MS;
+
   const state: ThreadState = {
     entry: options.entry ?? THREAD_ENTRY,
-    answerLimitMs: options.answerLimitMs ?? THREAD_ANSWER_LIMIT_MS,
+    lineDiffTimeoutMs,
+    answerLimitMs: options.answerLimitMs ?? defaultAnswerLimitMs,
     respawnBackoffMs: options.respawnBackoffMs ?? THREAD_RESPAWN_BACKOFF_MS,
     thread: undefined,
     inFlight: undefined,

@@ -7,7 +7,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PGlite } from "@electric-sql/pglite";
-import { describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import {
   CHECKOUT_MIGRATE_COMMAND,
   checkAppSchemaWith,
@@ -20,7 +28,7 @@ import {
 } from "../src/db/migrate";
 import { createLogger } from "logging";
 import { Runtimes } from "types/runtime";
-import { freshPglite, virginPglite } from "./helpers";
+import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 
 /** Journal entry count read straight from the checked-in file, the
  * independent source of truth the virgin-database case is judged against. */
@@ -46,14 +54,41 @@ function executorFor(client: PGlite): SchemaQueryExecutor {
 }
 
 describe("migration check checkAppSchemaWith", () => {
+  let migrated: PGlite | undefined;
+
+  function readClient(): PGlite {
+    if (migrated === undefined) {
+      throw new Error("the migrated PGlite opens before the first test");
+    }
+    return migrated;
+  }
+
+  async function dropLedger(client: PGlite): Promise<void> {
+    await client.exec("drop schema drizzle cascade");
+  }
+
+  beforeAll(async () => {
+    migrated = await createMigratedPglite();
+  });
+  beforeEach(async () => {
+    await readClient().exec("begin");
+  });
+  afterEach(async () => {
+    await readClient().exec("rollback");
+  });
+  afterAll(async () => {
+    await migrated?.close();
+    migrated = undefined;
+  });
+
   it("passes on a fully migrated database", async () => {
-    const client = await freshPglite();
+    const client = readClient();
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(true);
   });
 
   it("refuses a behind database with the pending count and the command", async () => {
-    const client = await freshPglite();
+    const client = readClient();
     // Move the ledger's newest row one millisecond below the baseline: a
     // database whose last applied migration is older than the baseline.
     await client.query(
@@ -76,7 +111,8 @@ describe("migration check checkAppSchemaWith", () => {
   });
 
   it("refuses naming the command the caller passes", async () => {
-    const client = await virginPglite();
+    const client = readClient();
+    await dropLedger(client);
     const result = await checkAppSchemaWith(
       executorFor(client),
       IMAGE_MIGRATE_COMMAND,
@@ -92,7 +128,8 @@ describe("migration check checkAppSchemaWith", () => {
   });
 
   it("treats a virgin database with no ledger table as fully behind", async () => {
-    const client = await virginPglite();
+    const client = readClient();
+    await dropLedger(client);
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -102,7 +139,7 @@ describe("migration check checkAppSchemaWith", () => {
   });
 
   it("passes a database ahead of the checked-in journal", async () => {
-    const client = await freshPglite();
+    const client = readClient();
     await client.query(
       `insert into drizzle.__drizzle_migrations (hash, created_at)
        values ('test-future', 9999999999999)`,

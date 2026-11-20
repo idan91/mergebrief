@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindInstallationGitHub } from "../../src/client/installation";
-import { CONFIRMATION_READ_TIMEOUT_MS } from "../../src/operations/deadline";
 import { GitHubApiErrorCodes } from "../../src/errors";
 import {
   collaboratorsResponse,
@@ -21,7 +20,8 @@ import {
 } from "./helpers";
 
 const INSTALLATION_ID = requireInstallationId(99n);
-/** Room past the read's own budget before the test itself gives up. */
+const SHORT_DEADLINE_MS = 50;
+/** Room past the read's own budget, still short of the production deadline. */
 const TEST_SLACK_MS = 2_000;
 
 describe("bindInstallationGitHub", () => {
@@ -178,12 +178,14 @@ describe("bindInstallationGitHub", () => {
 
   it(
     "answers request-failed when the repo list does not answer in time",
-    { timeout: CONFIRMATION_READ_TIMEOUT_MS + TEST_SLACK_MS },
+    { timeout: SHORT_DEADLINE_MS + TEST_SLACK_MS },
     async () => {
       const stub = stubGitHubFetch((request) =>
         request.path === MINT_PATH ? MINT_OK : undefined,
       );
-      const github = bindInstallationGitHub(makeApp(stub), INSTALLATION_ID);
+      const github = bindInstallationGitHub(makeApp(stub), INSTALLATION_ID, {
+        deadlineMs: SHORT_DEADLINE_MS,
+      });
 
       const result = await github.listInstallationRepoIds();
 

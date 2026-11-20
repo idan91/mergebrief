@@ -1,6 +1,6 @@
 // Use migrated PGlite, a graphile queue stub, a stub model and github/testing's fake GitHub.
 import { randomBytes } from "node:crypto";
-import { beforeAll, beforeEach } from "vitest";
+import { onTestFinished } from "vitest";
 import {
   createEnvKeyProvider,
   createGenerationProjection,
@@ -23,11 +23,7 @@ import {
 } from "persistence";
 import type { GenerationStatus } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import {
-  createPgliteHarness,
-  type PgliteHarness,
-  seedGrant,
-} from "persistence/testing";
+import { seedGrant } from "persistence/testing";
 import type { z } from "zod/v4";
 import {
   DEFAULT_LINK_FETCH,
@@ -66,6 +62,11 @@ import {
 import { buildEntryCommentCappedBody } from "../../src/task/entry-comment";
 import type { EntryCommentLink } from "../../src/task/entry-comment/types";
 import { RunPools, type GenerateTask } from "../../src/task/generate/types";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "../shared-pglite";
 import {
   createGitHubPort,
   type GitHubPort,
@@ -1039,7 +1040,7 @@ export function captureLogger(
   return { logger, readLines };
 }
 
-export let harness: PgliteHarness;
+export let harness: SharedPglite;
 export const ctx = parseTenantContext({ installationId: 42 });
 
 const RUN_WINDOW_MS = 60_000;
@@ -1053,23 +1054,24 @@ export async function countStartedRuns(): Promise<number> {
   });
 }
 
-/** Gives every test in the calling file a fresh migrated PGlite `harness`. */
+/**
+ * One migrated PGlite `harness` for the calling file, reset to its migrated
+ * state before each test.
+ */
 export function setUpHarness(): void {
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
-    return async () => {
-      await harness.close();
-    };
-  });
+  harness = registerSharedPglite();
 }
 
-/** One migrated PGlite `harness` for the calling file: its tests must share no rows. */
-export function setUpFileHarness(): void {
-  beforeAll(async () => {
-    harness = await createPgliteHarness();
-    return async () => {
-      await harness.close();
-    };
+/**
+ * Points `harness` at an instance of the running test's own until it ends.
+ * Call it first in a test that alters the schema, which the shared reset
+ * could not undo.
+ */
+export async function openPerTestHarness(): Promise<void> {
+  const shared = harness;
+  harness = await openPerTestPglite();
+  onTestFinished(() => {
+    harness = shared;
   });
 }
 

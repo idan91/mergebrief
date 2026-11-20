@@ -29,6 +29,8 @@ export interface OpenAiAssemblyOptions {
   log?: Logger | undefined;
   /** Injected for fetch-level test fixtures. */
   fetch?: typeof globalThis.fetch | undefined;
+  /** Injected so tests skip the SDK's retry backoff; absent keeps its default. */
+  maxRetries?: number;
 }
 
 /** Wrap the official SDK into the core's transport boundary. */
@@ -67,6 +69,9 @@ export async function createOpenAiCore(
   }
   if (options.fetch) {
     clientOptions.fetch = options.fetch;
+  }
+  if (options.maxRetries !== undefined) {
+    clientOptions.maxRetries = options.maxRetries;
   }
 
   const client = new OpenAI(clientOptions);

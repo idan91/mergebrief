@@ -46,6 +46,7 @@ import {
   refuseDiffs,
   REPO,
   SECOND_ATTEMPT,
+  openPerTestHarness,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -590,6 +591,7 @@ describe("generate task, Entry sync", () => {
   });
 
   it("queues the sync ahead of a terminal row write that throws", async () => {
+    await openPerTestHarness();
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     refuseDiffs(github);
@@ -1282,6 +1284,7 @@ describe("generate task, Entry sync when a lost swap meets an outage", () => {
   });
 
   it("a sync that cannot queue its successor throws for a retry", async () => {
+    await openPerTestHarness();
     const github = makeGitHub(HEAD_1);
     const { pr, payload } = await trigger(HEAD_1);
     await harness.raw(

@@ -1,17 +1,19 @@
-import { parentPort } from "node:worker_threads";
+import { parentPort, workerData } from "node:worker_threads";
 import {
   buildFastForwardSpan,
   buildPrSpan,
   formatLineDiffPatch,
   planBuiltSpan,
 } from "brief-core/pr-span";
-import { SpanStepRequestSchema } from "./schemas";
+import { SpanStepRequestSchema, SpanThreadDataSchema } from "./schemas";
 import {
   SpanStepAnswerKinds,
   SpanStepKinds,
   type SpanStep,
   type SpanStepAnswer,
 } from "./types";
+
+const threadData = SpanThreadDataSchema.parse(workerData);
 
 function runSpanStep(id: number, step: SpanStep): SpanStepAnswer {
   if (step.kind === SpanStepKinds.PLAN_BUILT_SPAN) {
@@ -32,7 +34,7 @@ function runSpanStep(id: number, step: SpanStep): SpanStepAnswer {
     const span = buildFastForwardSpan(step.input);
     return { id, kind: SpanStepAnswerKinds.SPAN, span };
   }
-  const patch = formatLineDiffPatch(step.input);
+  const patch = formatLineDiffPatch(step.input, threadData.lineDiffTimeoutMs);
   if (patch === undefined) {
     return { id, kind: SpanStepAnswerKinds.NO_PATCH };
   }

@@ -2,20 +2,24 @@
 // assertion must not depend on the machine's clock setting.
 process.env["TZ"] = "UTC";
 
-import { cleanup } from "@testing-library/react";
-import { setI18n } from "react-i18next";
 import { afterEach } from "vitest";
 
-// Importing the provider module registers THE app instance as
-// react-i18next's default, so component tests render t() consumers without
-// wrapping every tree in the provider.
-import { appI18n } from "../i18n/I18nProvider";
+// Only a DOM file pays for Testing Library and the catalog. A node file that
+// renders t() consumers imports the provider module, which registers THE app
+// instance as react-i18next's default on import.
+if (typeof document !== "undefined") {
+  const [{ cleanup }, { setI18n }, { appI18n }] = await Promise.all([
+    import("@testing-library/react"),
+    import("react-i18next"),
+    import("../i18n/I18nProvider"),
+  ]);
 
-setI18n(appI18n);
+  setI18n(appI18n);
 
-// Without vitest globals RTL never registers its own unmount, so a tree from
-// one test would stay mounted into the next.
-afterEach(cleanup);
+  // Without vitest globals RTL never registers its own unmount, so a tree
+  // from one test would stay mounted into the next.
+  afterEach(cleanup);
+}
 
 /** Expires every cookie the document holds; a no-op outside jsdom. */
 export function clearCookies(): void {

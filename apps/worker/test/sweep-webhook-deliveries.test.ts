@@ -2,7 +2,6 @@
 // `persistence/testing` PGlite harness). Rows are seeded through the
 // persistence store the api records with.
 import { describe, expect, it } from "vitest";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
   createWebhookDeliveryStore,
   DELIVERY_DEDUP_TTL_MS,
@@ -10,11 +9,12 @@ import {
 } from "persistence";
 import { createSweepWebhookDeliveriesTask } from "../src/task/sweep-webhook-deliveries";
 import { captureLogger } from "./generate/helpers";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const HOUR_MS = 60 * 60 * 1000;
 
 async function seedDelivery(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   signature: string,
   receivedAt: Date,
 ): Promise<void> {
@@ -24,7 +24,7 @@ async function seedDelivery(
   );
 }
 
-async function countDeliveries(harness: PgliteHarness): Promise<unknown> {
+async function countDeliveries(harness: SharedPglite): Promise<unknown> {
   const rows = await harness.raw(
     "select count(*)::int as n from webhook_delivery",
   );
@@ -32,8 +32,9 @@ async function countDeliveries(harness: PgliteHarness): Promise<unknown> {
 }
 
 describe("sweep-webhook-deliveries task", () => {
+  const harness = registerSharedPglite();
+
   it("deletes deliveries past the window and logs the count", async () => {
-    const harness = await createPgliteHarness();
     const { logger, readLines } = captureLogger();
     await seedDelivery(
       harness,
@@ -54,11 +55,9 @@ describe("sweep-webhook-deliveries task", () => {
         msg: "sweep-webhook-deliveries: deleted 1 webhook deliveries past the dedup window",
       }),
     ]);
-    await harness.close();
   });
 
   it("logs nothing when no delivery is past the window", async () => {
-    const harness = await createPgliteHarness();
     const { logger, readLines } = captureLogger();
     await seedDelivery(harness, "sha256=recent", new Date());
 
@@ -69,6 +68,5 @@ describe("sweep-webhook-deliveries task", () => {
 
     expect(await countDeliveries(harness)).toBe(1);
     expect(readLines()).toEqual([]);
-    await harness.close();
   });
 });

@@ -32,6 +32,7 @@ import {
   readLiveBodies,
   SECOND_ATTEMPT,
   seedViewerGrant,
+  openPerTestHarness,
   setUpHarness,
   stubGenerator,
   stubHangingGenerator,
@@ -394,6 +395,7 @@ describe("generate task, claim recovery", () => {
   });
 
   it("a failed claim check reports job.fail and leaves the row", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     await holdRowForOtherRun();
     const projection = createGenerationProjection(harness.handle, ctx);
@@ -495,6 +497,7 @@ describe("generate task, claim recovery", () => {
   });
 
   it("a last attempt beside a live lease leaves the holder's row", async () => {
+    await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
     await holdRowForOtherRun();
     const projection = createGenerationProjection(harness.handle, ctx);

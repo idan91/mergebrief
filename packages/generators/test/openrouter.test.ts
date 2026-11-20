@@ -560,6 +560,7 @@ describe("OpenRouter preflight", () => {
       apiKey: "test-key",
       model: SLUG,
       failureDir: tempDir("openrouter-503-"),
+      maxRetries: 0,
       fetch: async () =>
         new Response(JSON.stringify({ error: { message: "overloaded" } }), {
           status: 503,
@@ -576,6 +577,7 @@ describe("OpenRouter preflight", () => {
       apiKey: "test-key",
       model: SLUG,
       failureDir: tempDir("openrouter-net-"),
+      maxRetries: 0,
       fetch: async () => {
         throw new Error("getaddrinfo ENOTFOUND openrouter.ai");
       },
@@ -592,6 +594,7 @@ describe("OpenRouter preflight", () => {
       apiKey: "test-key",
       model: SLUG,
       failureDir: tempDir("openrouter-redirect-"),
+      maxRetries: 0,
       fetch: async () => {
         throw new TypeError("fetch failed", {
           cause: new Error("unexpected redirect"),

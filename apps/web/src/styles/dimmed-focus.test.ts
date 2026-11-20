@@ -22,11 +22,31 @@ const FOCUS_VISIBLE = /:focus-visible/g;
 const FULL_OPACITY = "1";
 const DIMMED_PAINT = "var(--opacity-disabled)";
 
+interface ParsedStylesheet {
+  relative: string;
+  rules: CompiledRule[];
+}
+
+let parsedStylesheets: ParsedStylesheet[] | undefined;
+
 function listModuleStylesheets(): string[] {
   return readdirSync(SOURCE_DIRECTORY, { recursive: true, encoding: "utf8" })
     .filter((path) => path.endsWith(MODULE_SUFFIX))
     .map((path) => join(SOURCE_DIRECTORY, path))
     .toSorted();
+}
+
+function parseStylesheet(path: string): ParsedStylesheet {
+  return {
+    relative: path.slice(SOURCE_DIRECTORY.length + 1),
+    rules: parseCompiledRules(compileStylesheet(path)),
+  };
+}
+
+/** Every module stylesheet, compiled and parsed once for the whole file. */
+function readParsedStylesheets(): ParsedStylesheet[] {
+  parsedStylesheets ??= listModuleStylesheets().map(parseStylesheet);
+  return parsedStylesheets;
 }
 
 function readLastCompound(selector: string): string {
@@ -90,9 +110,8 @@ function findDimmedSelectors(rules: readonly CompiledRule[]): string[] {
     .filter((selector) => !NATIVE_DISABLED.test(selector));
 }
 
-function findUndimmedChildrenInFile(path: string): string[] {
-  const rules = parseCompiledRules(compileStylesheet(path));
-  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+function findUndimmedChildrenInFile(stylesheet: ParsedStylesheet): string[] {
+  const { relative, rules } = stylesheet;
 
   return findDimmedSelectors(rules)
     .filter((selector) => !hasChildDim(rules, selector))
@@ -104,9 +123,8 @@ function isFocusedDisabled(selector: string): boolean {
   return focused && DISABLED_STATE.test(selector);
 }
 
-function findInheritedDimsInFile(path: string): string[] {
-  const rules = parseCompiledRules(compileStylesheet(path));
-  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+function findInheritedDimsInFile(stylesheet: ParsedStylesheet): string[] {
+  const { relative, rules } = stylesheet;
   const inherited = rules.filter((rule) => {
     const color = rule.declarations.get("color") ?? "";
     const focused = rule.selectors.some(isFocusedDisabled);
@@ -116,9 +134,8 @@ function findInheritedDimsInFile(path: string): string[] {
   return inherited.map((rule) => `${relative} ${rule.selectors.join()}`);
 }
 
-function findDimmedRingsInFile(path: string): string[] {
-  const rules = parseCompiledRules(compileStylesheet(path));
-  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+function findDimmedRingsInFile(stylesheet: ParsedStylesheet): string[] {
+  const { relative, rules } = stylesheet;
   const dimmedSelectors = rules.flatMap((rule) =>
     rule.selectors.filter((selector) => isDimmedDisabled(rule, selector)),
   );
@@ -137,9 +154,8 @@ function isTransitioningDim(rule: CompiledRule): boolean {
   return dims && transitions;
 }
 
-function findTransitioningDimsInFile(path: string): string[] {
-  const rules = parseCompiledRules(compileStylesheet(path));
-  const relative = path.slice(SOURCE_DIRECTORY.length + 1);
+function findTransitioningDimsInFile(stylesheet: ParsedStylesheet): string[] {
+  const { relative, rules } = stylesheet;
   const transitioning = rules.filter(isTransitioningDim);
 
   return transitioning.map((rule) => `${relative} ${rule.selectors.join()}`);
@@ -147,13 +163,13 @@ function findTransitioningDimsInFile(path: string): string[] {
 
 describe("dimmed disabled controls", () => {
   it("keep the ring whole and the paint dimmed while focused", () => {
-    const dimmedRings = listModuleStylesheets().flatMap(findDimmedRingsInFile);
+    const dimmedRings = readParsedStylesheets().flatMap(findDimmedRingsInFile);
 
     expect(dimmedRings).toEqual([]);
   });
 
   it("dim every child while focused, whatever ink the child sets", () => {
-    const undimmed = listModuleStylesheets().flatMap(
+    const undimmed = readParsedStylesheets().flatMap(
       findUndimmedChildrenInFile,
     );
 
@@ -161,13 +177,13 @@ describe("dimmed disabled controls", () => {
   });
 
   it("never dim the ink children inherit while focused", () => {
-    const inherited = listModuleStylesheets().flatMap(findInheritedDimsInFile);
+    const inherited = readParsedStylesheets().flatMap(findInheritedDimsInFile);
 
     expect(inherited).toEqual([]);
   });
 
   it("swap opacity and paint in one frame, with no transition", () => {
-    const transitioning = listModuleStylesheets().flatMap(
+    const transitioning = readParsedStylesheets().flatMap(
       findTransitioningDimsInFile,
     );
 

@@ -47,6 +47,7 @@ import {
   brandWith,
   expectCheckViolation,
   registerSharedPglite,
+  seedDraftCopies,
 } from "./helpers";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 
@@ -64,6 +65,9 @@ const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
 
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
+
+/** The cap test's drafts 1 to 62 go in one insert; drafts 0 and 63 go through the store. */
+const LAST_COPIED_DRAFT = 62;
 
 /** Two Chunks, one change group and one flag: the caps these tests meet. */
 const BRIEF_BODY = JSON.stringify({
@@ -631,20 +635,30 @@ describe("the draft operations", () => {
   });
 
   it("refuses the 65th unposted draft and counts no published one", async () => {
-    const { handle } = shared;
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
-    const held: bigint[] = [];
-    for (let index = 0; index < 64; index++) {
+    async function addHeldDraft(index: number): Promise<bigint> {
       const added = await sessions.addDraft(key, {
         anchor: LINE_ANCHOR,
         body: `draft ${index}`,
       });
-      if (added.ok) {
-        held.push(added.value.id);
+      if (!added.ok) {
+        throw new Error("draft seed failed");
       }
+      return added.value.id;
     }
+
+    const firstDraftId = await addHeldDraft(0);
+    const copied = await seedDraftCopies(client, {
+      sourceDraftId: firstDraftId,
+      bodyPrefix: "draft ",
+      first: 1,
+      last: LAST_COPIED_DRAFT,
+    });
+    const lastDraftId = await addHeldDraft(LAST_COPIED_DRAFT + 1);
+    const held = [firstDraftId, ...copied, lastDraftId];
 
     const refused = await sessions.addDraft(key, {
       anchor: LINE_ANCHOR,

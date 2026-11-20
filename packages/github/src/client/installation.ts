@@ -2,6 +2,7 @@ import type { Octokit } from "octokit";
 import type { InstallationId } from "persistence";
 import { getInstallationClient, type AppClient } from "../auth/app";
 import { GitHubApiErrorCodes, type GitHubApiError } from "../errors";
+import type { ConfirmationReadOptions } from "../operations/deadline";
 import { listInstallationRepoIds } from "../operations/installation";
 import { buildAccountReader } from "./account-reader";
 import { buildInstallationRepoClient } from "./installation-repo";
@@ -33,6 +34,7 @@ async function mintInstallationClient(
 export function bindInstallationGitHub(
   app: AppClient,
   installationId: InstallationId,
+  confirmationReads: ConfirmationReadOptions = {},
 ): InstallationGitHub {
   const run: CallRunner = async (call, context) => {
     const octokit = await mintInstallationClient(app, installationId);
@@ -45,11 +47,11 @@ export function bindInstallationGitHub(
   return {
     ...buildAccountReader(run),
     forRepo(repo) {
-      return buildInstallationRepoClient(repo, run);
+      return buildInstallationRepoClient(repo, run, confirmationReads);
     },
     listInstallationRepoIds() {
       return run(
-        (octokit) => listInstallationRepoIds(octokit),
+        (octokit) => listInstallationRepoIds(octokit, confirmationReads),
         "list installation repo ids",
       );
     },

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bindInstallationGitHub } from "../src/client/installation";
 import { GitHubApiErrorCodes } from "../src/errors";
 import { CollaboratorPermissions } from "../src/operations/collaborator-permission/types";
-import { CONFIRMATION_READ_TIMEOUT_MS } from "../src/operations/deadline";
+import type { ConfirmationReadOptions } from "../src/operations/deadline";
 import {
   MINT_OK,
   MINT_PATH,
@@ -18,15 +18,23 @@ import {
 
 const INSTALLATION_ID = requireInstallationId(99n);
 const PERMISSION_PATH = "/repos/acme/widgets/collaborators/bob/permission";
-/** Room past the read's own budget before the test itself gives up. */
+const SHORT_DEADLINE_MS = 50;
+/** Room past the read's own budget, still short of the production deadline. */
 const TEST_SLACK_MS = 2_000;
 
 function stubPermission(answer: StubResponse) {
   return stubGitHubFetch(routeMinting(MINT_OK, answer));
 }
 
-function readBobPermission(stub: ReturnType<typeof stubGitHubFetch>) {
-  return bindInstallationGitHub(makeApp(stub), INSTALLATION_ID)
+function readBobPermission(
+  stub: ReturnType<typeof stubGitHubFetch>,
+  confirmationReads: ConfirmationReadOptions = {},
+) {
+  return bindInstallationGitHub(
+    makeApp(stub),
+    INSTALLATION_ID,
+    confirmationReads,
+  )
     .forRepo(REPO)
     .readCollaboratorPermission("bob");
 }
@@ -89,13 +97,15 @@ describe("readCollaboratorPermission", () => {
 
   it(
     "answers request-failed when the permission read misses its deadline",
-    { timeout: CONFIRMATION_READ_TIMEOUT_MS + TEST_SLACK_MS },
+    { timeout: SHORT_DEADLINE_MS + TEST_SLACK_MS },
     async () => {
       const stub = stubGitHubFetch((request) =>
         request.path === MINT_PATH ? MINT_OK : undefined,
       );
 
-      const result = await readBobPermission(stub);
+      const result = await readBobPermission(stub, {
+        deadlineMs: SHORT_DEADLINE_MS,
+      });
 
       expect(result.ok || result.error.code).toBe(
         GitHubApiErrorCodes.REQUEST_FAILED,

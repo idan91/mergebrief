@@ -1,6 +1,11 @@
 /** A webhook delivery waits on these reads; two in a row still fit GitHub's 10s budget. */
 export const CONFIRMATION_READ_TIMEOUT_MS = 4_000;
 
+export interface ConfirmationReadOptions {
+  /** Overrides `CONFIRMATION_READ_TIMEOUT_MS`; production leaves it unset. */
+  readonly deadlineMs?: number;
+}
+
 /** Reject once the deadline passes, whether or not the read honoured the signal. */
 export async function runWithinDeadline<Value>(
   read: (signal: AbortSignal) => Promise<Value>,

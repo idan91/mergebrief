@@ -1214,7 +1214,7 @@ describe("createArtifactStore query shape", () => {
   }
 
   async function makeLoggedStore(prNumber: number) {
-    const log = await createQueryLog();
+    const log = createQueryLog(shared.client);
     const store = createArtifactStore(log.handle, CTX_A);
     const pr = await createTenantRepository(
       log.handle,

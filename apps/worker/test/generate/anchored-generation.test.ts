@@ -32,6 +32,7 @@ import {
   makeTask,
   PR_REF,
   REPO,
+  openPerTestHarness,
   setUpHarness,
   stubGenerator,
   trigger,
@@ -446,6 +447,7 @@ describe("generate task, anchored generation", () => {
   });
 
   it("writes the hop before the brief, so a retry after a stop writes both", async () => {
+    await openPerTestHarness();
     const { pr, retry } = await runTwoRevisions({
       rev2Arrange: arrangeUnchangedPush,
       rev2BriefRefused: true,
@@ -556,6 +558,7 @@ describe("generate task, anchored generation", () => {
   });
 
   it("rethrows a hop write the database refuses so graphile retries it", async () => {
+    await openPerTestHarness();
     const { pr, generator, readLines } = await runTwoRevisions({
       rev2HopRefused: true,
     });

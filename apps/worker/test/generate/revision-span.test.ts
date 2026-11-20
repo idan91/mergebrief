@@ -36,6 +36,7 @@ import {
   PR_REF,
   readRowStatus,
   REPO,
+  openPerTestHarness,
   setUpHarness,
   stubGenerator,
   trigger,
@@ -677,6 +678,7 @@ describe("generate task, the refs a span's marks row certifies", () => {
   });
 
   it("leaves no marks row when its write fails; the retry writes all three", async () => {
+    await openPerTestHarness();
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
     const second = await pushSecondHead(github);

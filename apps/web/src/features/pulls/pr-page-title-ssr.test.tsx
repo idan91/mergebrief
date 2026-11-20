@@ -1,14 +1,22 @@
 // No jsdom: this renders the route the way the server does, to a string.
+// The real root and the PR route's real loader and head run; only the PR
+// page's component is a stub, so the Brief UI graph never loads.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
+  createRootRouteWithContext,
+  createRoute,
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { routeTree } from "../../routeTree.gen";
+import { buildVersionQueryOptions } from "@web/features/version/queries";
+import { VersionStates } from "@web/features/version/types";
+import type { RouterContext } from "../../router";
+import { Route as appRootRoute } from "../../routes/__root";
+import { Route as appPrRoute } from "../../routes/repos.$repoId.pulls.$prNumber";
 import { buildPrMetaQueryOptions } from "./queries";
 import type { PrSummary } from "./types";
 
@@ -38,6 +46,18 @@ const waitingPr: PrSummary = {
   updatedAt: "2026-07-06T12:00:00.000Z",
 };
 
+/** The app's root, rebuilt so the real route tree stays untouched. */
+const rootRoute = createRootRouteWithContext<RouterContext>()(
+  appRootRoute.options as never,
+);
+
+const prRoute = createRoute({
+  ...appPrRoute.options,
+  getParentRoute: () => rootRoute,
+  path: "/repos/$repoId/pulls/$prNumber",
+  component: () => null,
+} as never);
+
 async function renderPrRouteToString(): Promise<string> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -46,9 +66,12 @@ async function renderPrRouteToString(): Promise<string> {
     buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     waitingPr,
   );
+  queryClient.setQueryData(buildVersionQueryOptions().queryKey, {
+    kind: VersionStates.UNKNOWN,
+  });
 
   const router = createRouter({
-    routeTree,
+    routeTree: rootRoute.addChildren([prRoute]),
     context: { queryClient },
     history: createMemoryHistory({
       initialEntries: [`/repos/${REPO_ID}/pulls/${PR_NUMBER}`],

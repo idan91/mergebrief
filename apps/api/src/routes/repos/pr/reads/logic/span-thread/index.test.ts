@@ -5,7 +5,6 @@ import { promisify } from "node:util";
 import {
   BlobReadKinds,
   formatLineDiffPatch,
-  LINE_DIFF_TIMEOUT_MS,
   PrSpanFailureKinds,
   readPrSpan,
   type BlobRead,
@@ -16,8 +15,9 @@ import {
   type PrSpanSource,
 } from "brief-core/pr-span";
 import type { Result } from "types/utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSpanThread, SpanThreadError } from ".";
+import { THREAD_START_ALLOWANCE_MS } from "./consts";
 import type { SpanThread, SpanThreadOptions } from "./types";
 import { testLogging } from "../../../../../../../test/logging";
 
@@ -26,6 +26,9 @@ const IDLE_THREAD_SCRIPT = new URL(
   import.meta.url,
 );
 const IDLE_EXIT_TIMEOUT_MS = 15_000;
+/** Room past a limit for the thread's start and the test's own reads. */
+const SLOW_TEST_MARGIN_MS = 15_000;
+const IDLE_EXIT_TEST_TIMEOUT_MS = IDLE_EXIT_TIMEOUT_MS + SLOW_TEST_MARGIN_MS;
 const ECHO_THREAD = new URL(
   "../../../../../../../test/fixtures/echo-span-thread.ts",
   import.meta.url,
@@ -33,13 +36,13 @@ const ECHO_THREAD = new URL(
 const SLOW_PAIR_LINES = 40_000;
 const UNBOUNDED_EDIT_LENGTH = 1_000_000;
 const TICK_MS = 10;
-/** Room past a real jsdiff timeout for the thread's start and the test's own reads. */
-const SLOW_TEST_MARGIN_MS = 15_000;
-const SLOW_TEST_TIMEOUT_MS = LINE_DIFF_TIMEOUT_MS + SLOW_TEST_MARGIN_MS;
+/** Far short of what the slow pair's diff needs, so only the timeout ends it. */
+const SHORT_LINE_DIFF_TIMEOUT_MS = 500;
+/** Under the default jsdiff timeout: a thread that ignores the short one fails the test. */
+const SHORT_DIFF_TEST_TIMEOUT_MS =
+  SHORT_LINE_DIFF_TIMEOUT_MS + SLOW_TEST_MARGIN_MS;
 const PROBE_ENV_KEY = "SPAN_THREAD_PROBE";
-/** A limit a fresh thread's start under a loaded test run stays inside: its start counts against the first answer. */
-const COLD_START_LIMIT_MS = 5_000;
-const COLD_START_TEST_TIMEOUT_MS = COLD_START_LIMIT_MS * 4;
+const STUCK_ANSWER_LIMIT_MS = 5_000;
 const SHORT_BACKOFF_MS = 100;
 const BLOB_ID_LENGTH = 7;
 const ADDED_BLOB_ID = "0000000";
@@ -293,8 +296,31 @@ async function measureLongestMainThreadStep(
   return longestMs;
 }
 
+/**
+ * Two diffs on a thread that never answers the first, under a faked answer
+ * timer: whether they had settled a millisecond short of `limitMs`, and how
+ * they settled at it.
+ */
+async function runStuckDiffs(thread: SpanThread, limitMs: number) {
+  let hasSettled = false;
+  const settled = Promise.allSettled([
+    thread.runner.runLineDiff(makeInput("hang"), SIGNAL),
+    thread.runner.runLineDiff(makeInput("queued"), SIGNAL),
+  ]).finally(() => {
+    hasSettled = true;
+  });
+
+  await vi.advanceTimersByTimeAsync(limitMs - 1);
+  const settledEarly = hasSettled;
+  await vi.advanceTimersByTimeAsync(1);
+  const outcomes = await settled;
+
+  return { settledEarly, outcomes: outcomes.map(readOutcome) };
+}
+
 afterEach(async () => {
   await Promise.all(threads.splice(0).map((thread) => thread.terminate()));
+  vi.useRealTimers();
 });
 
 describe("createSpanThread", () => {
@@ -353,7 +379,9 @@ describe("createSpanThread", () => {
   it(
     "keeps the event loop free and falls back when a diff times out",
     async () => {
-      const thread = startThread();
+      const thread = startThread({
+        lineDiffTimeoutMs: SHORT_LINE_DIFF_TIMEOUT_MS,
+      });
       await thread.runner.runLineDiff(makeInput("warm.ts"), SIGNAL);
       const input: LineDiffInput = {
         contents: {
@@ -375,11 +403,11 @@ describe("createSpanThread", () => {
 
       expect(patch).toBeUndefined();
       expect(Date.now() - startedAt).toBeGreaterThanOrEqual(
-        LINE_DIFF_TIMEOUT_MS,
+        SHORT_LINE_DIFF_TIMEOUT_MS,
       );
-      expect(ticks).toBeGreaterThan(LINE_DIFF_TIMEOUT_MS / TICK_MS / 2);
+      expect(ticks).toBeGreaterThan(SHORT_LINE_DIFF_TIMEOUT_MS / TICK_MS / 2);
     },
-    SLOW_TEST_TIMEOUT_MS,
+    SHORT_DIFF_TEST_TIMEOUT_MS,
   );
 
   it("answers a zero edit bound over moved lines and keeps the thread", async () => {
@@ -433,29 +461,47 @@ describe("createSpanThread", () => {
     ).resolves.toBe("next:1");
   });
 
-  it(
-    "stops a thread that never answers and fails its diffs",
-    async () => {
-      const thread = startThread({
-        entry: ECHO_THREAD,
-        answerLimitMs: COLD_START_LIMIT_MS,
-      });
+  it("stops a thread that never answers and fails its diffs", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const thread = startThread({
+      entry: ECHO_THREAD,
+      answerLimitMs: STUCK_ANSWER_LIMIT_MS,
+    });
 
-      const outcomes = await Promise.allSettled([
-        thread.runner.runLineDiff(makeInput("hang"), SIGNAL),
-        thread.runner.runLineDiff(makeInput("queued"), SIGNAL),
-      ]);
+    const stuck = await runStuckDiffs(thread, STUCK_ANSWER_LIMIT_MS);
 
-      expect(outcomes.map(readOutcome)).toEqual([
+    expect(stuck).toEqual({
+      settledEarly: false,
+      outcomes: [
         "rejected: the span thread stopped",
         "rejected: the span thread stopped",
-      ]);
-      await expect(
-        thread.runner.runLineDiff(makeInput("next"), SIGNAL),
-      ).resolves.toBe("next:1");
-    },
-    COLD_START_TEST_TIMEOUT_MS,
-  );
+      ],
+    });
+    await expect(
+      thread.runner.runLineDiff(makeInput("next"), SIGNAL),
+    ).resolves.toBe("next:1");
+  });
+
+  it("waits a passed line diff timeout plus the start allowance", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const thread = startThread({
+      entry: ECHO_THREAD,
+      lineDiffTimeoutMs: SHORT_LINE_DIFF_TIMEOUT_MS,
+    });
+
+    const stuck = await runStuckDiffs(
+      thread,
+      SHORT_LINE_DIFF_TIMEOUT_MS + THREAD_START_ALLOWANCE_MS,
+    );
+
+    expect(stuck).toEqual({
+      settledEarly: false,
+      outcomes: [
+        "rejected: the span thread stopped",
+        "rejected: the span thread stopped",
+      ],
+    });
+  });
 
   it("logs one warning per thread stop, with its cause", async () => {
     const logging = testLogging();
@@ -537,7 +583,7 @@ describe("createSpanThread", () => {
 
       expect(run.stdout).toBe("patch");
     },
-    SLOW_TEST_TIMEOUT_MS,
+    IDLE_EXIT_TEST_TIMEOUT_MS,
   );
 
   it("never sends a queued diff whose request aborted", async () => {
@@ -639,7 +685,9 @@ describe("readPrSpan on the span thread", () => {
   it(
     "takes the file's fallback when its diff times out on the thread",
     async () => {
-      const thread = startThread();
+      const thread = startThread({
+        lineDiffTimeoutMs: SHORT_LINE_DIFF_TIMEOUT_MS,
+      });
       const prevLines = makeLines("old ", SLOW_PAIR_LINES);
       /** A reordering adds and removes no line, so the span's bounds pass it to the runner. */
       const newLines = prevLines.toReversed();
@@ -666,13 +714,13 @@ describe("readPrSpan on the span thread", () => {
       });
 
       expect(Date.now() - startedAt).toBeGreaterThanOrEqual(
-        LINE_DIFF_TIMEOUT_MS,
+        SHORT_LINE_DIFF_TIMEOUT_MS,
       );
       expect(result.ok && result.value.changedFiles).toEqual(["big.txt"]);
       expect(result.ok && result.value.unpairableFiles).toEqual(["big.txt"]);
       expect(result.ok && result.value.filteredDiff).toContain("+old 0");
     },
-    SLOW_TEST_TIMEOUT_MS,
+    SHORT_DIFF_TEST_TIMEOUT_MS,
   );
 
   it(

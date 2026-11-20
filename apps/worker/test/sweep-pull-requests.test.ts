@@ -2,7 +2,6 @@
 // `persistence/testing` PGlite harness). Rows are seeded through the tenant
 // repository's own upsert, which is the only writer of a close time.
 import { describe, expect, it } from "vitest";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
   createTenantRepository,
   isInstallationId,
@@ -13,6 +12,7 @@ import {
 import { PrStates, type PrState } from "types/pull-requests";
 import { createLogger, type Logger } from "logging";
 import { createSweepPullRequestsTask } from "../src/task/sweep-pull-requests";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RETENTION_DAYS = 30;
@@ -39,7 +39,7 @@ function subtractDaysFromNow(days: number): Date {
 }
 
 async function seedPullRequest(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   prNumber: number,
   state: PrState,
   closedAt: Date,
@@ -59,7 +59,7 @@ async function seedPullRequest(
   });
 }
 
-async function readPrNumbers(harness: PgliteHarness): Promise<unknown[]> {
+async function readPrNumbers(harness: SharedPglite): Promise<unknown[]> {
   const rows = await harness.raw(
     "select pr_number from pull_request order by pr_number",
   );
@@ -71,8 +71,9 @@ function makeSilentLogger(): Logger {
 }
 
 describe("sweep-pull-requests task", () => {
+  const harness = registerSharedPglite();
+
   it("deletes nothing when retention is unset", async () => {
-    const harness = await createPgliteHarness();
     await seedPullRequest(
       harness,
       1,
@@ -87,11 +88,9 @@ describe("sweep-pull-requests task", () => {
     })();
 
     expect(await readPrNumbers(harness)).toEqual([1]);
-    await harness.close();
   });
 
   it("deletes rows closed past the window and keeps open and recent ones", async () => {
-    const harness = await createPgliteHarness();
     await seedPullRequest(harness, 1, PrStates.CLOSED, subtractDaysFromNow(40));
     await seedPullRequest(harness, 2, PrStates.MERGED, subtractDaysFromNow(31));
     await seedPullRequest(harness, 3, PrStates.MERGED, subtractDaysFromNow(10));
@@ -110,6 +109,5 @@ describe("sweep-pull-requests task", () => {
     expect(audits).toEqual([
       { operation: "delete", actor_type: "system", metadata: { count: 2 } },
     ]);
-    await harness.close();
   });
 });

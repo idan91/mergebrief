@@ -9,6 +9,7 @@ import {
   SpanStepKinds,
   type SpanStepAnswer,
   type SpanStepRequest,
+  type SpanThreadData,
 } from "./types";
 
 const MessageIdSchema = z.number().int().nonnegative();
@@ -30,6 +31,10 @@ const LineDiffInputSchema = z.strictObject({
   }),
   maxEditLength: z.number().int().nonnegative(),
 });
+
+export const SpanThreadDataSchema = z.strictObject({
+  lineDiffTimeoutMs: z.number().int().positive().optional(),
+}) satisfies z.ZodType<SpanThreadData>;
 
 const BetweenHeadsFileSchema = z.discriminatedUnion("kind", [
   z.strictObject({

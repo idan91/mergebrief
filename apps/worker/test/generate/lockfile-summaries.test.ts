@@ -1,5 +1,5 @@
 import type { fork } from "node:child_process";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readLockfileSummaries } from "../../src/task/generate/logic/lockfile-summaries";
 import { LockfileSpanKinds } from "../../src/task/generate/logic/lockfile-summaries/types";
 import { BASE, buildRepoFile, captureLogger, HEAD_1, HEAD_2 } from "./helpers";
@@ -69,9 +69,11 @@ async function readSummaries(spentMs: number) {
 }
 
 describe("readLockfileSummaries span budget", () => {
+  beforeEach(() => {
+    childForks.count = 0;
+  });
   afterEach(() => {
     vi.useRealTimers();
-    childForks.count = 0;
   });
 
   it(

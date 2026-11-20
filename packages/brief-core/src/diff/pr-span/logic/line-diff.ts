@@ -115,11 +115,17 @@ export function formatBetweenHeadsPatch(
   return [...lines, ...formatFileLines(header), hunks].join("\n");
 }
 
-/** The line diff every runner computes, so a span's text does not depend on where it ran. */
-export function formatLineDiffPatch(input: LineDiffInput): string | undefined {
+/**
+ * The line diff every runner computes, so a span's text does not depend on
+ * where it ran: only a test passes `timeoutMs`.
+ */
+export function formatLineDiffPatch(
+  input: LineDiffInput,
+  timeoutMs = LINE_DIFF_TIMEOUT_MS,
+): string | undefined {
   return formatBetweenHeadsPatch(input.contents, {
     maxEditLength: input.maxEditLength,
-    timeoutMs: LINE_DIFF_TIMEOUT_MS,
+    timeoutMs,
   });
 }
 
