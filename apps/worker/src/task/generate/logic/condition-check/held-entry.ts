@@ -1,5 +1,4 @@
-import { GenerationStatuses } from "types/generations";
-import type { UnmetCondition } from "types/trigger-conditions";
+import { GenerationStatuses, type UnmetCondition } from "types";
 import {
   buildEntryCommentHeldBody,
   isEntryCommentBody,

@@ -1,6 +1,4 @@
-import type { GenerationUnitsParams } from "types/generations";
-import type { UnmetCondition } from "types/trigger-conditions";
-import type { ValueOf } from "types/utils";
+import type { GenerationUnitsParams, UnmetCondition, ValueOf } from "types";
 
 /** Which body an Entry comment holds, written into its hidden kind token. */
 export const EntryBodyKinds = {
