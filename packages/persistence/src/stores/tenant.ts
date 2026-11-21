@@ -205,20 +205,21 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
   ): Promise<PullRequestRow | undefined>;
   /**
-   * Record that the PR met `reviewRequested`. The first stamp stands; true
-   * only when this call wrote it, false for a row already stamped or outside
-   * ctx's scope.
+   * Record that the PR met `reviewRequested`. The first stamp stands: a
+   * stamped row is returned as it is. `undefined` if no row in ctx's scope.
    */
-  stampReviewRequestedMet(pullRequestId: PullRequestRowId): Promise<boolean>;
+  stampReviewRequestedMet(
+    pullRequestId: PullRequestRowId,
+  ): Promise<PullRequestRow | undefined>;
   /**
    * Record that the PR met `paths` under the globs `digest` names. A stamp
-   * under the same digest stands; another digest replaces it. True only
-   * when this call wrote.
+   * under the same digest stands, returned as it is; another digest
+   * replaces it. `undefined` if no row in ctx's scope.
    */
   stampPathsMet(
     pullRequestId: PullRequestRowId,
     digest: string,
-  ): Promise<boolean>;
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -492,42 +493,19 @@ export function createTenantRepository(
     },
 
     async stampReviewRequestedMet(pullRequestId) {
-      const stamped = await db
-        .update(pullRequest)
-        .set({
-          reviewRequestedMetAt: sql`now()`,
-          rowVersion: buildNextRowVersion(),
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            scope.matchesPullRequest(),
-            eq(pullRequest.id, pullRequestId),
-            isNull(pullRequest.reviewRequestedMetAt),
-          ),
-        )
-        .returning({ id: pullRequest.id });
-      return stamped.length > 0;
+      return updateGuardedPullRequest(db, scope, {
+        pullRequestId,
+        set: { reviewRequestedMetAt: sql`now()` },
+        guard: isNull(pullRequest.reviewRequestedMetAt),
+      });
     },
 
     async stampPathsMet(pullRequestId, digest) {
-      const stamped = await db
-        .update(pullRequest)
-        .set({
-          pathsMetAt: sql`now()`,
-          pathsMetDigest: digest,
-          rowVersion: buildNextRowVersion(),
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            scope.matchesPullRequest(),
-            eq(pullRequest.id, pullRequestId),
-            sql`${pullRequest.pathsMetDigest} is distinct from ${digest}`,
-          ),
-        )
-        .returning({ id: pullRequest.id });
-      return stamped.length > 0;
+      return updateGuardedPullRequest(db, scope, {
+        pullRequestId,
+        set: { pathsMetAt: sql`now()`, pathsMetDigest: digest },
+        guard: sql`${pullRequest.pathsMetDigest} is distinct from ${digest}`,
+      });
     },
   };
 

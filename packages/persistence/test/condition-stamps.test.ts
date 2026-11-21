@@ -40,7 +40,8 @@ describe("stampReviewRequestedMet", () => {
     const second = await repo.pullRequests.stampReviewRequestedMet(row.id);
     const after = await repo.pullRequests.getById(row.id);
 
-    expect([first, second]).toEqual([true, false]);
+    expect(first).toEqual(stamped);
+    expect(second).toEqual(after);
     expect(after?.reviewRequestedMetAt).toEqual(stamped?.reviewRequestedMetAt);
     expect(after?.rowVersion).toBe(row.rowVersion + 1);
     expect(stamped && readConditionStamps(stamped).reviewRequestedMetAt).toBe(
@@ -54,7 +55,7 @@ describe("stampReviewRequestedMet", () => {
 
     const stamped = await other.pullRequests.stampReviewRequestedMet(row.id);
 
-    expect(stamped).toBe(false);
+    expect(stamped).toBeUndefined();
     const rows = await shared.harness.raw(
       "select review_requested_met_at from pull_request",
     );
@@ -71,7 +72,13 @@ describe("stampPathsMet", () => {
     const edited = await repo.pullRequests.stampPathsMet(row.id, EDITED_DIGEST);
     const after = await repo.pullRequests.getById(row.id);
 
-    expect([first, repeat, edited]).toEqual([true, false, true]);
+    const versions = [first, repeat, edited].map((stamp) => stamp?.rowVersion);
+    expect(versions).toEqual([
+      row.rowVersion + 1,
+      row.rowVersion + 1,
+      row.rowVersion + 2,
+    ]);
+    expect(edited).toEqual(after);
     expect(after && readConditionStamps(after).pathsMetDigest).toBe(
       EDITED_DIGEST,
     );
