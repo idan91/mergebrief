@@ -12,9 +12,9 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { PullRequestRef } from "./pull-request/types";
+import { PullRequestReviewStates } from "./review";
 
 const REVIEWS_PER_PAGE = 100;
-const PENDING_STATE = "PENDING";
 
 /** One submitted review, oldest first as GitHub lists them. */
 export interface SubmittedReview {
@@ -91,7 +91,7 @@ export async function listSubmittedReviews(
     if (!entry.success) {
       return { ok: false, error: unexpectedResponseError(context) };
     }
-    if (entry.data.state === PENDING_STATE) {
+    if (entry.data.state === PullRequestReviewStates.PENDING) {
       continue;
     }
     const state = submittedStateSchema.safeParse(entry.data.state);
