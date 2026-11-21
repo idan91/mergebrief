@@ -85,6 +85,7 @@ const PUBLISHED_REVIEW: FakeReview = {
   body: "Looks fine",
   authorId: AUTHOR_ID,
   submittedAt: UPDATED_AT,
+  commitId: HEAD_SHA,
 };
 
 function listReviewComments(reviewId: bigint): ReviewCommentListing {
@@ -224,6 +225,20 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     });
   }
   github.addBranch(REPO, "mergebrief/attachments");
+  github.addCheckRun(REPO, HEAD_SHA, {
+    checkRunId: 4001n,
+    name: "CodeRabbit",
+    appId: 347564n,
+    completed: true,
+    conclusion: "success",
+    title: "Finished",
+  });
+  github.addCommitStatus(REPO, HEAD_SHA, {
+    context: "Unblocked Review",
+    state: "success",
+    creatorId: 98133410n,
+  });
+  github.setRequiredStatusChecks(REPO, "main", ["build"]);
 }
 
 function arrangeAccount(github: FakeGitHub): void {

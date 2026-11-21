@@ -19,19 +19,13 @@ import {
   type UnmetPlainCondition,
 } from "types/trigger-conditions";
 
-import type { ConditionFacts } from "./types";
-
-interface KindCheckInput<Kind extends TriggerConditionKind> {
-  readonly value: TriggerConditionValues[Kind];
-  readonly setBy: TriggerConditionSetter;
-  readonly facts: ConditionFacts;
-  readonly log?: Logger | undefined;
-}
-
-/** A kind's check: the unmet items it leaves, none when the push meets it. */
-type KindCheck<Kind extends TriggerConditionKind> = (
-  input: KindCheckInput<Kind>,
-) => UnmetPlainCondition[];
+import { checkBots } from "./bots";
+import { checkCi } from "./ci";
+import {
+  type ConditionFacts,
+  type KindCheck,
+  type KindCheckInput,
+} from "./types";
 
 type KindChecks = {
   readonly [Kind in TriggerConditionKind]?: KindCheck<Kind>;
@@ -254,7 +248,9 @@ const KIND_CHECKS: KindChecks = {
   [TriggerConditionKinds.READY_FOR_REVIEW]: checkReadyForReview,
   [TriggerConditionKinds.NEVER]: checkNever,
   [TriggerConditionKinds.SIZE]: checkSize,
+  [TriggerConditionKinds.BOTS]: checkBots,
   [TriggerConditionKinds.REVIEW_REQUESTED]: checkReviewRequested,
+  [TriggerConditionKinds.CI]: checkCi,
   [TriggerConditionKinds.PATHS]: checkPaths,
   [TriggerConditionKinds.LABELS]: checkLabels,
   [TriggerConditionKinds.TITLE_KEYWORDS]: checkTitleKeywords,

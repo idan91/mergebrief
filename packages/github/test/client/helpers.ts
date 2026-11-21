@@ -21,6 +21,8 @@ import { isInstallationId, isRepoId, isReviewerId } from "../../src/ids";
 export interface RecordedRequest {
   readonly method: string;
   readonly path: string;
+  /** The query string, `?` included; empty when none. */
+  readonly search: string;
   readonly authorization: string | undefined;
 }
 
@@ -75,6 +77,7 @@ export function stubGitHubFetch(route: RouteHandler): GitHubFetchStub {
     const request = {
       method: init?.method ?? "GET",
       path: url.pathname,
+      search: url.search,
       authorization: readAuthorization(init),
     };
     requests.push(request);
