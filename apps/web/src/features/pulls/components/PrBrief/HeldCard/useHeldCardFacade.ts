@@ -6,6 +6,7 @@ import { readHeldLead, splitUnmetConditions } from "../held-head";
 import { HeldGenerateNotices } from "../held-head/consts";
 import { readOffersTrigger } from "../trigger-offer";
 import type { HeldCardProps } from ".";
+import type { HeldCardFacade } from "./types";
 
 export function useHeldCardFacade({
   repoId,
@@ -15,7 +16,7 @@ export function useHeldCardFacade({
   viewerCanPush,
   appInstalled,
   prState,
-}: HeldCardProps) {
+}: HeldCardProps): HeldCardFacade {
   const { t } = useTranslation();
   const { pending, announcement, regenerate } = useRegenerateBrief({
     repoId,
