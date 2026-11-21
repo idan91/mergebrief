@@ -96,7 +96,7 @@ Until an installation accepts, a `ci` condition holds a push as missing the perm
 
 `claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted. Every other verdict on those four bots, and every `ci` check, a check a ruleset pins to one App included, needs both, so an App granted only one of the two holds them as above: a `ci` condition while it has a check to read, a bot while it has not reported. A `ci` check that passes on the source the App can read holds as missing while the other source is unreadable, and the held push then shows only the line asking for the permission, even when another check failed or is still running ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
 
-Accepting the permissions wakes nothing: a push already held as missing them waits for its next push or a Generate click.
+Accepting the permissions wakes nothing: a push already held as missing them is checked again on its next push, a Generate click, or the next check run or status GitHub reports on it.
 
 ## Reviewer sign-in
 
@@ -278,8 +278,8 @@ to the section that explains it.
       and without Checks and Commit statuses a `ci` condition with a check
       to read, the App bots of a `bots` condition that have not reported,
       and `claude: clean`, which needs Checks alone, hold as missing the
-      permission, until the next push or a Generate click after the
-      approval
+      permission, until the next push, a Generate click, or the next
+      check run or status reported on that push after the approval
       ([Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
