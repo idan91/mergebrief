@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PullRequestFile, PullRequestInfo } from "github";
-import { matchesGlob } from "brief-core/path-matching";
+import { matchesAnyGlob } from "brief-core/path-matching";
 import {
   createGenerationProjection,
   createIngestRoutines,
@@ -60,8 +60,10 @@ import {
 import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
 
 vi.mock("brief-core/path-matching", async (importOriginal) => {
-  const actual = await importOriginal<{ matchesGlob: typeof matchesGlob }>();
-  return { ...actual, matchesGlob: vi.fn(actual.matchesGlob) };
+  const actual = await importOriginal<{
+    matchesAnyGlob: typeof matchesAnyGlob;
+  }>();
+  return { ...actual, matchesAnyGlob: vi.fn(actual.matchesAnyGlob) };
 });
 
 setUpHarness();
@@ -921,12 +923,12 @@ describe("generate task, trigger conditions", () => {
       github,
       "version: 1\ntriggerConditions:\n  paths: ['**/payments/**']\n",
     );
-    vi.mocked(matchesGlob).mockClear();
+    vi.mocked(matchesAnyGlob).mockClear();
 
     await makeTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
-    expect(vi.mocked(matchesGlob).mock.calls).toHaveLength(2);
+    expect(vi.mocked(matchesAnyGlob).mock.calls).toHaveLength(1);
   });
 
   it("reads no file list to hold a head without a paths condition", async () => {
