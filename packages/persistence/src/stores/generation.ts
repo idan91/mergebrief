@@ -288,8 +288,8 @@ interface ReleaseClaimOptions {
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
-  /** A live run holds the row, so a projection leaves every column as stored. */
-  readonly claimed: boolean;
+  /** A run owns the row, so a projection leaves every column as stored. */
+  readonly running: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -750,12 +750,12 @@ function computeLeaseRemainingMs(): SQL<number> {
  * What the projection keeps as it is: a live lease, or a `running` row with no
  * claim, which the previous release's worker leaves behind while it runs.
  */
-function isProjectionClaimed(): SQL {
+function isProjectionRunning(): SQL {
   return sql`(${isLeaseLive()} or (${generation.runId} is null and ${generation.status} = ${GenerationStatuses.RUNNING}))`;
 }
 
-function keepWhileClaimed(column: PgColumn, reset: SQL | string | null): SQL {
-  return sql`case when ${isProjectionClaimed()} then ${column} else ${reset} end`;
+function keepWhileRunning(column: PgColumn, reset: SQL | string | null): SQL {
+  return sql`case when ${isProjectionRunning()} then ${column} else ${reset} end`;
 }
 
 const CLAIM_CLEARED = {
@@ -793,16 +793,16 @@ function buildTriggerReset(
   attempts: SQL,
 ): GenerationSet {
   return {
-    status: keepWhileClaimed(generation.status, status),
-    attempts: keepWhileClaimed(generation.attempts, attempts),
-    phase: keepWhileClaimed(generation.phase, null),
-    errorCode: keepWhileClaimed(generation.errorCode, null),
-    errorParams: keepWhileClaimed(generation.errorParams, null),
-    repoConfig: keepWhileClaimed(generation.repoConfig, null),
-    runId: keepWhileClaimed(generation.runId, null),
-    leaseExpiresAt: keepWhileClaimed(generation.leaseExpiresAt, null),
-    claims: keepWhileClaimed(generation.claims, sql`0`),
-    awaitsRecovery: keepWhileClaimed(generation.awaitsRecovery, sql`false`),
+    status: keepWhileRunning(generation.status, status),
+    attempts: keepWhileRunning(generation.attempts, attempts),
+    phase: keepWhileRunning(generation.phase, null),
+    errorCode: keepWhileRunning(generation.errorCode, null),
+    errorParams: keepWhileRunning(generation.errorParams, null),
+    repoConfig: keepWhileRunning(generation.repoConfig, null),
+    runId: keepWhileRunning(generation.runId, null),
+    leaseExpiresAt: keepWhileRunning(generation.leaseExpiresAt, null),
+    claims: keepWhileRunning(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileRunning(generation.awaitsRecovery, sql`false`),
     updatedAt: stampWriteTime(),
   };
 }
@@ -865,15 +865,15 @@ async function projectTriggeredRow(
     })
     .returning({
       ...getTableColumns(generation),
-      claimed: sql<boolean>`${isProjectionClaimed()}`,
+      running: sql<boolean>`${isProjectionRunning()}`,
     });
   const projected = rows[0];
   if (projected === undefined) {
     throw new Error("generation projection returned no row");
   }
 
-  const { claimed, ...row } = projected;
-  return { row, claimed };
+  const { running, ...row } = projected;
+  return { row, running };
 }
 
 /**
@@ -984,7 +984,7 @@ export async function readCurrentBriefHead(
   const rows = await executor
     .select({
       row: getTableColumns(generation),
-      claimed: sql<boolean>`${isProjectionClaimed()}`,
+      running: sql<boolean>`${isProjectionRunning()}`,
     })
     .from(generation)
     .where(
@@ -1290,7 +1290,7 @@ export function createGenerationProjection(
         and(
           keyWhere(target),
           ne(generation.status, GenerationStatuses.SUCCEEDED),
-          not(isProjectionClaimed()),
+          not(isProjectionRunning()),
           isWrittenBy(pickedUpAt),
         ),
       )

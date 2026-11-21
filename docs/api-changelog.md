@@ -15,10 +15,13 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-11-21)
 
-- **Changed** the `409` code `generation-held` is now `generation-running`,
-  on `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, while a run holds
-  the head. "Held" now names a head that trigger conditions keep from
-  generating; the meaning of the 409 is unchanged.
+- **BREAKING**: the `409` code `generation-held` is now `generation-running`,
+  on `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, while a run has
+  the head claimed. The old code is gone, so a client matching on
+  `generation-held` must match `generation-running`. "Held" now names a head
+  that trigger conditions keep from generating; the meaning of the 409 is
+  unchanged. MergeBrief is pre-1.0, so the rename ships in one step instead
+  of expand/contract, and the release that ships it is a breaking release.
 
 ## dev (2026-11-18)
 

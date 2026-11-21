@@ -157,7 +157,7 @@ async function followHolder(
 
 /**
  * The holder may be dead with its lease still live, and this job may be the
- * head's only one, so a held run queues a follow-up for after the lease.
+ * head's only one, so a claimed run queues a follow-up for after the lease.
  */
 async function requeueAfterLease(
   context: RunContext,

@@ -27,7 +27,7 @@ const LATE_RUN_ID = "00000000-0000-4000-8000-000000000001";
 describe.skipIf(databaseUrl === undefined)(
   "triggerOnDemand on real Postgres",
   () => {
-    it("answers held when a claim lands between its read and its upsert", async () => {
+    it("answers running when a claim lands between its read and its upsert", async () => {
       if (databaseUrl === undefined) {
         throw new Error("unreachable");
       }

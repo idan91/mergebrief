@@ -263,7 +263,7 @@ describe("triggerOnDemand", () => {
     expect(claims).toEqual([...budget, ClaimOutcomes.EXHAUSTED]);
   });
 
-  it("answers held under a live lease and writes nothing", async () => {
+  it("answers running under a live lease and writes nothing", async () => {
     const world = await makeWorld();
     const runId = await claimTestRun(world.gen, world.target);
     const before = await readRow(world);
@@ -300,7 +300,7 @@ describe("triggerOnDemand", () => {
     ]);
   });
 
-  it("answers held under a live claim beside a stale locked job", async () => {
+  it("answers running under a live claim beside a stale locked job", async () => {
     const world = await makeWorld();
     await failHead(world);
     await createIngestRoutines(shared.handle, CTX).requeueGenerateJob({
