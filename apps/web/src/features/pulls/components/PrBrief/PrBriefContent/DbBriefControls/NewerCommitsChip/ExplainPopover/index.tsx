@@ -22,8 +22,7 @@ export interface ExplainPopoverProps {
 export function ExplainPopover({ status }: ExplainPopoverProps) {
   const titleId = useId();
   const { action, runAction, failure, heldConditions } = status;
-  const panelClass =
-    heldConditions === undefined ? styles["panel"] : styles["heldPanel"];
+  const panelVariant = heldConditions === undefined ? undefined : "held";
 
   return (
     <Popover placement="bottom-start" portal={false}>
@@ -32,7 +31,7 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
           <Icon name={IconNames.QUESTION} size={IconSizes.MD} />
         </IconButton>
       </Popover.Trigger>
-      <Popover.Content className={panelClass}>
+      <Popover.Content className={styles["panel"]} variant={panelVariant}>
         <section aria-labelledby={titleId} data-testid="newer-commits-panel">
           <h2 className={styles["label"]}>
             <span aria-hidden="true" className={styles["dot"]} />
