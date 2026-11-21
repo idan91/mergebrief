@@ -717,10 +717,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body["draftPolicy"]).toEqual({
-      generate: true,
-      debounceSeconds: null,
-    });
+    expect(body["draftPolicy"]).toEqual({ debounceSeconds: null });
 
     // Injected policy is echoed for the FE's copy states.
     const policyApp = createApp({
@@ -730,17 +727,14 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
       ...LISTED_REVIEWER_DEPS,
-      draftPolicy: { generate: false, debounceSeconds: 900 },
+      draftPolicy: { debounceSeconds: 900 },
     });
     const policyRes = await policyApp.request(`/api/repos/${REPO_A}/pulls/7`, {
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
     });
     expect(policyRes.status).toBe(200);
     const policyBody = (await policyRes.json()) as Record<string, unknown>;
-    expect(policyBody["draftPolicy"]).toEqual({
-      generate: false,
-      debounceSeconds: 900,
-    });
+    expect(policyBody["draftPolicy"]).toEqual({ debounceSeconds: 900 });
   });
 
   it("meta: denies viewer authorship for other or absent authors", async () => {

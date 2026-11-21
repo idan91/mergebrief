@@ -139,8 +139,8 @@ from their next push. A later event whose read fails leaves a head that already
 triggered as it is.
 
 A bot author is decided separately, by the repository's `trustedBots` list in
-`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A draft that
-`drafts.generate: off` holds back waits for `ready_for_review` before any of this applies.
+`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A push that an unmet trigger
+condition holds waits for that condition before any of this applies.
 
 ## Identity / secrets (all env, never the DB or repo)
 
