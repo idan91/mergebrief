@@ -15,7 +15,7 @@ import type { ConditionFacts } from "./types";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
-function proceed(
+function buildProceedOutcome(
   repoConfig: AcquiredRepoConfig | undefined,
 ): ConditionCheckOutcome {
   return { kind: ConditionCheckKinds.PROCEED, repoConfig };
@@ -57,7 +57,7 @@ export async function applyConditionCheck(
   gateRepoConfig: AcquiredRepoConfig | undefined,
 ): Promise<ConditionCheckOutcome> {
   if (!isCheckable(context)) {
-    return proceed(gateRepoConfig);
+    return buildProceedOutcome(gateRepoConfig);
   }
 
   const { deps, source, log, projection, target } = context;
@@ -72,7 +72,7 @@ export async function applyConditionCheck(
     readConditionFacts(context),
   );
   if (unmet.length === 0) {
-    return proceed(repoConfig);
+    return buildProceedOutcome(repoConfig);
   }
 
   const held = await projection.markHeld(target, unmet);
