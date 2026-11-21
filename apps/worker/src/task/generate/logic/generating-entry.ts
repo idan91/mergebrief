@@ -17,12 +17,13 @@ import {
   type UnreadHeadRead,
 } from "../types";
 import { deriveNextHeadIndex } from "../utils";
+import { queueSyncAfterLandedWrite, type LandedWriteCheck } from "./entry-sync";
 import { isPermanentFailure } from "./errors";
 import { isRunSignal } from "./run-signals";
 import { readEntryPostHead } from "./supersession-watch";
 import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 
-export interface GeneratingEntryPost extends UnreadHeadPost {
+export interface GeneratingEntryPost extends UnreadHeadPost, LandedWriteCheck {
   readonly watch: SupersessionWatch;
 }
 
@@ -100,7 +101,8 @@ export async function postGeneratingEntry(
     return;
   }
   const editable = buildHeldBodyMatcher(post.headSha);
-  await post.entryCommentManager.editOrRefresh(body, editable);
+  const written = await post.entryCommentManager.editOrRefresh(body, editable);
+  await queueSyncAfterLandedWrite(post, written);
 }
 
 /**

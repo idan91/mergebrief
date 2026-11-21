@@ -783,6 +783,7 @@ export interface BriefGenerationInputs {
   /** The signal-bound generator: the model call must honour the watch's abort. */
   readonly generator: Generator;
   readonly coreMessageLog: CoreMessageLog;
+  readonly queueEntrySync: (headSha: string) => Promise<void>;
   /** What a multi-call run of this brief needs from the worker. */
   readonly multiCall: MultiCallRunInputs;
   readonly log: Logger;
