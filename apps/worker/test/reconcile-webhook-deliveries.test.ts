@@ -369,6 +369,6 @@ describe("the reconcile task", () => {
 
     await task();
 
-    expect(pages).toBe(30);
+    expect(pages).toBe(100);
   });
 });

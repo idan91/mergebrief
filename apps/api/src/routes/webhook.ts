@@ -961,6 +961,26 @@ interface VerifiedDelivery {
   readonly receivedAt: Date;
 }
 
+/** A push brings check reports by the dozen, so their drops log at debug. */
+const QUIET_DROP_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
+  ParsedWebhookEventKinds.CHECK_RUN,
+  ParsedWebhookEventKinds.STATUS,
+]);
+
+function logUnlistedDrop(log: Logger, delivery: RepositoryDelivery): void {
+  const message =
+    "webhook: ignored a delivery from an account this instance does not list";
+  const fields = {
+    accountId: String(delivery.repoOwnerId),
+    repo: delivery.repoFullName,
+  };
+  if (QUIET_DROP_KINDS.has(delivery.kind)) {
+    log.debug(message, fields);
+    return;
+  }
+  log.warn(message, fields);
+}
+
 /**
  * Dispatch an event unless the seen-set holds its signature from within the
  * window, then record it. Every seen-set failure throws to the route's 500.
@@ -973,13 +993,7 @@ async function dispatchOnce(
 ): Promise<Result<void, ConfirmationFailure>> {
   const unlisted = findUnlistedOwnerDelivery(deps, event);
   if (unlisted !== undefined) {
-    log.warn(
-      "webhook: ignored a delivery from an account this instance does not list",
-      {
-        accountId: String(unlisted.repoOwnerId),
-        repo: unlisted.repoFullName,
-      },
-    );
+    logUnlistedDrop(log, unlisted);
     await recordUnlistedLifecycle(deps, unlisted);
     return DISPATCHED;
   }

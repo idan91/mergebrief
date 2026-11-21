@@ -776,8 +776,39 @@ describe("recheckHeadsAtSha", () => {
     expect(await countQueuedJobs(shared)).toBe(0);
   });
 
-  it("queues nothing for a head at the SHA no condition holds", async () => {
-    await trigger();
+  it("queues the job of a pending head at the SHA", async () => {
+    const triggered = await trigger();
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([triggered.pullRequest.id]);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("queues a fresh job beside a pending head's locked job", async () => {
+    const triggered = await trigger();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    await recheckAtSha();
+
+    const keys = await shared.harness.raw(
+      "select key from graphile_worker.jobs order by id",
+    );
+    expect(keys.map((job) => job["key"])).toEqual([
+      null,
+      `generate:${triggered.pullRequest.id}`,
+    ]);
+  });
+
+  it("queues nothing for a head at the SHA a run has claimed", async () => {
+    const triggered = await trigger();
+    await claimTestRun(
+      createGenerationProjection(shared.handle, GATE_CTX),
+      makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA),
+    );
     await clearQueue();
 
     expect((await recheckAtSha()).rechecked).toEqual([]);
