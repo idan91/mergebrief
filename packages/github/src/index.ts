@@ -107,7 +107,6 @@ export {
   PullRequestActions,
   InstallationActions,
   InstallationRepositoriesActions,
-  CheckRunActions,
   EventParseErrorCodes,
 } from "./webhook/events";
 export type {
@@ -128,13 +127,14 @@ export type {
   PullRequestAction,
   InstallationAction,
   InstallationRepositoriesAction,
-  CheckRunAction,
 } from "./webhook/events";
 export {
   AuthorAssociations,
+  CheckRunActions,
   GitHubAppAuthorizationActions,
   TRUSTED_AUTHOR_ASSOCIATIONS,
   type AuthorAssociation,
+  type CheckRunAction,
   type GitHubAppAuthorizationAction,
 } from "./webhook/types";
 

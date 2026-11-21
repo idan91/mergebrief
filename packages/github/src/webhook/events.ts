@@ -18,8 +18,10 @@ import {
 } from "../types";
 import {
   AuthorAssociations,
+  CheckRunActions,
   GitHubAppAuthorizationActions,
   type AuthorAssociation,
+  type CheckRunAction,
   type GitHubAppAuthorizationAction,
 } from "./types";
 
@@ -67,17 +69,6 @@ export const InstallationRepositoriesActions = {
 export type InstallationRepositoriesAction = ValueOf<
   typeof InstallationRepositoriesActions
 >;
-
-/**
- * A run starting or finishing; a rerun request changes no run until GitHub
- * creates one. A run created unfinished is ignored: queued or in progress, it
- * meets no condition, and its completion wakes the head.
- */
-export const CheckRunActions = {
-  CREATED: "created",
-  COMPLETED: "completed",
-} as const;
-export type CheckRunAction = ValueOf<typeof CheckRunActions>;
 
 // GitHub's raw `action` string → our normalized action. Any raw action absent
 // from a map is an unhandled action for that event → `ignored`.
