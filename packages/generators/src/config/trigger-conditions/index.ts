@@ -8,7 +8,7 @@ import {
 } from "types";
 
 import { configError, type ConfigError } from "../../contract/errors";
-import { renderKey } from "../render-key";
+import { renderKey, renderPathSegment } from "../render-key";
 import { ANY_KEY, CONFIG_KEYS, SETTING_SCHEMAS, offSchema } from "./schemas";
 import type {
   EffectiveCondition,
@@ -29,7 +29,7 @@ function isPlainMap(value: unknown): value is Record<string, unknown> {
 }
 
 function describeIssue(where: string, issue: z.core.$ZodIssue): string {
-  const path = issue.path.map(String).map(renderKey);
+  const path = issue.path.map(renderPathSegment);
   const at = path.length > 0 ? `.${path.join(".")}` : "";
   return `${where}${at}: ${issue.code === "unrecognized_keys" ? "unrecognized key" : issue.message}`;
 }

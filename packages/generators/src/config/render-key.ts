@@ -6,3 +6,7 @@ const CONFIG_KEY_ECHO_TOKEN = /^[A-Za-z][A-Za-z-]{0,19}$/;
 export function renderKey(key: string): string {
   return CONFIG_KEY_ECHO_TOKEN.test(key) ? `"${key}"` : "(redacted)";
 }
+
+export function renderPathSegment(segment: PropertyKey): string {
+  return typeof segment === "string" ? renderKey(segment) : String(segment);
+}
