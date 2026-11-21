@@ -222,6 +222,7 @@ async function main(): Promise<void> {
     trackerRoot,
     jiraTransport,
     siblingRepos: config.value.siblingRepos,
+    triggerConditions: config.value.triggerConditions,
     revisionNarrative: config.value.revisionNarrative,
     hugeSpanRatio: config.value.hugeSpanRatio,
     detailConcurrency: config.value.detailConcurrency,

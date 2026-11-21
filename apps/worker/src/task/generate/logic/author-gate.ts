@@ -1,10 +1,8 @@
-import { isPermanentGitHubError } from "github";
 import { createIngestRoutines } from "persistence";
 import { isTrustedBot } from "repo-config";
-import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { GenerationStatuses } from "types/generations";
 import { buildEntryCommentOnDemandBody } from "../../entry-comment";
-import { TransientJobError } from "../../failure";
-import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
+import type { AcquiredRepoConfig } from "../../repo-config";
 import {
   AuthorGateKinds,
   HeadReadings,
@@ -17,6 +15,11 @@ import {
   resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
+import {
+  acquireGateRepoConfig,
+  isGateable,
+  retrySettingsReadWhileAttemptsLeft,
+} from "./run-gates";
 
 const PROCEED_WITHOUT_CONFIG: AuthorGateOutcome = {
   kind: AuthorGateKinds.PROCEED,
@@ -51,54 +54,22 @@ export async function applyAuthorGate(
     return AWAITING_TRIGGER;
   }
 
-  const { prInfo, prRow, source, log } = context;
+  const { prInfo, prRow } = context;
   const owesBotApproval =
     prInfo.authorIsBot && prRow.triggerApprovedAt === null;
   if (!owesBotApproval) {
     return PROCEED_WITHOUT_CONFIG;
   }
-  const repoConfig = await acquireRepoConfig(source, log);
+  const repoConfig = await acquireGateRepoConfig(context);
   const login = prInfo.authorLogin;
   const listed = login !== null && isTrustedBot(repoConfig.settings, login);
   if (listed) {
     return { kind: AuthorGateKinds.PROCEED, repoConfig };
   }
 
-  throwOnRetryableSettingsRead(context, repoConfig);
+  retrySettingsReadWhileAttemptsLeft(context, repoConfig);
   await holdBotRun(context, repoConfig);
   return AWAITING_TRIGGER;
-}
-
-/**
- * A settings read a retry may clear could still list the bot, so the run
- * hands it to graphile while attempts remain. A permanent failure, or the
- * last attempt, holds the bot fail-closed.
- */
-function throwOnRetryableSettingsRead(
-  context: RunContext,
-  repoConfig: AcquiredRepoConfig,
-): void {
-  const failure = repoConfig.settingsFetchFailure;
-  const retryable = failure !== undefined && !isPermanentGitHubError(failure);
-  const { job } = context;
-  const attemptsLeft = job !== undefined && job.attempts < job.max_attempts;
-  const retriesRead = retryable && attemptsLeft;
-  if (!retriesRead) {
-    return;
-  }
-  throw new TransientJobError(`settings read failed: ${failure.message}`, {
-    failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
-  });
-}
-
-function isGateable(context: RunContext): boolean {
-  const { payload, recovering, existingBrief, projected } = context;
-  const gateable =
-    payload.grantId === undefined &&
-    !recovering &&
-    existingBrief === undefined &&
-    projected?.status !== GenerationStatuses.SUCCEEDED;
-  return gateable;
 }
 
 /**
