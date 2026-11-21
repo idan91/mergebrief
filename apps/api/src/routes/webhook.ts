@@ -49,14 +49,12 @@ import {
   TRUSTED_COLLABORATOR_PERMISSIONS,
   parseWebhookEvent,
   verifyWebhookSignature,
-  type ParsedCheckRunEvent,
   type ParsedCommitReport,
   type ParsedGitHubAppAuthorizationEvent,
   type ParsedInstallationEvent,
   type ParsedInstallationRepositoriesEvent,
   type ParsedPullRequestEvent,
   type ParsedPullRequestReviewEvent,
-  type ParsedStatusEvent,
   type ParsedWebhookEvent,
   type ParsedWebhookEventKind,
   type PullRequestAction,
@@ -135,12 +133,19 @@ interface RepositoryPerson {
   readonly logFields: Readonly<Record<string, unknown>>;
 }
 
+/** Kinds that start or wake a run, so an unlisted repository owner's are dropped. */
+const OWNER_GATED_KINDS = [
+  ParsedWebhookEventKinds.PULL_REQUEST,
+  ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
+  ParsedWebhookEventKinds.CHECK_RUN,
+  ParsedWebhookEventKinds.STATUS,
+] as const;
+
 /** A delivery naming a repository, which `allowed.accounts` gates by its owner. */
-type RepositoryDelivery =
-  | ParsedPullRequestEvent
-  | ParsedPullRequestReviewEvent
-  | ParsedCheckRunEvent
-  | ParsedStatusEvent;
+type RepositoryDelivery = Extract<
+  ParsedWebhookEvent,
+  { readonly kind: (typeof OWNER_GATED_KINDS)[number] }
+>;
 
 /** What a trigger sets beyond the event itself. */
 type TriggerOptions = Pick<
@@ -162,13 +167,9 @@ const DISPATCHED: Result<void, ConfirmationFailure> = {
   value: undefined,
 };
 
-/** Kinds that start or wake a run, so an unlisted repository owner's are dropped. */
-const OWNER_GATED_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
-  ParsedWebhookEventKinds.PULL_REQUEST,
-  ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
-  ParsedWebhookEventKinds.CHECK_RUN,
-  ParsedWebhookEventKinds.STATUS,
-]);
+const OWNER_GATED_KIND_SET: ReadonlySet<ParsedWebhookEventKind> = new Set(
+  OWNER_GATED_KINDS,
+);
 
 /** Half of GitHub's 10s delivery budget: the purge and the answer need the rest. */
 const CONFIRMATION_TIMEOUT_MS = 5 * 1000;
@@ -862,7 +863,7 @@ async function handleAppAuthorization(
 function isRepositoryDelivery(
   event: ParsedWebhookEvent,
 ): event is RepositoryDelivery {
-  return OWNER_GATED_KINDS.has(event.kind);
+  return OWNER_GATED_KIND_SET.has(event.kind);
 }
 
 /**
