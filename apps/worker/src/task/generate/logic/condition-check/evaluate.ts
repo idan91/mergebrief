@@ -272,7 +272,8 @@ const PATHS_MATCH_STEPS = 40_000_000;
 
 /** Sorted and deduplicated first, so only an edit to the set of globs checks again. */
 export function digestPathGlobs(globs: readonly string[]): string {
-  const canonical = JSON.stringify([...new Set(globs)].toSorted());
+  const unique = [...new Set(globs)];
+  const canonical = JSON.stringify(unique.toSorted());
   return createHash("sha256").update(canonical).digest("hex");
 }
 
