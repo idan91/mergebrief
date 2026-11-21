@@ -19,7 +19,11 @@ import {
   type UnmetPlainCondition,
 } from "types/trigger-conditions";
 
-import type { ConditionFacts } from "./types";
+import {
+  PathsMatchOutcomes,
+  type ConditionFacts,
+  type PathsMatchOutcome,
+} from "./types";
 
 interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
@@ -233,7 +237,6 @@ interface GlobFilter {
   readonly suffix: string;
 }
 
-/** The characters before a glob's first wildcard. */
 function readLiteralPrefix(glob: string): string {
   const wildcard = glob.search(GLOB_SYNTAX_START);
   return wildcard === -1 ? glob : glob.slice(0, wildcard);
@@ -254,7 +257,6 @@ function skipStarToken(glob: string, start: number): number {
   return start + 2;
 }
 
-/** Where the literal tail after a glob's last wildcard token starts. */
 function findLiteralTailStart(glob: string): number {
   let tailStart = 0;
   let index = 0;
@@ -296,14 +298,14 @@ function passesGlobFilter(filter: GlobFilter, path: string): boolean {
 }
 
 /**
- * Whether one glob matches one changed path, or `undefined` once the step
- * budget runs out. A path missing the glob's literal prefix or suffix costs
+ * Whether any glob matches any changed path, or a spent budget once the scan
+ * runs out of steps. A path missing the glob's literal prefix or suffix costs
  * no steps.
  */
 function matchPaths(
   globs: readonly string[],
   paths: readonly string[],
-): boolean | undefined {
+): PathsMatchOutcome {
   let steps = PATHS_MATCH_STEPS;
   for (const filter of orderGlobFilters(globs)) {
     for (const path of paths) {
@@ -312,14 +314,14 @@ function matchPaths(
       }
       steps -= filter.glob.length * (path.length + 1);
       if (steps < 0) {
-        return undefined;
+        return PathsMatchOutcomes.BUDGET_SPENT;
       }
       if (matchesGlob(filter.glob, path)) {
-        return true;
+        return PathsMatchOutcomes.MATCHED;
       }
     }
   }
-  return false;
+  return PathsMatchOutcomes.UNMATCHED;
 }
 
 /**
@@ -339,11 +341,11 @@ function checkPaths({
   if (facts.changedPaths === undefined) {
     return [];
   }
-  const matched = matchPaths(value, facts.changedPaths);
-  if (matched === true) {
+  const outcome = matchPaths(value, facts.changedPaths);
+  if (outcome === PathsMatchOutcomes.MATCHED) {
     return [];
   }
-  if (matched === undefined) {
+  if (outcome === PathsMatchOutcomes.BUDGET_SPENT) {
     log?.warn("generate: paths match budget spent, held as no match", {
       globs: value.length,
       paths: facts.changedPaths.length,

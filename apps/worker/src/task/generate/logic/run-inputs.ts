@@ -83,7 +83,6 @@ export async function prepareRunInputs(
   };
 }
 
-/** The list a `paths` condition read before the claim, else a fresh read. */
 async function readPullRequestFiles(
   context: RunContext,
   checkedFiles: readonly PullRequestFile[] | undefined,

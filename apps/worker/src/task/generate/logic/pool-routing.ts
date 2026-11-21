@@ -3,10 +3,6 @@ import { createIngestRoutines, type RouteToLargePoolInput } from "persistence";
 import type { Mutable } from "types/utils";
 import { RunPools, type RunContext } from "../types";
 
-/**
- * Whether this run moves to the large pool before its claim: a normal-pool
- * run, over no stored brief, whose counts predict multi-call.
- */
 export function isBoundForLargePool(context: RunContext): boolean {
   const { pool, existingBrief, prInfo } = context;
   if (pool === RunPools.LARGE || existingBrief !== undefined) {
