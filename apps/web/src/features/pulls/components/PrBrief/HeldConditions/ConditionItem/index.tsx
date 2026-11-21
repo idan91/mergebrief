@@ -15,14 +15,14 @@ export interface ConditionItemProps {
 }
 
 /**
- * One condition's reasons and whose setting it is. The chip's short owner is
- * for the eye; a screen reader hears the full owner phrase instead.
+ * One condition's reasons and whose setting it is. The chip's short label is
+ * for the eye; a screen reader hears the full phrase instead.
  */
 export function ConditionItem({ condition }: ConditionItemProps) {
   const { t } = useTranslation();
   const reasons = describeUnmetReasons(t, condition);
-  const owner = t(`pulls.held.owner.${condition.source}`);
-  const spokenOwner = t(`triggerCondition.owner.${condition.source}`);
+  const setBy = t(`pulls.held.setBy.${condition.setBy}`);
+  const spokenSetBy = t(`triggerCondition.setBy.${condition.setBy}`);
 
   return (
     <li className={styles["item"]} data-testid="held-condition">
@@ -32,7 +32,7 @@ export function ConditionItem({ condition }: ConditionItemProps) {
             {reason}
           </span>
         ))}
-        <span className="sr-only">{spokenOwner}</span>
+        <span className="sr-only">{spokenSetBy}</span>
       </span>
       <Chip
         aria-hidden="true"
@@ -42,7 +42,7 @@ export function ConditionItem({ condition }: ConditionItemProps) {
         tone={ChipTones.MUTED}
         variant={ChipVariants.FACT}
       >
-        {owner}
+        {setBy}
       </Chip>
     </li>
   );

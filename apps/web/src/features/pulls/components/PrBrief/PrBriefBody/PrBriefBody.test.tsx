@@ -248,7 +248,7 @@ describe("PrBriefBody held", () => {
     render(
       makeBody({
         status: "held",
-        unmetConditions: [{ kind: "ready-for-review", source: "repo" }],
+        unmetConditions: [{ kind: "ready-for-review", setBy: "repo" }],
       }),
     );
 

@@ -1059,10 +1059,10 @@ describe("videoAssetsSchema", () => {
 
 const HELD_GENERATION = { ...PENDING_GENERATION, status: "held" };
 
-const READY_ITEM = { kind: "ready-for-review", source: "instance" };
+const READY_ITEM = { kind: "ready-for-review", setBy: "instance" };
 const CI_ITEM = {
   kind: "ci",
-  source: "repo",
+  setBy: "repo",
   failed: [],
   running: ["build"],
   missing: [],
@@ -1070,7 +1070,7 @@ const CI_ITEM = {
 };
 const BOT_ITEM = {
   kind: "bots",
-  source: "repo",
+  setBy: "repo",
   bot: "coderabbit",
   verdict: "approved",
   state: "issues",
@@ -1096,25 +1096,25 @@ describe("generationSummarySchema unmetConditions", () => {
   it("reads every plain kind and an any group", () => {
     const wire = [
       READY_ITEM,
-      { kind: "never", source: "repo" },
-      { kind: "review-requested", source: "repo" },
+      { kind: "never", setBy: "repo" },
+      { kind: "review-requested", setBy: "repo" },
       {
         kind: "size",
-        source: "instance",
-        count: "changed-lines",
+        setBy: "instance",
+        measure: "changed-lines",
         side: "max",
         limit: 800,
         actual: 1284,
       },
-      { kind: "labels", source: "repo", labels: ["needs-brief"] },
-      { kind: "title-keywords", source: "repo", keywords: ["brief"] },
+      { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+      { kind: "title-keywords", setBy: "repo", keywords: ["brief"] },
       {
         kind: "base-branches",
-        source: "repo",
+        setBy: "repo",
         base: "dev",
         branches: ["main"],
       },
-      { kind: "paths", source: "repo", paths: ["src/**"] },
+      { kind: "paths", setBy: "repo", paths: ["src/**"] },
       BOT_ITEM,
       CI_ITEM,
       { kind: "any", conditions: [READY_ITEM, CI_ITEM] },
@@ -1139,7 +1139,7 @@ describe("generationSummarySchema unmetConditions", () => {
 
   it("marks the list partial when it drops an item", () => {
     const generation = parseHeldGeneration([
-      { kind: "deploy-window", source: "repo" },
+      { kind: "deploy-window", setBy: "repo" },
       CI_ITEM,
     ]);
 
@@ -1198,7 +1198,7 @@ describe("generationSummarySchema unmetConditions", () => {
 
   it("drops an item of a kind this bundle predates and keeps the rest", () => {
     const unmet = parseHeldConditions([
-      { kind: "deploy-window", source: "repo" },
+      { kind: "deploy-window", setBy: "repo" },
       READY_ITEM,
     ]);
 
@@ -1208,13 +1208,13 @@ describe("generationSummarySchema unmetConditions", () => {
   it.each([
     ["bot", { ...BOT_ITEM, bot: "reviewatron" }],
     ["bot state", { ...BOT_ITEM, state: "sleeping" }],
-    ["source", { ...READY_ITEM, source: "org" }],
+    ["setBy", { ...READY_ITEM, setBy: "org" }],
     [
-      "size count",
+      "size measure",
       {
         kind: "size",
-        source: "repo",
-        count: "files",
+        setBy: "repo",
+        measure: "files",
         side: "max",
         limit: 1,
         actual: 2,
