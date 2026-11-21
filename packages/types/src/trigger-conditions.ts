@@ -34,11 +34,11 @@ export const BotVerdicts = {
 export type BotVerdict = ValueOf<typeof BotVerdicts>;
 
 /** Whose file set a condition: the repository's settings or the instance's config. */
-export const TriggerConditionSources = {
+export const TriggerConditionSetters = {
   REPO: "repo",
   INSTANCE: "instance",
 } as const;
-export type TriggerConditionSource = ValueOf<typeof TriggerConditionSources>;
+export type TriggerConditionSetter = ValueOf<typeof TriggerConditionSetters>;
 
 /** What a `size` condition bounds. */
 export const SizeMeasures = {

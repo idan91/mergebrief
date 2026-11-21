@@ -1,18 +1,18 @@
 import type { z } from "zod/v4";
 import {
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   type Result,
   type TriggerConditionKind,
-  type TriggerConditionSource,
+  type TriggerConditionSetter,
 } from "types";
 
 import { configError, type ConfigError } from "../../contract/errors";
 import { renderKey } from "../render-key";
 import { ANY_KEY, CONFIG_KEYS, SETTING_SCHEMAS, offSchema } from "./schemas";
 import type {
+  EffectiveCondition,
   EffectiveTriggerConditions,
-  SourcedCondition,
   TriggerConditionSetting,
   TriggerConditionsBlock,
 } from "./types";
@@ -119,7 +119,7 @@ function findBlockIssues(
 
 function parseBlock(
   raw: unknown,
-  scope: TriggerConditionSource,
+  setBy: TriggerConditionSetter,
 ): Result<TriggerConditionsBlock, ConfigError> {
   if (offSchema.safeParse(raw).success) {
     return { ok: true, value: { off: true } };
@@ -156,7 +156,7 @@ function parseBlock(
     (setting) => setting.kind === TriggerConditionKinds.PATHS,
   );
   const instanceSetsPaths =
-    scope === TriggerConditionSources.INSTANCE && usesPaths;
+    setBy === TriggerConditionSetters.INSTANCE && usesPaths;
   if (instanceSetsPaths) {
     issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
   }
@@ -172,21 +172,21 @@ function parseBlock(
 export function parseRepoTriggerConditions(
   raw: unknown,
 ): Result<TriggerConditionsBlock, ConfigError> {
-  return parseBlock(raw, TriggerConditionSources.REPO);
+  return parseBlock(raw, TriggerConditionSetters.REPO);
 }
 
 /** The instance file's block; `paths` is refused there. */
 export function parseInstanceTriggerConditions(
   raw: unknown,
 ): Result<TriggerConditionsBlock, ConfigError> {
-  return parseBlock(raw, TriggerConditionSources.INSTANCE);
+  return parseBlock(raw, TriggerConditionSetters.INSTANCE);
 }
 
-function tagSource(
+function tagSetBy(
   settings: readonly TriggerConditionSetting[],
-  source: TriggerConditionSource,
-): SourcedCondition[] {
-  return settings.map((setting) => ({ setting, source }));
+  setBy: TriggerConditionSetter,
+): EffectiveCondition[] {
+  return settings.map((setting) => ({ setting, setBy }));
 }
 
 function namesKind(
@@ -216,19 +216,19 @@ export function resolveEffectiveTriggerConditions(
     return { all: [], any: [] };
   }
 
-  const all: SourcedCondition[] = [];
-  const any: SourcedCondition[] = [];
+  const all: EffectiveCondition[] = [];
+  const any: EffectiveCondition[] = [];
   if (instance !== undefined && !instance.off) {
     const isInherited = (setting: TriggerConditionSetting) =>
       repo === undefined || !namesKind(repo, setting.kind);
     const inheritedAll = instance.all.filter(isInherited);
     const inheritedAny = instance.any.filter(isInherited);
-    all.push(...tagSource(inheritedAll, TriggerConditionSources.INSTANCE));
-    any.push(...tagSource(inheritedAny, TriggerConditionSources.INSTANCE));
+    all.push(...tagSetBy(inheritedAll, TriggerConditionSetters.INSTANCE));
+    any.push(...tagSetBy(inheritedAny, TriggerConditionSetters.INSTANCE));
   }
   if (repo !== undefined) {
-    all.push(...tagSource(repo.all, TriggerConditionSources.REPO));
-    any.push(...tagSource(repo.any, TriggerConditionSources.REPO));
+    all.push(...tagSetBy(repo.all, TriggerConditionSetters.REPO));
+    any.push(...tagSetBy(repo.any, TriggerConditionSetters.REPO));
   }
 
   if (any.length === 1) {
@@ -240,10 +240,10 @@ export function resolveEffectiveTriggerConditions(
 export type {
   BotsSetting,
   CiSetting,
+  EffectiveCondition,
   EffectiveTriggerConditions,
   SizeBounds,
   SizeSetting,
-  SourcedCondition,
   TriggerConditionSetting,
   TriggerConditionsBlock,
 } from "./types";

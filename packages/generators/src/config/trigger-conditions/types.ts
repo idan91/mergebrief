@@ -4,7 +4,7 @@ import type {
   SizeMeasure,
   TriggerConditionKind,
   TriggerConditionKinds,
-  TriggerConditionSource,
+  TriggerConditionSetter,
 } from "types";
 
 /** Inclusive bounds; at least one is set. */
@@ -72,13 +72,13 @@ export type TriggerConditionsBlock =
   | TriggerConditionsSwitchedOff
   | TriggerConditionsList;
 
-export interface SourcedCondition {
+export interface EffectiveCondition {
   readonly setting: TriggerConditionSetting;
-  readonly source: TriggerConditionSource;
+  readonly setBy: TriggerConditionSetter;
 }
 
 /** The conditions a push meets after the instance and repo blocks merge. */
 export interface EffectiveTriggerConditions {
-  readonly all: readonly SourcedCondition[];
-  readonly any: readonly SourcedCondition[];
+  readonly all: readonly EffectiveCondition[];
+  readonly any: readonly EffectiveCondition[];
 }
