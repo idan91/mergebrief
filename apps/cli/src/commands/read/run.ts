@@ -22,9 +22,6 @@ import { renderTerminalDiff, type TerminalDiffOptions } from "./terminal-diff";
 import { buildRequestPath } from "../request-path";
 import { isRecord } from "../../utils";
 
-/** Set from a signed-in browser only; the CLI shows it, never sets it. */
-const EVERY_PUSH_LINE = "generates on every push\n";
-
 // ---------------------------------------------------------------------------
 // Commands. Each takes the resolved client + repoId and the io sinks.
 // ---------------------------------------------------------------------------
@@ -76,7 +73,7 @@ export async function runPrMeta(
     io.stdout(held);
   }
   if (meta.slice.generateEveryPush === true) {
-    io.stdout(EVERY_PUSH_LINE);
+    io.stdout("generates on every push\n");
   }
 }
 
