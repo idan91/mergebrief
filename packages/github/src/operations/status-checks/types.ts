@@ -1,4 +1,5 @@
 import type { ValueOf } from "types/utils";
+import type { GitHubAccountType } from "../../types";
 
 export interface BranchRef {
   readonly owner: string;
@@ -48,6 +49,8 @@ export interface CommitStatus {
   readonly state: CommitStatusState;
   /** The account that posted the status. */
   readonly creatorId?: bigint;
+  /** `Bot` for an App's account; absent when GitHub omits it or sends a type we do not know. */
+  readonly creatorType?: GitHubAccountType;
 }
 
 /** A check a ruleset requires; `appId` is set when the rule pins the check to one App. */

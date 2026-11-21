@@ -63,6 +63,9 @@ function shapeCommitStatus(entry: CommitStatusEntry): CommitStatus {
   if (entry.creator?.id !== undefined) {
     status.creatorId = entry.creator.id;
   }
+  if (entry.creator?.type !== undefined) {
+    status.creatorType = entry.creator.type;
+  }
   return status;
 }
 

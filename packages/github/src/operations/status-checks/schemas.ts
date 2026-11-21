@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 import { positiveBigIntSchema } from "../../ids";
+import { GitHubAccountTypes } from "../../types";
 import { CommitStatusStates } from "./types";
 
 export const checkRunListSchema = z.array(
@@ -20,7 +21,12 @@ export const commitStatusListSchema = z.array(
   z.object({
     context: z.string(),
     state: z.enum(CommitStatusStates),
-    creator: z.object({ id: positiveBigIntSchema }).nullish(),
+    creator: z
+      .object({
+        id: positiveBigIntSchema,
+        type: z.enum(GitHubAccountTypes).optional().catch(undefined),
+      })
+      .nullish(),
   }),
 );
 

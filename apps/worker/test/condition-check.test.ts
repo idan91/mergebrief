@@ -1577,14 +1577,65 @@ describe("evaluateTriggerConditions, ci pinned to an App", () => {
     expect(unmet).toMatchObject([{ failed: ["build"] }]);
   });
 
-  it("passes a pinned name with statuses refused", () => {
+  it("holds a passing pinned run as missing while statuses are refused", () => {
     const unmet = evaluateCi(REQUIRED, {
       requiredChecks: [PINNED_BUILD],
       checkRuns: [makeRun()],
       statusesForbidden: true,
     });
 
+    expect(unmet).toMatchObject([
+      { missing: ["build"], permissionMissing: true },
+    ]);
+  });
+
+  it("passes a pinned name on a success status a bot posted", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [makeStatus({ creatorType: "Bot" })],
+    });
+
     expect(unmet).toEqual([]);
+  });
+
+  it("reads a bot's latest status under a pinned name", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [
+        makeStatus({ state: "failure", creatorType: "User" }),
+        makeStatus({ state: "pending", creatorType: "Bot" }),
+        makeStatus({ creatorType: "Bot" }),
+      ],
+    });
+
+    expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
+  it("never passes a pinned name on a status a user posted", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [makeStatus({ creatorType: "User" })],
+    });
+
+    expect(unmet).toMatchObject([{ missing: ["build"] }]);
+  });
+
+  it("holds a pinned name with no run as missing while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: [],
+        running: [],
+        missing: ["build"],
+        permissionMissing: true,
+      },
+    ]);
   });
 
   it("holds a pinned name as missing when the run read was refused", () => {

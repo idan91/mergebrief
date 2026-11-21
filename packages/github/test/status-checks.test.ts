@@ -154,12 +154,12 @@ describe("listCommitStatuses", () => {
         {
           context: "Unblocked Review",
           state: "success",
-          creator: { id: 98133410 },
+          creator: { id: 98133410, type: "Bot" },
         },
         {
           context: "Unblocked Review",
           state: "pending",
-          creator: { id: 98133410 },
+          creator: { id: 98133410, type: "Robot" },
         },
         { context: "deploy", state: "error", creator: null },
       ],
@@ -170,7 +170,12 @@ describe("listCommitStatuses", () => {
     expect(result).toEqual({
       ok: true,
       value: [
-        { context: "Unblocked Review", state: "success", creatorId: 98133410n },
+        {
+          context: "Unblocked Review",
+          state: "success",
+          creatorId: 98133410n,
+          creatorType: "Bot",
+        },
         { context: "Unblocked Review", state: "pending", creatorId: 98133410n },
         { context: "deploy", state: "error" },
       ],

@@ -1,7 +1,9 @@
 import {
   CheckRunConclusions,
   CommitStatusStates,
+  GitHubAccountTypes,
   type CheckRun,
+  type CommitStatus,
   type CommitStatusState,
   type RequiredStatusCheck,
 } from "github";
@@ -60,28 +62,38 @@ function listLatestOutcomes(
   return outcomes;
 }
 
-/** GitHub counts only the pinned App's runs for a pinned check, never a status. */
+function isBotStatus(status: CommitStatus, name: string): boolean {
+  return (
+    status.context === name && status.creatorType === GitHubAccountTypes.BOT
+  );
+}
+
+/**
+ * A pin names the App that must provide the check, by a run or a status. A
+ * run is told by its App; a status shows only that an App's bot posted it,
+ * so another App's bot posting the name passes too. A user's status never
+ * counts.
+ */
 function listPinnedOutcomes(
   reports: HeadReports,
   name: string,
   appId: bigint,
 ): CheckOutcome[] {
+  const outcomes: CheckOutcome[] = [];
   const appRuns = reports.checkRuns.filter((run) => run.appId === appId);
   const run = findLatestRun(appRuns, name);
-  if (run === undefined) {
-    return [];
+  if (run !== undefined) {
+    outcomes.push(readRunOutcome(run));
   }
-  return [readRunOutcome(run)];
+  const status = reports.statuses.find((listed) => isBotStatus(listed, name));
+  if (status !== undefined) {
+    outcomes.push(STATUS_OUTCOMES[status.state]);
+  }
+  return outcomes;
 }
 
-/** A pinned check reads only check runs; any other reads both sources. */
-function isReadRefused(
-  reports: HeadReports,
-  check: RequiredStatusCheck,
-): boolean {
-  if (check.appId !== undefined) {
-    return reports.checkRunsForbidden;
-  }
+/** Any check, pinned or not, may report through either source. */
+function isReadRefused(reports: HeadReports): boolean {
   return reports.checkRunsForbidden || reports.statusesForbidden;
 }
 
@@ -112,7 +124,7 @@ function readCheckOutcome(
       ? listLatestOutcomes(reports, check.context)
       : listPinnedOutcomes(reports, check.context, check.appId);
   const outcome = combineOutcomes(outcomes);
-  if (outcome === CheckOutcomes.PASSED && isReadRefused(reports, check)) {
+  if (outcome === CheckOutcomes.PASSED && isReadRefused(reports)) {
     return CheckOutcomes.MISSING;
   }
   return outcome;
@@ -160,7 +172,7 @@ export function checkCi({
       failed,
       running,
       missing,
-      permissionMissing: checks.some((check) => isReadRefused(reports, check)),
+      permissionMissing: isReadRefused(reports),
     },
   ];
 }
