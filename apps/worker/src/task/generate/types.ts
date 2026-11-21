@@ -95,6 +95,8 @@ export interface GenerateTaskDeps {
   readonly jiraTransport?: JiraTransport;
   /** The instance's `siblingRepos`; absent means off: an installation job reads its own repo and `issuesRepo` only. */
   readonly siblingRepos?: boolean;
+  /** Pauses before each in-run retry of a transient `settings.yaml` read; absent means `SETTINGS_READ_RETRY_DELAYS_MS`. */
+  readonly settingsReadRetryDelaysMs?: readonly number[];
   /** The instance's trigger conditions; absent means none, so only a repo's own hold a push. */
   readonly triggerConditions?: TriggerConditionsBlock | undefined;
   /** The revision-narrative gate main.ts read; absent means enabled. */
