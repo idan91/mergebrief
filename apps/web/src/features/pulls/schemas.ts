@@ -13,9 +13,9 @@ import {
   BotVerdicts,
   ReviewBots,
   SizeBoundSides,
-  SizeCounts,
+  SizeMeasures,
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   UnmetConditionKinds,
 } from "types/trigger-conditions";
 
@@ -74,7 +74,7 @@ function liftErrorParams(value: unknown): unknown {
   return lifted;
 }
 
-const triggerConditionSourceSchema = z.enum(TriggerConditionSources);
+const triggerConditionSetterSchema = z.enum(TriggerConditionSetters);
 const configuredNamesSchema = z.array(z.string()).readonly();
 
 /** One unmet condition; a kind, bot, state or count this bundle predates fails the item. */
@@ -82,26 +82,26 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal(TriggerConditionKinds.READY_FOR_REVIEW),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.NEVER),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.REVIEW_REQUESTED),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.SIZE),
-      source: triggerConditionSourceSchema,
-      count: z.enum(SizeCounts),
+      setBy: triggerConditionSetterSchema,
+      measure: z.enum(SizeMeasures),
       side: z.enum(SizeBoundSides),
       limit: z.number(),
       actual: z.number(),
@@ -110,21 +110,21 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal(TriggerConditionKinds.LABELS),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       labels: configuredNamesSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.TITLE_KEYWORDS),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       keywords: configuredNamesSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       base: z.string(),
       branches: configuredNamesSchema,
     })
@@ -132,14 +132,14 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal(TriggerConditionKinds.PATHS),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       paths: configuredNamesSchema,
     })
     .readonly(),
   z
     .object({
       kind: z.literal(TriggerConditionKinds.BOTS),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       bot: z.enum(ReviewBots),
       verdict: buildOpenEnumSchema(BotVerdicts),
       state: z.enum(BotStates),
@@ -149,7 +149,7 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal(TriggerConditionKinds.CI),
-      source: triggerConditionSourceSchema,
+      setBy: triggerConditionSetterSchema,
       failed: configuredNamesSchema,
       running: configuredNamesSchema,
       missing: configuredNamesSchema,

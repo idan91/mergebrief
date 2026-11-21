@@ -28,10 +28,10 @@ import {
   ReviewCommentSides,
   ReviewVerdictStates,
   SizeBoundSides,
-  SizeCounts,
+  SizeMeasures,
   ThreadSubjectTypes,
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   UnmetConditionKinds,
 } from "types";
 
@@ -185,11 +185,11 @@ const heldGeneration: GenerationSummaryView = {
   unmetConditions: [
     {
       kind: TriggerConditionKinds.READY_FOR_REVIEW,
-      source: TriggerConditionSources.INSTANCE,
+      setBy: TriggerConditionSetters.INSTANCE,
     },
     {
       kind: TriggerConditionKinds.CI,
-      source: TriggerConditionSources.REPO,
+      setBy: TriggerConditionSetters.REPO,
       failed: [],
       running: ["typecheck", "unit"],
       missing: [],
@@ -200,15 +200,15 @@ const heldGeneration: GenerationSummaryView = {
       conditions: [
         {
           kind: TriggerConditionKinds.BOTS,
-          source: TriggerConditionSources.REPO,
+          setBy: TriggerConditionSetters.REPO,
           bot: ReviewBots.CODERABBIT,
           verdict: BotVerdicts.APPROVED,
           state: BotStates.NOT_APPROVED,
         },
         {
           kind: TriggerConditionKinds.SIZE,
-          source: TriggerConditionSources.REPO,
-          count: SizeCounts.CHANGED_LINES,
+          setBy: TriggerConditionSetters.REPO,
+          measure: SizeMeasures.CHANGED_LINES,
           side: SizeBoundSides.MAX,
           limit: HELD_SIZE_LIMIT,
           actual: HELD_SIZE_ACTUAL,
@@ -255,14 +255,14 @@ const heldBehindGeneration: GenerationSummaryView = {
   unmetConditions: [
     {
       kind: TriggerConditionKinds.BOTS,
-      source: TriggerConditionSources.REPO,
+      setBy: TriggerConditionSetters.REPO,
       bot: ReviewBots.CODERABBIT,
       verdict: BotVerdicts.FINISHED,
       state: BotStates.RUNNING,
     },
     {
       kind: TriggerConditionKinds.LABELS,
-      source: TriggerConditionSources.INSTANCE,
+      setBy: TriggerConditionSetters.INSTANCE,
       labels: ["needs-brief"],
     },
   ],
