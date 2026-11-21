@@ -1,8 +1,10 @@
 // The DB-brief route's body: one polite live region announcing state swaps
-// and revision selection, then the state switch. All state cards are
-// presentational; the announcement is owned here.
+// and revision selection, one for the outcome of a card's action, then the
+// state switch. All state cards are presentational; the announcements are
+// owned here.
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { useAnnouncer } from "@web/hooks/useAnnouncer";
 import type { BriefAddressPort } from "@web/features/brief";
 import type { BriefSearchParams } from "@web/features/brief/model";
 import type { ThreadRevisionJump } from "@web/features/conversation";
@@ -126,6 +128,11 @@ export interface PrBriefBodyProps {
   revisionPending?: boolean | undefined;
 }
 
+interface PrBriefBodyStateProps extends PrBriefBodyProps {
+  /** The page's action region, which outlives the card that spoke. */
+  onAnnounce: (message: string) => void;
+}
+
 function PrBriefBodyState({
   repoId,
   prNumber,
@@ -144,7 +151,8 @@ function PrBriefBodyState({
   conversationFilter,
   onConversationFilterChange,
   revisionPending,
-}: PrBriefBodyProps) {
+  onAnnounce,
+}: PrBriefBodyStateProps) {
   const { t } = useTranslation();
   const policyNotice = metaPolicyNotice(t, meta);
   const supersededStop = readSupersededStop(meta);
@@ -230,6 +238,7 @@ function PrBriefBodyState({
             unmetConditions={state.unmetConditions}
             unmetConditionsPartial={state.unmetConditionsPartial}
             viewerCanPush={meta.viewerCanPush}
+            onAnnounce={onAnnounce}
           />
         </main>
       );
@@ -262,6 +271,7 @@ function PrBriefBodyState({
 export function PrBriefBody(props: PrBriefBodyProps) {
   const { state, meta, timeline, readOnly, staleHead } = props;
   const { t } = useTranslation();
+  const actions = useAnnouncer();
   const announcesRevision = timeline !== undefined && state.kind === "render";
   const announcement = announcesRevision
     ? timelineAnnouncement(t, timeline, readOnly === undefined)
@@ -279,7 +289,15 @@ export function PrBriefBody(props: PrBriefBodyProps) {
       >
         {announcement}
       </span>
-      <PrBriefBodyState {...props} />
+      <span
+        aria-atomic="true"
+        aria-live="polite"
+        className="sr-only"
+        role="status"
+      >
+        {actions.text}
+      </span>
+      <PrBriefBodyState {...props} onAnnounce={actions.announce} />
     </>
   );
 }

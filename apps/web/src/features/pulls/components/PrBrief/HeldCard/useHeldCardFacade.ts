@@ -14,6 +14,7 @@ export function useHeldCardFacade({
   prNumber,
   unmetConditions,
   unmetConditionsPartial,
+  onAnnounce,
   viewerCanPush,
   appInstalled,
   prState,
@@ -29,6 +30,7 @@ export function useHeldCardFacade({
     repoId,
     prNumber,
     on: generateEveryPush,
+    announce: onAnnounce,
   });
 
   const offersGenerate = readOffersTrigger({

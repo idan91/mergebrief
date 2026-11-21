@@ -38,6 +38,7 @@ const BASE_PROPS: HeldCardProps = {
     makeAnyGroup(UnmetFixtures.BOT_NOT_APPROVED, UnmetFixtures.SIZE_OVER),
   ],
   unmetConditionsPartial: false,
+  onAnnounce: () => undefined,
   viewerCanPush: true,
   appInstalled: true,
   prState: "open",
@@ -224,8 +225,13 @@ describe("HeldCard", () => {
   it("releases the held head and refreshes the meta read", async () => {
     answerApiFetch(apiFetchMock, 202);
     const client = stubQueryClient();
-    const invalidate = vi.spyOn(client, "invalidateQueries");
-    renderCard({}, client);
+    const onAnnounce = vi.fn();
+    const view = renderCard({ onAnnounce }, client);
+    const invalidate = vi
+      .spyOn(client, "invalidateQueries")
+      .mockImplementation(async () => {
+        view.rerender(<></>);
+      });
 
     fireEvent.click(screen.getByRole("button", { name: GENERATE }));
 
@@ -299,8 +305,13 @@ describe("HeldCard", () => {
       }),
     );
     const client = stubQueryClient();
-    const invalidate = vi.spyOn(client, "invalidateQueries");
-    renderCard({}, client);
+    const onAnnounce = vi.fn();
+    const view = renderCard({ onAnnounce }, client);
+    const invalidate = vi
+      .spyOn(client, "invalidateQueries")
+      .mockImplementation(async () => {
+        view.rerender(<></>);
+      });
 
     fireEvent.click(readEveryPushBox());
     fireEvent.click(readEveryPushBox());
@@ -318,7 +329,7 @@ describe("HeldCard", () => {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: META_KEY });
     });
     await waitFor(() => {
-      expect(readStatusLines()).toContain(
+      expect(onAnnounce).toHaveBeenCalledWith(
         "Every push on this pull request now generates a brief.",
       );
     });
@@ -326,13 +337,19 @@ describe("HeldCard", () => {
 
   it("unticks the box and says why when the write is refused", async () => {
     answerApiFetch(apiFetchMock, 404, "not-found");
-    renderCard();
+    const onAnnounce = vi.fn();
+    renderCard({ onAnnounce });
 
     fireEvent.click(readEveryPushBox());
 
+    const refusal =
+      "Changing this needs push access to this repository and the MergeBrief App installed on it.";
     await waitFor(() => {
-      expect(readStatusLines()).toContain(
-        "Changing this needs push access to this repository and the MergeBrief App installed on it.",
+      expect(onAnnounce).toHaveBeenCalledWith(refusal);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("held-every-push").textContent).toContain(
+        refusal,
       );
     });
     expect(readEveryPushBox().checked).toBe(false);
@@ -340,7 +357,8 @@ describe("HeldCard", () => {
 
   it("turns every push off from a ticked box", async () => {
     answerApiFetch(apiFetchMock, 204);
-    renderCard({ generateEveryPush: true });
+    const onAnnounce = vi.fn();
+    renderCard({ generateEveryPush: true, onAnnounce });
 
     fireEvent.click(readEveryPushBox());
 
@@ -349,7 +367,7 @@ describe("HeldCard", () => {
       { method: "POST" },
     );
     await waitFor(() => {
-      expect(readStatusLines()).toContain(
+      expect(onAnnounce).toHaveBeenCalledWith(
         "Pushes on this pull request wait for their conditions again.",
       );
     });
