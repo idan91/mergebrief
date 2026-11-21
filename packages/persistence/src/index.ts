@@ -291,8 +291,8 @@ export type {
 
 // A held head's stored unmet conditions, read back for the api.
 export {
-  UnmetConditionsSchema,
   parseUnmetConditions,
+  type StoredUnmetConditions,
 } from "./stores/unmet-conditions";
 // The `generation` status-projection write helpers.
 export {
