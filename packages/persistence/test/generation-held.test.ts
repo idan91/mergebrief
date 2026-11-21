@@ -133,6 +133,22 @@ describe("markHeld", () => {
     expect(row?.errorCode).toBeNull();
   });
 
+  it("keeps a head that failed in a way a rerun cannot help", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_CUT,
+    });
+
+    const held = await gen.markHeld(target, UNMET);
+
+    expect(held.ok).toBe(false);
+    const row = await gen.get(target);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
+  });
+
   it("holds a head a transient settings read left failed", async () => {
     const triggered = await trigger();
     const gen = createGenerationProjection(shared.handle, GATE_CTX);
@@ -589,5 +605,36 @@ describe("recheckCurrentHead", () => {
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(0);
+  });
+});
+
+describe("a claim on a failure a rerun cannot help", () => {
+  it("is refused and writes nothing", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_SECRET,
+    });
+    const before = await gen.get(target);
+
+    const claiming = claimTestRun(gen, target);
+
+    await expect(claiming).rejects.toThrow(ClaimOutcomes.HOPELESS);
+    expect(await gen.get(target)).toEqual(before);
+  });
+
+  it("goes through once a trigger projects the head again", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_CUT,
+    });
+    await trigger();
+
+    const runId = await claimTestRun(gen, target);
+
+    expect((await gen.get(target))?.runId).toBe(runId);
   });
 });

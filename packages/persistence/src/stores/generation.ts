@@ -16,6 +16,7 @@ import {
   getTableColumns,
   gte,
   inArray,
+  isNotNull,
   isNull,
   lt,
   ne,
@@ -60,6 +61,8 @@ import {
   type PullRequestRowId,
 } from "../types";
 import {
+  GenerationFailureClassByCode,
+  GenerationFailureClasses,
   GenerationFailureCodes,
   GenerationStatuses,
   QueueTasks,
@@ -251,6 +254,7 @@ export type ClaimRunOutcome =
   | CappedClaim
   | { readonly kind: typeof ClaimOutcomes.FINISHED }
   | { readonly kind: typeof ClaimOutcomes.AWAITING_TRIGGER }
+  | { readonly kind: typeof ClaimOutcomes.HOPELESS }
   | ExhaustedClaim;
 
 /** The row's end a refused claim wrote under the row lock, so no trigger lands between the refusal and the end. */
@@ -798,6 +802,32 @@ const CLAIM_CLEARED = {
  * whose retry would otherwise skip the author gate, a held head, which a new
  * push leaves stored as it is, and a head whose brief is stored.
  */
+/** A rerun of a failure with one of these codes fails the same way and still spends. */
+export function isHopelessFailure(
+  errorCode: GenerationFailureCode | null,
+): boolean {
+  if (errorCode === null) {
+    return false;
+  }
+  const failureClass = GenerationFailureClassByCode[errorCode];
+  return failureClass === GenerationFailureClasses.CANNOT_HELP;
+}
+
+const HOPELESS_FAILURE_CODES = Object.values(GenerationFailureCodes).filter(
+  (code) => isHopelessFailure(code),
+);
+
+/** A failed row whose code `isHopelessFailure` names. */
+function isHopelessFailedRow(): SQL {
+  return (
+    and(
+      eq(generation.status, GenerationStatuses.FAILED),
+      isNotNull(generation.errorCode),
+      inArray(generation.errorCode, HOPELESS_FAILURE_CODES),
+    ) ?? sql`false`
+  );
+}
+
 const KEPT_STATUSES: readonly GenerationStatus[] = [
   GenerationStatuses.AWAITING_TRIGGER,
   GenerationStatuses.HELD,
@@ -1289,6 +1319,7 @@ export function createGenerationProjection(
           GenerationStatuses.HELD,
           GenerationStatuses.FAILED,
         ]),
+        not(isHopelessFailedRow()),
         isNull(generation.generateRequestedAt),
       );
       const marked = await transition(
@@ -1483,6 +1514,12 @@ export function createGenerationProjection(
     }
     if (current.status === GenerationStatuses.AWAITING_TRIGGER) {
       return { ok: true, value: { kind: ClaimOutcomes.AWAITING_TRIGGER } };
+    }
+    const hopeless =
+      current.status === GenerationStatuses.FAILED &&
+      isHopelessFailure(current.errorCode);
+    if (hopeless) {
+      return { ok: true, value: { kind: ClaimOutcomes.HOPELESS } };
     }
     if (current.leaseLive) {
       return {
