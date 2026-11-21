@@ -3,8 +3,10 @@ import type { ValueOf } from "./utils";
 /**
  * `superseded` = a mid-call generation aborted because the PR head advanced;
  * `capped` = a skip because the instance hit its daily generation cap;
- * `awaiting-trigger` = held until a collaborator approves the PR's runs.
+ * `awaiting-trigger` = waiting until a collaborator approves the PR's runs.
  * None is a failure; each is terminal and consumes no attempt.
+ * `held` = a trigger condition is unmet; not terminal: it generates by
+ * itself once every condition passes, or now on a Generate click.
  */
 export const GenerationStatuses = {
   PENDING: "pending",
@@ -14,6 +16,7 @@ export const GenerationStatuses = {
   SUPERSEDED: "superseded",
   CAPPED: "capped",
   AWAITING_TRIGGER: "awaiting-trigger",
+  HELD: "held",
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 
