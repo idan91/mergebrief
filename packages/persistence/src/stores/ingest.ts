@@ -696,13 +696,14 @@ export interface IngestRoutines {
    */
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
-   * `recheckCurrentHead` for every open PR in the repository whose current
-   * head is the SHA, by the same rule, for a status check that names a commit and no
-   * PR; a held head wakes only while a `bots` or `ci` item holds it, the only
-   * kinds a report can move. Each PR is locked in id order and read again under its lock; a head
-   * the PR has pushed past, another repository's or installation's PR and an
-   * owner scope queue nothing. The job runs `STATUS_CHECK_RECHECK_DELAY_SECONDS`
-   * out, so a CI run's burst of reports collapses into one re-check.
+   * `recheckCurrentHead` for every open PR in the repository whose current head
+   * is the SHA, by the same rule, for a status check that names a commit and no
+   * PR; a held head no run holds wakes only while a `bots` or `ci` item holds
+   * it, the only kinds a report can move. Each PR is locked in id order and
+   * read again under its lock; a head the PR has pushed past, another
+   * repository's or installation's PR and an owner scope queue nothing. The job
+   * runs `STATUS_CHECK_RECHECK_DELAY_SECONDS` out, so a CI run's burst of
+   * reports collapses into one re-check.
    */
   recheckHeadsAtSha(
     input: RecheckHeadsAtShaInput,
