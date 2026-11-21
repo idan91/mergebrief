@@ -1,12 +1,5 @@
 import type { ValueOf } from "types/utils";
 
-/** A commit in one repository, by SHA or branch name. */
-export interface CommitRef {
-  readonly owner: string;
-  readonly repo: string;
-  readonly ref: string;
-}
-
 export interface BranchRef {
   readonly owner: string;
   readonly repo: string;

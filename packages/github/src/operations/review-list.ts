@@ -5,7 +5,7 @@ import {
   type ReviewVerdictState,
 } from "types/conversation";
 import type { Mutable, Result } from "types/utils";
-import { safeIdSchema } from "../ids";
+import { positiveBigIntSchema } from "../ids";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -26,9 +26,9 @@ export interface SubmittedReview {
 }
 
 const reviewEntrySchema = z.object({
-  id: safeIdSchema,
+  id: positiveBigIntSchema,
   state: z.string(),
-  user: z.object({ id: safeIdSchema }).nullish(),
+  user: z.object({ id: positiveBigIntSchema }).nullish(),
   commit_id: z.string().nullish(),
 });
 const submittedStateSchema = z.enum(ReviewVerdictStates);
@@ -59,11 +59,11 @@ function shapeSubmittedReview(
   state: ReviewVerdictState,
 ): SubmittedReview {
   const review: Mutable<SubmittedReview> = {
-    reviewId: BigInt(entry.id),
+    reviewId: entry.id,
     state,
   };
-  if (typeof entry.user?.id === "number") {
-    review.authorId = BigInt(entry.user.id);
+  if (entry.user?.id !== undefined) {
+    review.authorId = entry.user.id;
   }
   if (typeof entry.commit_id === "string") {
     review.commitId = entry.commit_id;

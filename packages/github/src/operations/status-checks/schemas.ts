@@ -1,15 +1,15 @@
 import { z } from "zod/v4";
 
-import { safeIdSchema } from "../../ids";
+import { positiveBigIntSchema } from "../../ids";
 import { CommitStatusStates } from "./types";
 
 export const checkRunListSchema = z.array(
   z.object({
-    id: safeIdSchema,
+    id: positiveBigIntSchema,
     name: z.string(),
     status: z.string(),
     conclusion: z.string().nullish(),
-    app: z.object({ id: safeIdSchema }).nullish(),
+    app: z.object({ id: positiveBigIntSchema }).nullish(),
     output: z
       .object({ title: z.string().nullish(), text: z.string().nullish() })
       .nullish(),
@@ -20,7 +20,7 @@ export const commitStatusListSchema = z.array(
   z.object({
     context: z.string(),
     state: z.enum(CommitStatusStates),
-    creator: z.object({ id: safeIdSchema }).nullish(),
+    creator: z.object({ id: positiveBigIntSchema }).nullish(),
   }),
 );
 

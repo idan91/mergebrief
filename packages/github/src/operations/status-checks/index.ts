@@ -13,7 +13,8 @@ import {
   commitStatusListSchema,
   requiredStatusChecksParametersSchema,
 } from "./schemas";
-import type { BranchRef, CheckRun, CommitRef, CommitStatus } from "./types";
+import type { CommitRef } from "../pull-request/types";
+import type { BranchRef, CheckRun, CommitStatus } from "./types";
 
 const PER_PAGE = 100;
 const COMPLETED_STATUS = "completed";
@@ -27,12 +28,12 @@ type CommitStatusEntry = z.infer<typeof commitStatusListSchema>[number];
 function shapeCheckRun(entry: CheckRunEntry): CheckRun {
   const completed = entry.status === COMPLETED_STATUS;
   const run: Mutable<CheckRun> = {
-    checkRunId: BigInt(entry.id),
+    checkRunId: entry.id,
     name: entry.name,
     completed,
   };
-  if (typeof entry.app?.id === "number") {
-    run.appId = BigInt(entry.app.id);
+  if (entry.app?.id !== undefined) {
+    run.appId = entry.app.id;
   }
   if (completed && typeof entry.conclusion === "string") {
     run.conclusion = entry.conclusion;
@@ -51,8 +52,8 @@ function shapeCommitStatus(entry: CommitStatusEntry): CommitStatus {
     context: entry.context,
     state: entry.state,
   };
-  if (typeof entry.creator?.id === "number") {
-    status.creatorId = BigInt(entry.creator.id);
+  if (entry.creator?.id !== undefined) {
+    status.creatorId = entry.creator.id;
   }
   return status;
 }
