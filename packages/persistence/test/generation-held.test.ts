@@ -6,6 +6,8 @@ import {
   createGenerationProjection,
   createIngestRoutines,
   GenerationErrorCodes,
+  isGrantRowId,
+  isReviewerId,
   parseUnmetConditions,
   TriggerOnDemandOutcomes,
 } from "../src/index";
@@ -21,6 +23,7 @@ import {
   GATE_HEAD_SHA,
   GATE_REPO_ID,
   GATE_REVIEWER,
+  brandWith,
   countQueuedJobs,
   makeBriefTarget,
   registerSharedPglite,
@@ -547,6 +550,46 @@ describe("recheckCurrentHead", () => {
     );
 
     const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("queues nothing once the pull request is closed", async () => {
+    const { pullRequestId, gen, target } = await seedHeldHead();
+    await clearQueue();
+    await shared.harness.raw("update pull_request set state = 'closed'");
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+    expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues nothing under an owner scope", async () => {
+    const ownerCtx = { ownerUserId: brandWith(isReviewerId, 555n) };
+    const ingest = createIngestRoutines(shared.handle, ownerCtx);
+    const recorded = await ingest.recordState({
+      repoId: GATE_REPO_ID,
+      prNumber: 9,
+      state: PrStates.OPEN,
+    });
+    const pullRequestId = recorded.pullRequest.id;
+    await createGenerationProjection(shared.handle, ownerCtx).upsertPending(
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+    );
+    await ingest.requeueGenerateJob({
+      pullRequestId,
+      headSha: GATE_HEAD_SHA,
+      grantId: brandWith(isGrantRowId, 9n),
+      delaySeconds: 0,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await ingest.recheckCurrentHead({ pullRequestId });
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(1);
