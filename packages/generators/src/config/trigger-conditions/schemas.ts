@@ -63,6 +63,9 @@ const botsSchema = z
   .refine((bots) => bots[ReviewBots.CLAUDE] !== BotVerdicts.APPROVED, {
     error: "claude never approves a pull request; use finished or clean",
   })
+  .refine((bots) => bots[ReviewBots.COPILOT] !== BotVerdicts.APPROVED, {
+    error: "copilot only comments on a pull request; use finished",
+  })
   .refine(
     (bots) =>
       Object.entries(bots).every(

@@ -90,6 +90,9 @@ describe("parsing a triggerConditions block", () => {
     expect(
       issuesOf(parseRepoTriggerConditions({ bots: { greptile: "clean" } })),
     ).not.toEqual([]);
+    expect(
+      issuesOf(parseRepoTriggerConditions({ bots: { copilot: "approved" } })),
+    ).not.toEqual([]);
   });
 
   it("refuses a bot outside the supported list without echoing its name", () => {
