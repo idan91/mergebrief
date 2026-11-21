@@ -65,6 +65,8 @@ function arrangeSources(
         changedFiles: 1,
         additions: 8,
         deletions: 2,
+        labels: [],
+        pendingReviewRequests: 0,
         authorLogin: "octocat",
         authorIsBot: false,
         closedAt: null,

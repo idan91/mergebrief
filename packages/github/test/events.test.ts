@@ -237,6 +237,68 @@ describe("parseWebhookEvent, pull_request", () => {
     expect(opened.baseChanged).toBeUndefined();
   });
 
+  it.each([
+    ["labeled", PullRequestActions.LABELED],
+    ["unlabeled", PullRequestActions.UNLABELED],
+    ["review_request_removed", PullRequestActions.REVIEW_REQUEST_REMOVED],
+  ])("parses a %s delivery as its action", (rawAction, action) => {
+    const fixture = jsonFixture("pull_request.review_requested.json");
+    if (!isRecord(fixture)) {
+      throw new Error("fixture is not an object");
+    }
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: { ...fixture, action: rawAction },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.action).toBe(action);
+    expect(event.prNumber).toBe(2);
+    expect(event.headSha).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
+  });
+
+  it("marks an edit that changed the title and only that edit", () => {
+    const fixture = jsonFixture("pull_request.edited.json");
+    if (!isRecord(fixture)) {
+      throw new Error("fixture is not an object");
+    }
+    const retitled = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: { ...fixture, changes: { title: { from: "Old title" } } },
+      }),
+    );
+    if (retitled.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(retitled.titleChanged).toBe(true);
+
+    const moved = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: fixture,
+      }),
+    );
+    if (moved.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(moved.titleChanged).toBe(false);
+
+    const opened = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: jsonFixture("pull_request.opened.json"),
+      }),
+    );
+    if (opened.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(opened.titleChanged).toBeUndefined();
+  });
+
   it("exposes merged only on closed", () => {
     const closed = expectOk(
       parseWebhookEvent({
@@ -458,7 +520,7 @@ describe("parseWebhookEvent, pull_request", () => {
     const event = expectOk(
       parseWebhookEvent({
         eventName: "pull_request",
-        payload: { action: "labeled", number: 2 },
+        payload: { action: "assigned", number: 2 },
       }),
     );
     expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
@@ -466,7 +528,7 @@ describe("parseWebhookEvent, pull_request", () => {
       return;
     }
     expect(event.eventName).toBe("pull_request");
-    expect(event.action).toBe("labeled");
+    expect(event.action).toBe("assigned");
   });
 
   it("returns an error on a malformed handled payload", () => {

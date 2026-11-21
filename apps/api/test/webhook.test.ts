@@ -871,6 +871,146 @@ describe("POST /api/webhooks/github", () => {
     ]);
   });
 
+  describe("events that change a fact a trigger condition reads", () => {
+    const TITLE_CHANGED = { title: { from: "Old title" } };
+    const FACT_EVENTS: ReadonlyArray<
+      readonly [string, Parameters<typeof pullRequestPayload>[0]]
+    > = [
+      ["labeled", { action: "labeled" }],
+      ["unlabeled", { action: "unlabeled" }],
+      ["review_request_removed", { action: "review_request_removed" }],
+      ["a retitle", { action: "edited", changes: TITLE_CHANGED }],
+    ];
+
+    /** Open the PR and clear its job; `held` marks the head held. */
+    async function openHead(held: boolean): Promise<void> {
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          updatedAt: "2026-09-20T10:00:00Z",
+        }),
+      );
+      await harness.raw("delete from graphile_worker.jobs");
+      if (held) {
+        await harness.raw(
+          `update generation set status = 'held', unmet_conditions = '[{"kind":"labels","setBy":"repo","labels":["needs-brief"]}]'`,
+        );
+      }
+    }
+
+    async function readJobHeads(): Promise<unknown[]> {
+      return harness.raw(
+        "select payload->>'head_sha' as head from graphile_worker.jobs",
+      );
+    }
+
+    it.each(FACT_EVENTS)(
+      "%s queues a held head's job",
+      async (_name, event) => {
+        await openHead(true);
+
+        const res = await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ ...event, updatedAt: "2026-09-20T10:05:00Z" }),
+        );
+
+        expect(res.status).toBe(200);
+        expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+        expect(await harness.raw("select status from generation")).toEqual([
+          { status: "held" },
+        ]);
+      },
+    );
+
+    it.each(FACT_EVENTS)(
+      "%s queues nothing for a head not held",
+      async (_name, event) => {
+        await openHead(false);
+
+        const res = await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ ...event, updatedAt: "2026-09-20T10:05:00Z" }),
+        );
+
+        expect(res.status).toBe(200);
+        expect(await readJobHeads()).toEqual([]);
+      },
+    );
+
+    it.each(FACT_EVENTS)(
+      "%s older than the stored row wakes nothing",
+      async (_name, event) => {
+        await openHead(true);
+
+        const res = await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ ...event, updatedAt: "2026-09-20T09:00:00Z" }),
+        );
+
+        expect(res.status).toBe(200);
+        expect(await readJobHeads()).toEqual([]);
+      },
+    );
+
+    it("records a retitle on the stored row", async () => {
+      await openHead(false);
+      await harness.raw("update pull_request set title = 'Old title'");
+
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "edited",
+          changes: TITLE_CHANGED,
+          updatedAt: "2026-09-20T10:05:00Z",
+        }),
+      );
+
+      expect(await harness.raw("select title from pull_request")).toEqual([
+        { title: "Update the README with new information." },
+      ]);
+    });
+
+    it("leaves a held head alone on an edit to the body alone", async () => {
+      await openHead(true);
+
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "edited",
+          changes: { body: { from: "Old body" } },
+          updatedAt: "2026-09-20T10:05:00Z",
+        }),
+      );
+
+      expect(await readJobHeads()).toEqual([]);
+    });
+
+    it("review_requested queues a held head's job and keeps it held", async () => {
+      await openHead(true);
+
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "review_requested",
+          updatedAt: "2026-09-20T10:05:00Z",
+        }),
+      );
+
+      expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+      expect(await harness.raw("select status from generation")).toEqual([
+        { status: "held" },
+      ]);
+    });
+  });
+
   it("a second event for one head keeps one attempt and the job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
@@ -2291,11 +2431,11 @@ describe("POST /api/webhooks/github", () => {
     });
   });
 
-  it("200s ignored pull_request labeled events without writes", async () => {
+  it("200s ignored pull_request assigned events without writes", async () => {
     const res = await deliver(
       app,
       "pull_request",
-      pullRequestPayload({ action: "labeled" }),
+      pullRequestPayload({ action: "assigned" }),
     );
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(0);
@@ -2708,7 +2848,7 @@ describe("webhook delivery dedup", () => {
     await deliver(
       app,
       "pull_request",
-      pullRequestPayload({ action: "labeled" }),
+      pullRequestPayload({ action: "assigned" }),
     );
 
     expect(await countRows(harness, "webhook_delivery")).toBe(0);

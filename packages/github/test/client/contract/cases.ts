@@ -59,6 +59,8 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
       changedFiles: 1,
       additions: 8,
       deletions: 2,
+      labels: ["needs-brief"],
+      pendingReviewRequests: 1,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,
