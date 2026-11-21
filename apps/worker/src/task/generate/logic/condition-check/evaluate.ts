@@ -127,25 +127,28 @@ function checkSize(
 }
 
 /**
- * A bot's review is a tool's, the author's own is no reviewer's, and on a
- * public repository anyone may review, so only the team's review counts.
- * The api's permission read for an untrusted association is not made here.
+ * A bot's review is a tool's and the author's own is no reviewer's. Only
+ * invited people see a private repository, so any other review there counts;
+ * elsewhere only a trusted association does. The api's permission read for
+ * an untrusted one is not made here: its review webhook stamps that reviewer.
  */
 function isTeamReview(review: SubmittedReview, facts: ConditionFacts): boolean {
   if (review.authorType === GitHubAccountTypes.BOT) {
     return false;
   }
-  const association = review.authorAssociation;
-  if (association === undefined) {
-    return false;
-  }
-  if (!TRUSTED_AUTHOR_ASSOCIATIONS.has(association)) {
-    return false;
-  }
   const byAuthor =
     review.authorLogin !== undefined &&
     review.authorLogin === facts.authorLogin;
-  return !byAuthor;
+  if (byAuthor) {
+    return false;
+  }
+  if (facts.repoPrivate) {
+    return true;
+  }
+  const association = review.authorAssociation;
+  return (
+    association !== undefined && TRUSTED_AUTHOR_ASSOCIATIONS.has(association)
+  );
 }
 
 /** A pending request, or a team member's review after GitHub dropped theirs. */

@@ -136,7 +136,8 @@ webhook events (`packages/github/src/webhook/events.ts`):
   the repository is private (not internal), or otherwise when the review's
   `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`, or else when one
   bounded read of the reviewer's repository permission answers `write` or
-  `admin`. Then it triggers a generation so the delta from that checkpoint can
+  `admin`. Such a reviewer, unless they wrote the pull request, also stamps
+  its `review_requested_met_at`, so `reviewRequested` stays met. Then it triggers a generation so the delta from that checkpoint can
   be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
 - `check_run` (`completed`, or `created` already finished) and `status`
   (every state): wake the open pull requests in the repository whose current head is that commit, through persistence's `recheckHeadsAtSha`, which decides which heads it moves and queues their checks about a minute out, once per burst of reports. A fork pull request's run names no pull request and a status never does, so the commit SHA finds them. Nothing else is written.

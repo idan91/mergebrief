@@ -9,6 +9,7 @@ import {
   repoIdSchema,
   reviewerIdSchema,
 } from "../ids";
+import { isPrivateRepository } from "../operations/repo-visibility";
 import type { Mutable, Result, ValueOf } from "types/utils";
 import {
   CHECK_RUN_COMPLETED_STATUS,
@@ -428,15 +429,6 @@ function invalidPayload(
       issues: issuesFrom(error),
     },
   };
-}
-
-function isPrivateRepository(
-  repository: z.infer<typeof visibleRepositorySchema>,
-): boolean {
-  return (
-    repository.private &&
-    repository.visibility === RepositoryVisibilities.PRIVATE
-  );
 }
 
 function isBotAccount(

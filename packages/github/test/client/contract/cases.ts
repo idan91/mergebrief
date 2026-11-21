@@ -45,6 +45,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
     expected: {
       repoId: requireRepoId(4242n),
       repoFullName: "acme/widgets",
+      repoPrivate: false,
       headSha: HEAD_SHA,
       headRef: "feature",
       baseSha: BASE_SHA,

@@ -36,6 +36,8 @@ export interface ConditionFacts {
   readonly headSha: string;
   /** The branch the pull request targets directly; absent when GitHub named none. */
   readonly baseRef?: string;
+  /** Private and not internal, so every reviewer was invited. */
+  readonly repoPrivate: boolean;
   readonly labels: readonly string[];
   /** Absent when the author's account is gone; their own review never meets `reviewRequested`. */
   readonly authorLogin?: string | undefined;

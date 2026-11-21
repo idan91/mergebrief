@@ -143,6 +143,7 @@ function arrangePullRequest(
     info: {
       repoId: REPO_ID,
       repoFullName: "acme/widgets",
+      repoPrivate: false,
       headSha: HEAD_SHA,
       headRef: "feature",
       baseSha: BASE_SHA,

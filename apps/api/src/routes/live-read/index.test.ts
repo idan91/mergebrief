@@ -84,6 +84,7 @@ function makePullInfo(overrides?: Partial<PullRequestInfo>): PullRequestInfo {
   return {
     repoId: REPO,
     repoFullName: "o/r",
+    repoPrivate: false,
     headSha: HEAD,
     headRef: "feature",
     baseSha: "b".repeat(40),

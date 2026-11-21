@@ -32,6 +32,7 @@ const BASE_FACTS: ConditionFacts = {
   title: "Add widgets",
   headSha: HEAD,
   baseRef: "main",
+  repoPrivate: false,
   labels: [],
   authorLogin: "octocat",
   pendingReviewRequests: 0,

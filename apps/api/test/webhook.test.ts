@@ -222,6 +222,7 @@ function pullRequestReviewPayload(review?: {
   submittedAt?: string;
   userType?: string;
   userId?: number;
+  reviewerLogin?: string;
   authorAssociation?: string;
   visibility?: RepositoryVisibility;
   /** The PR author's `author_association`, not the reviewer's. */
@@ -246,7 +247,7 @@ function pullRequestReviewPayload(review?: {
       author_association: review?.authorAssociation ?? "COLLABORATOR",
       user: {
         id: review?.userId ?? 21031067,
-        login: "reviewer",
+        login: review?.reviewerLogin ?? "reviewer",
         type: review?.userType ?? "User",
       },
     },
@@ -305,6 +306,12 @@ async function countRows(
 // ---------------------------------------------------------------------------
 
 const harness = registerSharedPglite();
+
+async function readStamped(): Promise<unknown[]> {
+  return harness.raw(
+    "select review_requested_met_at is not null as stamped from pull_request",
+  );
+}
 
 describe("webhook deliveries by repository owner", () => {
   function buildApp(
@@ -1122,12 +1129,6 @@ describe("POST /api/webhooks/github", () => {
       expect(res.status).toBe(200);
     }
 
-    async function readStamped(): Promise<unknown[]> {
-      return harness.raw(
-        "select review_requested_met_at is not null as stamped from pull_request",
-      );
-    }
-
     it("stamps a request to a person, which a later removal keeps", async () => {
       await requestReview("User");
       await deliver(
@@ -1328,6 +1329,42 @@ describe("POST /api/webhooks/github", () => {
         expect(countPermissionReads()).toBe(1);
       },
     );
+
+    it("stamps reviewRequested on a CONTRIBUTOR reviewer with write", async () => {
+      fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "write");
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({ authorAssociation: "CONTRIBUTOR" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStamped()).toEqual([{ stamped: true }]);
+    });
+
+    it("leaves reviewRequested unstamped on the author's own review", async () => {
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({
+          reviewerLogin: "author-octocat",
+          authorAssociation: "OWNER",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(1);
+      expect(await readStamped()).toEqual([{ stamped: false }]);
+    });
+
+    it("leaves reviewRequested unstamped on a public repo read-only reviewer", async () => {
+      fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({ authorAssociation: "CONTRIBUTOR" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStamped()).toEqual([{ stamped: false }]);
+    });
 
     it.each([
       "CONTRIBUTOR",

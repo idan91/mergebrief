@@ -241,6 +241,7 @@ function readConditionFacts(
     draft: prInfo.draft,
     title: prInfo.title,
     headSha: prInfo.headSha,
+    repoPrivate: prInfo.repoPrivate,
     labels: prInfo.labels,
     authorLogin: prInfo.authorLogin ?? undefined,
     pendingReviewRequests: prInfo.pendingReviewRequests,

@@ -31,6 +31,7 @@ function makeGitHubWithPullRequest(
     info: {
       repoId: requireRepoId(4242n),
       repoFullName: "acme/widgets",
+      repoPrivate: false,
       headSha: HEAD_SHA,
       headRef: "feature",
       baseSha: "a".repeat(40),

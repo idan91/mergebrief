@@ -564,6 +564,11 @@ async function requiresTriggerApproval(
   return !onTeam;
 }
 
+/** The author's own review is no reviewer's, so it never meets `reviewRequested`. */
+function isAuthorReview(event: ParsedPullRequestReviewEvent): boolean {
+  return event.authorLogin === event.reviewerLogin;
+}
+
 async function handlePullRequestReview(
   deps: WebhookRouteDeps,
   ctx: TenantContext,
@@ -601,6 +606,9 @@ async function handlePullRequestReview(
       lastSubmittedSha: event.commitId,
       submittedAt: event.submittedAt,
     });
+  }
+  if (writesCheckpoint && !isAuthorReview(event)) {
+    await tenant.pullRequests.stampReviewRequestedMet(known.id);
   }
   // No window override: damping exists for WIP push storms, and a submitted
   // review is deliberate human engagement, its gap-filler regeneration
