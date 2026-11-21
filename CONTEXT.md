@@ -228,7 +228,7 @@ How a human reaches a computed **Brief**: one branded PR comment carrying a deep
 _Avoid_: activation (as "the click"), deep-link gate, draft-first (the former name for the opt-out, which was described as an opt-in)
 
 **Generation**:
-The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts, with the parts a large one claims, are what the **Daily cap** counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
+The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts, with the parts a large one claims, are what the **Daily cap** counts. A running Generation belongs to its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
 _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
 
 **Trusted author**:
@@ -244,7 +244,7 @@ A collaborator's one-time go-ahead for a PR whose author is not a **Trusted auth
 _Avoid_: authorization, consent
 
 **Claim**:
-The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles an unheld Generation as succeeded without one.
+The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles an unclaimed Generation as succeeded without one.
 _Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 
 **Claim limit**:
@@ -268,7 +268,7 @@ The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs*
 _Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:
-The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
+The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then locked by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
 _Avoid_: task, generation (the record), queued generation
 
 **Slot**:

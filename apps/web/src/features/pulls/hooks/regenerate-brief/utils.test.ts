@@ -15,7 +15,7 @@ describe("readRegenerateNotice", () => {
   });
 
   it("reads the wire copy for the two refusals", () => {
-    expect(readRegenerateNotice(t, RegenerateResultKinds.HELD)).toBe(
+    expect(readRegenerateNotice(t, RegenerateResultKinds.RUNNING)).toBe(
       "A brief is already generating for this push. It shows here when it finishes.",
     );
     expect(readRegenerateNotice(t, RegenerateResultKinds.NOT_REGENERABLE)).toBe(
@@ -44,7 +44,7 @@ describe("refreshesMeta", () => {
 
     expect(refreshing).toEqual([
       RegenerateResultKinds.QUEUED,
-      RegenerateResultKinds.HELD,
+      RegenerateResultKinds.RUNNING,
       RegenerateResultKinds.NOT_REGENERABLE,
     ]);
   });

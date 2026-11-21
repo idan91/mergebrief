@@ -30,7 +30,7 @@ setUpHarness();
 const OTHER_RUN_ID = "00000000-0000-4000-8000-000000000000";
 const LEASE_WAIT_MS = 4_000;
 const POLL_MS = 5;
-const HELD_LEASE_SECONDS = 120;
+const LIVE_LEASE_SECONDS = 120;
 const DELAY_BOUND_SECONDS = 30;
 
 async function lockJobs(): Promise<void> {
@@ -79,7 +79,7 @@ async function getBriefRow(
   );
 }
 
-async function holdRowForOtherRun(): Promise<void> {
+async function claimRowForOtherRun(): Promise<void> {
   await harness.raw(
     "update generation set status = 'running', run_id = $1, lease_expires_at = now() + interval '2 minutes'",
     [OTHER_RUN_ID],
@@ -163,7 +163,7 @@ describe("generate task, run claim", () => {
 
   it("a row another run holds is left as found and nothing is spent", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await lockJobs();
     const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(makeTarget(pr, HEAD_1));
@@ -184,13 +184,13 @@ describe("generate task, run claim", () => {
     expect(queued[0]?.["head"]).toBe(HEAD_1);
     expect(queued[0]?.["max_attempts"]).toBe(3);
     const delay = Number(queued[0]?.["delay"]);
-    expect(delay).toBeGreaterThan(HELD_LEASE_SECONDS);
-    expect(delay).toBeLessThan(HELD_LEASE_SECONDS + DELAY_BOUND_SECONDS);
+    expect(delay).toBeGreaterThan(LIVE_LEASE_SECONDS);
+    expect(delay).toBeLessThan(LIVE_LEASE_SECONDS + DELAY_BOUND_SECONDS);
   });
 
-  it("a held row with a job already queued queues nothing new", async () => {
+  it("a claimed row with a job already queued queues nothing new", async () => {
     const { payload } = await trigger(HEAD_1);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     const before = await harness.raw(
       "select id, key, run_at, locked_at from graphile_worker.jobs order by id",
     );
@@ -209,7 +209,7 @@ describe("generate task, run claim", () => {
     const inner = stubGenerator();
     const generator: Generator = {
       async generate<S extends z.ZodType>(): Promise<z.infer<S>> {
-        await holdRowForOtherRun();
+        await claimRowForOtherRun();
         throw makeConnectionError();
       },
       origin: (effort: Effort) => inner.origin(effort),
@@ -287,7 +287,7 @@ describe("generate task, run claim", () => {
 
   it("a lost claim stands the run down without writing the row", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const generator = stubHangingGenerator(holdRowForOtherRun);
+    const generator = stubHangingGenerator(claimRowForOtherRun);
 
     await expect(
       makeTask({ generator, headPollIntervalMs: POLL_MS })(payload),

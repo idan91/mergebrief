@@ -177,7 +177,7 @@ describe("AwaitingTriggerCard", () => {
   });
 
   it("refreshes and says so when a run already holds the head", async () => {
-    answerApiFetch(apiFetchMock, 409, "generation-held");
+    answerApiFetch(apiFetchMock, 409, "generation-running");
     const client = stubQueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries");
     renderCard({}, client);

@@ -15,8 +15,8 @@ export function throwRegenerateFailure(
   footing: AccessFooting,
 ): never {
   switch (failure.kind) {
-    case TriggerOnDemandOutcomes.HELD: {
-      throw new Conflict(ApiErrorCodes.GENERATION_HELD);
+    case TriggerOnDemandOutcomes.RUNNING: {
+      throw new Conflict(ApiErrorCodes.GENERATION_RUNNING);
     }
     case TriggerOnDemandOutcomes.NOT_REGENERABLE: {
       throw new Conflict(ApiErrorCodes.GENERATION_NOT_REGENERABLE);

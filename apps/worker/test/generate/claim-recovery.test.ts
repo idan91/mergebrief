@@ -63,7 +63,7 @@ async function countAttempts(): Promise<number> {
 
 const OTHER_RUN_ID = "00000000-0000-4000-8000-000000000000";
 
-async function holdRowForOtherRun(): Promise<void> {
+async function claimRowForOtherRun(): Promise<void> {
   await harness.raw(
     "update generation set status = 'running', run_id = $1, lease_expires_at = now() + interval '2 minutes'",
     [OTHER_RUN_ID],
@@ -137,7 +137,7 @@ async function leaveDeadHolderWithEntry(
   await expect(
     makeTask({ github, generator: failing })(triggered.payload),
   ).rejects.toThrow("Connection error");
-  await holdRowForOtherRun();
+  await claimRowForOtherRun();
   await leaveDeadHolder();
   return triggered;
 }
@@ -273,7 +273,7 @@ describe("generate task, claim recovery", () => {
 
   it("a retry beside a live holder over a stored brief waits, unpaid", async () => {
     const { pr, payload } = await storeBriefOwingDelta();
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     const generator = stubGenerator();
 
     await makeRecoveryTask({ generator })(payload, { job: SECOND_ATTEMPT });
@@ -291,7 +291,7 @@ describe("generate task, claim recovery", () => {
 
   it("a stored-brief run yields to a live claim and pays nothing", async () => {
     const { pr, payload } = await storeBriefOwingDelta();
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await harness.raw("update graphile_worker.jobs set locked_at = now()");
     const generator = stubGenerator();
 
@@ -311,7 +311,7 @@ describe("generate task, claim recovery", () => {
 
   it("a takeover over a stored brief claims the row and pays once", async () => {
     const { pr, payload } = await storeBriefOwingDelta();
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await leaveDeadHolder();
     const generator = stubGenerator();
     const { logger, readLines } = captureLogger();
@@ -337,7 +337,7 @@ describe("generate task, claim recovery", () => {
 
   it("a head whose attempts are spent ends failed with no new spend", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await harness.raw("update generation set claims = 3");
     await leaveDeadHolder();
     const generator = stubGenerator();
@@ -368,7 +368,7 @@ describe("generate task, claim recovery", () => {
   it("a takeover with nothing owed gives its unit back and warns", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     await makeTask()(payload);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await leaveDeadHolder();
     const generator = stubGenerator();
     const { logger, readLines } = captureLogger();
@@ -397,7 +397,7 @@ describe("generate task, claim recovery", () => {
   it("a failed claim check reports job.fail and leaves the row", async () => {
     await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     const projection = createGenerationProjection(harness.handle, ctx);
     const target = makeTarget(pr, HEAD_1);
     const before = await projection.get(target);
@@ -415,7 +415,7 @@ describe("generate task, claim recovery", () => {
 
   it("a run over a lapsed claim and the recovery pay one delta", async () => {
     const { payload } = await storeBriefOwingDelta();
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await leaveDeadHolder();
     const inner = stubGenerator();
     let enterCall: () => void = () => {};
@@ -499,7 +499,7 @@ describe("generate task, claim recovery", () => {
   it("a last attempt beside a live lease leaves the holder's row", async () => {
     await openPerTestHarness();
     const { pr, payload } = await trigger(HEAD_1);
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     const projection = createGenerationProjection(harness.handle, ctx);
     const target = makeTarget(pr, HEAD_1);
     const before = await projection.get(target);
@@ -546,7 +546,7 @@ describe("generate task, claim recovery", () => {
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
     await projection.upsertPending(makeTarget(pr, HEAD_1));
-    await holdRowForOtherRun();
+    await claimRowForOtherRun();
     await harness.raw(
       "update generation set lease_expires_at = now() - interval '1 second'",
     );
