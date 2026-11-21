@@ -14,7 +14,13 @@ import {
   commitStatusListSchema,
   requiredStatusChecksParametersSchema,
 } from "./schemas";
-import type { BranchRef, CheckRun, CommitRef, CommitStatus } from "./types";
+import type {
+  BranchRef,
+  CheckRun,
+  CommitRef,
+  CommitStatus,
+  RequiredStatusCheck,
+} from "./types";
 
 const PER_PAGE = 100;
 const REQUIRED_STATUS_CHECKS_RULE = "required_status_checks";
@@ -23,6 +29,9 @@ const UPGRADE_REQUIRED_PATTERN = /\bupgrade\b/i;
 
 type CheckRunEntry = z.infer<typeof checkRunListSchema>[number];
 type CommitStatusEntry = z.infer<typeof commitStatusListSchema>[number];
+type RequiredCheckEntry = z.infer<
+  typeof requiredStatusChecksParametersSchema
+>["required_status_checks"][number];
 
 function shapeCheckRun(entry: CheckRunEntry): CheckRun {
   const completed = entry.status === CHECK_RUN_COMPLETED_STATUS;
@@ -114,15 +123,23 @@ function isUpgradeRequired(error: unknown): boolean {
   return upgradeRequired;
 }
 
-function collectRequiredContexts(
+function shapeRequiredCheck(entry: RequiredCheckEntry): RequiredStatusCheck {
+  const check: Mutable<RequiredStatusCheck> = { context: entry.context };
+  if (typeof entry.integration_id === "number") {
+    check.appId = BigInt(entry.integration_id);
+  }
+  return check;
+}
+
+function collectRequiredChecks(
   rules: readonly unknown[],
-): string[] | undefined {
+): RequiredStatusCheck[] | undefined {
   const parsed = branchRuleListSchema.safeParse(rules);
   if (!parsed.success) {
     return undefined;
   }
 
-  const contexts = new Set<string>();
+  const checks = new Map<string, RequiredStatusCheck>();
   for (const rule of parsed.data) {
     if (rule.type !== REQUIRED_STATUS_CHECKS_RULE) {
       continue;
@@ -133,22 +150,24 @@ function collectRequiredContexts(
     if (!parameters.success) {
       return undefined;
     }
-    for (const check of parameters.data.required_status_checks) {
-      contexts.add(check.context);
+    for (const entry of parameters.data.required_status_checks) {
+      const check = shapeRequiredCheck(entry);
+      checks.set(`${check.context}\n${check.appId ?? ""}`, check);
     }
   }
-  return [...contexts];
+  return [...checks.values()];
 }
 
 /**
- * The status check names the branch's rulesets require, each once. Classic
- * branch protection is not read. A private repository on GitHub Free has no
- * rulesets to enforce, and its 403 reads as nothing required.
+ * The status checks the branch's rulesets require, each name and App pin
+ * once. Classic branch protection is not read. A private repository on
+ * GitHub Free has no rulesets to enforce, and its 403 reads as nothing
+ * required.
  */
 export async function listRequiredStatusChecks(
   octokit: Octokit,
   ref: BranchRef,
-): Promise<Result<string[], GitHubApiError>> {
+): Promise<Result<RequiredStatusCheck[], GitHubApiError>> {
   const context = "list branch rules";
   try {
     const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
@@ -157,11 +176,11 @@ export async function listRequiredStatusChecks(
       branch: ref.branch,
       per_page: PER_PAGE,
     });
-    const contexts = collectRequiredContexts(rules);
-    if (contexts === undefined) {
+    const checks = collectRequiredChecks(rules);
+    if (checks === undefined) {
       return { ok: false, error: unexpectedResponseError(context) };
     }
-    return { ok: true, value: contexts };
+    return { ok: true, value: checks };
   } catch (error) {
     if (isUpgradeRequired(error)) {
       return { ok: true, value: [] };

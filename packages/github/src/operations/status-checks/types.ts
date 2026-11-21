@@ -56,3 +56,9 @@ export interface CommitStatus {
   /** The account that posted the status. */
   readonly creatorId?: bigint;
 }
+
+/** A check a ruleset requires; `appId` is set when the rule pins the check to one App. */
+export interface RequiredStatusCheck {
+  readonly context: string;
+  readonly appId?: bigint;
+}

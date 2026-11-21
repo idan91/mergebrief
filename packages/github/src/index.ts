@@ -313,6 +313,7 @@ export type {
   CheckRunConclusion,
   CommitStatus,
   CommitStatusState,
+  RequiredStatusCheck,
 } from "./operations/status-checks/types";
 export type { SubmittedReview } from "./operations/review-list";
 export type {

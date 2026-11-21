@@ -83,8 +83,8 @@ function hasStarted(reports: BotReports): boolean {
 
 /**
  * Where an unfinished bot stands. A bot with an App reports through check
- * runs or statuses, so a refused read hides it; Copilot reports only through
- * reviews, which need no extra permission.
+ * runs or statuses, so either refused read hides it; Copilot reports only
+ * through reviews, which need no extra permission.
  */
 function readProgressHold(
   account: ReviewBotAccount,
@@ -94,9 +94,9 @@ function readProgressHold(
   if (hasStarted(reports)) {
     return { state: BotStates.RUNNING };
   }
-  const hidden =
-    facts.reports.statusChecksForbidden && account.appId !== undefined;
-  if (hidden) {
+  const { checkRunsForbidden, statusesForbidden } = facts.reports;
+  const readRefused = checkRunsForbidden || statusesForbidden;
+  if (readRefused && account.appId !== undefined) {
     return { state: BotStates.PERMISSION_MISSING };
   }
   return { state: BotStates.NOT_STARTED };
@@ -154,7 +154,7 @@ function readCleanHold(
   reports: BotReports,
   facts: ConditionFacts,
 ): BotHold | undefined {
-  if (facts.reports.statusChecksForbidden) {
+  if (facts.reports.checkRunsForbidden) {
     return { state: BotStates.PERMISSION_MISSING };
   }
   const latest = findLatestRun(reports.runs, isAnyRun);

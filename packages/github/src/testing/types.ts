@@ -37,7 +37,11 @@ import type {
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review";
-import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
+import type {
+  CheckRun,
+  CommitStatus,
+  RequiredStatusCheck,
+} from "../operations/status-checks/types";
 import type { GitHubAccountType, RepositoryVisibility } from "../types";
 import type { AuthorAssociation } from "../webhook/types";
 
@@ -177,11 +181,11 @@ export interface FakeGitHubArrange {
   addCheckRun(repo: RepositoryRef, ref: string, run: CheckRun): void;
   /** A status on the commit `ref`; the newest lists first, as on GitHub. */
   addCommitStatus(repo: RepositoryRef, ref: string, status: CommitStatus): void;
-  /** The check names the branch's rulesets require. */
+  /** The checks the branch's rulesets require, with any App pin. */
   setRequiredStatusChecks(
     repo: RepositoryRef,
     branch: string,
-    contexts: readonly string[],
+    checks: readonly RequiredStatusCheck[],
   ): void;
   /** Change an arranged pull request's facts, as a push or a draft toggle does. */
   updatePullRequest(ref: PullRequestRef, info: Partial<PullRequestInfo>): void;
