@@ -53,6 +53,7 @@ const REVIEW_LIST = [
     state: "COMMENTED",
     body: "Looks fine",
     user: { id: 501 },
+    commit_id: HEAD_SHA,
     submitted_at: "2026-10-01T10:00:00Z",
   },
 ];
@@ -270,6 +271,37 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
     },
   },
   deleteAttachmentBranch: answerOk({}),
+  listCheckRuns: answerOk({
+    total_count: 1,
+    check_runs: [
+      {
+        id: 4001,
+        name: "CodeRabbit",
+        status: "completed",
+        conclusion: "success",
+        app: { id: 347564 },
+        output: { title: "Finished", text: null },
+      },
+    ],
+  }),
+  listCommitStatuses: answerOk([
+    {
+      context: "Unblocked Review",
+      state: "success",
+      creator: { id: 98133410 },
+    },
+  ]),
+  listSubmittedReviews: answerOk(REVIEW_LIST),
+  listRequiredStatusChecks: answerOk([
+    {
+      type: "required_status_checks",
+      parameters: {
+        strict_required_status_checks_policy: false,
+        required_status_checks: [{ context: "build" }],
+      },
+    },
+    { type: "deletion" },
+  ]),
 };
 
 const FAILURE_ANSWERS: Readonly<

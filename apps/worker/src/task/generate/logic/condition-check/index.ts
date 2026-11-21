@@ -1,22 +1,39 @@
-import type { PullRequestFile } from "github";
-import { SizeMeasures } from "types/trigger-conditions";
 import {
+  GitHubApiErrorCodes,
+  type CheckRun,
+  type CommitStatus,
+  type GitHubCall,
+  type GitHubCallFailure,
+  type PullRequestFile,
+  type SubmittedReview,
+} from "github";
+import {
+  CiModes,
   resolveEffectiveTriggerConditions,
   type EffectiveTriggerConditions,
+  type TriggerConditionSetting,
 } from "generators/trigger-conditions";
-import type { Mutable } from "types/utils";
+import {
+  SizeMeasures,
+  TriggerConditionKinds,
+  type TriggerConditionKind,
+} from "types/trigger-conditions";
+import type { Mutable, Result } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
   ConditionCheckKinds,
   type ConditionCheckOutcome,
   type RunContext,
 } from "../../types";
+import type { ConditionReads } from "../../../github-port";
 import { throwOnGitHubFailure } from "../errors";
+import { REVIEW_BOT_ACCOUNTS } from "./consts";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
 import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
 import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
-import type { ConditionFacts } from "./types";
+import type { ConditionFacts, HeadReports } from "./types";
+import { isReviewBot } from "./utils";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
@@ -34,6 +51,42 @@ function isCheckable(context: RunContext): boolean {
     projected !== undefined && projected.generateRequestedAt !== null;
   const checkable = isGateable(context) && !stamped;
   return checkable;
+}
+
+function listSettings(
+  effective: EffectiveTriggerConditions,
+): TriggerConditionSetting[] {
+  const conditions = [...effective.all, ...effective.any];
+  return conditions.map((condition) => condition.setting);
+}
+
+function isKindConfigured(
+  effective: EffectiveTriggerConditions,
+  kind: TriggerConditionKind,
+): boolean {
+  return listSettings(effective).some((setting) => setting.kind === kind);
+}
+
+/**
+ * A bot with an App reports by check run or status. Copilot reports only by
+ * review, so a `bots` condition naming it alone reads neither.
+ */
+function isAppBotConfigured(effective: EffectiveTriggerConditions): boolean {
+  return listSettings(effective).some((setting) => {
+    if (setting.kind !== TriggerConditionKinds.BOTS) {
+      return false;
+    }
+    const bots = Object.keys(setting.value).filter(isReviewBot);
+    return bots.some((bot) => REVIEW_BOT_ACCOUNTS[bot].appId !== undefined);
+  });
+}
+
+function isRulesetRead(effective: EffectiveTriggerConditions): boolean {
+  return listSettings(effective).some(
+    (setting) =>
+      setting.kind === TriggerConditionKinds.CI &&
+      setting.value.mode === CiModes.REQUIRED,
+  );
 }
 
 /**
@@ -57,15 +110,95 @@ async function readCheckedFiles(
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
 }
 
+const NO_REPORTS: HeadReports = {
+  checkRuns: [],
+  statuses: [],
+  statusChecksForbidden: false,
+  reviews: [],
+  requiredChecks: [],
+};
+
+interface PermittedList<Item> {
+  readonly items: readonly Item[];
+  readonly forbidden: boolean;
+}
+
+function answerNothing<Item>(): GitHubCall<Item[]> {
+  return Promise.resolve({ ok: true, value: [] });
+}
+
+/** A 403 is a permission the installation has not accepted, never a failed read. */
+function readPermittedList<Item>(
+  result: Result<Item[], GitHubCallFailure>,
+): PermittedList<Item> {
+  if (!result.ok && result.error.code === GitHubApiErrorCodes.FORBIDDEN) {
+    return { items: [], forbidden: true };
+  }
+  return { items: throwOnGitHubFailure(result), forbidden: false };
+}
+
+function requireConditionReads(context: RunContext): ConditionReads {
+  const reads = context.source.conditionReads;
+  if (reads === undefined) {
+    throw new Error("a checked run has no condition reads");
+  }
+  return reads;
+}
+
+/**
+ * Only a `bots` or `ci` condition reads the head's reports, each read once.
+ * A refused check-run or status read marks the permission missing; any
+ * other failure classifies as the paths read does.
+ */
+async function readHeadReports(
+  context: RunContext,
+  effective: EffectiveTriggerConditions,
+): Promise<HeadReports> {
+  const botsSet = isKindConfigured(effective, TriggerConditionKinds.BOTS);
+  const ciSet = isKindConfigured(effective, TriggerConditionKinds.CI);
+  if (!botsSet && !ciSet) {
+    return NO_REPORTS;
+  }
+
+  const reads = requireConditionReads(context);
+  const { headSha, baseRef } = context.prInfo;
+  const readsRuleset = isRulesetRead(effective) && baseRef !== undefined;
+  const readsReports = ciSet || isAppBotConfigured(effective);
+  const [runs, statuses, reviews, required] = await Promise.all([
+    readsReports ? reads.listCheckRuns(headSha) : answerNothing<CheckRun>(),
+    readsReports
+      ? reads.listCommitStatuses(headSha)
+      : answerNothing<CommitStatus>(),
+    botsSet ? reads.listSubmittedReviews() : answerNothing<SubmittedReview>(),
+    readsRuleset
+      ? reads.listRequiredStatusChecks(baseRef)
+      : answerNothing<string>(),
+  ]);
+
+  const permittedRuns = readPermittedList(runs);
+  const permittedStatuses = readPermittedList(statuses);
+  const statusChecksForbidden =
+    permittedRuns.forbidden || permittedStatuses.forbidden;
+  return {
+    checkRuns: permittedRuns.items,
+    statuses: permittedStatuses.items,
+    statusChecksForbidden,
+    reviews: throwOnGitHubFailure(reviews),
+    requiredChecks: throwOnGitHubFailure(required),
+  };
+}
+
 function readConditionFacts(
   context: RunContext,
   files: readonly PullRequestFile[] | undefined,
+  reports: HeadReports,
 ): ConditionFacts {
   const { prInfo } = context;
   const changedLines = prInfo.additions + prInfo.deletions;
   const facts: Mutable<ConditionFacts> = {
     draft: prInfo.draft,
     title: prInfo.title,
+    headSha: prInfo.headSha,
     labels: prInfo.labels,
     pendingReviewRequests: prInfo.pendingReviewRequests,
     sizes: {
@@ -74,6 +207,7 @@ function readConditionFacts(
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
     changedPaths: files?.map((file) => file.path),
+    reports,
   };
   if (prInfo.baseRef !== undefined) {
     facts.baseRef = prInfo.baseRef;
@@ -104,11 +238,12 @@ export async function applyConditionCheck(
     deps.triggerConditions,
     repoConfig.settings?.triggerConditions,
   );
-  const unreadFacts = readConditionFacts(context, undefined);
+  const reports = await readHeadReports(context, effective);
+  const unreadFacts = readConditionFacts(context, undefined, reports);
   const files = await readCheckedFiles(context, effective, unreadFacts);
   const unmet = evaluateTriggerConditions(
     effective,
-    readConditionFacts(context, files),
+    readConditionFacts(context, files, reports),
     log,
   );
   if (unmet.length === 0) {

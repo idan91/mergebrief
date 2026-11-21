@@ -442,6 +442,50 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
   [
     OPEN_PULL_REQUESTS,
     defineCase({
+      operation: "listCheckRuns",
+      call: (client: InstallationRepoClient) => client.listCheckRuns(HEAD_SHA),
+      expected: [
+        {
+          checkRunId: 4001n,
+          name: "CodeRabbit",
+          appId: 347564n,
+          completed: true,
+          conclusion: "success",
+          title: "Finished",
+        },
+      ],
+    }),
+    defineCase({
+      operation: "listCommitStatuses",
+      call: (client: InstallationRepoClient) =>
+        client.listCommitStatuses(HEAD_SHA),
+      expected: [
+        {
+          context: "Unblocked Review",
+          state: "success",
+          creatorId: 98133410n,
+        },
+      ],
+    }),
+    defineCase({
+      operation: "listSubmittedReviews",
+      call: (client: InstallationRepoClient) => client.listSubmittedReviews(7),
+      expected: [
+        {
+          reviewId: 78n,
+          state: "COMMENTED",
+          authorId: 501n,
+          commitId: HEAD_SHA,
+        },
+      ],
+    }),
+    defineCase({
+      operation: "listRequiredStatusChecks",
+      call: (client: InstallationRepoClient) =>
+        client.listRequiredStatusChecks("main"),
+      expected: ["build"],
+    }),
+    defineCase({
       operation: "listRepoCollaborators",
       call: (client: InstallationRepoClient) => client.listRepoCollaborators(),
       expected: {

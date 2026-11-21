@@ -207,10 +207,14 @@ export { fetchRepositoryVisibility } from "./operations/repo-visibility";
 // pinned to the reviewed commit; a 422 carries a best-effort code), the
 // review thread (GraphQL; a rejected anchor is a Result, not a throw) and the
 // submit event (GraphQL).
-export { createPullRequestReview } from "./operations/review";
+export {
+  createPullRequestReview,
+  PullRequestReviewStates,
+} from "./operations/review";
 export type {
   CreatePullRequestReviewInput,
   PendingReview,
+  PullRequestReviewState,
 } from "./operations/review";
 export {
   addPullRequestReviewThread,
@@ -229,14 +233,12 @@ export {
   findPendingPullRequestReview,
   deletePendingPullRequestReview,
   listReviewsByAuthor,
-  PullRequestReviewStates,
 } from "./operations/review-pending";
 export type {
   PullRequestReviewRef,
   DeletePendingPullRequestReviewInput,
   ListReviewsByAuthorInput,
   AuthoredReview,
-  PullRequestReviewState,
 } from "./operations/review-pending";
 export { listReviewCommentsSince } from "./operations/review-comment-list";
 export type {
@@ -293,6 +295,20 @@ export {
   TRUSTED_COLLABORATOR_PERMISSIONS,
 } from "./operations/collaborator-permission/types";
 export type { CollaboratorPermission } from "./operations/collaborator-permission/types";
+
+// What reports on a commit, and which checks a branch requires: the
+// trigger-condition check's bots and ci reads, on the installation binding.
+export {
+  CheckRunConclusions,
+  CommitStatusStates,
+} from "./operations/status-checks/types";
+export type {
+  CheckRun,
+  CheckRunConclusion,
+  CommitStatus,
+  CommitStatusState,
+} from "./operations/status-checks/types";
+export type { SubmittedReview } from "./operations/review-list";
 export type {
   ListRepoCollaboratorsInput,
   RepoCollaborator,
