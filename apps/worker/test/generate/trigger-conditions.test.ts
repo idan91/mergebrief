@@ -16,6 +16,7 @@ import {
   FIRST_ATTEMPT,
   harness,
   HEAD_1,
+  LAST_ATTEMPT,
   makeGitHub,
   makeReviewerId,
   makeTarget,
@@ -51,7 +52,7 @@ async function readUnmet(pr: PullRequestRow) {
   const row = await createGenerationProjection(harness.handle, ctx).get(
     makeTarget(pr, HEAD_1),
   );
-  return parseUnmetConditions(row?.unmetConditions ?? null);
+  return parseUnmetConditions(row?.unmetConditions ?? null)?.conditions;
 }
 
 describe("generate task, trigger conditions", () => {
@@ -105,6 +106,42 @@ describe("generate task, trigger conditions", () => {
     expect(await readUnmet(pr)).toEqual([
       { kind: "ready-for-review", source: "instance" },
     ]);
+  });
+
+  it("holds on the instance's conditions when the last settings read fails", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    github.failRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      FakeFailures.SERVER_ERROR,
+    );
+
+    await makeTask({
+      github,
+      triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
+    })(payload, { job: LAST_ATTEMPT });
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "ready-for-review", source: "instance" },
+    ]);
+  });
+
+  it("generates a held draft on its next run once it is ready", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+
+    github.updatePullRequest(PR_REF, { draft: false });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(await readUnmet(pr)).toBeUndefined();
   });
 
   it("generates a ready pull request under readyForReview", async () => {
