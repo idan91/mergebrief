@@ -53,11 +53,12 @@ const UNMET: readonly UnmetCondition[] = [
   },
 ];
 
-function trigger() {
+function trigger(requiresTriggerApproval = false) {
   return createIngestRoutines(shared.handle, GATE_CTX).triggerGeneration({
     pullRequest: { repoId: GATE_REPO_ID, prNumber: 7, state: PrStates.OPEN },
     headSha: GATE_HEAD_SHA,
     debounceSeconds: 0,
+    requiresTriggerApproval,
   });
 }
 
@@ -249,6 +250,18 @@ describe("a held head between checks", () => {
     const { gen, target } = await seedHeldHead();
 
     const again = await trigger();
+
+    const row = await gen.get(target);
+    expect(row?.status).toBe(GenerationStatuses.HELD);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual(UNMET);
+    expect(again.queued).toBe(true);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("stays held and queues its job when a gated trigger names it", async () => {
+    const { gen, target } = await seedHeldHead();
+
+    const again = await trigger(true);
 
     const row = await gen.get(target);
     expect(row?.status).toBe(GenerationStatuses.HELD);
