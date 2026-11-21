@@ -7,7 +7,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  CheckRunActions,
   EventParseErrorCodes,
   InstallationActions,
   InstallationRepositoriesActions,
@@ -20,6 +19,7 @@ import {
 } from "../src/webhook/events";
 import {
   AuthorAssociations,
+  CheckRunActions,
   GitHubAppAuthorizationActions,
 } from "../src/webhook/types";
 import type { Result } from "types/utils";
