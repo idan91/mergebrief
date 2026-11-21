@@ -14,6 +14,7 @@ import {
   parseTenantContext,
   type GenerationTarget,
   type GrantRowId,
+  type InstallationId,
   type KeyProvider,
   type PullRequestRow,
   type PullRequestRowId,
@@ -794,12 +795,19 @@ export async function seedViewerGrant(
 /** Wraps each repo client the task binds as the installation: an interleaving the fake cannot arrange. */
 export function interceptInstallationRepo(
   github: FakeGitHub,
-  wrap: (client: InstallationRepoClient) => InstallationRepoClient,
+  wrap: (
+    client: InstallationRepoClient,
+    repo: RepositoryRef,
+    installationId: InstallationId,
+  ) => InstallationRepoClient,
 ): void {
   const bind = github.bindInstallationGitHub.bind(github);
   github.bindInstallationGitHub = (installationId) => {
     const bound = bind(installationId);
-    return { ...bound, forRepo: (repo) => wrap(bound.forRepo(repo)) };
+    return {
+      ...bound,
+      forRepo: (repo) => wrap(bound.forRepo(repo), repo, installationId),
+    };
   };
 }
 
@@ -813,31 +821,24 @@ export function failFirstSettingsRead(
   failing: FakeGitHub,
 ): ReadCount {
   const reads: ReadCount = { count: 0 };
-  const bind = github.bindInstallationGitHub.bind(github);
-  github.bindInstallationGitHub = (installationId) => {
-    const bound = bind(installationId);
-    const failingBound = failing.bindInstallationGitHub(installationId);
+  interceptInstallationRepo(github, (client, repo, installationId) => {
+    const failingClient = failing
+      .bindInstallationGitHub(installationId)
+      .forRepo(repo);
     return {
-      ...bound,
-      forRepo: (repo) => {
-        const client = bound.forRepo(repo);
-        const failingClient = failingBound.forRepo(repo);
-        return {
-          ...client,
-          fetchRepoFile(input) {
-            if (input.path !== RepoConfigPaths.SETTINGS) {
-              return client.fetchRepoFile(input);
-            }
-            reads.count += 1;
-            if (reads.count === 1) {
-              return failingClient.fetchRepoFile(input);
-            }
-            return client.fetchRepoFile(input);
-          },
-        };
+      ...client,
+      fetchRepoFile(input) {
+        if (input.path !== RepoConfigPaths.SETTINGS) {
+          return client.fetchRepoFile(input);
+        }
+        reads.count += 1;
+        if (reads.count === 1) {
+          return failingClient.fetchRepoFile(input);
+        }
+        return client.fetchRepoFile(input);
       },
     };
-  };
+  });
   return reads;
 }
 
