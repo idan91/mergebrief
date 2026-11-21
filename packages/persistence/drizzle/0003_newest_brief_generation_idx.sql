@@ -1,0 +1,1 @@
+CREATE INDEX "generation_pull_request_kind_triggered_at_idx" ON "generation" USING btree ("pull_request_id","kind","triggered_at" DESC NULLS FIRST,"id" DESC NULLS FIRST);

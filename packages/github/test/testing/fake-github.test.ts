@@ -395,7 +395,11 @@ describe("makeFakeGitHub installation presence", () => {
       new Map([
         [
           requireRepoId(4242n),
-          { fullName: "acme/widgets", viewerIsAdmin: true },
+          {
+            fullName: "acme/widgets",
+            viewerIsAdmin: true,
+            viewerCanPush: true,
+          },
         ],
       ]),
     );

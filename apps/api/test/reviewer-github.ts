@@ -475,7 +475,11 @@ export function arrangeFakeGate(
   });
   const listed = new Map<RepoId, InstallationRepository>();
   if (options.inInstallation !== false) {
-    listed.set(repoId, { fullName, viewerIsAdmin: admin });
+    listed.set(repoId, {
+      fullName,
+      viewerIsAdmin: admin,
+      viewerCanPush: options.push ?? true,
+    });
   }
   const installation: Mutable<UserInstallation> = {
     installationId: brandInstallationId(BigInt(INSTALLATION_ID)),

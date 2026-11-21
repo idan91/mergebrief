@@ -51,7 +51,7 @@ function arrangeInstallation(
   const listing = new Map<RepoId, InstallationRepository>(
     repos.map((repo) => [
       brand(isRepoId, repo.id),
-      { fullName: repo.fullName, viewerIsAdmin: false },
+      { fullName: repo.fullName, viewerIsAdmin: false, viewerCanPush: false },
     ]),
   );
   fake.addInstallation(

@@ -61,6 +61,8 @@ export interface InboxPageInput {
   readonly allowedRepoIds: readonly RepoId[];
   /** The subset of `allowedRepoIds` the viewer administers on GitHub. */
   readonly adminRepoIds: ReadonlySet<RepoId>;
+  /** The subset of `allowedRepoIds` the viewer may push to on GitHub. */
+  readonly pushRepoIds: ReadonlySet<RepoId>;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;
