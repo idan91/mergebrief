@@ -155,6 +155,18 @@ describe("evaluateTriggerConditions, titleKeywords", () => {
   });
 
   it.each([
+    ["生成简报", "简报"],
+    ["レビュー依頼: 機能追加", "レビュー"],
+  ])("finds a keyword in a script without spaces in %j", (title, keyword) => {
+    const unmet = evaluateOne(
+      { kind: "title-keywords", value: [keyword] },
+      { title },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it.each([
     ["Wipe the cache", "wip"],
     ["Add a prefix", "fix"],
     ["Debriefing notes", "brief"],

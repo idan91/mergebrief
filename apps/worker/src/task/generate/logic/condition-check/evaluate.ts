@@ -49,6 +49,10 @@ const OPENS_ON_WORD_PATTERN = /^[\p{L}\p{N}_]/u;
 const CLOSES_ON_WORD_PATTERN = /[\p{L}\p{N}_]$/u;
 const NOT_AFTER_WORD = "(?<![\\p{L}\\p{N}_])";
 const NOT_BEFORE_WORD = "(?![\\p{L}\\p{N}_])";
+const OPENS_WITHOUT_SPACES_PATTERN =
+  /^[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Thai}\p{scx=Lao}\p{scx=Khmer}\p{scx=Myanmar}]/u;
+const CLOSES_WITHOUT_SPACES_PATTERN =
+  /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Thai}\p{scx=Lao}\p{scx=Khmer}\p{scx=Myanmar}]$/u;
 
 function checkReadyForReview({
   setBy,
@@ -144,11 +148,19 @@ function checkLabels({
 /**
  * A keyword matches as a whole word, ignoring case: an edge that is a letter,
  * digit or underscore must not continue into one, so `wip` misses `Wipe`.
+ * An edge in a script written without spaces (Han, kana, Thai and kin) has
+ * no word boundary to find, so it matches anywhere.
  */
 function buildKeywordPattern(keyword: string): RegExp {
   const escaped = keyword.replace(REGEX_SYNTAX_PATTERN, "\\$&");
-  const before = OPENS_ON_WORD_PATTERN.test(keyword) ? NOT_AFTER_WORD : "";
-  const after = CLOSES_ON_WORD_PATTERN.test(keyword) ? NOT_BEFORE_WORD : "";
+  const guardsStart =
+    OPENS_ON_WORD_PATTERN.test(keyword) &&
+    !OPENS_WITHOUT_SPACES_PATTERN.test(keyword);
+  const guardsEnd =
+    CLOSES_ON_WORD_PATTERN.test(keyword) &&
+    !CLOSES_WITHOUT_SPACES_PATTERN.test(keyword);
+  const before = guardsStart ? NOT_AFTER_WORD : "";
+  const after = guardsEnd ? NOT_BEFORE_WORD : "";
   return new RegExp(`${before}${escaped}${after}`, "iu");
 }
 
