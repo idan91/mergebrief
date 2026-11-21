@@ -78,6 +78,7 @@ import {
   type UncoveredWork,
   type PullRequestLifecycle,
   type PullRequestRow,
+  type PullRequestRowId,
   type PullRequestUpsertInput,
   type TenantContext,
   type TriggerGenerationInput,
@@ -394,7 +395,7 @@ async function handlePullRequest(
       event,
       log,
     );
-    await triggerGeneration(
+    const pullRequestId = await triggerGeneration(
       handle,
       ctx,
       event,
@@ -404,7 +405,22 @@ async function handlePullRequest(
       },
       log,
     );
+    if (isPersonReviewRequest(event)) {
+      await createTenantRepository(
+        handle,
+        ctx,
+      ).pullRequests.stampReviewRequestedMet(pullRequestId);
+    }
   }
+}
+
+/**
+ * A request to a person or a team keeps `reviewRequested` met for the PR,
+ * even once removed before any run saw it; a bot's request is a tool's.
+ */
+function isPersonReviewRequest(event: ParsedPullRequestEvent): boolean {
+  const requested = event.action === PullRequestActions.REVIEW_REQUESTED;
+  return requested && event.requestedReviewerIsBot !== true;
 }
 
 /**
@@ -598,13 +614,14 @@ async function handlePullRequestReview(
   );
 }
 
+/** The pull request's row id, written or found. */
 async function triggerGeneration(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
   options: TriggerOptions,
   log: Logger,
-): Promise<void> {
+): Promise<PullRequestRowId> {
   // Only a `reopened` pull_request event may transition a terminal PR back to
   // open; a review or any other trigger merely implies the PR is open and must
   // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
@@ -687,6 +704,7 @@ async function triggerGeneration(
       briefId: String(outcome.coveredBy),
     });
   }
+  return outcome.pullRequest.id;
 }
 
 /**

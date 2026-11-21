@@ -261,6 +261,48 @@ describe("parseWebhookEvent, pull_request", () => {
     expect(event.headSha).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
   });
 
+  it.each([
+    [{ requested_reviewer: { login: "copilot", type: "Bot" } }, true],
+    [{ requested_reviewer: { login: "bob", type: "User" } }, false],
+    [{ requested_team: { slug: "core" } }, false],
+  ])("reads whether a review request names a bot", (named, isBot) => {
+    const fixture = jsonFixture("pull_request.review_requested.json");
+    if (!isRecord(fixture)) {
+      throw new Error("fixture is not an object");
+    }
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: { ...fixture, ...named },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.requestedReviewerIsBot).toBe(isBot);
+  });
+
+  it("leaves the requested reviewer unread on another action", () => {
+    const fixture = jsonFixture("pull_request.review_requested.json");
+    if (!isRecord(fixture)) {
+      throw new Error("fixture is not an object");
+    }
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: {
+          ...fixture,
+          action: "labeled",
+          requested_reviewer: { login: "copilot", type: "Bot" },
+        },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.requestedReviewerIsBot).toBeUndefined();
+  });
+
   it("marks an edit that changed the title and only that edit", () => {
     const fixture = jsonFixture("pull_request.edited.json");
     if (!isRecord(fixture)) {
