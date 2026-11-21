@@ -426,6 +426,30 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toEqual([]);
   });
 
+  it("matches a mass rename's last old path within the step budget", () => {
+    const renamedTo = Array.from(
+      { length: 3000 },
+      (_, index) => `apps/${String(index).padStart(195, "0")}`,
+    );
+    const renamedFrom = Array.from(
+      { length: 2999 },
+      (_, index) => `libs/${String(index).padStart(195, "0")}`,
+    );
+
+    const unmet = evaluateOne(
+      {
+        kind: "paths",
+        value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
+      },
+      {
+        changedPaths: renamedTo,
+        previousPaths: [...renamedFrom, "services/ledger/post.ts"],
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
   it("matches a rename by its old path once every new path misses", () => {
     const unmet = evaluateOne(
       { kind: "paths", value: ["src/payments/**"] },
