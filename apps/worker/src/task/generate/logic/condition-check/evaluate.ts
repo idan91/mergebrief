@@ -1,4 +1,4 @@
-import { matchesGlob } from "brief-core/path-matching";
+import { matchesAnyGlob } from "brief-core/path-matching";
 import type { Logger } from "logging";
 import {
   type EffectiveTriggerConditions,
@@ -19,11 +19,7 @@ import {
   type UnmetPlainCondition,
 } from "types/trigger-conditions";
 
-import {
-  PathsMatchOutcomes,
-  type ConditionFacts,
-  type PathsMatchOutcome,
-} from "./types";
+import type { ConditionFacts } from "./types";
 
 interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
@@ -223,106 +219,11 @@ function checkBaseBranches({
 }
 
 /**
- * `matchesGlob` costs glob x path steps, the globs a repository writer's and
- * the paths a PR author's: sized as the gitattributes scan is, for 3000 paths
- * of 200 characters against a few general globs.
+ * One scan's steps, glob tokens x path length, the globs a repository
+ * writer's and the paths a PR author's: sized for 3000 paths of 200
+ * characters against a few general globs.
  */
 const PATHS_MATCH_STEPS = 20_000_000;
-const GLOB_SYNTAX_START = /[*?[{\\!]/;
-
-/** A glob's literal ends: a path that lacks either cannot match. */
-interface GlobFilter {
-  readonly glob: string;
-  readonly prefix: string;
-  readonly suffix: string;
-}
-
-function readLiteralPrefix(glob: string): string {
-  const wildcard = glob.search(GLOB_SYNTAX_START);
-  return wildcard === -1 ? glob : glob.slice(0, wildcard);
-}
-
-/**
- * The index past the star token at `start`, read as `matchesGlob` reads it:
- * `*`, `**`, or `**\/`, whose slash the token consumes, since it can match
- * zero directories.
- */
-function skipStarToken(glob: string, start: number): number {
-  if (glob[start + 1] !== "*") {
-    return start + 1;
-  }
-  if (glob[start + 2] === "/") {
-    return start + 3;
-  }
-  return start + 2;
-}
-
-function findLiteralTailStart(glob: string): number {
-  let tailStart = 0;
-  let index = 0;
-  while (index < glob.length) {
-    const char = glob[index];
-    if (char === "*") {
-      index = skipStarToken(glob, index);
-      tailStart = index;
-      continue;
-    }
-    index += 1;
-    if (char === "?") {
-      tailStart = index;
-    }
-  }
-  return tailStart;
-}
-
-/** The characters after a glob's last wildcard token, empty when they hold any glob syntax. */
-function readLiteralSuffix(glob: string): string {
-  const tail = glob.slice(findLiteralTailStart(glob));
-  return GLOB_SYNTAX_START.test(tail) ? "" : tail;
-}
-
-/** The longest literal prefix first: it narrows the scan most. */
-function orderGlobFilters(globs: readonly string[]): GlobFilter[] {
-  const filters = globs.map((glob) => ({
-    glob,
-    prefix: readLiteralPrefix(glob),
-    suffix: readLiteralSuffix(glob),
-  }));
-  return filters.toSorted(
-    (left, right) => right.prefix.length - left.prefix.length,
-  );
-}
-
-function passesGlobFilter(filter: GlobFilter, path: string): boolean {
-  return path.startsWith(filter.prefix) && path.endsWith(filter.suffix);
-}
-
-/**
- * Whether any glob matches any changed path, or a spent budget once the scan
- * runs out of steps. A path missing the glob's literal prefix or suffix costs
- * no steps.
- */
-function matchPaths(
-  globs: readonly string[],
-  paths: readonly string[],
-): PathsMatchOutcome {
-  let steps = PATHS_MATCH_STEPS;
-  for (const filter of orderGlobFilters(globs)) {
-    for (const path of paths) {
-      if (!passesGlobFilter(filter, path)) {
-        continue;
-      }
-      steps -= filter.glob.length * (path.length + 1);
-      if (steps < 0) {
-        return PathsMatchOutcomes.BUDGET_SPENT;
-      }
-      if (matchesGlob(filter.glob, path)) {
-        return PathsMatchOutcomes.MATCHED;
-      }
-    }
-  }
-  return PathsMatchOutcomes.UNMATCHED;
-}
 
 /**
  * Git paths are case-sensitive, so a glob matches as written. A scan past
@@ -341,11 +242,15 @@ function checkPaths({
   if (facts.changedPaths === undefined) {
     return [];
   }
-  const outcome = matchPaths(value, facts.changedPaths);
-  if (outcome === PathsMatchOutcomes.MATCHED) {
+  const matched = matchesAnyGlob(
+    value,
+    [facts.changedPaths],
+    PATHS_MATCH_STEPS,
+  );
+  if (matched === true) {
     return [];
   }
-  if (outcome === PathsMatchOutcomes.BUDGET_SPENT) {
+  if (matched === undefined) {
     log?.warn("generate: paths match budget spent, held as no match", {
       globs: value.length,
       paths: facts.changedPaths.length,

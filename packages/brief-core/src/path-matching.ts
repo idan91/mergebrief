@@ -195,3 +195,221 @@ export function matchesGlob(pattern: string, filePath: string): boolean {
   }
   return reachable[filePath.length] === true;
 }
+
+/** A glob tokenized once for a scan, with the literal ends every path it matches carries. */
+interface ScanGlob {
+  readonly tokens: readonly GlobToken[];
+  readonly prefix: string;
+  readonly suffix: string;
+}
+
+/** Two reachability rows one scan reuses for every token of every path. */
+interface ScanRows {
+  reach: Uint8Array;
+  next: Uint8Array;
+}
+
+/** What one scan carries from path to path: its rows and its steps left. */
+interface ScanState {
+  readonly rows: ScanRows;
+  stepsLeft: number;
+}
+
+function readLiteralPrefix(tokens: readonly GlobToken[]): string {
+  let prefix = "";
+  for (const token of tokens) {
+    if (token.kind !== GlobTokenKinds.LITERAL) {
+      return prefix;
+    }
+    prefix += token.char;
+  }
+  return prefix;
+}
+
+function readLiteralSuffix(tokens: readonly GlobToken[]): string {
+  let suffix = "";
+  for (let index = tokens.length - 1; index >= 0; index--) {
+    const token = tokens[index];
+    if (token?.kind !== GlobTokenKinds.LITERAL) {
+      return suffix;
+    }
+    suffix = token.char + suffix;
+  }
+  return suffix;
+}
+
+function readScanGlob(pattern: string): ScanGlob {
+  const tokens = tokenizeGlob(pattern);
+  return {
+    tokens,
+    prefix: readLiteralPrefix(tokens),
+    suffix: readLiteralSuffix(tokens),
+  };
+}
+
+function fitsLiteralEnds(glob: ScanGlob, filePath: string): boolean {
+  const fits =
+    filePath.startsWith(glob.prefix) && filePath.endsWith(glob.suffix);
+  return fits;
+}
+
+function stepLiteral(rows: ScanRows, filePath: string, code: number): boolean {
+  const { reach, next } = rows;
+  let reached = 0;
+  next[0] = 0;
+  for (let index = 0; index < filePath.length; index++) {
+    const bit = filePath.charCodeAt(index) === code ? (reach[index] ?? 0) : 0;
+    next[index + 1] = bit;
+    reached |= bit;
+  }
+  return reached === 1;
+}
+
+function stepQuestionMark(rows: ScanRows, filePath: string): boolean {
+  const { reach, next } = rows;
+  let reached = 0;
+  next[0] = 0;
+  for (let index = 0; index < filePath.length; index++) {
+    const bit = filePath[index] === "/" ? 0 : (reach[index] ?? 0);
+    next[index + 1] = bit;
+    reached |= bit;
+  }
+  return reached === 1;
+}
+
+function stepStar(rows: ScanRows, filePath: string): boolean {
+  const { reach, next } = rows;
+  let reached = false;
+  let active = false;
+  for (let index = 0; index <= filePath.length; index++) {
+    const runGoesOn: boolean =
+      active && index > 0 && filePath[index - 1] !== "/";
+    active = runGoesOn || reach[index] === 1;
+    next[index] = active ? 1 : 0;
+    reached = reached || active;
+  }
+  return reached;
+}
+
+function stepGlobstar(rows: ScanRows, filePath: string): boolean {
+  const { reach, next } = rows;
+  let seen = false;
+  for (let index = 0; index <= filePath.length; index++) {
+    seen = seen || reach[index] === 1;
+    next[index] = seen ? 1 : 0;
+  }
+  return seen;
+}
+
+function stepGlobstarSlash(rows: ScanRows, filePath: string): boolean {
+  const { reach, next } = rows;
+  let seenBefore = false;
+  for (let index = 0; index <= filePath.length; index++) {
+    const segmentStart = seenBefore && index > 0 && filePath[index - 1] === "/";
+    const landed = reach[index] === 1 || segmentStart;
+    next[index] = landed ? 1 : 0;
+    seenBefore = seenBefore || reach[index] === 1;
+  }
+  return seenBefore;
+}
+
+/** Writes every position of `rows.next`; false when the token reached none. */
+function stepToken(
+  token: GlobToken,
+  rows: ScanRows,
+  filePath: string,
+): boolean {
+  switch (token.kind) {
+    case GlobTokenKinds.LITERAL:
+      return stepLiteral(rows, filePath, token.char.charCodeAt(0));
+    case GlobTokenKinds.QMARK:
+      return stepQuestionMark(rows, filePath);
+    case GlobTokenKinds.STAR:
+      return stepStar(rows, filePath);
+    case GlobTokenKinds.GLOBSTAR:
+      return stepGlobstar(rows, filePath);
+    case GlobTokenKinds.GLOBSTAR_SLASH:
+      return stepGlobstarSlash(rows, filePath);
+  }
+}
+
+function fitRows(rows: ScanRows, size: number): void {
+  if (rows.reach.length >= size) {
+    return;
+  }
+  rows.reach = new Uint8Array(size);
+  rows.next = new Uint8Array(size);
+}
+
+/** `matchesGlob`'s sweep over pre-read tokens and reused rows. */
+function matchesScanGlob(
+  glob: ScanGlob,
+  filePath: string,
+  rows: ScanRows,
+): boolean {
+  fitRows(rows, filePath.length + 1);
+  rows.reach.fill(0, 0, filePath.length + 1);
+  rows.reach[0] = 1;
+
+  for (const token of glob.tokens) {
+    if (!stepToken(token, rows, filePath)) {
+      return false;
+    }
+    const { reach, next } = rows;
+    rows.reach = next;
+    rows.next = reach;
+  }
+  return rows.reach[filePath.length] === 1;
+}
+
+/** One list against every glob, or `undefined` once the steps run out. */
+function matchesAnyInList(
+  globs: readonly ScanGlob[],
+  filePaths: readonly string[],
+  state: ScanState,
+): boolean | undefined {
+  for (const glob of globs) {
+    for (const filePath of filePaths) {
+      if (!fitsLiteralEnds(glob, filePath)) {
+        continue;
+      }
+      state.stepsLeft -= glob.tokens.length * (filePath.length + 1);
+      if (state.stepsLeft < 0) {
+        return undefined;
+      }
+      if (matchesScanGlob(glob, filePath, state.rows)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether any glob matches any path, as `matchesGlob` reads them, or
+ * `undefined` once the scan would pass `maxSteps` (glob tokens x path
+ * length). The lists go in order on one budget, every glob against a list
+ * before the next list, the glob with the longest literal prefix first. A
+ * path that lacks a glob's literal prefix or suffix costs no steps.
+ */
+export function matchesAnyGlob(
+  patterns: readonly string[],
+  pathLists: readonly (readonly string[])[],
+  maxSteps: number,
+): boolean | undefined {
+  const globs = patterns
+    .map(readScanGlob)
+    .toSorted((left, right) => right.prefix.length - left.prefix.length);
+  const state: ScanState = {
+    rows: { reach: new Uint8Array(0), next: new Uint8Array(0) },
+    stepsLeft: maxSteps,
+  };
+
+  for (const filePaths of pathLists) {
+    const matched = matchesAnyInList(globs, filePaths, state);
+    if (matched !== false) {
+      return matched;
+    }
+  }
+  return false;
+}
