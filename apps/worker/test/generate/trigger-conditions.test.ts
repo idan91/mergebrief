@@ -39,7 +39,8 @@ setUpHarness();
 function makeInstanceConditions(block: unknown) {
   const parsed = parseInstanceTriggerConditions(block);
   if (!parsed.ok) {
-    throw new Error(parsed.error.issues.join("; "));
+    const messages = parsed.error.map((issue) => issue.message);
+    throw new Error(messages.join("; "));
   }
   return parsed.value;
 }
