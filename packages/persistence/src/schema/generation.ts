@@ -33,7 +33,13 @@ import {
   type GenerationPhase,
   type GenerationStatus,
 } from "types/generations";
-import { differsFrom, isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
+import {
+  differsFrom,
+  isJsonArray,
+  isJsonObject,
+  isNullOrOneOf,
+  isOneOf,
+} from "./checks";
 import { jsonDocument, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -68,6 +74,20 @@ export const generation = pgTable(
      * artifact, not here.
      */
     repoConfig: jsonDocument("repo_config"),
+    /**
+     * A `held` head's unmet trigger conditions, rewritten on every check.
+     * Every writer that moves a row out of `held` clears them; the CHECK binds
+     * one way only, so an older release that does not clear them still writes.
+     */
+    unmetConditions: jsonDocument("unmet_conditions"),
+    /**
+     * A Generate click queued this head, held, failed or awaiting its trigger:
+     * every run of that head skips the trigger conditions. Never cleared.
+     * The audit row records who clicked.
+     */
+    generateRequestedAt: timestamp("generate_requested_at", {
+      withTimezone: true,
+    }),
     attempts: integer("attempts").notNull().default(0),
     /** Runs that claimed the row since a trigger last projected it pending. */
     claims: integer("claims").notNull().default(0),
@@ -105,6 +125,7 @@ export const generation = pgTable(
     ]);
     const notFailed = differsFrom(table.status, GenerationStatuses.FAILED);
     const running = isOneOf(table.status, [GenerationStatuses.RUNNING]);
+    const notHeld = differsFrom(table.status, GenerationStatuses.HELD);
 
     return [
       unique("generation_natural_key")
@@ -149,6 +170,14 @@ export const generation = pgTable(
       check(
         "generation_claim_is_running",
         sql`${table.runId} is null or ${running}`,
+      ),
+      check(
+        "generation_unmet_conditions_check",
+        isJsonArray(table.unmetConditions),
+      ),
+      check(
+        "generation_held_has_conditions",
+        sql`${notHeld} or ${table.unmetConditions} is not null`,
       ),
     ];
   },

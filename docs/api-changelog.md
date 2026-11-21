@@ -15,6 +15,18 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-11-21)
 
+- **Added** `held` to `generation.status` on `GET /api/repos/:repoId/pulls/:prNumber`
+  and `GET /api/inbox`: a trigger condition keeps the head from generating.
+  It is not terminal: the head generates by itself once every condition
+  passes, or at once on `POST .../regenerate`, which now also takes a held
+  head. While `held`, the summary carries `unmetConditions`, one item per
+  unmet condition (`{ kind, setBy, ... }`, `setBy` is `repo` or
+  `instance`). An unmet `any:` group is one `{ kind: "any", conditions }`
+  item with no `setBy` of its own; each member carries its own. `kind` is an
+  open vocabulary: drop an item of a kind you do not know.
+  When the server itself cannot read a stored item, it drops it and sends
+  `unmetConditionsPartial: true`: `unmetConditions` is then not the whole
+  reason, and is absent when no item was readable.
 - **BREAKING**: the `409` code `generation-held` is now `generation-running`,
   on `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, while a run has
   the head claimed. The old code is gone, so a client matching on

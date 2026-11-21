@@ -20,7 +20,9 @@ import {
   projectPendingGeneration,
   readCurrentBriefHead,
   releaseAwaitingTrigger,
+  releaseHeldHead,
   stampBriefTriggered,
+  stampGenerateRequested,
   type GenerationRow,
   type ProjectedGeneration,
 } from "./generation";
@@ -174,6 +176,7 @@ async function owesCheckpointDelta(
 const WAITS_FOR_JOB: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.PENDING,
   GenerationStatuses.AWAITING_TRIGGER,
+  GenerationStatuses.HELD,
 ]);
 
 /**
@@ -352,12 +355,12 @@ function isRerunHopeless(row: GenerationRow): boolean {
 
 /**
  * Why the current head cannot take a fresh run, or `undefined` when it can:
- * a head waiting for its Trigger approval, or one that failed in a way a
- * rerun can help. A closed or merged PR has nothing left to generate for.
- * Only an in-flight head is refused, as on a push: a dead worker's job stays
- * locked for hours, and a live one that has not claimed yet meets the reset
- * row's fence. A failed head whose brief is stored failed after it, and a
- * fresh run there would claim nothing.
+ * a head waiting for its Trigger approval, one trigger conditions hold, or
+ * one that failed in a way a rerun can help. A closed or merged PR has
+ * nothing left to generate for. Only an in-flight head is refused, as on a
+ * push: a dead worker's job stays locked for hours, and a live one that has
+ * not claimed yet meets the reset row's fence. A failed head whose brief is
+ * stored failed after it, and a fresh run there would claim nothing.
  */
 async function findTriggerOnDemandRefusal(
   tx: IngestTransaction,
@@ -372,6 +375,9 @@ async function findTriggerOnDemandRefusal(
     return TriggerOnDemandOutcomes.RUNNING;
   }
   if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
+    return undefined;
+  }
+  if (head.row.status === GenerationStatuses.HELD) {
     return undefined;
   }
   const failed = head.row.status === GenerationStatuses.FAILED;
@@ -536,12 +542,12 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
-   * A pusher's fresh run of the PR's current head: projected `pending` with
-   * its claims reset, and the job queued a few seconds out, replacing a
-   * waiting one; a locked job gets its key detached, as on a push. A head
-   * awaiting its trigger also records the approver's Trigger approval in the
-   * same transaction, and is refused when the caller named none; a failed
-   * head records none. A closed or merged PR, an in-flight head, any other
+   * A pusher's fresh run of the PR's current head, claims reset and the job
+   * queued a few seconds out over a waiting one (a locked job's key detaches,
+   * as on a push). A held head is released to `pending` with its conditions
+   * cleared, and every queued head gets the Generate stamp. A head awaiting its
+   * trigger also records the approver's Trigger approval, and is refused when
+   * the caller named none. A closed or merged PR, an in-flight head, any other
    * status, a cannot-help failure, a failed head whose brief is stored, and a
    * PR outside an installation scope write nothing.
    */
@@ -947,14 +953,27 @@ export function createIngestRoutines(
         }
 
         const { headSha } = head.row;
-        const projected = await projectPendingGeneration(tx, scope, {
-          pullRequestId,
-          kind: GenerationKinds.BRIEF,
-          headSha,
-          baselineSha: null,
-        });
-        if (projected.inFlight) {
-          return TriggerOnDemandOutcomes.RUNNING;
+        if (head.row.status === GenerationStatuses.HELD) {
+          const released = await releaseHeldHead(
+            tx,
+            scope,
+            pullRequestId,
+            headSha,
+          );
+          if (!released) {
+            return TriggerOnDemandOutcomes.RUNNING;
+          }
+        } else {
+          const projected = await projectPendingGeneration(tx, scope, {
+            pullRequestId,
+            kind: GenerationKinds.BRIEF,
+            headSha,
+            baselineSha: null,
+          });
+          if (projected.inFlight) {
+            return TriggerOnDemandOutcomes.RUNNING;
+          }
+          await stampGenerateRequested(tx, scope, pullRequestId, headSha);
         }
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {
