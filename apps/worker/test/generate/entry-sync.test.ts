@@ -688,7 +688,7 @@ describe("generate task, Entry sync", () => {
     const github = makeGitHub(HEAD_1);
     const { pr, payload } = await trigger(HEAD_1);
     await harness.raw(
-      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","source":"repo"}]'`,
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
     );
     await trackCappedEntry(github, pr.id);
 

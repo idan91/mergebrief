@@ -24,7 +24,7 @@ export type Catalog = typeof en & {
     };
     held: (typeof en)["entryComment"]["held"] & {
       heading: "No brief for {{shortSha}}.";
-      condition: "{{reason}} ({{owner}})";
+      condition: "{{reason}} ({{setBy}})";
       previousLink: "Brief for {{shortSha}}";
       moreChecks_one: "{{names}} and {{count}} more check";
       moreChecks_other: "{{names}} and {{count}} more checks";

@@ -78,7 +78,7 @@ export function sortUnmetConditions(
 function describeSize(t: TFunction, condition: UnmetSize): string {
   const params = {
     actual: String(condition.actual),
-    measure: t(`entryComment.held.reason.sizeCount.${condition.count}`),
+    measure: t(`entryComment.held.reason.sizeMeasure.${condition.measure}`),
     limit: String(condition.limit),
   };
   if (condition.side === SizeBoundSides.MAX) {
@@ -169,13 +169,13 @@ function describeCondition(
 }
 
 /** A condition's reasons, each naming whose setting it is. */
-function describeOwnedCondition(
+function describeConditionWithSetBy(
   t: TFunction,
   condition: UnmetPlainCondition,
 ): string[] {
-  const owner = t(`entryComment.held.owner.${condition.source}`);
+  const setBy = t(`entryComment.held.setBy.${condition.setBy}`);
   return describeCondition(t, condition).map((reason) =>
-    t("entryComment.held.condition", { reason, owner }),
+    t("entryComment.held.condition", { reason, setBy }),
   );
 }
 
@@ -189,10 +189,12 @@ export function formatHeldConditionLines(
 ): string[] {
   return sortUnmetConditions(unmet).flatMap((condition) => {
     if (condition.kind !== UnmetConditionKinds.ANY) {
-      return describeOwnedCondition(t, condition).map((line) => `- ${line}`);
+      return describeConditionWithSetBy(t, condition).map(
+        (line) => `- ${line}`,
+      );
     }
     const members = condition.conditions.flatMap((member) =>
-      describeOwnedCondition(t, member).map((line) => `  - ${line}`),
+      describeConditionWithSetBy(t, member).map((line) => `  - ${line}`),
     );
     return [`- ${t("entryComment.held.anyGroup")}`, ...members];
   });
