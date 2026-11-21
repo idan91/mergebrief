@@ -5,6 +5,7 @@ import {
   type GitHubCall,
   type GitHubCallFailure,
   type PullRequestFile,
+  type RequiredStatusCheck,
   type SubmittedReview,
 } from "github";
 import {
@@ -119,7 +120,8 @@ function listPreviousPath(file: PullRequestFile): string[] {
 const NO_REPORTS: HeadReports = {
   checkRuns: [],
   statuses: [],
-  statusChecksForbidden: false,
+  checkRunsForbidden: false,
+  statusesForbidden: false,
   reviews: [],
   requiredChecks: [],
 };
@@ -196,17 +198,16 @@ async function readHeadReports(
       : answerNothing<SubmittedReview>(),
     readsRuleset
       ? reads.listRequiredStatusChecks(baseRef)
-      : answerNothing<string>(),
+      : answerNothing<RequiredStatusCheck>(),
   ]);
 
   const permittedRuns = readPermittedList(runs);
   const permittedStatuses = readPermittedList(statuses);
-  const statusChecksForbidden =
-    permittedRuns.forbidden || permittedStatuses.forbidden;
   return {
     checkRuns: permittedRuns.items,
     statuses: permittedStatuses.items,
-    statusChecksForbidden,
+    checkRunsForbidden: permittedRuns.forbidden,
+    statusesForbidden: permittedStatuses.forbidden,
     reviews: throwOnGitHubFailure(reviews),
     requiredChecks: throwOnGitHubFailure(required),
   };

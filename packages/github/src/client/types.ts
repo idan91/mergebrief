@@ -73,7 +73,11 @@ import type {
   ReviewThread,
 } from "../operations/review-thread";
 import type { SubmittedReview } from "../operations/review-list";
-import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
+import type {
+  CheckRun,
+  CommitStatus,
+  RequiredStatusCheck,
+} from "../operations/status-checks/types";
 import type { RepositoryVisibility } from "../types";
 
 export const CredentialFailureCodes = {
@@ -316,8 +320,8 @@ export interface InstallationRepoClient extends RepoReader {
   /** Every status on the commit, newest first. Needs Commit statuses: read. */
   listCommitStatuses(ref: string): GitHubCall<CommitStatus[]>;
   listSubmittedReviews(prNumber: number): GitHubCall<SubmittedReview[]>;
-  /** The check names the branch's rulesets require; GitHub Free's private-repo 403 reads none. */
-  listRequiredStatusChecks(branch: string): GitHubCall<string[]>;
+  /** The checks the branch's rulesets require, with any App pin; GitHub Free's private-repo 403 reads none. */
+  listRequiredStatusChecks(branch: string): GitHubCall<RequiredStatusCheck[]>;
 }
 
 /** The account-level reads every credential shares. */

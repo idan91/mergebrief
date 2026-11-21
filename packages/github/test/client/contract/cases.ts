@@ -484,7 +484,7 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
       operation: "listRequiredStatusChecks",
       call: (client: InstallationRepoClient) =>
         client.listRequiredStatusChecks("main"),
-      expected: ["build"],
+      expected: [{ context: "build", appId: 15368n }],
     }),
     defineCase({
       operation: "listRepoCollaborators",

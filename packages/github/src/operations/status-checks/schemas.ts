@@ -29,5 +29,7 @@ export const branchRuleListSchema = z.array(
 );
 
 export const requiredStatusChecksParametersSchema = z.object({
-  required_status_checks: z.array(z.object({ context: z.string() })),
+  required_status_checks: z.array(
+    z.object({ context: z.string(), integration_id: positiveBigIntSchema.nullish() }),
+  ),
 });
