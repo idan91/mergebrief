@@ -297,6 +297,25 @@ describe("merging the instance and repo blocks", () => {
     ]);
   });
 
+  it("joins the instance's any group and the repo's into one", () => {
+    const withGroup = parseInstance({
+      any: { labels: ["a"], baseBranches: ["main"] },
+    });
+    const repo = parseRepo({
+      any: { titleKeywords: ["[brief]"], size: { additions: { min: 1 } } },
+    });
+    const effective = resolveEffectiveTriggerConditions(withGroup, repo);
+    expect(effective.all).toEqual([]);
+    expect(
+      effective.any.map((item) => [item.setting.kind, item.setBy]),
+    ).toEqual([
+      ["labels", "instance"],
+      ["base-branches", "instance"],
+      ["title-keywords", "repo"],
+      ["size", "repo"],
+    ]);
+  });
+
   it("folds an any group left with one member into the plain conditions", () => {
     const withGroup = parseInstance({
       any: { labels: ["a"], baseBranches: ["main"] },
