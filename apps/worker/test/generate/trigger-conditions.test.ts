@@ -848,7 +848,7 @@ describe("generate task, trigger conditions", () => {
   it("holds on a bot still running, then generates once its run completes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    const botsCondition = instanceConditions({
+    const botsCondition = makeInstanceConditions({
       bots: { coderabbit: "finished" },
     });
     github.addCheckRun(REPO, HEAD_1, {
@@ -925,7 +925,7 @@ describe("generate task, trigger conditions", () => {
     await makeTask({
       github,
       generator,
-      triggerConditions: instanceConditions({
+      triggerConditions: makeInstanceConditions({
         bots: { claude: "clean" },
         ci: { checks: ["build"] },
       }),
@@ -958,7 +958,7 @@ describe("generate task, trigger conditions", () => {
 
     await makeTask({
       github,
-      triggerConditions: instanceConditions({ readyForReview: "on" }),
+      triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
     })(payload);
 
     const reads = [
@@ -976,7 +976,9 @@ describe("generate task, trigger conditions", () => {
 
     await makeTask({
       github,
-      triggerConditions: instanceConditions({ bots: { copilot: "finished" } }),
+      triggerConditions: makeInstanceConditions({
+        bots: { copilot: "finished" },
+      }),
     })(payload);
 
     const reports = [
@@ -997,7 +999,7 @@ describe("generate task, trigger conditions", () => {
       makeTask({
         github,
         generator,
-        triggerConditions: instanceConditions({
+        triggerConditions: makeInstanceConditions({
           bots: { unblocked: "finished" },
         }),
       })(payload, { job: FIRST_ATTEMPT }),
