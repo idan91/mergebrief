@@ -12,6 +12,7 @@ import {
 import { SUBMIT_REVIEW_EXAMPLE } from "../payload-examples";
 import { parseSpanFlags, runSubmitWrite } from "../span";
 import {
+  isPrNumberArgument,
   parsePrNumber,
   resolveProfileTarget,
   resolveRepoTarget,
@@ -20,6 +21,7 @@ import {
   buildSubmitPayload,
   runGenerate,
   runReady,
+  runRegenerate,
   runReply,
   runSubmit,
   runThreadResolution,
@@ -181,10 +183,20 @@ export function registerGenerateCommand(
 ): void {
   program
     .command("generate")
-    .description("generate a brief for a PR URL (no confirm; your own key)")
-    .argument("<url>", "the PR's GitHub URL")
-    .action(async (url: string) => {
+    .description(
+      "generate a PR's brief now: a number presses Generate on a held or failed head, a URL pastes it (no confirm; your own key)",
+    )
+    .argument(
+      "<number|url>",
+      "a PR number in the target repository, or a PR's GitHub URL",
+    )
+    .action(async (target: string) => {
+      if (isPrNumberArgument(target)) {
+        const { client, repoId } = await resolveRepoTarget(context);
+        await runRegenerate(client, repoId, parsePrNumber(target));
+        return;
+      }
       const { client, io } = resolveProfileTarget(context);
-      await runGenerate(client, url, io);
+      await runGenerate(client, target, io);
     });
 }
