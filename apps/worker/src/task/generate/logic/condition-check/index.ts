@@ -7,7 +7,6 @@ import {
   type PullRequestFile,
   type SubmittedReview,
 } from "github";
-import { SizeMeasures } from "types/trigger-conditions";
 import {
   CiModes,
   resolveEffectiveTriggerConditions,
@@ -15,6 +14,7 @@ import {
   type TriggerConditionSetting,
 } from "generators/trigger-conditions";
 import {
+  SizeMeasures,
   TriggerConditionKinds,
   type TriggerConditionKind,
 } from "types/trigger-conditions";
