@@ -55,8 +55,8 @@ export function HeldCard(props: HeldCardProps) {
       {showsConditions ? (
         <HeldConditions
           layout={HeldConditionsLayouts.PANEL}
-          unmet={props.unmetConditions}
-          unmetPartial={props.unmetConditionsPartial}
+          unmetConditions={props.unmetConditions}
+          unmetConditionsPartial={props.unmetConditionsPartial}
         />
       ) : null}
     </section>
