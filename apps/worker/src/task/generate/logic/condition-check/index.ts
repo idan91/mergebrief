@@ -31,6 +31,7 @@ import { throwOnGitHubFailure } from "../errors";
 import { REVIEW_BOT_ACCOUNTS } from "./consts";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
 import {
+  addPathsMatch,
   deriveOwedStamps,
   evaluateTriggerConditions,
   isVerdictOnPaths,
@@ -317,8 +318,9 @@ export async function applyConditionCheck(
   const reports = await readHeadReports(context, effective);
   const unreadFacts = readConditionFacts(context, undefined, reports);
   const files = await readCheckedFiles(context, effective, unreadFacts);
-  const facts = readConditionFacts(context, files, reports);
-  const unmet = evaluateTriggerConditions(effective, facts, log);
+  const readFacts = readConditionFacts(context, files, reports);
+  const facts = addPathsMatch(effective, readFacts, log);
+  const unmet = evaluateTriggerConditions(effective, facts);
   await writeOwedStamps(context, effective, facts);
   if (unmet.length === 0) {
     return buildProceedOutcome(repoConfig, files);

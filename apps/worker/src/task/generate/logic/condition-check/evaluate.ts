@@ -287,38 +287,31 @@ function matchChangedPaths(
   );
 }
 
+/** No path was read: `paths` reads as met. */
+function isPathsUnseen(facts: ConditionFacts): boolean {
+  return facts.changedPaths === undefined;
+}
+
 /**
  * Git paths are case-sensitive, so a glob matches as written. A stamp under
  * the same globs meets it before any path is read. A scan past its budget
- * reads as unmet and warns: the head holds, nothing is spent, and a
- * Generate click still runs it. Unread paths read as met: the list is read
- * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
- * another condition lists no `paths` item, nor an `any` group holding one,
- * until the others pass. GitHub lists at most 3,000 files, so a larger PR
- * matches on those alone.
+ * reads as unmet: the head holds, nothing is spent, and a Generate click
+ * still runs it. Unread paths read as met: the list is read only when the
+ * verdict turns on it (`isVerdictOnPaths`), so a head held on another
+ * condition lists no `paths` item, nor an `any` group holding one, until the
+ * others pass. GitHub lists at most 3,000 files, so a larger PR matches on
+ * those alone. The match is the one `addPathsMatch` scanned.
  */
 function checkPaths({
   value,
   setBy,
   facts,
-  log,
 }: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
-  if (isPathsStampCurrent(value, facts)) {
+  if (isPathsStampCurrent(value, facts) || isPathsUnseen(facts)) {
     return [];
   }
-  if (facts.changedPaths === undefined) {
+  if (facts.pathsMatched === true) {
     return [];
-  }
-  const matched = matchChangedPaths(value, facts.changedPaths, facts);
-  if (matched === true) {
-    return [];
-  }
-  if (matched === undefined) {
-    const previousCount = facts.previousPaths?.length ?? 0;
-    log?.warn("generate: paths match budget spent, held as no match", {
-      globs: value.length,
-      paths: facts.changedPaths.length + previousCount,
-    });
   }
   return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
 }
@@ -341,21 +334,19 @@ function runKindCheck<Kind extends TriggerConditionKind>(
   setting: KindSetting<Kind>,
   setBy: TriggerConditionSetter,
   facts: ConditionFacts,
-  log?: Logger,
 ): UnmetPlainCondition[] {
   const check: KindCheck<Kind> | undefined = KIND_CHECKS[setting.kind];
   if (check === undefined) {
     return [];
   }
-  return check({ value: setting.value, setBy, facts, log });
+  return check({ value: setting.value, setBy, facts });
 }
 
 function checkCondition(
   condition: EffectiveCondition,
   facts: ConditionFacts,
-  log?: Logger,
 ): UnmetPlainCondition[] {
-  return runKindCheck(condition.setting, condition.setBy, facts, log);
+  return runKindCheck(condition.setting, condition.setBy, facts);
 }
 
 function isPathsSetting(
@@ -423,18 +414,51 @@ export function isVerdictOnPaths(
   return !others.some((item) => isConditionMet(item, facts));
 }
 
+function findPathsSetting(
+  effective: EffectiveTriggerConditions,
+): PathsSetting | undefined {
+  const conditions = [...effective.all, ...effective.any];
+  return conditions.map((item) => item.setting).find(isPathsSetting);
+}
+
+/**
+ * The facts with the `paths` match scanned once for the run, so the verdict
+ * and the owed stamp read one answer. Nothing is scanned when no path can
+ * decide it: no `paths` condition, unread paths, or a stamp under the
+ * current globs. A scan past its budget reads as no match and warns.
+ */
+export function addPathsMatch(
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+  log?: Logger,
+): ConditionFacts {
+  const setting = findPathsSetting(effective);
+  const { changedPaths } = facts;
+  if (setting === undefined || changedPaths === undefined) {
+    return facts;
+  }
+  if (isPathsStampCurrent(setting.value, facts)) {
+    return facts;
+  }
+
+  const matched = matchChangedPaths(setting.value, changedPaths, facts);
+  if (matched === undefined) {
+    const previousCount = facts.previousPaths?.length ?? 0;
+    log?.warn("generate: paths match budget spent, held as no match", {
+      globs: setting.value.length,
+      paths: changedPaths.length + previousCount,
+    });
+  }
+  const pathsMatched = matched === true;
+  return { ...facts, pathsMatched };
+}
+
 /** The globs' digest when a changed path matched them this run. */
 function findMatchedPathsDigest(
   setting: PathsSetting,
   facts: ConditionFacts,
 ): string | undefined {
-  const { changedPaths } = facts;
-  const unseen = changedPaths === undefined;
-  if (unseen || isPathsStampCurrent(setting.value, facts)) {
-    return undefined;
-  }
-  const matched = matchChangedPaths(setting.value, changedPaths, facts);
-  if (matched !== true) {
+  if (facts.pathsMatched !== true) {
     return undefined;
   }
   return digestPathGlobs(setting.value);
@@ -457,7 +481,7 @@ export function deriveOwedStamps(
       reviewRequestedSet && reviewUnstamped && isReviewRequestSeen(facts),
   };
 
-  const paths = settings.find(isPathsSetting);
+  const paths = findPathsSetting(effective);
   const pathsDigest =
     paths === undefined ? undefined : findMatchedPathsDigest(paths, facts);
   if (pathsDigest !== undefined) {
@@ -473,17 +497,16 @@ export function deriveOwedStamps(
 export function evaluateTriggerConditions(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
-  log?: Logger,
 ): UnmetCondition[] {
   const unmet: UnmetCondition[] = effective.all.flatMap((condition) =>
-    checkCondition(condition, facts, log),
+    checkCondition(condition, facts),
   );
   if (effective.any.length === 0) {
     return unmet;
   }
 
   const members = effective.any.map((condition) =>
-    checkCondition(condition, facts, log),
+    checkCondition(condition, facts),
   );
   const groupMet = members.some((items) => items.length === 0);
   if (!groupMet) {

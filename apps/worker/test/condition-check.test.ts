@@ -6,6 +6,7 @@ import type {
   TriggerConditionSetting,
 } from "generators/trigger-conditions";
 import {
+  addPathsMatch,
   deriveOwedStamps,
   digestPathGlobs,
   evaluateTriggerConditions,
@@ -70,10 +71,9 @@ function evaluateOne(
   setting: TriggerConditionSetting,
   overrides: Partial<ConditionFacts> = {},
 ) {
-  return evaluateTriggerConditions(
-    makeEffective(setting),
-    makeFacts(overrides),
-  );
+  const effective = makeEffective(setting);
+  const facts = addPathsMatch(effective, makeFacts(overrides));
+  return evaluateTriggerConditions(effective, facts);
 }
 
 describe("evaluateTriggerConditions, size", () => {
@@ -386,10 +386,8 @@ describe("deriveOwedStamps", () => {
   });
 
   it("owes the paths stamp with the globs' digest on a match", () => {
-    const owed = deriveOwedStamps(
-      payments,
-      makeFacts({ changedPaths: ["src/payments/refund.ts"] }),
-    );
+    const facts = makeFacts({ changedPaths: ["src/payments/refund.ts"] });
+    const owed = deriveOwedStamps(payments, addPathsMatch(payments, facts));
 
     expect(owed).toEqual({
       reviewRequested: false,
@@ -408,7 +406,8 @@ describe("deriveOwedStamps", () => {
       },
     ],
   ])("owes no paths stamp on %s", (_case, overrides) => {
-    const owed = deriveOwedStamps(payments, makeFacts(overrides));
+    const facts = addPathsMatch(payments, makeFacts(overrides));
+    const owed = deriveOwedStamps(payments, facts);
 
     expect(owed.pathsDigest).toBeUndefined();
   });
@@ -475,15 +474,14 @@ describe("evaluateTriggerConditions, paths", () => {
     const lastMatches = `a/${"x".repeat(197)}`;
 
     const lines: Record<string, unknown>[] = [];
+    const effective = makeEffective({ kind: "paths", value: [glob] });
+    const facts = makeFacts({
+      changedPaths: [...misses, lastMatches],
+      previousPaths: ["old/a.ts", "old/b.ts"],
+    });
 
-    const unmet = evaluateTriggerConditions(
-      makeEffective({ kind: "paths", value: [glob] }),
-      makeFacts({
-        changedPaths: [...misses, lastMatches],
-        previousPaths: ["old/a.ts", "old/b.ts"],
-      }),
-      stubLogger(lines),
-    );
+    const matched = addPathsMatch(effective, facts, stubLogger(lines));
+    const unmet = evaluateTriggerConditions(effective, matched);
 
     expect(unmet).toHaveLength(1);
     expect(lines).toEqual([
@@ -817,9 +815,10 @@ describe("evaluateTriggerConditions, any group of paths and more", () => {
   };
 
   it("passes on a matching path alone", () => {
+    const facts = makeFacts({ changedPaths: ["src/payments/refund.ts"] });
     const unmet = evaluateTriggerConditions(
       pathsOrLabels,
-      makeFacts({ changedPaths: ["src/payments/refund.ts"] }),
+      addPathsMatch(pathsOrLabels, facts),
     );
 
     expect(unmet).toEqual([]);

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PullRequestFile, PullRequestInfo } from "github";
+import { matchesGlob } from "brief-core/path-matching";
 import {
   createGenerationProjection,
   createIngestRoutines,
@@ -15,11 +16,7 @@ import {
   buildEntryCommentHeldBody,
 } from "../../src/task/entry-comment";
 import { digestPathGlobs } from "../../src/task/generate/logic/condition-check/evaluate";
-import {
-  FakeFailures,
-  type FakeGitHub,
-  type FakeReview,
-} from "github/testing";
+import { FakeFailures, type FakeGitHub, type FakeReview } from "github/testing";
 import { createI18n } from "i18n";
 import type { TFunction } from "i18next";
 import { RepoConfigPaths } from "repo-config";
@@ -60,6 +57,11 @@ import {
   trigger,
 } from "./helpers";
 import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
+
+vi.mock("brief-core/path-matching", async (importOriginal) => {
+  const actual = await importOriginal<{ matchesGlob: typeof matchesGlob }>();
+  return { ...actual, matchesGlob: vi.fn(actual.matchesGlob) };
+});
 
 setUpHarness();
 
@@ -877,6 +879,24 @@ describe("generate task, trigger conditions", () => {
     ]);
     expect(generator.calls).toEqual([]);
     expect(await countStartedRuns()).toBe(0);
+  });
+
+  it("scans the changed paths once in a run held on paths", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1, [
+      { path: "docs/guide.md", additions: 3, deletions: 1 },
+      { path: "src/widgets/index.ts", additions: 2, deletions: 0 },
+    ]);
+    addSettings(
+      github,
+      "version: 1\ntriggerConditions:\n  paths: ['**/payments/**']\n",
+    );
+    vi.mocked(matchesGlob).mockClear();
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(vi.mocked(matchesGlob).mock.calls).toHaveLength(2);
   });
 
   it("reads no file list to hold a head without a paths condition", async () => {
