@@ -94,7 +94,7 @@ describe("generate task, trigger conditions", () => {
     expect(generator.calls).toEqual([]);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toEqual([
-      { kind: "ready-for-review", source: "instance" },
+      { kind: "ready-for-review", setBy: "instance" },
     ]);
     expect(await countStartedRuns()).toBe(0);
   });
@@ -115,7 +115,7 @@ describe("generate task, trigger conditions", () => {
 
     expect(reads.count).toBe(2);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
-    expect(await readUnmet(pr)).toEqual([{ kind: "never", source: "repo" }]);
+    expect(await readUnmet(pr)).toEqual([{ kind: "never", setBy: "repo" }]);
   });
 
   it("holds on the instance's conditions when every read in the run fails", async () => {
@@ -141,7 +141,7 @@ describe("generate task, trigger conditions", () => {
     expect(statuses).not.toContain(GenerationStatuses.FAILED);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toEqual([
-      { kind: "ready-for-review", source: "instance" },
+      { kind: "ready-for-review", setBy: "instance" },
     ]);
   });
 
@@ -181,7 +181,7 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
-    expect(await readUnmet(pr)).toEqual([{ kind: "never", source: "repo" }]);
+    expect(await readUnmet(pr)).toEqual([{ kind: "never", setBy: "repo" }]);
   });
 
   it("generates when the repo switches the instance's conditions off", async () => {
