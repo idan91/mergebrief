@@ -186,6 +186,39 @@ describe("parsing a triggerConditions block", () => {
     expect(described).toContain("triggerConditions.labels.0");
     expect(described).not.toContain("(redacted)");
   });
+
+  it("refuses a kind switched off while the any group sets it", () => {
+    const parsed = parseRepoTriggerConditions({
+      labels: "off",
+      any: { labels: ["a"], baseBranches: ["main"] },
+    });
+    expect(listIssues(parsed)).not.toEqual([]);
+  });
+
+  it("refuses an any group that is not a map", () => {
+    const issues = listIssues(parseRepoTriggerConditions({ any: ["labels"] }));
+    expect(issues.join(" ")).toContain("triggerConditions.any");
+  });
+
+  it("refuses a kind switched off inside the any group", () => {
+    const parsed = parseRepoTriggerConditions({
+      any: { labels: "off", baseBranches: ["main"] },
+    });
+    expect(listIssues(parsed).join(" ")).toContain(
+      "triggerConditions.any.labels",
+    );
+  });
+
+  it("refuses unknown keys at the top level and inside any", () => {
+    const blocks = [
+      { bogus: "on", labels: ["a"] },
+      { any: { bogus: "on", labels: ["a"], baseBranches: ["main"] } },
+    ];
+    for (const block of blocks) {
+      const issues = listIssues(parseRepoTriggerConditions(block));
+      expect(issues.join(" ")).toContain('unrecognized key "bogus"');
+    }
+  });
 });
 
 describe("merging the instance and repo blocks", () => {
