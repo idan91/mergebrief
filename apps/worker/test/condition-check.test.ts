@@ -888,6 +888,18 @@ describe("evaluateTriggerConditions, bots approved", () => {
     expect(unmet).toMatchObject([{ state: "not-approved" }]);
   });
 
+  it("never revives an approval a later dismissed review followed", () => {
+    const reviews = [
+      makeCodeRabbitReview({ reviewId: 1n, state: "APPROVED" }),
+      makeCodeRabbitReview({ reviewId: 2n, state: "DISMISSED" }),
+      makeCodeRabbitReview({ reviewId: 3n, state: "COMMENTED" }),
+    ];
+
+    const unmet = evaluateBots({ coderabbit: "approved" }, { reviews });
+
+    expect(unmet).toMatchObject([{ state: "not-approved" }]);
+  });
+
   it("holds a bot that finished its run without approving", () => {
     const run = makeRun({ appId: APP_IDS.coderabbit });
 
