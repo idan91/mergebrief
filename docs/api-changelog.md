@@ -23,6 +23,9 @@ deprecation note here, removal only at a major.
   unmet condition (`{ kind, source, ... }`, `source` is `repo` or
   `instance`), with an `any` item grouping the members of an unmet `any:`
   group. `kind` is an open vocabulary: drop an item of a kind you do not know.
+  When the server itself cannot read a stored item, it drops it and sends
+  `unmetConditionsPartial: true`: `unmetConditions` is then not the whole
+  reason, and is absent when no item was readable.
 - **BREAKING**: the `409` code `generation-held` is now `generation-running`,
   on `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, while a run has
   the head claimed. The old code is gone, so a client matching on

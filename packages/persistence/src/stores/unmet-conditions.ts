@@ -150,6 +150,22 @@ export function truncateUnmetConditions(
   });
 }
 
+/** A stored item read back, and whether reading it dropped a group member. */
+interface StoredItemRead {
+  readonly kept?: UnmetCondition;
+  readonly dropped: boolean;
+}
+
+/** A held head's stored conditions as this release reads them. */
+export interface StoredUnmetConditions {
+  /** The items it reads; empty when it reads none. */
+  readonly conditions: readonly UnmetCondition[];
+  /** An item or an `any` member was dropped, so the list is not the whole reason. */
+  readonly partial: boolean;
+}
+
+const UNREADABLE: StoredUnmetConditions = { conditions: [], partial: true };
+
 function listReadableConditions(
   items: readonly unknown[],
 ): UnmetPlainCondition[] {
@@ -163,29 +179,36 @@ function listReadableConditions(
   return readable;
 }
 
-function parseStoredItem(item: unknown): UnmetCondition | undefined {
+function readStoredItem(item: unknown): StoredItemRead {
   const group = storedAnyGroupSchema.safeParse(item);
   if (!group.success) {
     const plain = plainConditionSchema.safeParse(item);
-    return plain.success ? plain.data : undefined;
+    if (!plain.success) {
+      return { dropped: true };
+    }
+    return { kept: plain.data, dropped: false };
   }
 
   const members = listReadableConditions(group.data.conditions);
   if (members.length === 0) {
-    return undefined;
+    return { dropped: true };
   }
-  return { kind: UnmetConditionKinds.ANY, conditions: members };
+  const dropped = members.length < group.data.conditions.length;
+  return {
+    kept: { kind: UnmetConditionKinds.ANY, conditions: members },
+    dropped,
+  };
 }
 
 /**
  * The stored document, read back item by item: an item this schema refuses,
  * such as a kind a newer release wrote, is dropped and the rest kept, and an
- * `any` group keeps the members it can read. `undefined` for a row with none,
- * or one with no readable item.
+ * `any` group keeps the members it can read. Any drop marks the read partial,
+ * and so does a document that is no list. `undefined` for a row with none.
  */
 export function parseUnmetConditions(
   stored: string | null,
-): readonly UnmetCondition[] | undefined {
+): StoredUnmetConditions | undefined {
   if (stored === null) {
     return undefined;
   }
@@ -193,19 +216,21 @@ export function parseUnmetConditions(
   try {
     raw = JSON.parse(stored);
   } catch {
-    return undefined;
+    return UNREADABLE;
   }
   const list = storedListSchema.safeParse(raw);
   if (!list.success) {
-    return undefined;
+    return UNREADABLE;
   }
 
-  const readable: UnmetCondition[] = [];
+  const conditions: UnmetCondition[] = [];
+  let partial = false;
   for (const item of list.data) {
-    const parsed = parseStoredItem(item);
-    if (parsed !== undefined) {
-      readable.push(parsed);
+    const read = readStoredItem(item);
+    if (read.kept !== undefined) {
+      conditions.push(read.kept);
     }
+    partial ||= read.dropped;
   }
-  return readable.length > 0 ? readable : undefined;
+  return { conditions, partial };
 }
