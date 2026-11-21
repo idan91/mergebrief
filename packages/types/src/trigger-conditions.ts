@@ -114,8 +114,8 @@ export interface UnmetTitleKeywords extends UnmetConditionBase {
 }
 export interface UnmetBaseBranches extends UnmetConditionBase {
   readonly kind: typeof TriggerConditionKinds.BASE_BRANCHES;
-  /** The branch the pull request targets. */
-  readonly base: string;
+  /** The branch the pull request targets; absent when GitHub named none. */
+  readonly base?: string;
   readonly branches: readonly string[];
 }
 export interface UnmetPaths extends UnmetConditionBase {

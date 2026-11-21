@@ -8,9 +8,11 @@ import {
   TriggerConditionKinds,
   TriggerConditionSetters,
   UnmetConditionKinds,
+  type UnmetBaseBranches,
   type UnmetCondition,
   type UnmetPlainCondition,
 } from "types/trigger-conditions";
+import type { Mutable } from "types/utils";
 
 const MAX_STORED_NAMES = 100;
 const MAX_STORED_NAME_CHARS = 255;
@@ -50,7 +52,7 @@ const plainConditionSchema = z.discriminatedUnion("kind", [
   }),
   buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
-    base: z.string().max(MAX_STORED_NAME_CHARS),
+    base: z.string().max(MAX_STORED_NAME_CHARS).exactOptional(),
     branches: namesSchema,
   }),
   buildSetBySchema({
@@ -103,6 +105,17 @@ function truncateNames(names: readonly string[]): readonly string[] {
   return names.slice(0, MAX_STORED_NAMES).map(truncateName);
 }
 
+function truncateBaseBranches(condition: UnmetBaseBranches): UnmetBaseBranches {
+  const truncated: Mutable<UnmetBaseBranches> = {
+    ...condition,
+    branches: truncateNames(condition.branches),
+  };
+  if (condition.base !== undefined) {
+    truncated.base = truncateName(condition.base);
+  }
+  return truncated;
+}
+
 function truncatePlainCondition(
   condition: UnmetPlainCondition,
 ): UnmetPlainCondition {
@@ -114,11 +127,7 @@ function truncatePlainCondition(
       return { ...condition, keywords: truncateNames(condition.keywords) };
     }
     case TriggerConditionKinds.BASE_BRANCHES: {
-      return {
-        ...condition,
-        base: truncateName(condition.base),
-        branches: truncateNames(condition.branches),
-      };
+      return truncateBaseBranches(condition);
     }
     case TriggerConditionKinds.PATHS: {
       return { ...condition, paths: truncateNames(condition.paths) };

@@ -4,8 +4,8 @@ import type { SizeMeasure } from "types/trigger-conditions";
 export interface ConditionFacts {
   readonly draft: boolean;
   readonly title: string;
-  /** The branch the pull request targets directly; empty when GitHub named none. */
-  readonly baseRef: string;
+  /** The branch the pull request targets directly; absent when GitHub named none. */
+  readonly baseRef?: string;
   readonly labels: readonly string[];
   readonly pendingReviewRequests: number;
   /** GitHub's totals for the whole pull request, per `size` measure. */
