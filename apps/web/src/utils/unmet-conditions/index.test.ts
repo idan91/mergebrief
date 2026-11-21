@@ -79,10 +79,12 @@ describe("describeUnmetReasons", () => {
     ]);
   });
 
-  it("says only the permission when CI cannot be read", () => {
+  it("adds the permission line when CI cannot be read", () => {
     const ci = { ...CI_FAILED, permissionMissing: true };
 
     expect(describeUnmetReasons(t, ci)).toEqual([
+      "CI failed: test",
+      "Waiting for CI: e2e still running",
       "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions",
     ]);
   });
