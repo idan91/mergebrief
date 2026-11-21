@@ -1,5 +1,6 @@
 import {
   buildEntryCommentGeneratingBody,
+  isHeadGeneratingEntryBody,
   isHeadHeldEntryBody,
 } from "../../entry-comment";
 import { DEFAULT_DETAIL_CONCURRENCY } from "brief-core";
@@ -37,35 +38,42 @@ export interface LargeRunCalls {
   readonly missing: number;
 }
 
-function buildHeldBodyMatcher(headSha: string): LiveBodyMatcher {
-  return (live) => isHeadHeldEntryBody(live, headSha);
+function buildOwnBodyMatcher(headSha: string): LiveBodyMatcher {
+  return (live) => {
+    const held = isHeadHeldEntryBody(live, headSha);
+    const own = held || isHeadGeneratingEntryBody(live, headSha);
+    return own;
+  };
 }
 
 /**
- * On an unread head the post still edits this head's held body in place, so
- * a released hold pings once; any other body it replaces only when the body
- * names this head, and it never creates the comment. An edit that does not
- * land leaves the thread as it is.
+ * On an unread head the post still edits this head's held or generating body
+ * in place; any other body it replaces only when the body names this head,
+ * and it never creates the comment. An edit that does not land leaves the
+ * thread as it is.
  */
 async function writeOnUnreadHead(
   post: GeneratingEntryPost,
   body: string,
   head: UnreadHeadRead,
 ): Promise<void> {
-  const editable = buildHeldBodyMatcher(post.headSha);
+  const editable = buildOwnBodyMatcher(post.headSha);
   const edited = await post.entryCommentManager.editMatching(body, editable);
   if (edited === EntryWrites.WRITTEN) {
-    post.log.warn("generate: head unread, the held Entry edited in place", {
+    post.log.warn("generate: head unread, this head's Entry edited in place", {
       error: head.error,
     });
     await queueSyncAfterLandedWrite(post, edited);
     return;
   }
   if (edited !== EntryWrites.LEFT) {
-    post.log.warn("generate: head unread, the held Entry edit did not land", {
-      error: head.error,
-      write: edited,
-    });
+    post.log.warn(
+      "generate: head unread, this head's Entry edit did not land",
+      {
+        error: head.error,
+        write: edited,
+      },
+    );
     return;
   }
   await replaceOnUnreadHead(post, body, head);
@@ -94,9 +102,9 @@ async function settleOffHeadPost(
 }
 
 /**
- * This head's live held body is edited in place, so a released hold's ready
- * post is its one ping, whatever retry or recovery run lands the edit; any
- * other live body is reposted.
+ * This head's live held or generating body is edited in place, so a released
+ * hold's ready post is its one ping, whatever retry or recovery run lands the
+ * edit; any other live body is reposted.
  */
 export async function postGeneratingEntry(
   post: GeneratingEntryPost,
@@ -105,7 +113,7 @@ export async function postGeneratingEntry(
   if (await settleOffHeadPost(post, body)) {
     return;
   }
-  const editable = buildHeldBodyMatcher(post.headSha);
+  const editable = buildOwnBodyMatcher(post.headSha);
   const written = await post.entryCommentManager.editOrRefresh(body, editable);
   await queueSyncAfterLandedWrite(post, written);
 }

@@ -1,5 +1,5 @@
 // The large run's generating Entry estimate: one call alone, the rest across
-// the detail lanes, rounded to five minutes and never under five. The held
+// the detail lanes, rounded to five minutes and never under five. The in-place
 // edit on an unread head, logged only when it lands, and the newer head's
 // sync when a write lands after the head moved.
 import { describe, expect, it } from "vitest";
@@ -102,11 +102,11 @@ describe("estimateMultiCallMinutes", () => {
 });
 
 describe("postGeneratingEntry on an unread head", () => {
-  it("logs the held Entry edited in place when the edit lands", async () => {
+  it("logs this head's Entry edited in place when the edit lands", async () => {
     const lines = await postHeldEditOnUnreadHead(EntryWrites.WRITTEN);
 
     expect(lines).toContain(
-      "generate: head unread, the held Entry edited in place",
+      "generate: head unread, this head's Entry edited in place",
     );
   });
 
@@ -116,10 +116,10 @@ describe("postGeneratingEntry on an unread head", () => {
       const lines = await postHeldEditOnUnreadHead(edit);
 
       expect(lines).not.toContain(
-        "generate: head unread, the held Entry edited in place",
+        "generate: head unread, this head's Entry edited in place",
       );
       expect(lines).toContain(
-        "generate: head unread, the held Entry edit did not land",
+        "generate: head unread, this head's Entry edit did not land",
       );
     },
   );

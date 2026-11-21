@@ -28,6 +28,7 @@ import {
   failFirstSettingsRead,
   interceptInstallationRepo,
   listCommentCalls,
+  makeConnectionError,
   makeEntryLink,
   makeGitHub,
   makePullRequestInfo,
@@ -562,6 +563,34 @@ describe("generate task, trigger conditions", () => {
     const writes = listEntryWrites(github, before);
     expect(writes[0]).toMatch(/^edit:/);
     expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("edits its own generating Entry on the retry after a model failure", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    const before = listCommentCalls(github).length;
+
+    github.updatePullRequest(PR_REF, { draft: false });
+    const generator = stubGenerator();
+    generator.failNextWith = makeConnectionError();
+    const task = makeTask({
+      github,
+      generator,
+      triggerConditions: readyForReview,
+    });
+    await expect(task(payload, { job: FIRST_ATTEMPT })).rejects.toThrow(
+      "Connection error",
+    );
+    await task(payload, { job: SECOND_ATTEMPT });
+
+    const writes = listEntryWrites(github, before);
+    expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    const [ready] = readLiveBodies(github);
+    expect(ready).toContain("mergebrief-entry-kind: ready");
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 

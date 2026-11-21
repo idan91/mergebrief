@@ -255,6 +255,14 @@ export function isHeadHeldEntryBody(body: string, headSha: string): boolean {
   return isHeadKindEntryBody(body, EntryBodyKinds.HELD, headSha);
 }
 
+/** This head's generating body, with or without a large run's estimate. */
+export function isHeadGeneratingEntryBody(
+  body: string,
+  headSha: string,
+): boolean {
+  return isHeadKindEntryBody(body, EntryBodyKinds.GENERATING, headSha);
+}
+
 /** This head's ready body, whatever revision it links. */
 export function isHeadReadyEntryBody(body: string, headSha: string): boolean {
   return isHeadKindEntryBody(body, EntryBodyKinds.READY, headSha);

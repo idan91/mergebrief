@@ -524,6 +524,7 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls).toContain("detail:3");
     expect(edits.map((edit) => edit.body)).toEqual([
+      expect.not.stringContaining("generated in"),
       expect.stringContaining(
         "generated in 3 parts. Expect it in about 10 minutes.",
       ),

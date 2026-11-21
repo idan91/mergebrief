@@ -235,20 +235,15 @@ interface SameHeadRace {
 }
 
 /**
- * The first comment read is the sync's and holds; the rerun's generating
- * refresh meets one more refused delete, so both writers start from the
- * same live comment. The ready post's delete holds when `holdsReadyDelete`.
+ * The first comment read is the sync's and holds; the rerun edits its own
+ * generating body in place, so both writers start from the same live
+ * comment. The ready post's delete holds when `holdsReadyDelete`.
  */
 function interleaveSameHeadRace(
   github: FakeGitHub,
   holdsReadyDelete: boolean,
 ): SameHeadRace {
   const race = { syncRead: makePause(), readyDelete: makePause() };
-  const refusing = makeGitHub(HEAD_1);
-  refusing.failOn("deleteComment", FakeFailures.SERVER_ERROR);
-  const refusingRepo = refusing
-    .bindInstallationGitHub(ctx.installationId)
-    .forRepo(PR_REF);
   let reads = 0;
   let deletes = 0;
   interceptInstallationRepo(github, (client) => ({
@@ -263,10 +258,7 @@ function interleaveSameHeadRace(
     },
     async deleteComment(commentId) {
       deletes += 1;
-      if (deletes === 1) {
-        return refusingRepo.deleteComment(commentId);
-      }
-      if (deletes === 2 && holdsReadyDelete) {
+      if (deletes === 1 && holdsReadyDelete) {
         await race.readyDelete.hold();
       }
       return client.deleteComment(commentId);
