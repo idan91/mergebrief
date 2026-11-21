@@ -596,10 +596,16 @@ export const ConditionCheckKinds = {
   HELD: "held",
 } as const;
 
-/** Every condition passed; the run carries any config the check read. */
-export interface ConditionsMetRun {
-  readonly kind: typeof ConditionCheckKinds.PROCEED;
+/** What the gates before the claim read, so the run's inputs never read it twice. */
+export interface PreClaimReads {
   readonly repoConfig: AcquiredRepoConfig | undefined;
+  /** The PR's changed files, read only when a `paths` condition needed them. */
+  readonly files: readonly PullRequestFile[] | undefined;
+}
+
+/** Every condition passed. */
+export interface ConditionsMetRun extends PreClaimReads {
+  readonly kind: typeof ConditionCheckKinds.PROCEED;
 }
 
 export interface ConditionsHeldRun {

@@ -7,7 +7,6 @@ import {
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { TransientJobError } from "../failure";
 import { parseGeneratePayload } from "../payload";
-import type { AcquiredRepoConfig } from "../repo-config";
 import {
   endUnclaimedRecovery,
   shouldRecoverClaim,
@@ -58,6 +57,7 @@ import {
   type GenerateTaskOptions,
   type GeneratingRun,
   type JobFailureReport,
+  type PreClaimReads,
   type RunContext,
   type RunPool,
   type RunProgress,
@@ -436,7 +436,7 @@ async function runGeneration(
   if (decision.kind === RunDecisionKinds.STAND_DOWN) {
     return;
   }
-  await generateUnderWatch(context, decision, conditions.repoConfig);
+  await generateUnderWatch(context, decision, conditions);
 }
 
 /**
@@ -448,7 +448,7 @@ async function runGeneration(
 async function generateUnderWatch(
   context: RunContext,
   decision: GeneratingRun,
-  gateRepoConfig: AcquiredRepoConfig | undefined,
+  reads: PreClaimReads,
 ): Promise<void> {
   const { deps, watch, shutdownSignal } = context;
   const generatorSignal =
@@ -459,7 +459,7 @@ async function generateUnderWatch(
   const traced = traceProviderCalls(bound, generatorSignal);
   const generator = countProviderCalls(traced, context.run);
   try {
-    await generateArtifacts(context, decision, generator, gateRepoConfig);
+    await generateArtifacts(context, decision, generator, reads);
   } catch (error) {
     const outcome = resolveWatchOutcome(watch, error);
     if (outcome instanceof SupersededSignal) {
@@ -500,11 +500,11 @@ async function generateArtifacts(
   context: RunContext,
   decision: GeneratingRun,
   generator: Generator,
-  gateRepoConfig: AcquiredRepoConfig | undefined,
+  reads: PreClaimReads,
 ): Promise<void> {
   const stops = listRunStops(context);
   const inputs = await traceRunStep("generation.inputs", stops, () =>
-    prepareRunInputs(context, decision, gateRepoConfig),
+    prepareRunInputs(context, decision, reads),
   );
   context.run.entryCommentAllowed = inputs.entryCommentAllowed;
   const brief = await traceRunStep("brief.generate", stops, () =>

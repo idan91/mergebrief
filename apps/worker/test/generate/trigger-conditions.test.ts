@@ -18,6 +18,7 @@ import { createI18n } from "i18n";
 import type { TFunction } from "i18next";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
+import { GenerationFailureCodes } from "types/generations";
 import {
   addSettings,
   countStartedRuns,
@@ -108,6 +109,24 @@ function listEntryWrites(github: FakeGitHub, before: number): string[] {
   return listCommentCalls(github)
     .slice(before)
     .filter((call) => !call.startsWith("fetch"));
+}
+
+const PATHS_SETTINGS = "version: 1\ntriggerConditions:\n  paths: ['**/*.ts']\n";
+const PATHS_OR_LABELS_SETTINGS = `version: 1
+triggerConditions:
+  any:
+    paths: ['src/payments/**']
+    labels: [needs-brief]
+`;
+
+function makeDocsOnlyGitHub() {
+  return makeGitHub(HEAD_1, [
+    { path: "docs/guide.md", additions: 3, deletions: 1 },
+  ]);
+}
+
+function countFileListReads(github: ReturnType<typeof makeGitHub>): number {
+  return github.listCalls("fetchPullRequestFiles").length;
 }
 
 async function readUnmet(pr: PullRequestRow) {
@@ -660,5 +679,104 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ github, triggerConditions: conditions })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("holds on a repo paths condition no changed file matches", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PATHS_SETTINGS);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "paths", setBy: "repo", paths: ["**/*.ts"] },
+    ]);
+    expect(await countStartedRuns()).toBe(0);
+  });
+
+  it("generates a held head once a changed file matches the paths", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const held = makeDocsOnlyGitHub();
+    addSettings(held, PATHS_SETTINGS);
+    await makeTask({ github: held })(payload);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+
+    const matching = makeGitHub(HEAD_1);
+    addSettings(matching, PATHS_SETTINGS);
+    await makeTask({ github: matching })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("reads the file list once in a run with a paths condition", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, PATHS_SETTINGS);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(payload);
+
+    expect(generator.calls).toContain("brief");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("reads no file list to hold a head without a paths condition", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, "version: 1\ntriggerConditions:\n  never: on\n");
+
+    await makeTask({ github })(payload);
+
+    expect(countFileListReads(github)).toBe(0);
+  });
+
+  it("holds an any group of paths and labels until a label lands", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, PATHS_OR_LABELS_SETTINGS);
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      {
+        kind: "any",
+        conditions: [
+          { kind: "paths", setBy: "repo", paths: ["src/payments/**"] },
+          { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+        ],
+      },
+    ]);
+
+    github.updatePullRequest(PR_REF, { labels: ["needs-brief"] });
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(countFileListReads(github)).toBe(2);
+  });
+
+  it("retries a paths check whose file list read fails transiently", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PATHS_SETTINGS);
+    github.failOn("fetchPullRequestFiles", FakeFailures.SERVER_ERROR);
+    const generator = stubGenerator();
+
+    await expect(
+      makeTask({ github, generator })(payload, { job: FIRST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.GITHUB_UNAVAILABLE);
+    expect(row?.runId).toBeNull();
+    expect(await readUnmet(pr)).toBeUndefined();
+    expect(generator.calls).toEqual([]);
+    expect(await countStartedRuns()).toBe(0);
   });
 });
