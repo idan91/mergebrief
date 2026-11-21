@@ -674,7 +674,9 @@ function makeReview(overrides: Partial<SubmittedReview> = {}): SubmittedReview {
   };
 }
 
-function withReports(reports: Partial<HeadReports>): Partial<ConditionFacts> {
+function makeReportFacts(
+  reports: Partial<HeadReports>,
+): Partial<ConditionFacts> {
   return { reports: { ...NO_REPORTS, ...reports } };
 }
 
@@ -684,7 +686,7 @@ function evaluateBots(
   >,
   reports: Partial<HeadReports>,
 ) {
-  return evaluateOne({ kind: "bots", value }, withReports(reports));
+  return evaluateOne({ kind: "bots", value }, makeReportFacts(reports));
 }
 
 describe("evaluateTriggerConditions, bots finished", () => {
@@ -1034,7 +1036,7 @@ function evaluateCi(
   value: { mode: "required" } | { mode: "named"; checks: string[] },
   reports: Partial<HeadReports>,
 ) {
-  return evaluateOne({ kind: "ci", value }, withReports(reports));
+  return evaluateOne({ kind: "ci", value }, makeReportFacts(reports));
 }
 
 const REQUIRED = { mode: "required" } as const;
