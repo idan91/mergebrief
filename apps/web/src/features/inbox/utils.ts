@@ -3,6 +3,7 @@ import {
   type InboxArchivedFilter,
   InboxArchivedFilters,
   InboxFoldStates,
+  type InboxGenerationFilter,
   type InboxSort,
   InboxSorts,
   PrStates,
@@ -61,6 +62,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
   appendEach(search, InboxQueryKeys.INSTALLATION, params.installation);
   if (params.archived !== undefined) {
     search.set(InboxQueryKeys.ARCHIVED, params.archived);
+  }
+  if (params.generation !== undefined) {
+    search.set(InboxQueryKeys.GENERATION, params.generation);
   }
   if (params.q !== undefined) {
     search.set(InboxQueryKeys.SEARCH_TEXT, params.q);
@@ -199,15 +203,23 @@ export function readFailureSide(code: ApiErrorCode): FailureSide {
  * names the rows in view whatever the filters, so an empty one means no row
  * of the view in any status; the archived total counts the viewer's
  * archived rows whatever the filters or the view. Rows behind a default
- * status filter the reviewer never touched are hidden, not filtered.
+ * status filter the reviewer never touched are hidden, not filtered. The
+ * held view is itself one changed filter, so with no other set nothing in
+ * the view is held.
  */
 export function readInboxEmptiness(
   page: Pick<InboxPage, "total" | "repositories" | "archivedTotal">,
   changedCount: number,
   archived: InboxArchivedFilter,
+  generation?: InboxGenerationFilter,
 ): InboxEmptiness {
   if (page.total > 0) {
     return InboxEmptinesses.ROWS;
+  }
+  if (generation !== undefined) {
+    return changedCount > 1
+      ? InboxEmptinesses.FILTERED
+      : InboxEmptinesses.HELD_ONLY;
   }
   if (archived === InboxArchivedFilters.ONLY) {
     if (page.archivedTotal === 0) {

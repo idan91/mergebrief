@@ -85,6 +85,15 @@
     }
   }
 
+  .count {
+    color: var(--color-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .label[data-state="active"] .count {
+    color: inherit;
+  }
+
   // The input is `.sr-only` (still focusable), so the ring goes on the label.
   input:focus-visible + .label {
     @include mixins.focus-ring;

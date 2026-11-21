@@ -16,6 +16,7 @@ function makePage(overrides: Partial<InboxPage> = {}): InboxPage {
     archivedTotal: 0,
     searchMatchTotal: 0,
     archivedSearchMatchTotal: 0,
+    heldTotal: 0,
     counts: { new: 0, inProgress: 0, reviewed: 0, updated: 0 },
     viewer: { login: "octocat", avatarUrl: "https://a/1" },
     reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
@@ -183,6 +184,20 @@ describe("useControlsFacade", () => {
     expect(
       archived.facade.filters.find((filter) => filter.id === "list"),
     ).toMatchObject({ changed: true, chosen: ["only"] });
+  });
+
+  it("the Held view counts held rows and writes only the held view", () => {
+    const all = renderFacade(makePage({ heldTotal: 3 }));
+    const held = renderFacade(makePage({ heldTotal: 3 }), {
+      generation: "held",
+    });
+
+    expect(all.facade.heldView).toMatchObject({ value: "all", count: 3 });
+    expect(held.facade.heldView.value).toBe("held");
+    all.facade.heldView.onChoose("held");
+    held.facade.heldView.onChoose("all");
+    expect(all.write).toHaveBeenCalledWith({ generation: "held" });
+    expect(held.write).toHaveBeenCalledWith({ generation: undefined });
   });
 
   it("a tick writes from the choices the URL holds when it lands", () => {

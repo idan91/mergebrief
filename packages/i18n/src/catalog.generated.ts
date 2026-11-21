@@ -458,6 +458,12 @@ export type Catalog = typeof en & {
       ageMinutes: "{{count}}m ago";
       ageHours: "{{count}}h ago";
       ageDays: "{{count}}d ago";
+      held: (typeof en)["home"]["inbox"]["held"] & {
+        anyGroup_one: "Needs {{count}} condition";
+        anyGroup_other: "Needs one of {{count}} conditions";
+        more_one: "{{count}} more";
+        more_other: "{{count}} more";
+      };
       stackChip: "{{index}} of {{size}}";
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
       byAuthor: "By {{login}}";

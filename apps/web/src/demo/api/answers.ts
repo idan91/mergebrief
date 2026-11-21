@@ -3,10 +3,11 @@ import {
   buildOperationPath,
   DIFF_MODE_HEADER,
   DiffModes,
+  InboxQueryKeys,
   ProductQueryIds,
   type DiffMode,
 } from "contract";
-import { HttpMethods } from "types";
+import { HttpMethods, InboxGenerationFilters } from "types";
 
 import { parseFileDiffPatches } from "@web/features/brief/model";
 import { revisionNarrativeText, revisionSpanMarksText } from "./briefs";
@@ -27,6 +28,7 @@ import {
   emptyConversationAnswer,
   heldBehindPullMetaAnswer,
   heldPullMetaAnswer,
+  heldInboxAnswer,
   inboxAnswer,
   mentionTargetsAnswer,
   pullMetaAnswer,
@@ -127,12 +129,19 @@ function answerNarrative(query: URLSearchParams): Response {
   return answerStoredJson(revisionNarrativeText);
 }
 
+/** The held view narrows the one inbox page; every other filter lists it whole. */
+function answerInbox(query: URLSearchParams): Response {
+  const heldOnly =
+    query.get(InboxQueryKeys.GENERATION) === InboxGenerationFilters.HELD;
+  return answerJson(heldOnly ? heldInboxAnswer : inboxAnswer);
+}
+
 const APP_READS: readonly DemoRead[] = [
   { path: AUTH_SESSION_PATH, answer: () => answerJson(sessionAnswer) },
   { path: VERSION_PATH, answer: () => answerJson(versionAnswer) },
   {
     path: buildOperationPath(ProductQueryIds.LIST_INBOX, {}),
-    answer: () => answerJson(inboxAnswer),
+    answer: answerInbox,
   },
   {
     path: buildOperationPath(ProductQueryIds.LIST_TOKENS, {}),

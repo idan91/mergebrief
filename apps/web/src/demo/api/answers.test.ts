@@ -140,6 +140,19 @@ describe("answerDemoRequest reads", () => {
       DEMO_HELD_PR_NUMBER,
     ]);
     expect(inbox.viewer.login).toBe(DEMO_VIEWER_LOGIN);
+    expect(inbox.heldTotal).toBe(1);
+    expect(inbox.items[1]?.generation?.unmetConditions).toHaveLength(3);
+  });
+
+  it("lists only the held pull request in the held view", async () => {
+    const response = readGet("/api/inbox?generation=held");
+    const inbox = inboxResponseSchema.parse(await response.json());
+
+    expect(inbox.items.map((item) => item.prNumber)).toEqual([
+      DEMO_HELD_PR_NUMBER,
+    ]);
+    expect(inbox.total).toBe(1);
+    expect(inbox.heldTotal).toBe(1);
   });
 
   it("holds the held pull request's head with every condition read", async () => {

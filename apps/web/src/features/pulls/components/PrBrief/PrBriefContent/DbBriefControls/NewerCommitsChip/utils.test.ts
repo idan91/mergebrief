@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { omitFields } from "@web/test/fields";
 import { appI18n } from "../../../../../../../i18n/I18nProvider";
 import type { PrSummary } from "../../../../../types";
-import { UnmetFixtures } from "../../../../../test-utils";
+import { UnmetFixtures } from "@web/test/unmet-conditions";
 import { makeGenerationFields, makeMeta, makeUrlMeta } from "./test-utils";
 import {
   NewerCommitsActionKinds,

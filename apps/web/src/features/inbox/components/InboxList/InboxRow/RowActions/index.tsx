@@ -17,7 +17,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./RowActions.module.scss";
 import { useRowActionsFacade } from "./useRowActionsFacade";
-import { openOnGithub } from "./utils";
+import { offersGenerateNow, openOnGithub } from "./utils";
 
 export interface RowActionsProps {
   item: InboxItem;
@@ -44,8 +44,9 @@ export interface RowActionsProps {
  * Open on GitHub, Archive (Unarchive in the archived view), Delete where the
  * viewer may, and the attachment-branch purge on an admin's installation row.
  * A hover, focus or the keyboard cursor reveals both; a touch screen always
- * shows the menu alone and reaches GitHub through it. Regenerate leads the
- * menu when GitHub has commits the brief lacks, unless a repeat paste fails.
+ * shows the menu alone and reaches GitHub through it. Generate now leads the
+ * menu on a held head the viewer may push to; Regenerate leads it when
+ * GitHub has commits the brief lacks, unless a repeat paste fails.
  */
 export function RowActions({
   item,
@@ -84,6 +85,7 @@ export function RowActions({
   const deleteHeldReason = deleteHeld
     ? t("home.inbox.actions.deleteHeld")
     : undefined;
+  const canGenerateNow = offersGenerateNow(item);
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 
@@ -112,6 +114,15 @@ export function RowActions({
           </IconButton>
         </Menu.Trigger>
         <Menu.Content>
+          {canGenerateNow ? (
+            <Menu.Item
+              disabled={facade.generatingNow}
+              glyph={<Icon name={IconNames.PLAY} size={IconSizes.MD} />}
+              onSelect={facade.generateNow}
+            >
+              {t("home.inbox.actions.generateNow")}
+            </Menu.Item>
+          ) : null}
           {canRegenerate ? (
             <Menu.Item
               disabled={facade.regenerating}

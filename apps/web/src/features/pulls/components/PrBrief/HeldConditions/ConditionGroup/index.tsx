@@ -3,8 +3,8 @@ import { UnmetConditionKinds } from "types/trigger-conditions";
 
 import { Icon } from "@web/components/Icon";
 import { IconSizes, type IconName } from "@web/components/Icon/types";
-import { readUnmetConditionKey } from "../../held-head";
-import type { HeldCondition } from "../../../../types";
+import { readUnmetConditionKey } from "@web/utils/unmet-conditions";
+import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 import { AnyGroupItem } from "../AnyGroupItem";
 import { ConditionItem } from "../ConditionItem";
 import type { HeldGroupHeadingLevel } from "../types";

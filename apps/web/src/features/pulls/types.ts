@@ -5,18 +5,15 @@ import type {
   WaitReason,
 } from "contract";
 import type {
-  BotVerdict,
   GenerationFailureCode,
   GenerationStatus,
   GenerationUnitsParams,
   PrState,
-  UnmetBot,
-  UnmetConditionKinds,
-  UnmetPlainCondition,
   ValueOf,
 } from "types";
 import type { ChunkLayoutBody } from "brief-core/chunk-layout";
 import type { UnknownValue } from "@web/utils/open-enum/types";
+import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 
 import { WriteFailureKinds } from "../../data/request/types";
 
@@ -32,24 +29,6 @@ export interface StoredBriefLayout {
 export interface BriefLayoutReply {
   layout?: ChunkLayoutBody;
 }
-
-/** A bot item as this bundle reads it: the verdict is never shown, so one it predates reads `unknown`. */
-export interface HeldBot extends Omit<UnmetBot, "verdict"> {
-  readonly verdict: BotVerdict | UnknownValue;
-}
-
-export type HeldPlainCondition =
-  | Exclude<UnmetPlainCondition, UnmetBot>
-  | HeldBot;
-
-/** An `any` group with the members this bundle reads. */
-export interface HeldAnyGroup {
-  readonly kind: typeof UnmetConditionKinds.ANY;
-  readonly conditions: readonly HeldPlainCondition[];
-}
-
-/** One unmet condition of a held head, as this bundle reads it. */
-export type HeldCondition = HeldPlainCondition | HeldAnyGroup;
 
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
