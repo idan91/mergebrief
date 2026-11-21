@@ -20,13 +20,6 @@ import type {
 const BLOCK = "triggerConditions";
 const MIN_ANY_KINDS = 2;
 
-/** Which file a block came from; the instance file never sets `paths`. */
-const BlockScopes = {
-  REPO: "repo",
-  INSTANCE: "instance",
-} as const;
-type BlockScope = (typeof BlockScopes)[keyof typeof BlockScopes];
-
 function isConfigKey(key: string): key is keyof typeof CONFIG_KEYS {
   return Object.hasOwn(CONFIG_KEYS, key);
 }
@@ -124,7 +117,7 @@ function findBlockIssues(
 
 function parseBlock(
   raw: unknown,
-  scope: BlockScope,
+  scope: TriggerConditionSource,
 ): Result<TriggerConditionsBlock, ConfigError> {
   if (offSchema.safeParse(raw).success) {
     return { ok: true, value: { off: true } };
@@ -160,7 +153,7 @@ function parseBlock(
   const usesPaths = [...all, ...any].some(
     (setting) => setting.kind === TriggerConditionKinds.PATHS,
   );
-  if (scope === BlockScopes.INSTANCE && usesPaths) {
+  if (scope === TriggerConditionSources.INSTANCE && usesPaths) {
     issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
   }
 
@@ -175,14 +168,14 @@ function parseBlock(
 export function parseRepoTriggerConditions(
   raw: unknown,
 ): Result<TriggerConditionsBlock, ConfigError> {
-  return parseBlock(raw, BlockScopes.REPO);
+  return parseBlock(raw, TriggerConditionSources.REPO);
 }
 
 /** The instance file's block; `paths` is refused there. */
 export function parseInstanceTriggerConditions(
   raw: unknown,
 ): Result<TriggerConditionsBlock, ConfigError> {
-  return parseBlock(raw, BlockScopes.INSTANCE);
+  return parseBlock(raw, TriggerConditionSources.INSTANCE);
 }
 
 function tagSource(
@@ -222,20 +215,12 @@ export function resolveEffectiveTriggerConditions(
   const all: SourcedCondition[] = [];
   const any: SourcedCondition[] = [];
   if (instance !== undefined && !instance.off) {
-    const inherited = (setting: TriggerConditionSetting) =>
+    const isInherited = (setting: TriggerConditionSetting) =>
       repo === undefined || !namesKind(repo, setting.kind);
-    all.push(
-      ...tagSource(
-        instance.all.filter(inherited),
-        TriggerConditionSources.INSTANCE,
-      ),
-    );
-    any.push(
-      ...tagSource(
-        instance.any.filter(inherited),
-        TriggerConditionSources.INSTANCE,
-      ),
-    );
+    const inheritedAll = instance.all.filter(isInherited);
+    const inheritedAny = instance.any.filter(isInherited);
+    all.push(...tagSource(inheritedAll, TriggerConditionSources.INSTANCE));
+    any.push(...tagSource(inheritedAny, TriggerConditionSources.INSTANCE));
   }
   if (repo !== undefined) {
     all.push(...tagSource(repo.all, TriggerConditionSources.REPO));
