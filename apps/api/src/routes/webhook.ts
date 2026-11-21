@@ -307,8 +307,7 @@ function findStoredPullRequest(
 
 /**
  * A draft flip queues no fresh run: that could repost Entry comments, spend
- * on comparisons or retry a failed generation. A head the wake rule names is
- * the exception, its conditions checked again. It advances the guard like
+ * on comparisons or retry a failed generation. It advances the guard like
  * every state write: an older push that lands after it is skipped whole,
  * never applied over it.
  */
