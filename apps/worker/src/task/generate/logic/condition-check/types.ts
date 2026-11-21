@@ -1,5 +1,4 @@
 import type { SizeMeasure } from "types/trigger-conditions";
-import type { ValueOf } from "types/utils";
 
 /** What the check knows about the push, read fresh from GitHub this run. */
 export interface ConditionFacts {
@@ -18,10 +17,3 @@ export interface ConditionFacts {
    */
   readonly changedPaths?: readonly string[] | undefined;
 }
-
-export const PathsMatchOutcomes = {
-  MATCHED: "matched",
-  UNMATCHED: "unmatched",
-  BUDGET_SPENT: "budget-spent",
-} as const;
-export type PathsMatchOutcome = ValueOf<typeof PathsMatchOutcomes>;
