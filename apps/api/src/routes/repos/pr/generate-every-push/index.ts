@@ -20,7 +20,7 @@ import type { AuthRouteDeps } from "../../../auth/session/types";
 import {
   turnOffGenerateEveryPush,
   turnOnGenerateEveryPush,
-} from "./generate-every-push";
+} from "./switch-every-push";
 import { throwTurnOnEveryPushFailure } from "./logic/wire-failures";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
