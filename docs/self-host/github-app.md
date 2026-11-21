@@ -94,9 +94,9 @@ The release that added the `bots` and `ci` [trigger conditions](./repo-config.md
 
 Until an installation accepts, a `ci` condition holds a push as missing the permission whenever it has a check to read; a `ci: required` on a base with no required check still passes. A `bots` condition holds Unblocked, CodeRabbit, Claude or Greptile as missing the permission while they have not reported. Their check runs and statuses cannot be read then, so only a pull request review from the bot, which needs neither permission, lifts that hold, and only for `finished` and `approved`. The brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
 
-`claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted. Every other verdict on those four bots, and every `ci` check, a check a ruleset pins to one App included, needs both, so an App granted only one of the two holds them as above: a `ci` condition while it has a check to read, a bot while it has not reported, until a pull request review from the bot lifts the hold. A `ci` check that passes on the source the App can read holds as missing while the other source is unreadable, and the held push then shows only the line asking for the permission, even when another check failed or is still running ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
+`claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted, even after Claude reviews. Every other verdict on those four bots, and every `ci` check, needs both, so an App granted only one of the two holds them as above, except that a run or status through the source it can read also settles a bot, and a run from the App a ruleset pins a check to decides that check without the status read. Any other `ci` check that passes on the source the App can read holds as missing while the other source is unreadable, and the held push then shows only the line asking for the permission, even when another check failed or is still running ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
 
-Accepting the permissions wakes nothing: a push already held as missing them is checked again on the next commit status or finished check run GitHub reports on it. A Generate click generates that push without checking it, and the next push is a new head, checked on its own. A check run GitHub creates unfinished wakes nothing until it finishes.
+Accepting the permissions wakes nothing by itself: a push already held as missing them is checked again on the next commit status or finished check run GitHub reports on it, or the next review submitted on its pull request. A Generate click generates that push without checking it, and the next push is a new head, checked on its own. A check run GitHub creates unfinished wakes nothing until it finishes.
 
 ## Reviewer sign-in
 
@@ -275,13 +275,8 @@ to the section that explains it.
       Any permission added after install needs the same approval: without
       Pull requests write, no Entry comment posts
       ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
-      and without Checks and Commit statuses a `ci` condition with a check
-      to read, the App bots of a `bots` condition that have not reported
-      (only a pull request review from the bot lifts that hold), and
-      `claude: clean`, which needs Checks alone, hold as missing the
-      permission. After the approval, the next commit status or finished
-      check run reported on that push checks it again; a Generate click
-      generates it, and the next push is a new head
+      and without Checks and Commit statuses `bots` and `ci` conditions hold
+      as missing the permission
       ([Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
