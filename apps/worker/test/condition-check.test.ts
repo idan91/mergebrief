@@ -1688,4 +1688,34 @@ describe("evaluateTriggerConditions, ci pinned to an App", () => {
 
     expect(unmet).toMatchObject([{ failed: ["build"] }]);
   });
+
+  it("lists a name two rulesets pin apart once, as its worst outcome", () => {
+    const pinnedToGreptile = { context: "build", appId: APP_IDS.greptile };
+    const runs = [
+      makeRun({ conclusion: "failure" }),
+      makeRun({ appId: APP_IDS.greptile, completed: false }),
+    ];
+
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [pinnedToGreptile, PINNED_BUILD],
+      checkRuns: runs,
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], running: [], missing: [] },
+    ]);
+  });
+
+  it("lists a name missing under one ruleset over running under another", () => {
+    const pinnedToGreptile = { context: "build", appId: APP_IDS.greptile };
+
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD, pinnedToGreptile],
+      checkRuns: [makeRun({ completed: false })],
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: [], running: [], missing: ["build"] },
+    ]);
+  });
 });

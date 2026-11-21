@@ -137,6 +137,36 @@ function listNamedChecks(names: readonly string[]): RequiredStatusCheck[] {
   return names.map((context) => ({ context }));
 }
 
+/** A missing check needs someone to start it; a running one only time. */
+const OUTCOME_SEVERITY: Readonly<Record<CheckOutcome, number>> = {
+  [CheckOutcomes.PASSED]: 0,
+  [CheckOutcomes.RUNNING]: 1,
+  [CheckOutcomes.MISSING]: 2,
+  [CheckOutcomes.FAILED]: 3,
+};
+
+/**
+ * Each name's worst outcome, in first-listed order: two rulesets may pin one
+ * name to different Apps, and the name must pass under both.
+ */
+function readNameOutcomes(
+  reports: HeadReports,
+  checks: readonly RequiredStatusCheck[],
+): Map<string, CheckOutcome> {
+  const outcomes = new Map<string, CheckOutcome>();
+  for (const check of checks) {
+    const outcome = readCheckOutcome(reports, check);
+    const known = outcomes.get(check.context);
+    const isWorse =
+      known === undefined ||
+      OUTCOME_SEVERITY[outcome] > OUTCOME_SEVERITY[known];
+    if (isWorse) {
+      outcomes.set(check.context, outcome);
+    }
+  }
+  return outcomes;
+}
+
 /** `required` reads the base branch's rulesets; an empty set passes. */
 export function checkCi({
   value,
@@ -157,12 +187,8 @@ export function checkCi({
     [CheckOutcomes.RUNNING]: running,
     [CheckOutcomes.MISSING]: missing,
   };
-  for (const check of checks) {
-    const list = lists[readCheckOutcome(reports, check)];
-    const isNewName = list !== undefined && !list.includes(check.context);
-    if (isNewName) {
-      list.push(check.context);
-    }
+  for (const [name, outcome] of readNameOutcomes(reports, checks)) {
+    lists[outcome]?.push(name);
   }
 
   const unmetCount = failed.length + running.length + missing.length;
