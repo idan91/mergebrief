@@ -139,6 +139,9 @@ every stored condition, so the list is not the whole reason);
 head adds a `held:` line naming each unmet condition and whose setting it
 is, every check listed; a condition this CLI does not know prints its kind,
 and a partial list ends with "Conditions this server could not read".
+`generateEveryPush: true` means a pusher turned on generating on every push in
+the browser, so each new head of the PR skips its trigger conditions; without
+`--json` such a PR adds a `generates on every push` line.
 
 ```json
 {"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"headBriefStored":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"errorCode":null,"errorParams":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
