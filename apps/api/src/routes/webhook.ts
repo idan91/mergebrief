@@ -5,8 +5,9 @@
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
-// rows and enqueue one debounced job, with no model call. A check run or status only queues
-// the job of a held head at its SHA, and writes nothing else. The only GitHub calls are bounded
+// rows and enqueue one debounced job, with no model call. A finished check run or a status writes
+// no row: it queues the job of each open PR whose head at its SHA is held, or pending or failed
+// with a run in flight, and its signature is recorded as below. The only GitHub calls are bounded
 // confirmation reads, no retry, well inside the budget: a destructive event's before it
 // purges, and the repository permission of a reviewer or PR author no association trusts,
 // whose failure counts them off the team.

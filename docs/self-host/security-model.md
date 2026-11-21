@@ -18,8 +18,9 @@ names them ([generators.md](./generators.md#who-may-start-a-brief)):
 
 Webhook deliveries answer to the same list. A pull request, review, check run or
 status delivery starts or wakes a run only for a repository on a listed account or
-an Operator's personal account. Anything else is answered 200 and logged at `warn` with the account's id,
-so a stranger who installs a public App spends nothing. Install and uninstall
+an Operator's personal account. Anything else is answered 200 and logged with the account's id, at
+`warn`, or at `debug` for a check run or status, which a push brings by the dozen, so a stranger who
+installs a public App spends nothing. Install and uninstall
 events still apply.
 
 Each of them can paste a pull request URL or Regenerate, and each of those runs

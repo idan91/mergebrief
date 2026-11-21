@@ -10,6 +10,7 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
+import { CHECK_RUN_COMPLETED_STATUS } from "../operations/status-checks";
 import {
   GitHubAccountTypes,
   RepositoryVisibilities,
@@ -67,7 +68,11 @@ export type InstallationRepositoriesAction = ValueOf<
   typeof InstallationRepositoriesActions
 >;
 
-/** A run starting or finishing; a rerun request changes no run until GitHub creates one. */
+/**
+ * A run starting or finishing; a rerun request changes no run until GitHub
+ * creates one. A run created unfinished is ignored: queued or in progress, it
+ * meets no condition, and its completion wakes the head.
+ */
 export const CheckRunActions = {
   CREATED: "created",
   COMPLETED: "completed",
@@ -385,7 +390,7 @@ const installationRepositoriesEventSchema = z.object({
 const checkRunEventSchema = z.object({
   installation: installationRefSchema,
   repository: repositoryRefSchema,
-  check_run: z.object({ head_sha: z.string().min(1) }),
+  check_run: z.object({ head_sha: z.string().min(1), status: z.string() }),
 });
 
 const statusEventSchema = z.object({
@@ -668,6 +673,12 @@ function parseCheckRun(
     return invalidPayload(HANDLED_EVENT_NAMES.CHECK_RUN, parsed.error);
   }
   const { installation, repository, check_run: checkRun } = parsed.data;
+  const startedUnfinished =
+    action === CheckRunActions.CREATED &&
+    checkRun.status !== CHECK_RUN_COMPLETED_STATUS;
+  if (startedUnfinished) {
+    return { ok: true, value: ignored(HANDLED_EVENT_NAMES.CHECK_RUN, action) };
+  }
   const report = shapeCommitReport(
     installation.id,
     repository,
