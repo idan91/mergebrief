@@ -1,5 +1,3 @@
-@use "mixins";
-
 @layer components {
   .reason {
     display: flex;
@@ -22,11 +20,5 @@
   .more {
     flex: none;
     color: var(--color-text-3);
-  }
-
-  @include mixins.for-breakpoint("small-mobile", "<") {
-    .more {
-      display: none;
-    }
   }
 }

@@ -83,7 +83,7 @@ export function Controls({
         />
       </div>
       <div className={styles["filters"]}>
-        <HeldView heldView={heldView} />
+        {heldView.offered ? <HeldView heldView={heldView} /> : null}
         {narrow ? (
           <CollapsedFilters changedCount={collapsedCount} filters={filters} />
         ) : (

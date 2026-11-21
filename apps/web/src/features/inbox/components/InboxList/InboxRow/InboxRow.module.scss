@@ -277,7 +277,7 @@
       min-inline-size: 0;
     }
 
-    .sub:has(> .reason) > :is(.author, .repo) {
+    .sub > .reason {
       display: none;
     }
   }
