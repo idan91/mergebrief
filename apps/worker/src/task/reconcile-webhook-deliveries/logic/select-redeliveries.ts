@@ -25,7 +25,10 @@ const ROW_WRITING_EVENTS: ReadonlySet<string> = new Set([
  * A replay of one of these only wakes a held head, and they come by the
  * dozen per push, so they resend after every other due delivery.
  */
-const RECHECK_ONLY_EVENTS: ReadonlySet<string> = new Set(["check_run", "status"]);
+const RECHECK_ONLY_EVENTS: ReadonlySet<string> = new Set([
+  "check_run",
+  "status",
+]);
 
 function isRecheckOnly({ event }: HookDelivery): boolean {
   return RECHECK_ONLY_EVENTS.has(event);
