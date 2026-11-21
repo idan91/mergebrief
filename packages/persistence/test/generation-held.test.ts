@@ -10,8 +10,12 @@ import {
   TriggerOnDemandOutcomes,
 } from "../src/index";
 import { claimTestRun, failTestRun, succeedTestRun } from "../src/testing";
-import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
-import type { UnmetCondition } from "types/trigger-conditions";
+import {
+  GenerationFailureCodes,
+  GenerationStatuses,
+  PrStates,
+  type UnmetCondition,
+} from "types";
 import {
   GATE_CTX,
   GATE_HEAD_SHA,
@@ -134,6 +138,35 @@ describe("markHeld", () => {
     expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
   });
 
+  it("cuts name lists and names past the stored bounds", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    const checks = Array.from({ length: 150 }, (_, index) => `check-${index}`);
+    const longName = "x".repeat(400);
+    const unmet: readonly UnmetCondition[] = [
+      {
+        kind: "ci",
+        source: "repo",
+        failed: [longName],
+        running: checks,
+        missing: [],
+        permissionMissing: false,
+      },
+    ];
+
+    const held = await gen.markHeld(target, unmet);
+
+    expect(held.ok).toBe(true);
+    const row = await gen.get(target);
+    const [stored] = parseUnmetConditions(row?.unmetConditions ?? null) ?? [];
+    expect(stored).toEqual({
+      ...unmet[0],
+      failed: ["x".repeat(255)],
+      running: checks.slice(0, 100),
+    });
+  });
+
   it("refuses a head a live run holds", async () => {
     const triggered = await trigger();
     const gen = createGenerationProjection(shared.handle, GATE_CTX);
@@ -209,5 +242,33 @@ describe("Generate on a held head", () => {
 
     expect(!held.ok && held.error.code).toBe(GenerationErrorCodes.STATUS_KEPT);
     expect((await gen.get(target))?.status).toBe(GenerationStatuses.PENDING);
+  });
+});
+
+describe("reading stored unmet conditions", () => {
+  const ready = { kind: "ready-for-review", source: "repo" };
+  const labels = { kind: "labels", source: "repo", labels: ["needs-brief"] };
+  const unknown = { kind: "deploy-window", source: "repo", opens: "09:00" };
+
+  it("keeps the readable items beside one of an unknown kind", () => {
+    const stored = JSON.stringify([unknown, ready]);
+
+    expect(parseUnmetConditions(stored)).toEqual([ready]);
+  });
+
+  it("keeps an any group's readable members and drops an unknown key", () => {
+    const group = { kind: "any", conditions: [unknown, labels] };
+    const stored = JSON.stringify([{ ...ready, addedLater: true }, group]);
+
+    expect(parseUnmetConditions(stored)).toEqual([
+      ready,
+      { kind: "any", conditions: [labels] },
+    ]);
+  });
+
+  it("reads nothing when no item is readable", () => {
+    const stored = JSON.stringify([unknown]);
+
+    expect(parseUnmetConditions(stored)).toBeUndefined();
   });
 });

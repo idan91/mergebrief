@@ -355,13 +355,13 @@ function isRerunHopeless(row: GenerationRow): boolean {
 
 /**
  * Why the current head cannot take a fresh run, or `undefined` when it can:
- * a head waiting for its Trigger approval, or one that failed in a way a
- * rerun can help. A closed or merged PR has nothing left to generate for.
- * Only a head the projection keeps in flight (a live claim, or the previous
- * release's running row) is refused, as on a push: a dead worker's job stays
- * locked for hours, and a live one that has not claimed yet meets the reset
- * row's fence. A failed head whose brief is stored failed after it, and a
- * fresh run there would claim nothing.
+ * a head waiting for its Trigger approval, one trigger conditions hold, or
+ * one that failed in a way a rerun can help. A closed or merged PR has
+ * nothing left to generate for. Only a head the projection keeps in flight
+ * (a live claim, or the previous release's running row) is refused, as on a
+ * push: a dead worker's job stays locked for hours, and a live one that has
+ * not claimed yet meets the reset row's fence. A failed head whose brief is
+ * stored failed after it, and a fresh run there would claim nothing.
  */
 async function findTriggerOnDemandRefusal(
   tx: IngestTransaction,

@@ -18,8 +18,7 @@ import {
   type GenerationRow,
   type PullRequestRow,
 } from "persistence";
-import { GenerationStatuses } from "types/generations";
-import type { Mutable } from "types/utils";
+import { GenerationStatuses, type Mutable } from "types";
 
 /** What the PR meta says about the run holding the row. */
 export interface MetaRunProgress {
