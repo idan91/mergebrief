@@ -34,6 +34,7 @@ import {
   makeEntryLink,
   makeGitHub,
   makePullRequestInfo,
+  makeLargePoolTask,
   makeReviewerId,
   makeTarget,
   makeSyncEntryTask,
@@ -120,6 +121,9 @@ triggerConditions:
     paths: ['src/payments/**']
     labels: [needs-brief]
 `;
+
+/** One file past the hunk limit a single call takes, so the run routes. */
+const MULTI_CALL_FILES = 121;
 
 function makeDocsOnlyGitHub() {
   return makeGitHub(HEAD_1, [
@@ -750,6 +754,20 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ github, generator })(payload);
 
     expect(generator.calls).toContain("brief");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("reads the file list once across the hop to the large pool", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { changedFiles: MULTI_CALL_FILES });
+    addSettings(github, PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+    expect(countFileListReads(github)).toBe(0);
+    await makeLargePoolTask({ github })(payload);
+
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
     expect(countFileListReads(github)).toBe(1);
   });

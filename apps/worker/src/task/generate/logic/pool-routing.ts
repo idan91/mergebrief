@@ -4,6 +4,18 @@ import type { Mutable } from "types/utils";
 import { RunPools, type RunContext } from "../types";
 
 /**
+ * Whether this run moves to the large pool before its claim: a normal-pool
+ * run, over no stored brief, whose counts predict multi-call.
+ */
+export function isBoundForLargePool(context: RunContext): boolean {
+  const { pool, existingBrief, prInfo } = context;
+  if (pool === RunPools.LARGE || existingBrief !== undefined) {
+    return false;
+  }
+  return predictCallPlan(prInfo) === CallPlanKinds.MULTI;
+}
+
+/**
  * Decide the run's pool before its claim, from the PR read already made. A
  * normal-pool run the counts predict multi-call moves its job to the large
  * pool and ends here with nothing claimed, recorded or marked; the large
@@ -14,13 +26,8 @@ import { RunPools, type RunContext } from "../types";
 export async function routeRunToLargePool(
   context: RunContext,
 ): Promise<boolean> {
-  const { pool, existingBrief, prInfo, deps, payload, recovering, log } =
-    context;
-  if (pool === RunPools.LARGE || existingBrief !== undefined) {
-    return false;
-  }
-  const predicted = predictCallPlan(prInfo);
-  if (predicted !== CallPlanKinds.MULTI) {
+  const { prInfo, deps, payload, recovering, log } = context;
+  if (!isBoundForLargePool(context)) {
     return false;
   }
 
