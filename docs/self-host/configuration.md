@@ -286,6 +286,7 @@ the variable that holds it.
 | `allowed` | api; worker validates | Operators alone | Who else may sign in and start a brief. |
 | `contextSources` | worker | built-in sources only | Ticket trackers that need a deployment credential. |
 | `trackers` | worker | none: GitHub issues only | The boards and Jira projects every repository reads tickets from. |
+| `triggerConditions` | worker | none | Conditions every push must meet before it generates; a repository's own block merges over them per kind. |
 | `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
 | `retention` | worker | keep forever | How long the daily sweeps keep audit rows and closed pull requests. |
 | `audit` | api; worker validates | `privateWrites: true` | Whether writes that stay inside the instance are recorded. |
@@ -333,6 +334,15 @@ The harness providers are refused in the shipped image
 | `operators` | empty list | A list of up to 100 GitHub user ids, positive whole numbers, never logins. A bare `operators:` with no list refuses boot ([Operators](./generators.md#operators)). |
 | `allowed.users` | empty list | Up to 1000 GitHub user ids who may sign in and start a brief ([Who may start a brief](./generators.md#who-may-start-a-brief)). |
 | `allowed.accounts` | empty list | Up to 1000 org or personal account ids whose installations count. The block must name `users` or `accounts`; a bare `allowed:` refuses boot. |
+
+### `triggerConditions`
+
+The same block a repository writes in its `settings.yaml`, with the same
+kinds ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)),
+except `paths`, which only a repository sets. A repository's block merges
+over this one per kind: a kind it sets replaces this one, a kind it leaves
+out is inherited, and `off` drops one kind or the whole block. Only
+`worker` reads it, and a bad block refuses `worker` boot.
 
 ### `contextSources`, `trackers`
 
