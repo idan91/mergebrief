@@ -239,7 +239,8 @@ approval from CodeRabbit or Copilot is not documented to mean that, and a
 Unblocked, CodeRabbit, Claude and Greptile report through check runs and
 statuses, which the App reads with its Checks and Commit statuses
 permissions. An installation missing either one holds those bots as missing
-the permission while they have not reported
+the permission while they have not reported, and only a pull request review
+from the bot lifts that hold
 ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these));
 `clean` reads only Claude's check runs, so it needs Checks alone. Copilot
 reports through reviews and is unaffected.
