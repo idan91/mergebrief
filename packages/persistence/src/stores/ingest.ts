@@ -543,6 +543,15 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
+   * An open PR whose current head trigger conditions hold gets that head's
+   * job queued, so the worker checks the conditions again: it releases the
+   * head when they pass and rewrites the unmet list when they do not. The
+   * row is read under the pull request's row lock; any other status, a
+   * closed or merged PR, an owner scope and a PR outside the scope queue
+   * nothing.
+   */
+  wakeHeldHead(input: WakeHeldHeadInput): Promise<RequeueOutcome>;
+  /**
    * A pusher's fresh run of the PR's current head: projected `pending` with
    * its claims reset, and the job queued a few seconds out, replacing a
    * waiting one; a locked job gets its key detached, as on a push. A head
@@ -591,6 +600,10 @@ export interface QueueEntrySyncInput {
 export interface ReleaseApprovedHoldInput {
   readonly pullRequestId: PullRequestRowId;
   readonly headSha: string;
+}
+
+export interface WakeHeldHeadInput {
+  readonly pullRequestId: PullRequestRowId;
 }
 
 export interface RequeueOutcome {
@@ -888,6 +901,33 @@ export function createIngestRoutines(
           tx,
           scope,
           { headSha, refreshRunAt: true },
+          pullRequestId,
+          TRIGGER_ON_DEMAND_DELAY_SECONDS,
+        );
+        return { queued: true };
+      });
+    },
+
+    async wakeHeldHead(input) {
+      if (scope.ownerUserId !== null) {
+        return { queued: false };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+        if (prRow?.state !== PrStates.OPEN) {
+          return { queued: false };
+        }
+        const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+        if (head?.row.status !== GenerationStatuses.HELD) {
+          return { queued: false };
+        }
+
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          { headSha: head.row.headSha },
           pullRequestId,
           TRIGGER_ON_DEMAND_DELAY_SECONDS,
         );

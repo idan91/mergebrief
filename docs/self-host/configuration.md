@@ -280,7 +280,7 @@ the variable that holds it.
 | Key | Read by | Default when absent | What it holds |
 | --- | --- | --- | --- |
 | `generator` | worker | `provider: anthropic` | The generation backend. |
-| `drafts` | api; worker validates | `generate: on`, no extra debounce | Draft pull request policy. |
+| `drafts` | api; worker validates | no extra debounce | Draft pull request debounce. |
 | `spend` | worker; api reads it too | `maxGenerationsPerDay: 300` | The daily generation cap. |
 | `operators` | api; worker validates | nobody, so nobody can sign in | The GitHub user ids of the instance's Operators. |
 | `allowed` | api; worker validates | Operators alone | Who else may sign in and start a brief. |
@@ -328,7 +328,7 @@ The harness providers are refused in the shipped image
 
 | Key | Default | Accepts |
 | --- | --- | --- |
-| `drafts.generate` | `on` | `on`, `off`, `true` or `false`. `off` holds a draft's first brief until it is marked ready ([repo-config.md](./repo-config.md#related-instance-block-drafts-operator-side)). |
+| `drafts.generate` | removed | Refuses boot. Hold drafts with `triggerConditions.readyForReview: on` ([repo-config.md](./repo-config.md#related-instance-block-drafts-operator-side)). |
 | `drafts.debounceSeconds` | unset (the normal window) | A positive number of seconds: the debounce for a draft's regenerations. |
 | `spend.maxGenerationsPerDay` | `300` | A positive whole number, or `unlimited` for no cap ([Daily generation cap](./generators.md#daily-generation-cap)). |
 | `operators` | empty list | A list of up to 100 GitHub user ids, positive whole numbers, never logins. A bare `operators:` with no list refuses boot ([Operators](./generators.md#operators)). |

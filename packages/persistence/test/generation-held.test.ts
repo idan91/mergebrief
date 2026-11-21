@@ -427,3 +427,38 @@ describe("reading stored unmet conditions", () => {
     expect(parseUnmetConditions(null)).toBeUndefined();
   });
 });
+
+describe("wakeHeldHead", () => {
+  async function clearQueue() {
+    await shared.harness.raw("delete from graphile_worker.jobs");
+  }
+
+  function wake(
+    pullRequestId: Awaited<ReturnType<typeof seedHeldHead>>["pullRequestId"],
+  ) {
+    return createIngestRoutines(shared.handle, GATE_CTX).wakeHeldHead({
+      pullRequestId,
+    });
+  }
+
+  it("queues a held head's job and leaves the row held", async () => {
+    const { pullRequestId, gen, target } = await seedHeldHead();
+    await clearQueue();
+
+    const outcome = await wake(pullRequestId);
+
+    expect(outcome).toEqual({ queued: true });
+    expect(await countQueuedJobs(shared)).toBe(1);
+    expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues nothing for a head no condition holds", async () => {
+    const triggered = await trigger();
+    await clearQueue();
+
+    const outcome = await wake(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+});
