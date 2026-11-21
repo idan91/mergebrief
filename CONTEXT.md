@@ -244,7 +244,7 @@ A collaborator's one-time go-ahead for a PR whose author is not a **Trusted auth
 _Avoid_: authorization, consent
 
 **Trigger condition**:
-A configured rule a push must meet before it triggers a **Brief**: ready for review, size, a review bot's verdict, a requested review, required CI, paths, labels, title keywords, base branch, or never. Set under `triggerConditions:` in the **Instance config** and the **Repo config**'s `settings.yaml`, merged per kind with the repository's kind winning. Every condition must pass, unless it sits in an **Any group**. A requested review and paths stay met for the rest of the PR once met (paths until the repository edits its globs); every other kind is checked again on each push. With none configured, every push behaves as before. A pusher can switch one PR to generate on every push, which skips its conditions but not its **Trigger approval**.
+A configured rule a push must meet before it triggers a **Brief**: ready for review, size, a review bot's verdict, a requested review, required CI, paths, labels, title keywords, base branch, or never. Set under `triggerConditions:` in the **Instance config** and the **Repo config**'s `settings.yaml`, merged per kind with the repository's kind winning. Every condition must pass, unless it sits in an **Any group**. A requested review stays met for the rest of the PR once met, and paths once a check sees a changed file match (until the repository edits its globs; a match only on a push another condition held is never seen); every other kind is checked again on each push. With none configured, every push behaves as before. A pusher can switch one PR to generate on every push, which skips its conditions but not its **Trigger approval**.
 _Avoid_: gate, rule (alone)
 
 **Held**:
