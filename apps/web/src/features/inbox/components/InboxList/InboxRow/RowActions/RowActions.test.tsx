@@ -385,11 +385,9 @@ describe("RowActions", () => {
     expect(screen.queryByRole("menuitem", { name: "Generate now" })).toBeNull();
   });
 
-  it("a pusher's open row toggles generate on every push on", async () => {
+  it("a pusher's held row toggles generate on every push on", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    const { onAnnounce, invalidate } = await renderActions(
-      makeItem({ viewerCanPush: true }),
-    );
+    const { onAnnounce, invalidate } = await renderActions(HELD_ROW);
 
     await openMenu();
     const toggle = screen.getByRole("menuitemcheckbox", {
@@ -437,9 +435,7 @@ describe("RowActions", () => {
         status: 404,
       }),
     );
-    const { onAnnounce } = await renderActions(
-      makeItem({ viewerCanPush: true }),
-    );
+    const { onAnnounce } = await renderActions(HELD_ROW);
 
     await openMenu();
     await act(async () => {
@@ -467,6 +463,7 @@ describe("RowActions", () => {
       "a merged pull request",
       { state: "merged" as const, viewerCanPush: true },
     ],
+    ["a head that is not held", { viewerCanPush: true }],
   ])("offers no every-push toggle with %s", async (_label, overrides) => {
     await renderActions(makeItem(overrides));
 

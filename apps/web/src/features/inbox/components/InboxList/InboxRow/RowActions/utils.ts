@@ -14,13 +14,16 @@ export function offersGenerateNow(item: InboxItem): boolean {
 }
 
 /**
- * The every-push switch's bar, as its routes hold it: an open pull request in
- * an installation and push access, whatever its newest head's state.
+ * The every-push switch's bar: its routes' open installation pull request and
+ * push access, offered where the newest head is held, or where the switch is
+ * already on so it can be turned off.
  */
 export function offersEveryPush(item: InboxItem): boolean {
+  const held = item.generation?.status === GenerationStatuses.HELD;
+  const relevant = held || item.generateEveryPush;
   const inInstallation = item.source === PullRequestSources.INSTALLATION;
   const open = item.state === PrStates.OPEN;
-  return inInstallation && open && item.viewerCanPush;
+  return relevant && inInstallation && open && item.viewerCanPush;
 }
 
 /** The pull request opens in a new tab that cannot reach back into the app. */

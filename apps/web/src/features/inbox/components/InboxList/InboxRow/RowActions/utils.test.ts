@@ -57,11 +57,15 @@ describe("openOnGithub", () => {
 });
 
 describe("offersEveryPush", () => {
-  it("offers it on an open installation row to a pusher, held or not", () => {
+  it("offers it on an open installation row held for a pusher", () => {
     expect(offersEveryPush(HELD_ROW)).toBe(true);
+  });
+
+  it("offers it on a row already on, so a pusher can turn it off", () => {
     expect(
       offersEveryPush({
         ...HELD_ROW,
+        generateEveryPush: true,
         generation: { status: "succeeded", updatedAt: "2026-09-20" },
       }),
     ).toBe(true);
@@ -71,7 +75,17 @@ describe("offersEveryPush", () => {
     ["no push access", { viewerCanPush: false }],
     ["a pasted row", { source: "url" as const }],
     ["a closed pull request", { state: "closed" as const }],
+    [
+      "a head that is not held",
+      { generation: { status: "succeeded" as const, updatedAt: "2026-09-20" } },
+    ],
   ])("withholds it with %s", (_label, overrides) => {
     expect(offersEveryPush({ ...HELD_ROW, ...overrides })).toBe(false);
+  });
+
+  it("withholds it from a row with no generation", () => {
+    const { generation: _absent, ...unbriefed } = HELD_ROW;
+
+    expect(offersEveryPush(unbriefed)).toBe(false);
   });
 });
