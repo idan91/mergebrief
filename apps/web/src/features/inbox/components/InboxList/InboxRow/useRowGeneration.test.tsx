@@ -177,9 +177,9 @@ describe("useRowGeneration", () => {
   });
 
   it("a row the poll reads held carries its conditions over", async () => {
-    const never = { kind: "never", source: "repo" };
+    const never = { kind: "never", setBy: "repo" };
     answerMeta("held", undefined, {
-      unmetConditions: [never, { kind: "moon-phase", source: "repo" }],
+      unmetConditions: [never, { kind: "moon-phase", setBy: "repo" }],
     });
     render(
       <QueryClientProvider
