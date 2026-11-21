@@ -50,7 +50,8 @@ async function readCheckedFiles(
   facts: ConditionFacts,
 ): Promise<readonly PullRequestFile[] | undefined> {
   const pathsDecide = isVerdictOnPaths(effective, facts);
-  if (!pathsDecide || isBoundForLargePool(context)) {
+  const filesWait = !pathsDecide || isBoundForLargePool(context);
+  if (filesWait) {
     return undefined;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
