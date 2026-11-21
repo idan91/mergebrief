@@ -221,12 +221,17 @@ function isCheckReportKind(condition: UnmetPlainCondition): boolean {
 
 /**
  * Whether a check run or status can move a held head: a `bots` or `ci` item
- * holds it, alone or in an `any` group. A document with no readable item
- * answers true, so the head is checked again rather than left.
+ * holds it, alone or in an `any` group. A document read only in part, or
+ * with nothing readable, answers true: an item this build cannot read may be
+ * one a report moves, so the head is checked again rather than left.
  */
 export function isHeldOnCheckReports(stored: string | null): boolean {
-  const conditions = parseUnmetConditions(stored)?.conditions;
-  if (conditions === undefined || conditions.length === 0) {
+  const parsed = parseUnmetConditions(stored);
+  if (parsed === undefined || parsed.partial) {
+    return true;
+  }
+  const { conditions } = parsed;
+  if (conditions.length === 0) {
     return true;
   }
   return conditions.some((condition) => {
