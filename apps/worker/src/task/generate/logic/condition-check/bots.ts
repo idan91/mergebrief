@@ -81,22 +81,35 @@ function hasStarted(reports: BotReports): boolean {
   return started;
 }
 
+/** `clean` reads only Claude's check runs, so only that refusal hides its verdict. */
+function isVerdictReadRefused(
+  verdict: BotVerdict,
+  facts: ConditionFacts,
+): boolean {
+  const { checkRunsForbidden, statusesForbidden } = facts.reports;
+  if (verdict === BotVerdicts.CLEAN) {
+    return checkRunsForbidden;
+  }
+  return checkRunsForbidden || statusesForbidden;
+}
+
 /**
  * Where an unfinished bot stands. A bot with an App reports through check
- * runs or statuses, so either refused read hides it; Copilot reports only
- * through reviews, which need no extra permission.
+ * runs or statuses, so a refused read the verdict needs hides it; Copilot
+ * reports only through reviews, which need no extra permission.
  */
 function readProgressHold(
   account: ReviewBotAccount,
+  verdict: BotVerdict,
   reports: BotReports,
   facts: ConditionFacts,
 ): BotHold {
   if (hasStarted(reports)) {
     return { state: BotStates.RUNNING };
   }
-  const { checkRunsForbidden, statusesForbidden } = facts.reports;
-  const readRefused = checkRunsForbidden || statusesForbidden;
-  if (readRefused && account.appId !== undefined) {
+  const reportsHidden =
+    account.appId !== undefined && isVerdictReadRefused(verdict, facts);
+  if (reportsHidden) {
     return { state: BotStates.PERMISSION_MISSING };
   }
   return { state: BotStates.NOT_STARTED };
@@ -183,7 +196,7 @@ function readBotHold(
   const account = REVIEW_BOT_ACCOUNTS[bot];
   const reports = collectBotReports(account, facts);
   if (!hasFinished(reports)) {
-    return readProgressHold(account, reports, facts);
+    return readProgressHold(account, verdict, reports, facts);
   }
 
   switch (verdict) {

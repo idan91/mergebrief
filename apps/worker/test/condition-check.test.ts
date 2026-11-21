@@ -1342,6 +1342,15 @@ describe("evaluateTriggerConditions, bots clean", () => {
     expect(unmet).toEqual([]);
   });
 
+  it("holds as not started when only statuses are refused and no run came", () => {
+    const unmet = evaluateBots(
+      { claude: "clean" },
+      { statusesForbidden: true },
+    );
+
+    expect(unmet).toMatchObject([{ state: "not-started" }]);
+  });
+
   it("holds as running while Claude's only run is in progress", () => {
     const run = makeClaudeRun({ completed: false });
 
