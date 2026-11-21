@@ -1,4 +1,3 @@
-// The drafts-off empty-state copy override.
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { createElement } from "react";
@@ -34,9 +33,11 @@ describe("EmptyCard copy", () => {
     );
   });
 
-  it("the drafts-off override replaces the copy wholesale", () => {
-    renderCard("Drafts are off.");
-    expect(screen.getByText("Drafts are off.")).toBeTruthy();
+  it("an override replaces the copy wholesale", () => {
+    renderCard("No brief comes for this pull request.");
+    expect(
+      screen.getByText("No brief comes for this pull request."),
+    ).toBeTruthy();
     expect(screen.queryByText(/next push/)).toBeNull();
   });
 });

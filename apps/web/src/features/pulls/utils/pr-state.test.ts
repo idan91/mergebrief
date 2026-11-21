@@ -21,7 +21,6 @@ describe("readSupersededStop", () => {
   const OPEN_INSTALLED: SupersededStopSource = {
     state: "open",
     appInstalled: true,
-    draft: false,
   };
 
   it("expects a newer push on an open installation PR", () => {
@@ -35,15 +34,6 @@ describe("readSupersededStop", () => {
       expect(readSupersededStop(meta)).toBe(SupersededStops.CLOSED);
     },
   );
-
-  it("stops a draft its instance does not generate", () => {
-    const meta = {
-      ...OPEN_INSTALLED,
-      draft: true,
-      draftPolicy: { generate: false },
-    };
-    expect(readSupersededStop(meta)).toBe(SupersededStops.READY_FOR_REVIEW);
-  });
 
   it("never stops a url row, whose worker queues the moved head", () => {
     const meta = {

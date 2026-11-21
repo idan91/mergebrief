@@ -206,38 +206,12 @@ describe("PrBriefBody state cards under a timeline", () => {
   });
 });
 
-describe("PrBriefBody on a draft its instance does not generate", () => {
-  it("tells a failed draft's reader to mark it ready for review", () => {
-    const meta: PrSummary = {
-      ...makeMeta({ status: "failed", errorCode: "provider-timeout" }),
-      draft: true,
-      draftPolicy: { generate: false },
-    };
-    render(makeBodyFor(meta));
-
-    expect(screen.getByText(/marking this pull request ready/)).toBeTruthy();
-    expect(screen.queryByText(/A new push re-queues/)).toBeNull();
-  });
-});
-
 describe("PrBriefBody awaiting trigger", () => {
   it("renders the on-demand card and announces it politely", () => {
     render(makeBody({ status: "awaiting-trigger" }));
 
     expect(screen.getByTestId("brief-awaiting-trigger-card")).toBeTruthy();
     expect(getPageRegion().textContent).toBe("Brief available on demand.");
-  });
-
-  it("tells an awaiting draft's reader its pushes wait for ready", () => {
-    const meta: PrSummary = {
-      ...makeMeta({ status: "awaiting-trigger" }),
-      draft: true,
-      draftPolicy: { generate: false },
-    };
-    render(makeBodyFor(meta));
-
-    expect(screen.getByText(/once it is marked ready for review/)).toBeTruthy();
-    expect(screen.queryByText(/its pushes are briefed as usual/)).toBeNull();
   });
 
   it("announces the wait once a Generate click swaps the card", async () => {
@@ -281,18 +255,6 @@ describe("PrBriefBody superseded announcement", () => {
     );
   });
 
-  it("tells a skipped draft's reader to mark it ready for review", () => {
-    const meta: PrSummary = {
-      ...makeMeta({ status: "superseded" }),
-      draft: true,
-      draftPolicy: { generate: false },
-    };
-
-    expect(stateAnnouncement(appI18n.t, { kind: "superseded" }, meta)).toBe(
-      "Generation stopped. Marking this pull request ready for review queues a new run.",
-    );
-  });
-
   it("keeps the newer-revision line while the PR is open", () => {
     const meta = makeMeta({ status: "superseded" });
 
@@ -314,23 +276,5 @@ describe("stateAnnouncement on a large run's refusal", () => {
     expect(stateAnnouncement(appI18n.t, state, meta)).toBe(
       "This pull request is too large for this instance's daily cap.",
     );
-  });
-});
-
-describe("PrBriefBody empty state on a draft its instance skips", () => {
-  const AWAITS_READY = appI18n.t("pulls.empty.awaitsReadyCopy");
-
-  it("tells a reader other than the author it waits for ready for review", () => {
-    const meta: PrSummary = {
-      ...makeMeta(undefined),
-      draft: true,
-      draftPolicy: { generate: false },
-    };
-
-    render(makeBodyFor(meta));
-
-    expect(getPageRegion().textContent).toBe(AWAITS_READY);
-    expect(screen.getAllByText(AWAITS_READY)).toHaveLength(2);
-    expect(screen.queryByText(/next push/)).toBeNull();
   });
 });

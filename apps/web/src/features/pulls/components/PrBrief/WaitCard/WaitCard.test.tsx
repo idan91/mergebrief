@@ -14,7 +14,6 @@ import { WaitCard } from ".";
 const OPEN_INSTALLED: RerunNoteInput = {
   prState: PrStates.OPEN,
   appInstalled: true,
-  awaitsReadyForReview: false,
 };
 const STALLED_LINE =
   "Generation for this push stopped: its queued job used every attempt.";

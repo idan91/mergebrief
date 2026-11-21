@@ -10,7 +10,6 @@ const STALLED_DETAIL = "No brief is on the way for this push.";
 const OPEN_INSTALLED: RerunNoteInput = {
   prState: PrStates.OPEN,
   appInstalled: true,
-  awaitsReadyForReview: false,
 };
 
 function readStalledDetail(rerun: RerunNoteInput): string {
@@ -29,14 +28,6 @@ describe("selectWaitDetail on a stalled head", () => {
 
     expect(readStalledDetail(urlRow)).toBe(
       `${STALLED_DETAIL} Paste this pull request's URL on the home page to retry it.`,
-    );
-  });
-
-  it("points a held draft at ready for review", () => {
-    const heldDraft = { ...OPEN_INSTALLED, awaitsReadyForReview: true };
-
-    expect(readStalledDetail(heldDraft)).toContain(
-      "marking this pull request ready for review",
     );
   });
 

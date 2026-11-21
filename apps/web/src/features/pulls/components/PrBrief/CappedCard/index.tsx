@@ -12,8 +12,6 @@ export interface CappedCardProps {
   cappedAt: string;
   prState: PrSummary["state"];
   appInstalled: boolean;
-  /** A draft under a drafts-off instance: only ready for review queues a run. */
-  awaitsReadyForReview: boolean;
   /** A large run the cap refused: the runs it needed and the day's rest. */
   units?: GenerationUnitsParams | undefined;
 }
@@ -22,14 +20,12 @@ export function CappedCard({
   cappedAt,
   prState,
   appInstalled,
-  awaitsReadyForReview,
   units,
 }: CappedCardProps) {
   const { t } = useTranslation();
   const detail = buildCappedCardDetail(t, {
     prState,
     appInstalled,
-    awaitsReadyForReview,
     units,
   });
   const heading = buildCappedLabel(t, { cappedAt, units });
