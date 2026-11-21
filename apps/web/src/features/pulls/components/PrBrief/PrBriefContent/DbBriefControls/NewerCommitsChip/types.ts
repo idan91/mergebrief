@@ -68,7 +68,7 @@ export interface NewerCommitsStatus {
   readonly runAction?: NewerCommitsAction;
   /** A held latest push's unmet conditions, grouped in the popover. */
   readonly unmetConditions?: readonly HeldCondition[];
-  /** The held list left out an item the server could not read. */
+  /** The held list left out an item the server or this bundle could not read. */
   readonly unmetConditionsPartial?: boolean;
 }
 

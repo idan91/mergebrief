@@ -131,29 +131,27 @@ describe("HeldCard", () => {
     ).toBeTruthy();
   });
 
-  it("ends the list with a line for conditions the server could not read", () => {
+  it("ends the list with a line for conditions it could not show", () => {
     renderCard({ unmetConditionsPartial: true });
 
-    const unreadable = screen.getByTestId("held-unreadable");
-    expect(unreadable.textContent).toBe(
-      "Conditions this server could not read",
-    );
+    const partial = screen.getByTestId("held-partial");
+    expect(partial.textContent).toBe("Some conditions could not be shown");
     const rows = screen.getByTestId("held-conditions").children;
-    expect(rows[rows.length - 1]).toBe(unreadable);
+    expect(rows[rows.length - 1]).toBe(partial);
   });
 
-  it("says why it waits when no condition was readable", () => {
+  it("says why it waits when no condition could be shown", () => {
     renderCard({ unmetConditions: [], unmetConditionsPartial: true });
 
-    expect(screen.getByTestId("held-unreadable").textContent).toBe(
-      "Conditions this server could not read",
+    expect(screen.getByTestId("held-partial").textContent).toBe(
+      "Some conditions could not be shown",
     );
   });
 
-  it("shows no unreadable line for a whole list", () => {
+  it("shows no partial line for a whole list", () => {
     renderCard();
 
-    expect(screen.queryByTestId("held-unreadable")).toBeNull();
+    expect(screen.queryByTestId("held-partial")).toBeNull();
   });
 
   it("says the head generates by itself when everything waits", () => {

@@ -10,14 +10,14 @@ import styles from "./HeldConditions.module.scss";
 
 export interface HeldConditionsProps {
   unmetConditions: readonly HeldCondition[];
-  /** The list left out an item the server could not read. */
+  /** The list left out an item the server or this bundle could not read. */
   unmetConditionsPartial: boolean;
   layout: HeldConditionsLayout;
 }
 
 /**
  * A held head's unmet conditions in two groups, what it waits on and what
- * needs a change, then a line for any the server could not read.
+ * needs a change, then a line for any it could not show.
  */
 export function HeldConditions({
   unmetConditions,
@@ -47,8 +47,8 @@ export function HeldConditions({
         title={t("pulls.held.groups.needs")}
       />
       {unmetConditionsPartial ? (
-        <p className={styles["unreadable"]} data-testid="held-unreadable">
-          {t("triggerCondition.unreadable")}
+        <p className={styles["partial"]} data-testid="held-partial">
+          {t("pulls.held.partial")}
         </p>
       ) : null}
     </div>
