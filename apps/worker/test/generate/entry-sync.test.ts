@@ -712,6 +712,34 @@ describe("generate task, Entry sync", () => {
     expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
   });
 
+  it.each([
+    [
+      "beside what it reads",
+      '[{"kind":"moon-phase","setBy":"repo"},{"kind":"never","setBy":"repo"}]',
+      ["- Generates only when someone presses Generate"],
+    ],
+    ["alone when it reads none", '[{"kind":"moon-phase","setBy":"repo"}]', []],
+  ])(
+    "the sync names conditions it could not read %s",
+    async (_case, stored, readLines) => {
+      const github = makeGitHub(HEAD_1);
+      const { pr, payload } = await trigger(HEAD_1);
+      await harness.raw(
+        `update generation set status = 'held', unmet_conditions = '${stored}'`,
+      );
+      await trackCappedEntry(github, pr.id);
+
+      await makeSyncEntryTask({ github })(payload);
+
+      const [body] = readLiveBodies(github);
+      expect(body).toContain("**No brief for `aaaaaaa`.**");
+      expect(body).toContain("- Conditions this server could not read");
+      for (const line of readLines) {
+        expect(body).toContain(line);
+      }
+    },
+  );
+
   it("the sync names the runs a refused large run needed", async () => {
     const github = makeGitHub(HEAD_1);
     const { pr, payload } = await trigger(HEAD_1);

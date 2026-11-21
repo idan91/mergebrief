@@ -57,13 +57,15 @@ function describeConditionWithSetBy(
 
 /**
  * The held body's Markdown list: one bullet per unmet reason, in wait,
- * blocker, group order, an `any` group's members nested under its line.
+ * blocker, group order, an `any` group's members nested under its line, and
+ * last a bullet for the items a partial read left out.
  */
 export function formatHeldConditionLines(
   t: TFunction,
   unmet: readonly UnmetCondition[],
+  unmetConditionsPartial = false,
 ): string[] {
-  return sortUnmetConditions(unmet).flatMap((condition) => {
+  const lines = sortUnmetConditions(unmet).flatMap((condition) => {
     if (condition.kind !== UnmetConditionKinds.ANY) {
       return describeConditionWithSetBy(t, condition).map((line) => `- ${line}`);
     }
@@ -72,4 +74,8 @@ export function formatHeldConditionLines(
     );
     return [`- ${t("triggerCondition.anyGroup")}`, ...members];
   });
+  if (unmetConditionsPartial) {
+    lines.push(`- ${t("triggerCondition.unreadable")}`);
+  }
+  return lines;
 }

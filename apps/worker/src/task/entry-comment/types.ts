@@ -65,4 +65,6 @@ export interface EntryCommentHeldLinks {
 /** What the held body says: the head's unmet conditions and where to go from it. */
 export interface EntryCommentHeld extends EntryCommentHeldLinks {
   readonly unmet: readonly UnmetCondition[];
+  /** The stored list held items this worker could not read, a newer release's kinds. */
+  readonly unmetConditionsPartial?: boolean;
 }

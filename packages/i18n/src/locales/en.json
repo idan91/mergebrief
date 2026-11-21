@@ -67,6 +67,7 @@
   "triggerCondition": {
     "condition": "{{reason}} ({{setBy}})",
     "anyGroup": "Needs one of these:",
+    "unreadable": "Conditions this server could not read",
     "setBy": {
       "repo": "this repository's setting",
       "instance": "this MergeBrief instance's setting"

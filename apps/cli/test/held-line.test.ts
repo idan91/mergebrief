@@ -74,6 +74,24 @@ describe("formatHeldLine", () => {
     );
   });
 
+  it("says some conditions went unread when the server read part", () => {
+    const line = formatHeldLine(
+      "held",
+      [{ kind: "never", setBy: "repo" }],
+      true,
+    );
+
+    expect(line).toBe(
+      "held: Generates only when someone presses Generate (this repository's setting); Conditions this server could not read\n",
+    );
+  });
+
+  it("names only the unread conditions when the server read none", () => {
+    expect(formatHeldLine("held", [], true)).toBe(
+      "held: Conditions this server could not read\n",
+    );
+  });
+
   it("prints an any group's unknown member raw inside the group", () => {
     const line = formatHeldLine("held", [
       {
