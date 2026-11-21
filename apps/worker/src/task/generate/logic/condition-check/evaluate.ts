@@ -102,7 +102,7 @@ function listMissedSizeBounds(
   }));
 }
 
-/** One item per missed bound, measures in their YAML order. */
+/** One item per missed bound, in changedLines, additions, deletions order whatever the YAML lists. */
 function checkSize(
   input: KindCheckInput<typeof TriggerConditionKinds.SIZE>,
 ): UnmetPlainCondition[] {
