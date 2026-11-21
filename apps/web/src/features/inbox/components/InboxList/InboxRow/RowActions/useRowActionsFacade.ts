@@ -18,7 +18,7 @@ import { HeldRowGenerateNotices } from "./consts";
 
 const INBOX_QUERY_KEY = [INBOX_QUERY_ROOT];
 
-/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate, Generate now on a held head, and the every-push switch. */
+/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate, Generate brief on a held head, and the every-push switch. */
 export function useRowActionsFacade(
   item: InboxItem,
   view: InboxArchivedFilter,

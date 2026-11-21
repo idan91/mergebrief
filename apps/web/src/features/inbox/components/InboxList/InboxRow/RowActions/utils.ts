@@ -3,7 +3,7 @@ import { GenerationStatuses, PrStates, PullRequestSources } from "types";
 import type { InboxItem } from "../../../../types";
 
 /**
- * Generate now's bar, as the regenerate route holds it: an open pull request
+ * Generate brief's bar, as the regenerate route holds it: an open pull request
  * in an installation, whose newest head is held, and push access.
  */
 export function offersGenerateNow(item: InboxItem): boolean {

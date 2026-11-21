@@ -25,7 +25,7 @@ import { answerApiFetch, stubQueryClient } from "../../../test-utils";
 import { HeldCard, type HeldCardProps } from ".";
 
 const apiFetchMock = vi.mocked(apiFetch);
-const GENERATE = /^generate now$/i;
+const GENERATE = /^generate brief$/i;
 const META_KEY = ["pr-meta", "424242", 7];
 const EVERY_PUSH = "Generate on every push";
 
@@ -188,7 +188,7 @@ describe("HeldCard", () => {
     ).toBeNull();
   });
 
-  it("offers Generate now to a pusher", () => {
+  it("offers Generate brief to a pusher", () => {
     renderCard();
 
     expect(screen.getByRole("button", { name: GENERATE })).toBeTruthy();
@@ -197,7 +197,7 @@ describe("HeldCard", () => {
   it.each([
     ["a viewer without push access", { viewerCanPush: false }],
     ["a PR outside an installation", { appInstalled: false }],
-  ] as const)("offers no Generate now to %s", (_who, overrides) => {
+  ] as const)("offers no Generate brief to %s", (_who, overrides) => {
     renderCard(overrides);
 
     expect(screen.queryByRole("button", { name: GENERATE })).toBeNull();

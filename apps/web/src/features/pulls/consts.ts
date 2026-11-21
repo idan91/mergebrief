@@ -28,7 +28,7 @@ export const GenerateNotices: RegenerateNoticeKeys = {
     "pulls.awaitingTrigger.generate.indeterminate",
 };
 
-/** Generate now on a held head: a head that stopped being held says so. */
+/** Generate brief on a held head: a head that stopped being held says so. */
 export const HeldGenerateNotices: RegenerateNoticeKeys = {
   ...GenerateNotices,
   [RegenerateResultKinds.NOT_REGENERABLE]: "pulls.held.generate.stale",
