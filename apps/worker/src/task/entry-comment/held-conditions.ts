@@ -1,3 +1,4 @@
+import { sortUnmetConditions } from "contract";
 import type { TFunction } from "i18next";
 import {
   BotStates,
@@ -51,81 +52,50 @@ function formatCheckList(t: TFunction, names: readonly string[]): string {
   if (rest <= 0) {
     return shown;
   }
-  return t("entryComment.held.moreChecks", { names: shown, count: rest });
-}
-
-/**
- * A condition that clears by itself, a bot or CI still working, as against
- * one someone has to act on. Decided by the state, never the kind.
- */
-export function isWaitingCondition(condition: UnmetCondition): boolean {
-  switch (condition.kind) {
-    case TriggerConditionKinds.BOTS:
-      return (
-        condition.state === BotStates.NOT_STARTED ||
-        condition.state === BotStates.RUNNING
-      );
-    case TriggerConditionKinds.CI:
-      return !condition.permissionMissing && condition.failed.length === 0;
-    case UnmetConditionKinds.ANY:
-      return condition.conditions.some(isWaitingCondition);
-    default:
-      return false;
-  }
-}
-
-/** Waits first, then the conditions someone must act on, the `any` group last. */
-export function sortUnmetConditions(
-  unmet: readonly UnmetCondition[],
-): UnmetCondition[] {
-  const plain = unmet.filter((item) => item.kind !== UnmetConditionKinds.ANY);
-  const groups = unmet.filter((item) => item.kind === UnmetConditionKinds.ANY);
-  const waits = plain.filter(isWaitingCondition);
-  const blockers = plain.filter((item) => !isWaitingCondition(item));
-  return [...waits, ...blockers, ...groups];
+  return t("triggerCondition.moreChecks", { names: shown, count: rest });
 }
 
 function describeSize(t: TFunction, condition: UnmetSize): string {
   const params = {
     actual: String(condition.actual),
-    measure: t(`entryComment.held.reason.sizeMeasure.${condition.measure}`),
+    measure: t(`triggerCondition.reason.sizeMeasure.${condition.measure}`),
     limit: String(condition.limit),
   };
   if (condition.side === SizeBoundSides.MAX) {
-    return t("entryComment.held.reason.sizeMax", params);
+    return t("triggerCondition.reason.sizeMax", params);
   }
-  return t("entryComment.held.reason.sizeMin", params);
+  return t("triggerCondition.reason.sizeMin", params);
 }
 
 function describeBot(t: TFunction, condition: UnmetBot): string {
   const bot = ReviewBotNames[condition.bot];
   if (condition.state === BotStates.ISSUES) {
-    return t("entryComment.held.reason.bots.issues", {
+    return t("triggerCondition.reason.bots.issues", {
       bot,
       count: condition.issues ?? 0,
     });
   }
-  return t(`entryComment.held.reason.bots.${condition.state}`, { bot });
+  return t(`triggerCondition.reason.bots.${condition.state}`, { bot });
 }
 
 function describeCi(t: TFunction, condition: UnmetCi): string[] {
   if (condition.permissionMissing) {
-    return [t("entryComment.held.reason.ciPermissionMissing")];
+    return [t("triggerCondition.reason.ciPermissionMissing")];
   }
 
   const lines: string[] = [];
   if (condition.failed.length > 0) {
     const checks = formatCheckList(t, condition.failed);
-    lines.push(t("entryComment.held.reason.ciFailed", { checks }));
+    lines.push(t("triggerCondition.reason.ciFailed", { checks }));
   }
   if (condition.running.length > 0) {
     const checks = formatCheckList(t, condition.running);
-    lines.push(t("entryComment.held.reason.ciRunning", { checks }));
+    lines.push(t("triggerCondition.reason.ciRunning", { checks }));
   }
   if (condition.missing.length > 0) {
     const checks = formatCheckList(t, condition.missing);
     const count = condition.missing.length;
-    lines.push(t("entryComment.held.reason.ciMissing", { checks, count }));
+    lines.push(t("triggerCondition.reason.ciMissing", { checks, count }));
   }
   return lines;
 }
@@ -139,26 +109,26 @@ function describeCondition(
     case TriggerConditionKinds.READY_FOR_REVIEW:
     case TriggerConditionKinds.NEVER:
     case TriggerConditionKinds.REVIEW_REQUESTED:
-      return [t(`entryComment.held.reason.${condition.kind}`)];
+      return [t(`triggerCondition.reason.${condition.kind}`)];
     case TriggerConditionKinds.SIZE:
       return [describeSize(t, condition)];
     case TriggerConditionKinds.LABELS:
       return [
-        t("entryComment.held.reason.labels", {
+        t("triggerCondition.reason.labels", {
           labels: formatCodeList(condition.labels),
           count: condition.labels.length,
         }),
       ];
     case TriggerConditionKinds.TITLE_KEYWORDS:
       return [
-        t("entryComment.held.reason.title-keywords", {
+        t("triggerCondition.reason.title-keywords", {
           keywords: formatCodeList(condition.keywords),
           count: condition.keywords.length,
         }),
       ];
     case TriggerConditionKinds.BASE_BRANCHES:
       return [
-        t("entryComment.held.reason.base-branches", {
+        t("triggerCondition.reason.base-branches", {
           base: formatInlineCode(condition.base),
           branches: formatCodeList(condition.branches),
           count: condition.branches.length,
@@ -166,7 +136,7 @@ function describeCondition(
       ];
     case TriggerConditionKinds.PATHS:
       return [
-        t("entryComment.held.reason.paths", {
+        t("triggerCondition.reason.paths", {
           paths: formatCodeList(condition.paths),
           count: condition.paths.length,
         }),
@@ -183,9 +153,9 @@ function describeConditionWithSetBy(
   t: TFunction,
   condition: UnmetPlainCondition,
 ): string[] {
-  const setBy = t(`entryComment.held.setBy.${condition.setBy}`);
+  const setBy = t(`triggerCondition.setBy.${condition.setBy}`);
   return describeCondition(t, condition).map((reason) =>
-    t("entryComment.held.condition", { reason, setBy }),
+    t("triggerCondition.condition", { reason, setBy }),
   );
 }
 
@@ -199,13 +169,11 @@ export function formatHeldConditionLines(
 ): string[] {
   return sortUnmetConditions(unmet).flatMap((condition) => {
     if (condition.kind !== UnmetConditionKinds.ANY) {
-      return describeConditionWithSetBy(t, condition).map(
-        (line) => `- ${line}`,
-      );
+      return describeConditionWithSetBy(t, condition).map((line) => `- ${line}`);
     }
     const members = condition.conditions.flatMap((member) =>
       describeConditionWithSetBy(t, member).map((line) => `  - ${line}`),
     );
-    return [`- ${t("entryComment.held.anyGroup")}`, ...members];
+    return [`- ${t("triggerCondition.anyGroup")}`, ...members];
   });
 }

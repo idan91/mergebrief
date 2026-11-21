@@ -1,4 +1,5 @@
 import type { TranslationKey } from "i18n";
+import type { UnmetCondition } from "types/trigger-conditions";
 import type { ValueOf } from "types/utils";
 
 import type { PrSummary } from "../../../../../types";
@@ -9,6 +10,7 @@ export const NewerCommitsStates = {
   GENERATING: "generating",
   STALLED: "stalled",
   ON_DEMAND: "on-demand",
+  HELD: "held",
   FAILED: "failed",
   EXHAUSTED: "exhausted",
   SKIPPED: "skipped",
@@ -64,6 +66,8 @@ export interface NewerCommitsStatus {
   readonly liveStatus?: boolean;
   /** The latest push's run, offered in the popover while the chip's action moves to a newer stored brief. */
   readonly runAction?: NewerCommitsAction;
+  /** A held latest push's unmet conditions, grouped in the popover. */
+  readonly heldConditions?: readonly UnmetCondition[];
 }
 
 /** A run the chip can start, and whether its request is in flight. */

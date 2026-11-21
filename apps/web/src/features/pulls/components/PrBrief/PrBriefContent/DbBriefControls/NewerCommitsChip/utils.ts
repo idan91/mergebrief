@@ -193,6 +193,37 @@ function describeAwaiting(t: TFunction, input: NewerCommitsInput): StateCopy {
   };
 }
 
+/** Held: the status names it, a pusher's Generate rides beside it, the popover lists why. Closed: none will come. */
+function describeHeld(
+  t: TFunction,
+  input: NewerCommitsInput,
+  generation: GenerationSummary,
+): StateCopy {
+  const { meta } = input;
+  if (isNoLongerOpen(meta.state)) {
+    return describeNoBriefLine(t, t("pulls.awaitingTrigger.notOpenCopy"));
+  }
+  const copy = describeLabelled(
+    NewerCommitsStates.HELD,
+    t("pulls.newerCommits.status.held"),
+    [t("pulls.newerCommits.explain.held")],
+  );
+  copy.heldConditions = generation.unmetConditions ?? [];
+  const offersGenerate = readOffersTrigger({
+    prState: meta.state,
+    viewerCanPush: meta.viewerCanPush,
+    appInstalled: meta.appInstalled,
+  });
+  if (offersGenerate) {
+    copy.action = buildRunAction(
+      t,
+      NewerCommitsActionKinds.GENERATE,
+      input.latestRun,
+    );
+  }
+  return copy;
+}
+
 /** The installation row's Retry under the route's bar. */
 function readRetryRun(
   input: NewerCommitsInput,
@@ -382,6 +413,8 @@ function describeLatestPush(
       return describeFailed(t, input, generation);
     case LatestPushStates.CAPPED:
       return describeSkipped(t, input, generation);
+    case LatestPushStates.HELD:
+      return describeHeld(t, input, generation);
   }
 }
 
