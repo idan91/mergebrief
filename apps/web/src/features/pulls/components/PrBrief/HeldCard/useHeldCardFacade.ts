@@ -43,7 +43,7 @@ export function useHeldCardFacade({
     ? t("pulls.awaitingTrigger.notOpenHeading")
     : t("pulls.held.heading");
   const lead = noLongerOpen
-    ? t("pulls.awaitingTrigger.notOpenCopy")
+    ? t("pulls.held.lead.notOpen")
     : readHeldLead(
         t,
         splitUnmetConditions(unmetConditions),
