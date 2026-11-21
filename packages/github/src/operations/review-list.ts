@@ -7,6 +7,7 @@ import {
 import type { Mutable, Result } from "types/utils";
 import { positiveBigIntSchema } from "../ids";
 import { GitHubAccountTypes, type GitHubAccountType } from "../types";
+import { AuthorAssociations, type AuthorAssociation } from "../webhook/types";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -25,6 +26,8 @@ export interface SubmittedReview {
   readonly authorLogin?: string;
   /** Absent when GitHub omits it or sends a type we do not know. */
   readonly authorType?: GitHubAccountType;
+  /** The reviewer's tie to the repository; absent when GitHub omits it or sends a value we do not know. */
+  readonly authorAssociation?: AuthorAssociation;
   /** The head the review was submitted against. */
   readonly commitId?: string;
 }
@@ -40,6 +43,7 @@ const reviewEntrySchema = z.object({
     })
     .nullish(),
   commit_id: z.string().nullish(),
+  author_association: z.enum(AuthorAssociations).optional().catch(undefined),
 });
 const submittedStateSchema = z.enum(ReviewVerdictStates);
 
@@ -74,6 +78,9 @@ function shapeSubmittedReview(
   };
   if (typeof entry.commit_id === "string") {
     review.commitId = entry.commit_id;
+  }
+  if (entry.author_association !== undefined) {
+    review.authorAssociation = entry.author_association;
   }
 
   const author = entry.user;
