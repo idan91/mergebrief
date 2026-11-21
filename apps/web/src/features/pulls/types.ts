@@ -215,6 +215,8 @@ export const EveryPushResultKinds = {
   SAVED: "saved",
   /** No push access, no App installation, a session-only refusal, or the row is gone. */
   NOT_ALLOWED: "not-allowed",
+  /** The instance does not list the viewer's GitHub account. */
+  ACCOUNT_NOT_ALLOWED: "account-not-allowed",
   UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
   UPSTREAM: "upstream",
   INDETERMINATE: WriteFailureKinds.INDETERMINATE,

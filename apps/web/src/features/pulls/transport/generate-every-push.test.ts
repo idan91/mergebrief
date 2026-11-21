@@ -47,7 +47,7 @@ describe("generate on every push writes", () => {
     [404, "not-found", "not-allowed"],
     [403, "human-only", "not-allowed"],
     [403, "forbidden", "not-allowed"],
-    [403, "account-not-allowed", "not-allowed"],
+    [403, "account-not-allowed", "account-not-allowed"],
     [401, "unauthorized", "unauthorized"],
     [502, "github-unavailable", "upstream"],
     [500, "internal-error", "upstream"],

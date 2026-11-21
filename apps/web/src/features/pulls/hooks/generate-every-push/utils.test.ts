@@ -23,4 +23,10 @@ describe("readEveryPushNotice", () => {
       "MergeBrief could not confirm this was saved. Reload to see where it stands.",
     );
   });
+
+  it("sends an account the instance does not list to whoever runs it", () => {
+    expect(readEveryPushNotice(t, "account-not-allowed", true)).toBe(
+      "This GitHub account isn't allowed on this instance. Ask whoever runs it for access.",
+    );
+  });
 });
