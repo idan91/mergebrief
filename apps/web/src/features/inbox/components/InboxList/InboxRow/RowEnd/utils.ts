@@ -1,4 +1,4 @@
-import { isWaitingCondition } from "contract";
+import { isWaitingCondition } from "i18n";
 
 import { isNoLongerOpen } from "@web/features/pulls/utils";
 import { GenerationStatuses, PrStates } from "types";
