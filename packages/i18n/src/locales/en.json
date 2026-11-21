@@ -247,7 +247,6 @@
         "instance": "Instance"
       },
       "generate": {
-        "action": "Generate now",
         "pending": "Generating…",
         "stale": "This push is no longer held."
       }
@@ -1928,7 +1927,7 @@
         "deleted": "Deleted",
         "regenerate": "Regenerate",
         "regenerateQueued": "Regenerate queued",
-        "generateNow": "Generate now",
+        "generate": "Generate brief",
         "generateQueued": "Generate queued",
         "archive": "Archive",
         "unarchive": "Unarchive",

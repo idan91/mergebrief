@@ -44,7 +44,7 @@ export interface RowActionsProps {
  * Open on GitHub, Archive (Unarchive in the archived view), Delete where the
  * viewer may, and the attachment-branch purge on an admin's installation row.
  * A hover, focus or the keyboard cursor reveals both; a touch screen always
- * shows the menu alone and reaches GitHub through it. Generate now leads the
+ * shows the menu alone and reaches GitHub through it. Generate brief leads the
  * menu on a held head the viewer may push to; Regenerate leads it when
  * GitHub has commits the brief lacks, unless a repeat paste fails.
  */
@@ -121,7 +121,7 @@ export function RowActions({
               glyph={<Icon name={IconNames.PLAY} size={IconSizes.MD} />}
               onSelect={facade.generateNow}
             >
-              {t("home.inbox.actions.generateNow")}
+              {t("home.inbox.actions.generate")}
             </Menu.Item>
           ) : null}
           {canRegenerate ? (
