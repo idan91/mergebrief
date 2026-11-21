@@ -113,7 +113,7 @@ const ciSchema = z.union([
     .transform(({ checks }) => ({ mode: CiModes.NAMED, checks })),
 ]);
 
-/** The YAML key each kind takes, in the order a block lists them. */
+/** The YAML key each kind takes. */
 export const CONFIG_KEYS = {
   readyForReview: TriggerConditionKinds.READY_FOR_REVIEW,
   never: TriggerConditionKinds.NEVER,
