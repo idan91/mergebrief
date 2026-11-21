@@ -92,6 +92,7 @@ function findBlockIssues(
   raw: Record<string, unknown>,
   all: readonly TriggerConditionSetting[],
   any: readonly TriggerConditionSetting[],
+  dropped: readonly TriggerConditionKind[],
 ): string[] {
   const issues: string[] = [];
   if (Object.keys(raw).length === 0) {
@@ -104,6 +105,9 @@ function findBlockIssues(
       issues.push(
         `${BLOCK}: ${setting.kind} is set both in any and outside it`,
       );
+    }
+    if (dropped.includes(setting.kind)) {
+      issues.push(`${BLOCK}: ${setting.kind} is switched off and set in any`);
     }
   }
 
@@ -161,7 +165,7 @@ function parseBlock(
     issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
   }
 
-  issues.push(...findBlockIssues(raw, all, any));
+  issues.push(...findBlockIssues(raw, all, any, dropped));
   if (issues.length > 0) {
     return configError(issues);
   }
