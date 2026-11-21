@@ -239,7 +239,7 @@ export type ClaimRunOutcome =
       readonly claims: number;
     }
   | {
-      readonly kind: typeof ClaimOutcomes.HELD;
+      readonly kind: typeof ClaimOutcomes.RUNNING;
       /** Until the holder's lease lapses, by the database clock. */
       readonly leaseRemainingMs: number;
     }
@@ -288,8 +288,11 @@ interface ReleaseClaimOptions {
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
-  /** A live run holds the row, so a projection leaves every column as stored. */
-  readonly held: boolean;
+  /**
+   * The projection keeps the row in flight (a live claim, or the previous
+   * release's running row), so it leaves every column as stored.
+   */
+  readonly inFlight: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +300,7 @@ export interface ProjectedGeneration {
 // ---------------------------------------------------------------------------
 
 export const GenerationErrorCodes = {
-  /** The row is held by another run, by none when a holder was named, or is gone. */
+  /** The row is claimed by another run, by none when a holder was named, or is gone. */
   CLAIM_LOST: "claim-lost",
   /** The row is `awaiting-trigger` or `succeeded`, which no unclaimed mark moves. */
   STATUS_KEPT: "status-kept",
@@ -433,7 +436,7 @@ export interface GenerationProjection {
    * Claim the row in one transaction that reads it `FOR UPDATE`; with `cap`
    * set, under the instance advisory lock, so the cap is exact across slots
    * and processes (a ceiling, not fair share). `finished` on a succeeded row,
-   * `held` under a live lease; `exhausted` after `MAX_GENERATION_ATTEMPTS`
+   * `running` under a live lease; `exhausted` after `MAX_GENERATION_ATTEMPTS`
    * claims since a trigger and `capped` at the cap write the row's end under
    * the same lock, so a trigger lands wholly before or after it (`ClaimEnds`);
    * otherwise a run id, a lease of `leaseMs`, `running`, one more claim, one
@@ -564,7 +567,7 @@ export interface GenerationProjection {
    * Covers the pre-drain replace: push B inside the debounce window swaps
    * the job's payload, so no run ever carries head A and its pending row
    * would sit non-terminal forever. Same abort semantics as `markSuperseded`.
-   * Only rows last written at or before `pickedUpAt` and held by no live
+   * Only rows last written at or before `pickedUpAt` and claimed by no live
    * lease are taken: a head triggered after pickup may be one the run never
    * saw. Returns the number of rows swept.
    */
@@ -750,12 +753,12 @@ function computeLeaseRemainingMs(): SQL<number> {
  * What the projection keeps as it is: a live lease, or a `running` row with no
  * claim, which the previous release's worker leaves behind while it runs.
  */
-function isProjectionHeld(): SQL {
+function isProjectionInFlight(): SQL {
   return sql`(${isLeaseLive()} or (${generation.runId} is null and ${generation.status} = ${GenerationStatuses.RUNNING}))`;
 }
 
-function keepWhileHeld(column: PgColumn, reset: SQL | string | null): SQL {
-  return sql`case when ${isProjectionHeld()} then ${column} else ${reset} end`;
+function keepWhileInFlight(column: PgColumn, reset: SQL | string | null): SQL {
+  return sql`case when ${isProjectionInFlight()} then ${column} else ${reset} end`;
 }
 
 const CLAIM_CLEARED = {
@@ -784,25 +787,26 @@ const TERMINAL_CLEARED = {
 /**
  * A trigger's reset of a row already on the key: `status` with `attempts` as
  * given, clearing `phase`, the error columns, `repo_config` and the claim. A
- * held row keeps every column, so a live run is never clobbered and a dropped
- * trigger is not a paid attempt; a `running` row whose lease lapsed (a dead
- * worker) is projected afresh.
+ * row the projection keeps in flight (a live claim, or the previous release's
+ * running row) keeps every column, so a live run is never clobbered and a
+ * dropped trigger is not a paid attempt; a `running` row whose lease lapsed
+ * (a dead worker) is projected afresh.
  */
 function buildTriggerReset(
   status: GenerationStatus,
   attempts: SQL,
 ): GenerationSet {
   return {
-    status: keepWhileHeld(generation.status, status),
-    attempts: keepWhileHeld(generation.attempts, attempts),
-    phase: keepWhileHeld(generation.phase, null),
-    errorCode: keepWhileHeld(generation.errorCode, null),
-    errorParams: keepWhileHeld(generation.errorParams, null),
-    repoConfig: keepWhileHeld(generation.repoConfig, null),
-    runId: keepWhileHeld(generation.runId, null),
-    leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
-    claims: keepWhileHeld(generation.claims, sql`0`),
-    awaitsRecovery: keepWhileHeld(generation.awaitsRecovery, sql`false`),
+    status: keepWhileInFlight(generation.status, status),
+    attempts: keepWhileInFlight(generation.attempts, attempts),
+    phase: keepWhileInFlight(generation.phase, null),
+    errorCode: keepWhileInFlight(generation.errorCode, null),
+    errorParams: keepWhileInFlight(generation.errorParams, null),
+    repoConfig: keepWhileInFlight(generation.repoConfig, null),
+    runId: keepWhileInFlight(generation.runId, null),
+    leaseExpiresAt: keepWhileInFlight(generation.leaseExpiresAt, null),
+    claims: keepWhileInFlight(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileInFlight(generation.awaitsRecovery, sql`false`),
     updatedAt: stampWriteTime(),
   };
 }
@@ -865,15 +869,15 @@ async function projectTriggeredRow(
     })
     .returning({
       ...getTableColumns(generation),
-      held: sql<boolean>`${isProjectionHeld()}`,
+      inFlight: sql<boolean>`${isProjectionInFlight()}`,
     });
   const projected = rows[0];
   if (projected === undefined) {
     throw new Error("generation projection returned no row");
   }
 
-  const { held, ...row } = projected;
-  return { row, held };
+  const { inFlight, ...row } = projected;
+  return { row, inFlight };
 }
 
 /**
@@ -984,7 +988,7 @@ export async function readCurrentBriefHead(
   const rows = await executor
     .select({
       row: getTableColumns(generation),
-      held: sql<boolean>`${isProjectionHeld()}`,
+      inFlight: sql<boolean>`${isProjectionInFlight()}`,
     })
     .from(generation)
     .where(
@@ -1099,7 +1103,7 @@ export function createGenerationProjection(
   ): Result<never, GenerationError> {
     return fail(
       GenerationErrorCodes.CLAIM_LOST,
-      `generation ${target.kind}@${target.headSha} is held by another run or gone`,
+      `generation ${target.kind}@${target.headSha} is claimed by another run or gone`,
     );
   }
 
@@ -1148,15 +1152,15 @@ export function createGenerationProjection(
       }
 
       const unsettled = ne(generation.status, GenerationStatuses.SUCCEEDED);
-      const held = await transition(
+      const marked = await transition(
         target,
         { ...TERMINAL_CLEARED, status: GenerationStatuses.AWAITING_TRIGGER },
         { executor: tx, guard: sql`(not ${isLeaseLive()} and ${unsettled})` },
       );
-      if (held.ok) {
-        return held;
+      if (marked.ok) {
+        return marked;
       }
-      return readKeptStatus(tx, target, held);
+      return readKeptStatus(tx, target, marked);
     });
   }
 
@@ -1290,7 +1294,7 @@ export function createGenerationProjection(
         and(
           keyWhere(target),
           ne(generation.status, GenerationStatuses.SUCCEEDED),
-          not(isProjectionHeld()),
+          not(isProjectionInFlight()),
           isWrittenBy(pickedUpAt),
         ),
       )
@@ -1329,7 +1333,7 @@ export function createGenerationProjection(
       return {
         ok: true,
         value: {
-          kind: ClaimOutcomes.HELD,
+          kind: ClaimOutcomes.RUNNING,
           leaseRemainingMs: current.leaseRemainingMs,
         },
       };

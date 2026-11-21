@@ -40,7 +40,7 @@ export async function reportJobFailure(
   const rowKept = record !== FailureRecords.WRITTEN;
   if (record === FailureRecords.LOST) {
     log.warn(
-      "generate: the generation row is held by another run or gone, standing down",
+      "generate: the generation row is claimed by another run or gone, standing down",
     );
     return { outcome: JobFailureOutcomes.CLAIM_LOST, failure, rowKept };
   }

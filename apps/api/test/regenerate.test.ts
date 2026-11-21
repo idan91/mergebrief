@@ -356,14 +356,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     expect(res.status).toBe(202);
   });
 
-  it("answers 409 generation-held while a run holds the head", async () => {
+  it("answers 409 generation-running while a run holds the head", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedHead(harness, TENANT, "running");
 
     const res = await postAsCookie();
 
     expect(res.status).toBe(409);
-    expect(await readCode(res)).toBe("generation-held");
+    expect(await readCode(res)).toBe("generation-running");
   });
 
   it("answers 409 generation-not-regenerable on a succeeded head", async () => {
@@ -497,7 +497,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     expect(jobs[0]?.["head"]).toBe(HEAD);
   });
 
-  it("answers 409 generation-held to a second click once the run holds it", async () => {
+  it("answers 409 generation-running to a second click once the run holds it", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedAwaitingHead(harness);
     expect((await postAsCookie()).status).toBe(202);
@@ -506,7 +506,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     const res = await postAsCookie();
 
     expect(res.status).toBe(409);
-    expect(await readCode(res)).toBe("generation-held");
+    expect(await readCode(res)).toBe("generation-running");
   });
 
   it("answers 404 to a PR author without push and writes no approval", async () => {

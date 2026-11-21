@@ -243,7 +243,7 @@ describe.skipIf(databaseUrl === undefined)("claimRun on real Postgres", () => {
       const kinds = outcomes.map((outcome) => outcome.ok && outcome.value.kind);
       expect(kinds).toHaveLength(2);
       expect(kinds).toContain(ClaimOutcomes.CLAIMED);
-      expect(kinds).toContain(ClaimOutcomes.HELD);
+      expect(kinds).toContain(ClaimOutcomes.RUNNING);
     } finally {
       await deleteTenantRows(handle, tenant);
     }

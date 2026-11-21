@@ -137,7 +137,7 @@ export const ClaimOutcomes = {
   /** The row is now this run's: a fresh run id, a lease, one paid attempt. */
   CLAIMED: "claimed",
   /** Another run's lease is live; nothing was written. */
-  HELD: "held",
+  RUNNING: "running",
   /** The day's attempts reached the cap; the claim wrote the row's end instead, its `ClaimEnd`. */
   CAPPED: "capped",
   /** The row already succeeded; there is nothing to claim. */
@@ -157,7 +157,7 @@ export const ClaimEnds = {
   KEPT_FAILED: "kept-failed",
   /** The pair's brief is stored, so the row is `succeeded`. */
   SETTLED: "settled",
-  /** Over a stored brief, the row was written after the run's pickup or a previous release's run holds it; it is left to that writer. */
+  /** Over a stored brief, the row was written after the run's pickup or is the previous release's running row; it is left to that writer. */
   LEFT: "left",
 } as const;
 export type ClaimEnd = ValueOf<typeof ClaimEnds>;
@@ -175,8 +175,8 @@ export type JobKeyMode = ValueOf<typeof JobKeyModes>;
 export const TriggerOnDemandOutcomes = {
   /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
   QUEUED: "queued",
-  /** A live claim holds the head; nothing was written. */
-  HELD: "held",
+  /** The projection keeps the head in flight (a live claim, or the previous release's running row); nothing was written. */
+  RUNNING: "running",
   /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",
   /** The PR is outside the scope, or the scope is an owner's; nothing was written. */

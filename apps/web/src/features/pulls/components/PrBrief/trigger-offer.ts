@@ -25,7 +25,7 @@ export function readOffersTrigger({
 /** A queued run swaps the card, and that swap is announced by the page. */
 export const GenerateNotices: RegenerateNoticeKeys = {
   [RegenerateResultKinds.QUEUED]: undefined,
-  [RegenerateResultKinds.HELD]: "pulls.briefError.generation-held",
+  [RegenerateResultKinds.RUNNING]: "pulls.briefError.generation-running",
   [RegenerateResultKinds.NOT_REGENERABLE]:
     "pulls.awaitingTrigger.generate.stale",
   [RegenerateResultKinds.NOT_ALLOWED]:

@@ -43,7 +43,7 @@ import { ClaimLostSignal, SpendCappedSignal } from "./run-signals";
  * cap together. The claim queues the head's recovery job in the same
  * transaction; a takeover's claim queues its successor, which ends the
  * takeover job's own retries and carries them on. A capped or exhausted claim
- * writes the row's end itself; a held or finished row is reported untouched.
+ * writes the row's end itself; a running or finished row is reported untouched.
  * A row that is gone (its pull request deleted) stands the run down.
  */
 export async function applySpendGate(

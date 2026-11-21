@@ -621,7 +621,9 @@ describe("a multi-call run", () => {
     const lines = readLines();
     expect(lines.some((line) => line["evt"] === "job.fail")).toBe(false);
     expect(
-      lines.some((line) => String(line["msg"]).includes("held by another run")),
+      lines.some((line) =>
+        String(line["msg"]).includes("claimed by another run"),
+      ),
     ).toBe(false);
     expect(readLiveBodies(github).join("\n")).not.toContain(
       "generation failed",

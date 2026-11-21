@@ -198,9 +198,9 @@ type IngestTransaction = Parameters<
 /**
  * Whether a worker holds the PR's generate job right now. A run over a
  * stored brief never marks the projection, so the queue is the only place
- * that shows it; a second job on a held key would run beside the live one.
+ * that shows it; a second job on a locked key would run beside the live one.
  */
-async function isGenerateJobHeld(
+async function isGenerateJobLocked(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
@@ -354,7 +354,8 @@ function isRerunHopeless(row: GenerationRow): boolean {
  * Why the current head cannot take a fresh run, or `undefined` when it can:
  * a head waiting for its Trigger approval, or one that failed in a way a
  * rerun can help. A closed or merged PR has nothing left to generate for.
- * Only a live claim holds the head, as on a push: a dead worker's job stays
+ * Only a head the projection keeps in flight (a live claim, or the previous
+ * release's running row) is refused, as on a push: a dead worker's job stays
  * locked for hours, and a live one that has not claimed yet meets the reset
  * row's fence. A failed head whose brief is stored failed after it, and a
  * fresh run there would claim nothing.
@@ -368,8 +369,8 @@ async function findTriggerOnDemandRefusal(
   if (prRow.state !== PrStates.OPEN) {
     return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
-  if (head.held) {
-    return TriggerOnDemandOutcomes.HELD;
+  if (head.inFlight) {
+    return TriggerOnDemandOutcomes.RUNNING;
   }
   if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
     return undefined;
@@ -428,8 +429,8 @@ export interface TriggerGenerationInput {
    * Replace a pending job's `run_at` with this trigger's window instead of
    * keeping the first push's. The `ready_for_review` flip sets it so a
    * draft-damped job is pulled in to the short window; nothing else should,
-   * since every replace re-arms the debounce. A held head still gets no
-   * job; the live run reads the flip itself.
+   * since every replace re-arms the debounce. A head the projection keeps in
+   * flight still gets no job; the live run reads the flip itself.
    */
   readonly refreshRunAt?: boolean;
   /**
@@ -541,9 +542,9 @@ export interface IngestRoutines {
    * waiting one; a locked job gets its key detached, as on a push. A head
    * awaiting its trigger also records the approver's Trigger approval in the
    * same transaction, and is refused when the caller named none; a failed
-   * head records none. A closed or merged PR, a head under a live claim, any
-   * other status, a failure whose class is cannot-help, a failed head whose
-   * brief is stored, and a PR outside an installation scope write nothing.
+   * head records none. A closed or merged PR, an in-flight head, any other
+   * status, a cannot-help failure, a failed head whose brief is stored, and a
+   * PR outside an installation scope write nothing.
    */
   triggerOnDemand(input: TriggerOnDemandInput): Promise<TriggerOnDemandOutcome>;
 }
@@ -717,10 +718,11 @@ export function createIngestRoutines(
         }
 
         // 2. Project the brief generation as `pending`, or `awaiting-trigger`
-        // while the PR owes an approval. A held head is never re-enqueued,
-        // refreshRunAt included: under N slots a fresh job for the same head
-        // would run beside the live one. The live run re-reads draft state
-        // before its ready Entry instead. A gated trigger on a head that
+        // while the PR owes an approval. A head the projection keeps in flight
+        // (a live claim, or the previous release's running row) is never
+        // re-enqueued, refreshRunAt included: under N slots a fresh job for
+        // the same head would run beside the live one. The live run re-reads
+        // draft state before its ready Entry instead. A gated trigger on a head that
         // already has a row keeps it, and queues a job only while that row
         // still waits for one, so a failed head keeps its failure.
         const value: Mutable<IngestOutcome> = {
@@ -743,7 +745,7 @@ export function createIngestRoutines(
             await stampBriefTriggered(tx, scope, prRow.id, trigger.headSha);
           }
           value.generation = projected.row;
-          if (projected.held) {
+          if (projected.inFlight) {
             return value;
           }
           const keepsFinishedRow =
@@ -751,7 +753,7 @@ export function createIngestRoutines(
           if (keepsFinishedRow) {
             return value;
           }
-        } else if (await isGenerateJobHeld(tx, prRow.id)) {
+        } else if (await isGenerateJobLocked(tx, prRow.id)) {
           return value;
         }
 
@@ -953,8 +955,8 @@ export function createIngestRoutines(
           headSha,
           baselineSha: null,
         });
-        if (projected.held) {
-          return TriggerOnDemandOutcomes.HELD;
+        if (projected.inFlight) {
+          return TriggerOnDemandOutcomes.RUNNING;
         }
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {
