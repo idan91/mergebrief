@@ -15,7 +15,7 @@ export function AnyGroupItem({ group }: AnyGroupItemProps) {
 
   return (
     <li className={styles["group"]} data-testid="held-any-group">
-      <span className={styles["lead"]}>{t("triggerCondition.anyGroup")}</span>
+      <span>{t("triggerCondition.anyGroup")}</span>
       <ul className={styles["members"]}>
         {group.conditions.map((member) => (
           <ConditionItem
