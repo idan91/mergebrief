@@ -25,15 +25,6 @@ export const ReviewBots = {
 } as const;
 export type ReviewBot = ValueOf<typeof ReviewBots>;
 
-/** Each review bot's product name, a proper noun every surface shows as is. */
-export const ReviewBotNames = {
-  [ReviewBots.UNBLOCKED]: "Unblocked",
-  [ReviewBots.CODERABBIT]: "CodeRabbit",
-  [ReviewBots.CLAUDE]: "Claude Code Review",
-  [ReviewBots.GREPTILE]: "Greptile",
-  [ReviewBots.COPILOT]: "Copilot",
-} as const satisfies Record<ReviewBot, string>;
-
 /** What a `bots` condition waits for from one bot on the current push. */
 export const BotVerdicts = {
   FINISHED: "finished",
