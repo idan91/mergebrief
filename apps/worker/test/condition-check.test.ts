@@ -3,7 +3,10 @@ import type {
   EffectiveTriggerConditions,
   TriggerConditionSetting,
 } from "generators/trigger-conditions";
-import { evaluateTriggerConditions } from "../src/task/generate/logic/condition-check/evaluate";
+import {
+  evaluateTriggerConditions,
+  isVerdictOnPaths,
+} from "../src/task/generate/logic/condition-check/evaluate";
 import type { ConditionFacts } from "../src/task/generate/logic/condition-check/types";
 
 const BASE_FACTS: ConditionFacts = {
@@ -308,7 +311,7 @@ describe("evaluateTriggerConditions, paths", () => {
   });
 
   it("holds once the scan outruns its step budget", () => {
-    const glob = `**/${"x".repeat(197)}`;
+    const glob = `**/${"x".repeat(196)}*`;
     const misses = Array.from(
       { length: 2999 },
       (_, index) => `src/${String(index).padStart(195, "0")}`,
@@ -330,11 +333,127 @@ describe("evaluateTriggerConditions, paths", () => {
     );
 
     const unmet = evaluateOne(
-      { kind: "paths", value: ["src/payments/**"] },
+      { kind: "paths", value: ["src/payments/handlers/refunds/stripe/**"] },
+      {
+        changedPaths: [
+          ...misses,
+          "src/payments/handlers/refunds/stripe/charge.ts",
+        ],
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("skips paths outside a glob's literal suffix at no cost", () => {
+    const misses = Array.from(
+      { length: 2999 },
+      (_, index) => `src/${String(index).padStart(195, "0")}`,
+    );
+
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["**/*.generated-migration-snapshot.sql"] },
+      { changedPaths: [...misses, "db/001.generated-migration-snapshot.sql"] },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("tries the glob with the longest literal prefix first", () => {
+    const misses = Array.from(
+      { length: 2999 },
+      (_, index) => `src/${String(index).padStart(195, "0")}`,
+    );
+
+    const unmet = evaluateOne(
+      { kind: "paths", value: [`**/${"x".repeat(196)}*`, "src/payments/**"] },
       { changedPaths: [...misses, "src/payments/charge.ts"] },
     );
 
     expect(unmet).toEqual([]);
+  });
+
+  it("reads unread changed paths as met", () => {
+    const unmet = evaluateTriggerConditions(
+      makeEffective({ kind: "paths", value: ["src/payments/**"] }),
+      { ...BASE_FACTS, changedPaths: undefined },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+});
+
+describe("isVerdictOnPaths", () => {
+  const paths: TriggerConditionSetting = {
+    kind: "paths",
+    value: ["src/payments/**"],
+  };
+  const labels: TriggerConditionSetting = {
+    kind: "labels",
+    value: ["needs-brief"],
+  };
+  const unread: ConditionFacts = { ...BASE_FACTS, changedPaths: undefined };
+
+  it("is false with no paths condition", () => {
+    expect(isVerdictOnPaths(makeEffective(labels), unread)).toBe(false);
+  });
+
+  it("is true for a paths condition when the rest pass", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [
+        { setting: paths, setBy: "repo" },
+        { setting: labels, setBy: "repo" },
+      ],
+      any: [],
+    };
+
+    const verdictOnPaths = isVerdictOnPaths(effective, {
+      ...unread,
+      labels: ["needs-brief"],
+    });
+
+    expect(verdictOnPaths).toBe(true);
+  });
+
+  it("is false while another plain condition is unmet", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [
+        { setting: paths, setBy: "repo" },
+        { setting: labels, setBy: "repo" },
+      ],
+      any: [],
+    };
+
+    expect(isVerdictOnPaths(effective, unread)).toBe(false);
+  });
+
+  it("is false once another member of its any group is met", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [],
+      any: [
+        { setting: paths, setBy: "repo" },
+        { setting: labels, setBy: "repo" },
+      ],
+    };
+
+    const verdictOnPaths = isVerdictOnPaths(effective, {
+      ...unread,
+      labels: ["needs-brief"],
+    });
+
+    expect(verdictOnPaths).toBe(false);
+  });
+
+  it("is true while no other member of its any group is met", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [],
+      any: [
+        { setting: paths, setBy: "repo" },
+        { setting: labels, setBy: "repo" },
+      ],
+    };
+
+    expect(isVerdictOnPaths(effective, unread)).toBe(true);
   });
 });
 

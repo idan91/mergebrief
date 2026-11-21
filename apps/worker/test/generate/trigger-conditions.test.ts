@@ -764,6 +764,23 @@ describe("generate task, trigger conditions", () => {
     expect(countFileListReads(github)).toBe(0);
   });
 
+  it("reads no file list while another condition holds the head", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(
+      github,
+      "version: 1\ntriggerConditions:\n  paths: ['**/*.ts']\n  labels: [needs-brief]\n",
+    );
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+    ]);
+    expect(countFileListReads(github)).toBe(0);
+  });
+
   it("holds an any group of paths and labels until a label lands", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
