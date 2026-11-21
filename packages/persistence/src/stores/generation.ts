@@ -800,11 +800,6 @@ const CLAIM_CLEARED = {
   unmetConditions: null,
 } as const;
 
-/**
- * Statuses no unclaimed mark moves: a head waiting for its trigger approval,
- * whose retry would otherwise skip the author gate, a held head, which a new
- * push leaves stored as it is, and a head whose brief is stored.
- */
 /** A rerun of a failure with one of these codes fails the same way and still spends. */
 export function isHopelessFailure(
   errorCode: GenerationFailureCode | null,
@@ -820,7 +815,6 @@ const HOPELESS_FAILURE_CODES = Object.values(GenerationFailureCodes).filter(
   (code) => isHopelessFailure(code),
 );
 
-/** A failed row whose code `isHopelessFailure` names. */
 function isHopelessFailedRow(): SQL {
   return (
     and(
@@ -831,6 +825,11 @@ function isHopelessFailedRow(): SQL {
   );
 }
 
+/**
+ * Statuses no unclaimed mark moves: a head waiting for its trigger approval,
+ * whose retry would otherwise skip the author gate, a held head, which a new
+ * push leaves stored as it is, and a head whose brief is stored.
+ */
 const KEPT_STATUSES: readonly GenerationStatus[] = [
   GenerationStatuses.AWAITING_TRIGGER,
   GenerationStatuses.HELD,
