@@ -289,6 +289,11 @@ export type {
   HunkSpanRow,
 } from "./stores/artifact-store/types";
 
+// A held head's stored unmet conditions, read back for the api.
+export {
+  parseUnmetConditions,
+  type StoredUnmetConditions,
+} from "./stores/unmet-conditions";
 // The `generation` status-projection write helpers.
 export {
   createGenerationProjection,

@@ -1,6 +1,6 @@
 // POST /api/repos/:repoId/pulls/:prNumber/regenerate queues a fresh run of
-// the pull request's failed or awaiting-trigger current head for a viewer who
-// can push. Success is a 202: the run happens later, in the worker.
+// the pull request's failed, awaiting-trigger or held current head for a
+// viewer who can push. Success is a 202: the run happens later, in the worker.
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";

@@ -29,14 +29,6 @@
       "count": 1
     }
   },
-  "apps/api/test/pr-view.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
   "apps/web/src/components/Markdown/utils.test.ts": {
     "house/test-title": {
       "count": 1

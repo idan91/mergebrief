@@ -174,6 +174,22 @@ describe("generation lifecycle CHECKs", () => {
     ).rejects.toThrow("generation_claim_has_lease");
   });
 
+  it("refuses a held row with no unmet conditions", async () => {
+    await seedPendingRow();
+
+    await expect(
+      shared.harness.raw("update generation set status = 'held'"),
+    ).rejects.toThrow("generation_held_has_conditions");
+  });
+
+  it("keeps unmet conditions an older release left on a row it moved", async () => {
+    await seedPendingRow();
+
+    await expect(
+      shared.harness.raw("update generation set unmet_conditions = '[]'"),
+    ).resolves.toEqual([]);
+  });
+
   it("refuses a claim on a row that is not running", async () => {
     await seedPendingRow();
 

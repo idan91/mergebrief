@@ -177,7 +177,7 @@ export const TriggerOnDemandOutcomes = {
   QUEUED: "queued",
   /** The projection keeps the head in flight (a live claim, or the previous release's running row); nothing was written. */
   RUNNING: "running",
-  /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
+  /** The PR is closed or merged, or its head is not held, failed or awaiting its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",
   /** The PR is outside the scope, or the scope is an owner's; nothing was written. */
   NOT_FOUND: "not-found",

@@ -43,6 +43,10 @@ import {
 import { sanitizeErrorDetail } from "logging";
 import { traceStore } from "./trace-store";
 import {
+  truncateUnmetConditions,
+  UnmetConditionsSchema,
+} from "./unmet-conditions";
+import {
   ChargeOutcomes,
   ClaimEnds,
   ClaimOutcomes,
@@ -67,6 +71,7 @@ import {
   type Mutable,
   type Result,
   type ValueOf,
+  type UnmetCondition,
 } from "types";
 
 export type GenerationRow = typeof generation.$inferSelect;
@@ -396,6 +401,20 @@ export interface GenerationProjection {
    */
   markAwaitingTrigger(
     target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * Reflect `held`: a trigger condition is unmet, `unmetConditions` names
+   * every one. Moves only a `pending`, `held` or `failed` row (a retry starts
+   * from `failed`) no live lease holds and no Generate click stamped, with a
+   * fresh claim budget, under the pull request's row lock a click also
+   * takes, so a click either lands first and wins or releases the hold after
+   * it. A stamped or kept-status row answers `status-kept`, any other refused
+   * row `claim-lost`. Not a failure: `attempts` is untouched. A list or name
+   * past the stored bounds is cut, never refused.
+   */
+  markHeld(
+    target: GenerationTarget,
+    unmetConditions: readonly UnmetCondition[],
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `failed` with a typed failure, on a row no live lease holds and
@@ -757,23 +776,34 @@ function isProjectionInFlight(): SQL {
   return sql`(${isLeaseLive()} or (${generation.runId} is null and ${generation.status} = ${GenerationStatuses.RUNNING}))`;
 }
 
-function keepWhileInFlight(column: PgColumn, reset: SQL | string | null): SQL {
-  return sql`case when ${isProjectionInFlight()} then ${column} else ${reset} end`;
+/**
+ * What a trigger keeps as it is: a row the projection keeps in flight, and a
+ * `held` one, which the worker checks again on the queued job instead of a
+ * reset.
+ */
+function keepWhileInFlightOrHeld(
+  column: PgColumn,
+  reset: SQL | string | null,
+): SQL {
+  return sql`case when ${isProjectionInFlight()} or ${generation.status} = ${GenerationStatuses.HELD} then ${column} else ${reset} end`;
 }
 
+/** Every writer clears these, so a row it moves out of `held` drops its conditions. */
 const CLAIM_CLEARED = {
   runId: null,
   leaseExpiresAt: null,
   awaitsRecovery: false,
+  unmetConditions: null,
 } as const;
 
 /**
  * Statuses no unclaimed mark moves: a head waiting for its trigger approval,
- * whose retry would otherwise skip the author gate, and a head whose brief is
- * stored.
+ * whose retry would otherwise skip the author gate, a held head, which a new
+ * push leaves stored as it is, and a head whose brief is stored.
  */
 const KEPT_STATUSES: readonly GenerationStatus[] = [
   GenerationStatuses.AWAITING_TRIGGER,
+  GenerationStatuses.HELD,
   GenerationStatuses.SUCCEEDED,
 ];
 
@@ -789,24 +819,29 @@ const TERMINAL_CLEARED = {
  * given, clearing `phase`, the error columns, `repo_config` and the claim. A
  * row the projection keeps in flight (a live claim, or the previous release's
  * running row) keeps every column, so a live run is never clobbered and a
- * dropped trigger is not a paid attempt; a `running` row whose lease lapsed
- * (a dead worker) is projected afresh.
+ * dropped trigger is not a paid attempt; so does a `held` row, so the inbox
+ * never flashes queued between checks. A `running` row whose lease lapsed (a
+ * dead worker) is projected afresh.
  */
 function buildTriggerReset(
   status: GenerationStatus,
   attempts: SQL,
 ): GenerationSet {
   return {
-    status: keepWhileInFlight(generation.status, status),
-    attempts: keepWhileInFlight(generation.attempts, attempts),
-    phase: keepWhileInFlight(generation.phase, null),
-    errorCode: keepWhileInFlight(generation.errorCode, null),
-    errorParams: keepWhileInFlight(generation.errorParams, null),
-    repoConfig: keepWhileInFlight(generation.repoConfig, null),
-    runId: keepWhileInFlight(generation.runId, null),
-    leaseExpiresAt: keepWhileInFlight(generation.leaseExpiresAt, null),
-    claims: keepWhileInFlight(generation.claims, sql`0`),
-    awaitsRecovery: keepWhileInFlight(generation.awaitsRecovery, sql`false`),
+    status: keepWhileInFlightOrHeld(generation.status, status),
+    attempts: keepWhileInFlightOrHeld(generation.attempts, attempts),
+    phase: keepWhileInFlightOrHeld(generation.phase, null),
+    errorCode: keepWhileInFlightOrHeld(generation.errorCode, null),
+    errorParams: keepWhileInFlightOrHeld(generation.errorParams, null),
+    repoConfig: keepWhileInFlightOrHeld(generation.repoConfig, null),
+    runId: keepWhileInFlightOrHeld(generation.runId, null),
+    leaseExpiresAt: keepWhileInFlightOrHeld(generation.leaseExpiresAt, null),
+    claims: keepWhileInFlightOrHeld(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileInFlightOrHeld(
+      generation.awaitsRecovery,
+      sql`false`,
+    ),
+    unmetConditions: keepWhileInFlightOrHeld(generation.unmetConditions, null),
     updatedAt: stampWriteTime(),
   };
 }
@@ -949,6 +984,66 @@ export async function releaseAwaitingTrigger(
     )
     .returning({ id: generation.id });
   return released.length > 0;
+}
+
+/**
+ * A Generate click on a held head: back to `pending` with a fresh claim
+ * budget, its unmet conditions cleared, and stamped so every run of that
+ * head skips the conditions. Only a `held` row moves; the caller holds the
+ * pull request's row lock, which a condition hold also takes.
+ */
+export async function releaseHeldHead(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<boolean> {
+  const released = await executor
+    .update(generation)
+    .set({
+      status: GenerationStatuses.PENDING,
+      attempts: sql`${generation.attempts} + 1`,
+      claims: 0,
+      unmetConditions: null,
+      generateRequestedAt: sql`clock_timestamp()`,
+      updatedAt: stampWriteTime(),
+    })
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.pullRequestId, pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, headSha),
+        isNull(generation.baselineSha),
+        eq(generation.status, GenerationStatuses.HELD),
+      ),
+    )
+    .returning({ id: generation.id });
+  return released.length > 0;
+}
+
+/**
+ * Stamp a head a Generate click queued, so every run of that head skips the
+ * trigger conditions; the caller holds the pull request's row lock.
+ */
+export async function stampGenerateRequested(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<void> {
+  await executor
+    .update(generation)
+    .set({ generateRequestedAt: sql`clock_timestamp()` })
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.pullRequestId, pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, headSha),
+        isNull(generation.baselineSha),
+      ),
+    );
 }
 
 /**
@@ -1164,6 +1259,70 @@ export function createGenerationProjection(
     });
   }
 
+  /**
+   * The condition hold, in the same lock order as a Generate click: the
+   * click locks the pull request's row before it releases and stamps the
+   * head, so a hold written after it finds the stamp and stands down.
+   */
+  async function holdForConditions(
+    target: GenerationTarget,
+    unmetConditions: readonly UnmetCondition[],
+  ): Promise<Result<GenerationRow, GenerationError>> {
+    const stored = truncateUnmetConditions(unmetConditions);
+    const document = JSON.stringify(UnmetConditionsSchema.parse(stored));
+    return db.transaction(async (tx) => {
+      const locked = await tx
+        .select({ id: pullRequest.id })
+        .from(pullRequest)
+        .where(
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, target.pullRequestId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (locked[0] === undefined) {
+        return failClaimLost(target);
+      }
+
+      const holdable = and(
+        not(isLeaseLive()),
+        inArray(generation.status, [
+          GenerationStatuses.PENDING,
+          GenerationStatuses.HELD,
+          GenerationStatuses.FAILED,
+        ]),
+        isNull(generation.generateRequestedAt),
+      );
+      const marked = await transition(
+        target,
+        {
+          ...TERMINAL_CLEARED,
+          status: GenerationStatuses.HELD,
+          unmetConditions: document,
+          claims: 0,
+        },
+        { executor: tx, guard: holdable ?? sql`false` },
+      );
+      if (marked.ok) {
+        return marked;
+      }
+      const stamped = await tx
+        .select({ at: generation.generateRequestedAt })
+        .from(generation)
+        .where(keyWhere(target))
+        .limit(1);
+      if (stamped[0]?.at !== undefined && stamped[0].at !== null) {
+        return fail(
+          GenerationErrorCodes.STATUS_KEPT,
+          `generation ${target.kind}@${target.headSha} was released by a Generate click`,
+        );
+      }
+      return readKeptStatus(tx, target, marked);
+    });
+  }
+
   /** A refused write on a kept status says so; any other refusal stands. */
   async function readKeptStatus(
     executor: GenerationExecutor,
@@ -1373,6 +1532,7 @@ export function createGenerationProjection(
         phase: phase ?? null,
         errorCode: null,
         errorParams: null,
+        unmetConditions: null,
         runId,
         leaseExpiresAt: computeLeaseEnd(leaseMs),
         claims: sql`${generation.claims} + 1`,
@@ -1546,6 +1706,10 @@ export function createGenerationProjection(
 
     async markAwaitingTrigger(target) {
       return holdForApproval(target);
+    },
+
+    async markHeld(target, unmetConditions) {
+      return holdForConditions(target, unmetConditions);
     },
 
     async markFailed(target, failure) {
