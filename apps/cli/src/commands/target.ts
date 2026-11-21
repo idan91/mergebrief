@@ -119,7 +119,7 @@ export function isPrNumberArgument(raw: string): boolean {
 }
 
 export function parsePrNumber(raw: string): number {
-  if (!/^\d+$/.test(raw)) {
+  if (!isPrNumberArgument(raw)) {
     throw new CliError(
       ExitCodes.USAGE,
       `PR number must be a positive integer, got "${raw}"`,
