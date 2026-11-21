@@ -5,7 +5,10 @@ import {
   type SubmittedReview,
 } from "github";
 import { z } from "zod/v4";
-import { ReviewVerdictStates } from "types/conversation";
+import {
+  ReviewVerdictStates,
+  type ReviewVerdictState,
+} from "types/conversation";
 import {
   BotStates,
   BotVerdicts,
@@ -96,12 +99,21 @@ function readProgressHold(
   return { state: BotStates.NOT_STARTED };
 }
 
-/** The latest review that still stands decides; a dismissed one stands no more. */
+/** Only these review states stand, as GitHub counts approvals. */
+const VERDICT_REVIEW_STATES: ReadonlySet<ReviewVerdictState> = new Set([
+  ReviewVerdictStates.APPROVED,
+  ReviewVerdictStates.CHANGES_REQUESTED,
+]);
+
+/**
+ * The bot's latest approval or change request decides, as on GitHub: a later
+ * comment leaves it standing, and a dismissed one stands no more.
+ */
 function readApprovalHold(reports: BotReports): BotHold | undefined {
-  const standing = reports.reviews.filter(
-    (review) => review.state !== ReviewVerdictStates.DISMISSED,
+  const verdicts = reports.reviews.filter((review) =>
+    VERDICT_REVIEW_STATES.has(review.state),
   );
-  if (standing.at(-1)?.state === ReviewVerdictStates.APPROVED) {
+  if (verdicts.at(-1)?.state === ReviewVerdictStates.APPROVED) {
     return undefined;
   }
   return { state: BotStates.NOT_APPROVED };

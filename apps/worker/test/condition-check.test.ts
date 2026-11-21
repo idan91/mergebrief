@@ -820,28 +820,44 @@ describe("evaluateTriggerConditions, bots finished", () => {
 });
 
 describe("evaluateTriggerConditions, bots approved", () => {
+  function makeCodeRabbitReview(
+    overrides: Partial<SubmittedReview>,
+  ): SubmittedReview {
+    return makeReview({ authorId: USER_IDS.coderabbit, ...overrides });
+  }
+
   it("passes when the bot's latest review on the head approves", () => {
     const reviews = [
-      makeReview({ reviewId: 1n }),
-      makeReview({ reviewId: 2n, state: "APPROVED" }),
+      makeCodeRabbitReview({ reviewId: 1n, state: "CHANGES_REQUESTED" }),
+      makeCodeRabbitReview({ reviewId: 2n, state: "APPROVED" }),
     ];
 
-    expect(evaluateBots({ copilot: "approved" }, { reviews })).toEqual([]);
+    expect(evaluateBots({ coderabbit: "approved" }, { reviews })).toEqual([]);
+  });
+
+  it("keeps an approval a later comment follows", () => {
+    const reviews = [
+      makeCodeRabbitReview({ reviewId: 1n, state: "APPROVED" }),
+      makeCodeRabbitReview({ reviewId: 2n, state: "COMMENTED" }),
+    ];
+
+    expect(evaluateBots({ coderabbit: "approved" }, { reviews })).toEqual([]);
   });
 
   it("holds when a later review replaced the approval", () => {
     const reviews = [
-      makeReview({ reviewId: 1n, state: "APPROVED" }),
-      makeReview({ reviewId: 2n, state: "CHANGES_REQUESTED" }),
+      makeCodeRabbitReview({ reviewId: 1n, state: "APPROVED" }),
+      makeCodeRabbitReview({ reviewId: 2n, state: "CHANGES_REQUESTED" }),
+      makeCodeRabbitReview({ reviewId: 3n, state: "COMMENTED" }),
     ];
 
-    const unmet = evaluateBots({ copilot: "approved" }, { reviews });
+    const unmet = evaluateBots({ coderabbit: "approved" }, { reviews });
 
     expect(unmet).toEqual([
       {
         kind: "bots",
         setBy: "repo",
-        bot: "copilot",
+        bot: "coderabbit",
         verdict: "approved",
         state: "not-approved",
       },
@@ -849,9 +865,9 @@ describe("evaluateTriggerConditions, bots approved", () => {
   });
 
   it("holds when the bot's approval was dismissed", () => {
-    const reviews = [makeReview({ state: "DISMISSED" })];
+    const reviews = [makeCodeRabbitReview({ state: "DISMISSED" })];
 
-    const unmet = evaluateBots({ copilot: "approved" }, { reviews });
+    const unmet = evaluateBots({ coderabbit: "approved" }, { reviews });
 
     expect(unmet).toMatchObject([{ state: "not-approved" }]);
   });
