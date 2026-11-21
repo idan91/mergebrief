@@ -99,15 +99,17 @@ function readProgressHold(
   return { state: BotStates.NOT_STARTED };
 }
 
-/** Only these review states stand, as GitHub counts approvals. */
+/** The review states that decide a verdict; a comment decides nothing. */
 const VERDICT_REVIEW_STATES: ReadonlySet<ReviewVerdictState> = new Set([
   ReviewVerdictStates.APPROVED,
   ReviewVerdictStates.CHANGES_REQUESTED,
+  ReviewVerdictStates.DISMISSED,
 ]);
 
 /**
- * The bot's latest approval or change request decides, as on GitHub: a later
- * comment leaves it standing, and a dismissed one stands no more.
+ * The bot's latest approval, change request or dismissed review decides: a
+ * later comment leaves it standing, and a dismissal never lets an older
+ * approval stand again.
  */
 function readApprovalHold(reports: BotReports): BotHold | undefined {
   const verdicts = reports.reviews.filter((review) =>
