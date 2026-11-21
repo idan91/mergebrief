@@ -173,25 +173,21 @@ describe("parsing a triggerConditions block", () => {
   });
 
   it("refuses an any group nested inside another", () => {
-    const issues = issuesOf(
-      parseRepoTriggerConditions({
-        any: {
-          labels: ["a"],
-          any: { baseBranches: ["main"], titleKeywords: ["wip"] },
-        },
-      }),
-    );
+    const parsed = parseRepoTriggerConditions({
+      any: {
+        labels: ["a"],
+        any: { baseBranches: ["main"], titleKeywords: ["wip"] },
+      },
+    });
+    const issues = listIssues(parsed);
     expect(issues).toContain('triggerConditions.any: unrecognized key "any"');
   });
 
   it("refuses paths inside the instance file's any group", () => {
-    expect(
-      issuesOf(
-        parseInstanceTriggerConditions({
-          any: { paths: ["src/**"], labels: ["a"] },
-        }),
-      ),
-    ).not.toEqual([]);
+    const parsed = parseInstanceTriggerConditions({
+      any: { paths: ["src/**"], labels: ["a"] },
+    });
+    expect(listIssues(parsed)).not.toEqual([]);
   });
 
   it("refuses never beside other kinds", () => {
