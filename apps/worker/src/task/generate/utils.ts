@@ -183,10 +183,12 @@ export function getPrLocator(pr: PullRequestRow): PrLocator {
 }
 
 /**
- * A head a hold let go: held when the run picked it up, its conditions now
- * passing, or released by a Generate click's stamp.
+ * A run that may release a hold: the row was held when it picked it up, its
+ * conditions now passing, or a Generate click stamped it. A stamp also marks
+ * a failed head's rerun, which no hold touched, so the caller edits only a
+ * live held body and reposts any other.
  */
-export function isReleasedHold(projected: GenerationRow | undefined): boolean {
+export function mayReleaseHold(projected: GenerationRow | undefined): boolean {
   if (projected === undefined) {
     return false;
   }
