@@ -94,6 +94,7 @@ describe("parseInboxResponse", () => {
     expect(parsed.value.items[0]?.generation).toEqual({
       ...held,
       unmetConditions: [{ kind: "ready-for-review", setBy: "instance" }],
+      unmetConditionsPartial: true,
     });
   });
 
@@ -279,8 +280,9 @@ const SCHEMA_PINS = {
 void SCHEMA_PINS;
 
 const CONTRACT_PINS = {
+  // The reader marks `unmetConditionsPartial` itself.
   InboxGeneration: true satisfies ReadsWireFields<
-    z.output<typeof inboxGenerationSchema>,
+    Omit<z.output<typeof inboxGenerationSchema>, "unmetConditionsPartial">,
     GenerationSummaryView
   >,
   InboxStackPosition: true satisfies ReadsWireFields<
