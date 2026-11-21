@@ -1,19 +1,19 @@
 import type { Result } from "types/utils";
 import { describe, expect, it } from "vitest";
 
-import type { ConfigError } from "../src/contract/errors";
-
 import {
   parseInstanceTriggerConditions,
   parseRepoTriggerConditions,
   resolveEffectiveTriggerConditions,
   type TriggerConditionsBlock,
+  type TriggerConditionsIssue,
 } from "../src/config/trigger-conditions";
 
 function parseRepo(block: unknown) {
   const parsed = parseRepoTriggerConditions(block);
   if (!parsed.ok) {
-    throw new Error(parsed.error.issues.join("; "));
+    const issues = listIssues(parsed);
+    throw new Error(issues.join("; "));
   }
   return parsed.value;
 }
@@ -21,15 +21,16 @@ function parseRepo(block: unknown) {
 function parseInstance(block: unknown) {
   const parsed = parseInstanceTriggerConditions(block);
   if (!parsed.ok) {
-    throw new Error(parsed.error.issues.join("; "));
+    const issues = listIssues(parsed);
+    throw new Error(issues.join("; "));
   }
   return parsed.value;
 }
 
 function listIssues(
-  result: Result<TriggerConditionsBlock, ConfigError>,
+  result: Result<TriggerConditionsBlock, readonly TriggerConditionsIssue[]>,
 ): readonly string[] {
-  return result.ok ? [] : result.error.issues;
+  return result.ok ? [] : result.error.map((issue) => issue.message);
 }
 
 describe("parsing a triggerConditions block", () => {
@@ -207,6 +208,16 @@ describe("parsing a triggerConditions block", () => {
     expect(listIssues(parsed).join(" ")).toContain(
       "triggerConditions.any.labels",
     );
+  });
+
+  it("locates each issue by its YAML key or any, never by author text", () => {
+    const parsed = parseRepoTriggerConditions({
+      bots: { claude: "approved" },
+      secretKey: "on",
+      any: { labels: ["a"], baseBranches: "off", otherSecret: "on" },
+    });
+    const paths = parsed.ok ? [] : parsed.error.map((issue) => issue.path);
+    expect(paths).toEqual([["bots"], [], ["any", "baseBranches"], ["any"]]);
   });
 
   it("refuses unknown keys at the top level and inside any", () => {

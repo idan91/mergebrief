@@ -252,7 +252,7 @@ export function loadGeneratorConfigFile(
   if (triggerConditionsBlock !== undefined) {
     const validated = parseInstanceTriggerConditions(triggerConditionsBlock);
     if (!validated.ok) {
-      return validated;
+      return configError(validated.error.map((issue) => issue.message));
     }
     triggerConditions = validated.value;
   }

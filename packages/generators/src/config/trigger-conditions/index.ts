@@ -7,7 +7,6 @@ import {
   type TriggerConditionSetter,
 } from "types";
 
-import { configError, type ConfigError } from "../../contract/errors";
 import { renderKey, renderPathSegment } from "../render-key";
 import { ANY_KEY, CONFIG_KEYS, SETTING_SCHEMAS, offSchema } from "./schemas";
 import type {
@@ -15,6 +14,8 @@ import type {
   EffectiveTriggerConditions,
   TriggerConditionSetting,
   TriggerConditionsBlock,
+  TriggerConditionsIssue,
+  TriggerConditionsPathSegment,
 } from "./types";
 
 const BLOCK = "triggerConditions";
@@ -28,22 +29,34 @@ function isPlainMap(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function describeIssue(where: string, issue: z.core.$ZodIssue): string {
-  const path = issue.path.map(renderPathSegment);
-  const at = path.length > 0 ? `.${path.join(".")}` : "";
-  return `${where}${at}: ${issue.code === "unrecognized_keys" ? "unrecognized key" : issue.message}`;
+function makeIssue(
+  path: readonly TriggerConditionsPathSegment[],
+  text: string,
+  detailPath: readonly string[] = [],
+): TriggerConditionsIssue {
+  const location = [BLOCK, ...path, ...detailPath].join(".");
+  return { path, message: `${location}: ${text}` };
+}
+
+function describeIssue(
+  path: readonly TriggerConditionsPathSegment[],
+  issue: z.core.$ZodIssue,
+): TriggerConditionsIssue {
+  const text =
+    issue.code === "unrecognized_keys" ? "unrecognized key" : issue.message;
+  return makeIssue(path, text, issue.path.map(renderPathSegment));
 }
 
 function parseSetting(
   kind: TriggerConditionKind,
   raw: unknown,
-  where: string,
-  issues: string[],
+  path: readonly TriggerConditionsPathSegment[],
+  issues: TriggerConditionsIssue[],
 ): TriggerConditionSetting | undefined {
   const parsed = SETTING_SCHEMAS[kind].safeParse(raw);
   if (!parsed.success) {
     const described = parsed.error.issues.map((issue) =>
-      describeIssue(where, issue),
+      describeIssue(path, issue),
     );
     issues.push(...described);
     return undefined;
@@ -53,37 +66,38 @@ function parseSetting(
 
 function parseAnyGroup(
   raw: unknown,
-  issues: string[],
+  issues: TriggerConditionsIssue[],
 ): TriggerConditionSetting[] {
-  const where = `${BLOCK}.${ANY_KEY}`;
   if (!isPlainMap(raw)) {
-    issues.push(`${where}: expected a map of conditions`);
+    issues.push(makeIssue([ANY_KEY], "expected a map of conditions"));
     return [];
   }
 
   const settings: TriggerConditionSetting[] = [];
   for (const [key, value] of Object.entries(raw)) {
     if (!isConfigKey(key)) {
-      issues.push(`${where}: unrecognized key ${renderKey(key)}`);
+      issues.push(makeIssue([ANY_KEY], `unrecognized key ${renderKey(key)}`));
       continue;
     }
     const kind = CONFIG_KEYS[key];
     if (kind === TriggerConditionKinds.NEVER) {
-      issues.push(`${where}.never: never stands alone, outside any`);
+      issues.push(makeIssue([ANY_KEY, key], "never stands alone, outside any"));
       continue;
     }
     if (offSchema.safeParse(value).success) {
-      issues.push(`${where}.${key}: switch a kind off at the top level`);
+      issues.push(
+        makeIssue([ANY_KEY, key], "switch a kind off at the top level"),
+      );
       continue;
     }
-    const setting = parseSetting(kind, value, `${where}.${key}`, issues);
+    const setting = parseSetting(kind, value, [ANY_KEY, key], issues);
     if (setting !== undefined) {
       settings.push(setting);
     }
   }
 
   if (Object.keys(raw).length < MIN_ANY_KINDS) {
-    issues.push(`${where}: name at least two conditions`);
+    issues.push(makeIssue([ANY_KEY], "name at least two conditions"));
   }
   return settings;
 }
@@ -93,21 +107,23 @@ function findBlockIssues(
   all: readonly TriggerConditionSetting[],
   any: readonly TriggerConditionSetting[],
   dropped: readonly TriggerConditionKind[],
-): string[] {
-  const issues: string[] = [];
+): TriggerConditionsIssue[] {
+  const issues: TriggerConditionsIssue[] = [];
   if (Object.keys(raw).length === 0) {
-    issues.push(`${BLOCK}: name at least one condition, or write off`);
+    issues.push(makeIssue([], "name at least one condition, or write off"));
   }
 
   const topKinds = new Set(all.map((setting) => setting.kind));
   for (const setting of any) {
     if (topKinds.has(setting.kind)) {
       issues.push(
-        `${BLOCK}: ${setting.kind} is set both in any and outside it`,
+        makeIssue([], `${setting.kind} is set both in any and outside it`),
       );
     }
     if (dropped.includes(setting.kind)) {
-      issues.push(`${BLOCK}: ${setting.kind} is switched off and set in any`);
+      issues.push(
+        makeIssue([], `${setting.kind} is switched off and set in any`),
+      );
     }
   }
 
@@ -115,7 +131,7 @@ function findBlockIssues(
   const neverHasCompany = holdsNever && all.length + any.length > 1;
   if (neverHasCompany) {
     issues.push(
-      `${BLOCK}.never: never stands alone; remove the other conditions`,
+      makeIssue(["never"], "never stands alone; remove the other conditions"),
     );
   }
   return issues;
@@ -124,15 +140,16 @@ function findBlockIssues(
 function parseBlock(
   raw: unknown,
   setBy: TriggerConditionSetter,
-): Result<TriggerConditionsBlock, ConfigError> {
+): Result<TriggerConditionsBlock, readonly TriggerConditionsIssue[]> {
   if (offSchema.safeParse(raw).success) {
     return { ok: true, value: { off: true } };
   }
   if (!isPlainMap(raw)) {
-    return configError([`${BLOCK}: expected a map of conditions, or off`]);
+    const issue = makeIssue([], "expected a map of conditions, or off");
+    return { ok: false, error: [issue] };
   }
 
-  const issues: string[] = [];
+  const issues: TriggerConditionsIssue[] = [];
   const all: TriggerConditionSetting[] = [];
   const dropped: TriggerConditionKind[] = [];
   let any: TriggerConditionSetting[] = [];
@@ -142,7 +159,7 @@ function parseBlock(
       continue;
     }
     if (!isConfigKey(key)) {
-      issues.push(`${BLOCK}: unrecognized key ${renderKey(key)}`);
+      issues.push(makeIssue([], `unrecognized key ${renderKey(key)}`));
       continue;
     }
     const kind = CONFIG_KEYS[key];
@@ -150,7 +167,7 @@ function parseBlock(
       dropped.push(kind);
       continue;
     }
-    const setting = parseSetting(kind, value, `${BLOCK}.${key}`, issues);
+    const setting = parseSetting(kind, value, [key], issues);
     if (setting !== undefined) {
       all.push(setting);
     }
@@ -162,12 +179,14 @@ function parseBlock(
   const instanceSetsPaths =
     setBy === TriggerConditionSetters.INSTANCE && usesPaths;
   if (instanceSetsPaths) {
-    issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
+    issues.push(
+      makeIssue(["paths"], "set paths in a repository's settings.yaml"),
+    );
   }
 
   issues.push(...findBlockIssues(raw, all, any, dropped));
   if (issues.length > 0) {
-    return configError(issues);
+    return { ok: false, error: issues };
   }
   return { ok: true, value: { off: false, all, any, dropped } };
 }
@@ -175,14 +194,14 @@ function parseBlock(
 /** A repository's `.mergebrief/settings.yaml` block. */
 export function parseRepoTriggerConditions(
   raw: unknown,
-): Result<TriggerConditionsBlock, ConfigError> {
+): Result<TriggerConditionsBlock, readonly TriggerConditionsIssue[]> {
   return parseBlock(raw, TriggerConditionSetters.REPO);
 }
 
 /** The instance file's block; `paths` is refused there. */
 export function parseInstanceTriggerConditions(
   raw: unknown,
-): Result<TriggerConditionsBlock, ConfigError> {
+): Result<TriggerConditionsBlock, readonly TriggerConditionsIssue[]> {
   return parseBlock(raw, TriggerConditionSetters.INSTANCE);
 }
 
@@ -251,5 +270,7 @@ export type {
   SizeSetting,
   TriggerConditionSetting,
   TriggerConditionsBlock,
+  TriggerConditionsIssue,
 } from "./types";
+export { ANY_KEY, CONFIG_KEYS } from "./schemas";
 export { CiModes } from "./types";

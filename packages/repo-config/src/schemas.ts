@@ -56,8 +56,12 @@ const triggerConditionsSchema = z
   .transform((raw, ctx): TriggerConditionsBlock => {
     const parsed = parseRepoTriggerConditions(raw);
     if (!parsed.ok) {
-      for (const message of parsed.error.issues) {
-        ctx.addIssue({ code: "custom", message });
+      for (const issue of parsed.error) {
+        ctx.addIssue({
+          code: "custom",
+          message: issue.message,
+          path: [...issue.path],
+        });
       }
       return z.NEVER;
     }

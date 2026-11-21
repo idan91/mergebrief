@@ -7,6 +7,8 @@ import type {
   TriggerConditionSetter,
 } from "types/trigger-conditions";
 
+import type { ANY_KEY, CONFIG_KEYS } from "./schemas";
+
 /** Inclusive bounds; at least one is set. */
 export interface SizeBounds {
   readonly min?: number;
@@ -81,4 +83,15 @@ export interface EffectiveCondition {
 export interface EffectiveTriggerConditions {
   readonly all: readonly EffectiveCondition[];
   readonly any: readonly EffectiveCondition[];
+}
+
+/** A YAML key from `CONFIG_KEYS`, or `any`: an issue's path never holds author text. */
+export type TriggerConditionsPathSegment =
+  | keyof typeof CONFIG_KEYS
+  | typeof ANY_KEY;
+
+/** One refused part of a block: where it sits, and the line an operator reads. */
+export interface TriggerConditionsIssue {
+  readonly path: readonly TriggerConditionsPathSegment[];
+  readonly message: string;
 }

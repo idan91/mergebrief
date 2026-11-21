@@ -46,7 +46,21 @@ describe("settings.yaml validation", () => {
     expect(result.settings).toBeUndefined();
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.outcomes[1]?.detail).toBe(
-      "schema validation failed (triggerConditions: custom)",
+      "schema validation failed (triggerConditions.bots: custom)",
+    );
+  });
+
+  it("locates a triggerConditions issue by key, never by author text", () => {
+    const result = validate(
+      yaml({
+        version: 1,
+        triggerConditions: {
+          any: { labels: ["a"], baseBranches: ["main"], secretKey: "on" },
+        },
+      }),
+    );
+    expect(result.outcomes[1]?.detail).toBe(
+      "schema validation failed (triggerConditions.any: custom)",
     );
   });
 

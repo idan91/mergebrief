@@ -4,6 +4,7 @@
 
 import { parse as parseYaml } from "yaml";
 import { RiskSurfaceAttributes } from "brief-core/types";
+import { ANY_KEY, CONFIG_KEYS } from "generators/trigger-conditions";
 import type { Mutable, Result } from "types/utils";
 import type { z } from "zod/v4";
 import {
@@ -126,6 +127,8 @@ const SAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
   "entryCommentOnDrafts",
   "trustedBots",
   "triggerConditions",
+  ...Object.keys(CONFIG_KEYS),
+  ANY_KEY,
 ]);
 
 /**
