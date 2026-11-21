@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { makeAnyGroup, UnmetFixtures } from "@web/test/unmet-conditions";
+
 import { RowSignalKinds } from "./types";
 import { readGenerationSignal, readStatusSignal } from "./utils";
 
@@ -60,6 +62,68 @@ describe("readGenerationSignal", () => {
       const generation = {
         status: "awaiting-trigger",
         updatedAt: "2026-09-20T10:00:00Z",
+      } as const;
+      expect(readGenerationSignal(generation, state)).toBeNull();
+    },
+  );
+
+  it("reads a held head Waiting when every unmet item clears by itself", () => {
+    const generation = {
+      status: "held",
+      updatedAt: "2026-09-20T10:00:00Z",
+      unmetConditions: [
+        UnmetFixtures.CI_RUNNING,
+        makeAnyGroup(UnmetFixtures.BOT_RUNNING, UnmetFixtures.SIZE_OVER),
+      ],
+    } as const;
+
+    expect(readGenerationSignal(generation, "open")).toEqual({
+      kind: RowSignalKinds.WAITING,
+      label: "home.inbox.generation.waiting",
+    });
+  });
+
+  it("reads a held head Held when one item needs a change", () => {
+    const generation = {
+      status: "held",
+      updatedAt: "2026-09-20T10:00:00Z",
+      unmetConditions: [UnmetFixtures.CI_RUNNING, UnmetFixtures.LABELS],
+    } as const;
+
+    expect(readGenerationSignal(generation, "open")).toEqual({
+      kind: RowSignalKinds.HELD,
+      label: "home.inbox.generation.held",
+    });
+  });
+
+  it("reads Held, never Waiting, when the list was read in part", () => {
+    const generation = {
+      status: "held",
+      updatedAt: "2026-09-20T10:00:00Z",
+      unmetConditions: [UnmetFixtures.CI_RUNNING],
+      unmetConditionsPartial: true,
+    } as const;
+
+    expect(readGenerationSignal(generation, "open")?.kind).toBe(
+      RowSignalKinds.HELD,
+    );
+  });
+
+  it("reads Held, never Waiting, when no condition is known", () => {
+    const generation = { status: "held", updatedAt: "2026-09-20" } as const;
+
+    expect(readGenerationSignal(generation, "open")?.kind).toBe(
+      RowSignalKinds.HELD,
+    );
+  });
+
+  it.each(["closed", "merged"] as const)(
+    "prints nothing for a %s PR's held head",
+    (state) => {
+      const generation = {
+        status: "held",
+        updatedAt: "2026-09-20T10:00:00Z",
+        unmetConditions: [UnmetFixtures.LABELS],
       } as const;
       expect(readGenerationSignal(generation, state)).toBeNull();
     },

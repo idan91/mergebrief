@@ -40,6 +40,7 @@ function makeItem(
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -47,8 +48,13 @@ function makeItem(
   };
 }
 
-function answerMeta(status: string, waitReason?: string): void {
+function answerMeta(
+  status: string,
+  waitReason?: string,
+  held: Record<string, unknown> = {},
+): void {
   const generation: Record<string, unknown> = {
+    ...held,
     status,
     phase: null,
     attempts: 1,
@@ -81,6 +87,18 @@ function answerMeta(status: string, waitReason?: string): void {
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
+  );
+}
+
+function HeldProbe({ item }: { item: InboxItem }) {
+  const generation = useRowGeneration(item);
+  return (
+    <output>
+      {JSON.stringify({
+        unmetConditions: generation?.unmetConditions,
+        unmetConditionsPartial: generation?.unmetConditionsPartial,
+      })}
+    </output>
   );
 }
 
@@ -156,6 +174,28 @@ describe("useRowGeneration", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a row the poll reads held carries its conditions over", async () => {
+    const never = { kind: "never", setBy: "repo" };
+    answerMeta("held", undefined, {
+      unmetConditions: [never, { kind: "moon-phase", setBy: "repo" }],
+    });
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <HeldProbe item={makeItem("pending")} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        JSON.parse(screen.getByRole("status").textContent ?? "{}"),
+      ).toEqual({ unmetConditions: [never], unmetConditionsPartial: true }),
+    );
   });
 
   it("a stalled row backs off to the settled pace", async () => {

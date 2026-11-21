@@ -46,6 +46,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -57,6 +58,15 @@ const URL_ROW = omitFields(
   makeItem({ source: "url", viewerCanDelete: true }),
   "installationId",
 );
+
+const HELD_ROW = makeItem({
+  viewerCanPush: true,
+  generation: {
+    status: "held",
+    updatedAt: "2026-09-20T10:00:00Z",
+    unmetConditions: [{ kind: "labels", setBy: "repo", labels: ["x"] }],
+  },
+});
 
 function readRequestBody(init: RequestInit | undefined): unknown {
   const body = init?.body;
@@ -316,6 +326,61 @@ describe("RowActions", () => {
       expect.stringContaining("Sign in again"),
     );
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("a held row the viewer can push to offers Generate now", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const { onAnnounce, invalidate } = await renderActions(HELD_ROW);
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Generate now" }));
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(
+      /\/api\/repos\/424242\/pulls\/7\/regenerate$/,
+    );
+    expect(init?.method).toBe("POST");
+    expect(onAnnounce).toHaveBeenCalledWith("Generate queued");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox"] });
+  });
+
+  it("a held head that moved on says so and refreshes the list", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "refused",
+          code: "generation-not-regenerable",
+        }),
+        {
+          status: 409,
+        },
+      ),
+    );
+    const { onAnnounce, invalidate } = await renderActions(HELD_ROW);
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Generate now" }));
+    });
+
+    expect(onAnnounce).toHaveBeenCalledWith("This push is no longer held.");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox"] });
+  });
+
+  it.each([
+    ["no push access", { viewerCanPush: false }],
+    ["a merged pull request", { state: "merged" as const }],
+    [
+      "a head that is not held",
+      { generation: { status: "failed" as const, updatedAt: "2026-09-20" } },
+    ],
+  ])("a held row offers no Generate now with %s", async (_label, overrides) => {
+    await renderActions({ ...HELD_ROW, ...overrides });
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: "Generate now" })).toBeNull();
   });
 
   it("an installation row behind GitHub has no Regenerate", async () => {

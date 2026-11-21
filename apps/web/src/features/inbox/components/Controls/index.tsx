@@ -6,10 +6,11 @@ import type { SearchTextOverride } from "../../types";
 import { CollapsedFilters } from "./CollapsedFilters";
 import styles from "./Controls.module.scss";
 import { Filter } from "./Filter";
+import { HeldView } from "./HeldView";
 import { MoreFilters } from "./MoreFilters";
 import { SortMenu } from "./SortMenu";
 import { SearchField } from "./SearchField";
-import type { FilterView } from "./types";
+import { HeldViewOptions, type FilterView, type HeldViewChoice } from "./types";
 import { useNarrowViewport } from "./useNarrowViewport";
 
 export interface ControlsProps {
@@ -19,6 +20,8 @@ export interface ControlsProps {
   /** Folded or mixed; the control is named View. */
   layout: FilterView;
   changedCount: number;
+  /** All rows or only the held ones; it sits outside the collapsed sheet. */
+  heldView: HeldViewChoice;
   /** The search text the URL holds; empty when the reviewer is not searching. */
   searchText: string;
   /** Rows the list holds for the current filters and search text. */
@@ -34,9 +37,10 @@ export interface ControlsProps {
 }
 
 /**
- * The row above the list: the search field, the common filters and More
- * filters, then Clear beside View and Sort. Under 760px the search field takes
- * its own line and every filter collapses behind one button below it.
+ * The row above the list: the search field, the Held view, the common
+ * filters and More filters, then Clear beside View and Sort. Under 760px the
+ * search field takes its own line and every filter collapses behind one
+ * button below it, beside the Held view.
  */
 export function Controls({
   filters,
@@ -44,6 +48,7 @@ export function Controls({
   direction,
   layout,
   changedCount,
+  heldView,
   searchText,
   total,
   searchTextOverride,
@@ -56,8 +61,10 @@ export function Controls({
   const narrow = useNarrowViewport();
   const shownFilters = filters.filter((filter) => filter.underMore !== true);
   const moreFilters = filters.filter((filter) => filter.underMore === true);
-  // The search field sits outside the collapsed sheet, so its text is not the sheet's to count.
-  const collapsedCount = searchText === "" ? changedCount : changedCount - 1;
+  // The search field and the Held view sit outside the collapsed sheet.
+  const searching = searchText === "" ? 0 : 1;
+  const heldOnly = heldView.value === HeldViewOptions.HELD ? 1 : 0;
+  const collapsedCount = changedCount - searching - heldOnly;
 
   return (
     <div
@@ -76,6 +83,7 @@ export function Controls({
         />
       </div>
       <div className={styles["filters"]}>
+        {heldView.offered ? <HeldView heldView={heldView} /> : null}
         {narrow ? (
           <CollapsedFilters changedCount={collapsedCount} filters={filters} />
         ) : (

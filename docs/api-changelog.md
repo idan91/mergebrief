@@ -15,6 +15,7 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-11-21)
 
+- **Added** `generation` on `GET /api/inbox`: `held` lists only the rows whose newest head trigger conditions hold, together with the other filters; any other value is a 400. The response carries `heldTotal`, the held rows of the requested view under every filter but this one, so a client can count the held view from any view, and each item carries `viewerCanPush`, the viewer's push permission on an installation row's repository as GitHub's repository listing answered it (`false` on a url row), the bar `POST /api/repos/:repoId/pulls/:prNumber/regenerate` holds a held head's Generate to.
 - **Added** `held` to `generation.status` on `GET /api/repos/:repoId/pulls/:prNumber`
   and `GET /api/inbox`: a trigger condition keeps the head from generating.
   It is not terminal: the head generates by itself once every condition

@@ -46,6 +46,8 @@ export interface AllowedRepo {
    * the list; a route that acts on it re-reads the repository fresh.
    */
   readonly viewerIsAdmin: boolean;
+  /** The viewer's `permissions.push` as the walk read it; a hint, as `viewerIsAdmin` is. */
+  readonly viewerCanPush: boolean;
 }
 
 /** The resolved set plus the (possibly refreshed) principal it was read under. */
@@ -141,6 +143,7 @@ function mergeAllowedRepos(
           installationId: walk.installationId,
           fullName: repo.fullName,
           viewerIsAdmin: repo.viewerIsAdmin,
+          viewerCanPush: repo.viewerCanPush,
         });
       }
     }

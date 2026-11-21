@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InboxArchivedFilter } from "types/inbox";
 
+import { useRegenerateBrief } from "@web/features/pulls/hooks";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../brief/model";
@@ -10,8 +11,11 @@ import { INBOX_QUERY_ROOT } from "../../../../consts";
 import type { InboxItem } from "../../../../types";
 import { ArchiveScopes } from "../../types";
 import { useInboxArchive } from "../../useInboxArchive";
+import { HeldRowGenerateNotices } from "./consts";
 
-/** The row actions with a side effect: the clipboard write, the archive either way, and the regenerate. */
+const INBOX_QUERY_KEY = [INBOX_QUERY_ROOT];
+
+/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate and Generate now on a held head. */
 export function useRowActionsFacade(
   item: InboxItem,
   view: InboxArchivedFilter,
@@ -28,6 +32,13 @@ export function useRowActionsFacade(
     announce: onAnnounce,
     announceArchived: onArchived,
     onRemoved,
+  });
+  const generateNow = useRegenerateBrief({
+    repoId: item.repoId,
+    prNumber: item.prNumber,
+    notices: HeldRowGenerateNotices,
+    announce: onAnnounce,
+    alsoInvalidates: INBOX_QUERY_KEY,
   });
 
   async function copyLink(): Promise<void> {
@@ -48,7 +59,7 @@ export function useRowActionsFacade(
     try {
       await generateBriefViaApi(url);
       onAnnounce(t("home.inbox.actions.regenerateQueued"));
-      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
+      await queryClient.invalidateQueries({ queryKey: INBOX_QUERY_KEY });
     } catch (caught) {
       onAnnounce(briefErrorDetail(t, caught));
     } finally {
@@ -59,6 +70,8 @@ export function useRowActionsFacade(
   return {
     archiving: archiving.pending,
     regenerating,
+    generatingNow: generateNow.pending,
+    generateNow: generateNow.regenerate,
     copyLink: () => {
       void copyLink();
     },

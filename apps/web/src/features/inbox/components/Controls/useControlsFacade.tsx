@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxGenerationFilters,
   InboxSortDirections,
   InboxSorts,
   InboxStatuses,
@@ -25,7 +26,7 @@ import {
 import type { InboxPage, InboxSearch } from "../../types";
 import type { InboxSearchWrite } from "../../hooks/useInboxSearchState";
 import { STATUS_NAMED_UP_TO } from "./consts";
-import type { FilterView } from "./types";
+import { HeldViewOptions, type FilterView, type HeldViewChoice } from "./types";
 import { buildAllRow } from "./utils";
 
 /** The filters and the sort as the controls draw them, from the URL's choices and the page. */
@@ -237,5 +238,16 @@ export function useControlsFacade(
     },
   };
 
-  return { filters, sort, direction, layout };
+  const viewingHeld = choices.generation === InboxGenerationFilters.HELD;
+  const heldView: HeldViewChoice = {
+    value: viewingHeld ? HeldViewOptions.HELD : HeldViewOptions.ALL,
+    count: page.heldTotal,
+    offered: viewingHeld || page.heldTotal > 0,
+    onChoose: (option) => {
+      const heldOnly = option === HeldViewOptions.HELD;
+      write({ generation: heldOnly ? InboxGenerationFilters.HELD : undefined });
+    },
+  };
+
+  return { filters, sort, direction, layout, heldView };
 }

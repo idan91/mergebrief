@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { LIVE_POLL_MS } from "@web/features/pulls/consts";
 import { buildPrMetaQueryOptions } from "@web/features/pulls/queries";
+import type { GenerationSummary } from "@web/features/pulls/types";
 import { deriveGenerationWait } from "@web/utils/generation-wait";
 import {
   GenerationWaits,
@@ -85,5 +86,20 @@ export function useRowGeneration(item: InboxItem): InboxGeneration | undefined {
   if (!enabled || read === undefined || staleRead) {
     return item.generation;
   }
-  return { status: read.status, updatedAt: read.updatedAt };
+  return shapePolledGeneration(read);
+}
+
+/** The poll's read as the row's generation, a held head's reason included, so it never shows held with none. */
+function shapePolledGeneration(read: GenerationSummary): InboxGeneration {
+  const generation: InboxGeneration = {
+    status: read.status,
+    updatedAt: read.updatedAt,
+  };
+  if (read.unmetConditions !== undefined) {
+    generation.unmetConditions = read.unmetConditions;
+  }
+  if (read.unmetConditionsPartial === true) {
+    generation.unmetConditionsPartial = true;
+  }
+  return generation;
 }

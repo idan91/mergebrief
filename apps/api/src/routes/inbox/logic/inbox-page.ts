@@ -13,7 +13,7 @@ import {
 import { shapeViewer } from "../../viewer";
 import { INBOX_PAGE_SIZE } from "../../wire-bounds";
 import type { InboxPageDeps, InboxPageInput } from "../types";
-import { resolveViewerCanDelete, shapeInboxItem } from "./shape-item";
+import { resolveRowPermissions, shapeInboxItem } from "./shape-item";
 
 const INSTALL_URL_PREFIX = "https://github.com/apps/";
 
@@ -101,7 +101,7 @@ export async function readInboxPage(
       shapeInboxItem(
         row,
         generations.get(row.pullRequest.id),
-        resolveViewerCanDelete(row, input.adminRepoIds),
+        resolveRowPermissions(row, input),
         liveStacks.get(row.pullRequest.id),
       ),
     ),
@@ -111,6 +111,7 @@ export async function readInboxPage(
     archivedTotal: page.archivedTotal,
     searchMatchTotal: page.searchMatchTotal,
     archivedSearchMatchTotal: page.archivedSearchMatchTotal,
+    heldTotal: page.heldTotal,
     counts: page.counts,
     viewer: shapeViewer(input.reviewerId, input.reviewerLogin),
     reachableInstallations: input.installations.map((entry) => ({

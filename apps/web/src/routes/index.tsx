@@ -281,6 +281,7 @@ function SignedInHome({
     page,
     changedCount,
     state.choices.archived,
+    state.choices.generation,
   );
   const noInstallation = page.reachableInstallations.length === 0;
   const installUrl = page.installUrl;
@@ -335,6 +336,7 @@ function SignedInHome({
             controls={
               <Controls
                 changedCount={changedCount}
+                heldView={controls.heldView}
                 filters={controls.filters}
                 sort={controls.sort}
                 direction={controls.direction}

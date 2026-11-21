@@ -22,6 +22,8 @@ export interface SegmentedOption<T extends string> {
    * (`aria-disabled`, never `disabled`) so the reason is keyboard-reachable.
    */
   unavailableReason?: string | undefined;
+  /** A tally the option names after its label, such as the rows it lists. */
+  count?: number | undefined;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -121,6 +123,12 @@ export function SegmentedControl<T extends string>({
                 htmlFor={optionId}
               >
                 {option.label}
+                {option.count === undefined ? null : (
+                  <>
+                    {" "}
+                    <span className={styles["count"]}>{option.count}</span>
+                  </>
+                )}
               </label>
               {unavailable ? (
                 <span className={styles["tip"]} id={reasonId} role="tooltip">

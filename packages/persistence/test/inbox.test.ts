@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxGenerationFilters,
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
@@ -13,12 +14,13 @@ import {
   InboxLayouts,
   InboxSortDirections,
 } from "types/inbox";
-import type { Mutable } from "types";
+import { GenerationStatuses, type GenerationStatus, type Mutable } from "types";
 import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
   createInboxStore,
   createTenantRepository,
+  isOwnerContext,
   type AppDatabase,
   type InboxFilters,
   type InboxListInput,
@@ -28,8 +30,10 @@ import {
 } from "../src/index";
 import { internal } from "../src/db/handle";
 import { brief } from "../src/schema/brief";
+import { generation } from "../src/schema/generation";
 import { reviewSubmittedReview } from "../src/schema/review-submitted-review";
 import {
+  GenerationKinds,
   isBriefRowId,
   isInstallationId,
   isPullRequestRowId,
@@ -184,10 +188,43 @@ async function stampSubmittedReviews(
   await internal(handle).update(reviewSubmittedReview).set({ createdAt });
 }
 
+const HELD_CONDITIONS = JSON.stringify([
+  { kind: "ready-for-review", setBy: "instance" },
+]);
+
+/** One brief-kind projection row; a later trigger time makes it the head the row shows. */
+async function seedGeneration(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+  status: GenerationStatus,
+  triggeredAt = EARLIER,
+): Promise<void> {
+  const held = status === GenerationStatuses.HELD;
+  await internal(handle)
+    .insert(generation)
+    .values({
+      installationId: isOwnerContext(ctx) ? null : ctx.installationId,
+      pullRequestId,
+      kind: GenerationKinds.BRIEF,
+      headSha,
+      baselineSha: null,
+      status,
+      unmetConditions: held ? HELD_CONDITIONS : null,
+      triggeredAt,
+    });
+}
+
 const DEFAULT_FILTERS = DEFAULT_INBOX_FILTERS;
 const ARCHIVED_ONLY: InboxFilters = {
   ...DEFAULT_FILTERS,
   archived: InboxArchivedFilters.ONLY,
+};
+
+const HELD_ONLY: InboxFilters = {
+  ...DEFAULT_FILTERS,
+  generation: InboxGenerationFilters.HELD,
 };
 
 const REACH: InboxReach = {
@@ -1178,6 +1215,170 @@ describe("createInboxStore.list, filters", () => {
     expect(
       page.repositories.find((repository) => repository.repoId === REPO_A),
     ).toEqual({ repoId: REPO_A, repoSlug: `org/repo-${REPO_A}` });
+  });
+});
+
+describe("createInboxStore.list, held heads", () => {
+  it("the held view lists only rows whose newest head is held", async () => {
+    const handle = shared.handle;
+    const held = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    await seedGeneration(handle, CTX_ACME, held, "h1", GenerationStatuses.HELD);
+    const done = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 2,
+    });
+    await seedGeneration(
+      handle,
+      CTX_ACME,
+      done,
+      "h2",
+      GenerationStatuses.SUCCEEDED,
+    );
+    const moved = await seedRow(handle, {
+      ctx: CTX_OCTO,
+      repoId: REPO_B,
+      prNumber: 3,
+    });
+    await seedGeneration(
+      handle,
+      CTX_OCTO,
+      moved,
+      "h3a",
+      GenerationStatuses.HELD,
+    );
+    await seedGeneration(
+      handle,
+      CTX_OCTO,
+      moved,
+      "h3b",
+      GenerationStatuses.PENDING,
+      LATER,
+    );
+    const pasted = await seedRow(handle, {
+      ctx: CTX_OWNER,
+      repoId: REPO_B,
+      prNumber: 4,
+    });
+    await seedGeneration(
+      handle,
+      CTX_OWNER,
+      pasted,
+      "h4",
+      GenerationStatuses.HELD,
+    );
+    await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 5 });
+    const store = createInboxStore(handle);
+
+    const inbox = await store.list(makeListInput());
+    const view = await store.list(makeListInput({ filters: HELD_ONLY }));
+
+    expect(inbox.total).toBe(5);
+    expect(inbox.heldTotal).toBe(2);
+    expect(view.items.map((item) => item.pullRequest.prNumber)).toEqual([4, 1]);
+    expect(view.total).toBe(2);
+    expect(view.heldTotal).toBe(2);
+    expect(view.counts).toEqual(inbox.counts);
+  });
+
+  it("the held total follows the filters and skips a merged pull request", async () => {
+    const handle = shared.handle;
+    const open = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 1,
+    });
+    const merged = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 2,
+      lifecycle: { state: PrStates.MERGED, closedAt: new Date() },
+    });
+    const archived = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 3,
+    });
+    for (const [prId, head] of [
+      [open, "h1"],
+      [merged, "h2"],
+      [archived, "h3"],
+    ] as const) {
+      await seedGeneration(
+        handle,
+        CTX_ACME,
+        prId,
+        head,
+        GenerationStatuses.HELD,
+      );
+    }
+    await createTenantRepository(handle, CTX_ACME).archives.set(
+      archived,
+      VIEWER,
+    );
+    const store = createInboxStore(handle);
+    const everyStatus: InboxFilters = {
+      ...HELD_ONLY,
+      statuses: Object.values(InboxStatuses),
+    };
+
+    const inbox = await store.list(makeListInput({ filters: HELD_ONLY }));
+    const widened = await store.list(makeListInput({ filters: everyStatus }));
+    const archive = await store.list(
+      makeListInput({
+        filters: { ...HELD_ONLY, archived: ARCHIVED_ONLY.archived },
+      }),
+    );
+
+    expect(inbox.items.map((item) => item.pullRequest.prNumber)).toEqual([1]);
+    expect(inbox.heldTotal).toBe(1);
+    expect(widened.items.map((item) => item.pullRequest.prNumber)).toEqual([1]);
+    expect(widened.heldTotal).toBe(1);
+    expect(archive.items.map((item) => item.pullRequest.prNumber)).toEqual([3]);
+    expect(archive.heldTotal).toBe(1);
+  });
+
+  it("never lists or counts a held row outside the viewer's reach", async () => {
+    const handle = shared.handle;
+    const unreadable = await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_B,
+      prNumber: 1,
+    });
+    await seedGeneration(
+      handle,
+      CTX_ACME,
+      unreadable,
+      "h1",
+      GenerationStatuses.HELD,
+    );
+    const othersPaste = await seedRow(handle, {
+      ctx: { ownerUserId: OTHER },
+      repoId: REPO_A,
+      prNumber: 2,
+    });
+    await seedGeneration(
+      handle,
+      { ownerUserId: OTHER },
+      othersPaste,
+      "h2",
+      GenerationStatuses.HELD,
+    );
+    const store = createInboxStore(handle);
+    const reach = { allowedRepoIds: [REPO_A] };
+
+    const inbox = await store.list(makeListInput(reach));
+    const view = await store.list(
+      makeListInput({ ...reach, filters: HELD_ONLY }),
+    );
+
+    expect(inbox.heldTotal).toBe(0);
+    expect(view.items).toEqual([]);
+    expect(view.total).toBe(0);
   });
 });
 

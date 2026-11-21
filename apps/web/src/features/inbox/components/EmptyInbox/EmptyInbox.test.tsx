@@ -15,6 +15,7 @@ describe("EmptyInbox", () => {
         reason={InboxEmptinesses.FILTERED}
         onClear={onClear}
         onShowArchived={vi.fn()}
+        onShowAll={vi.fn()}
         onShowHidden={vi.fn()}
         onShowInbox={vi.fn()}
       />,
@@ -39,6 +40,7 @@ describe("EmptyInbox", () => {
         reason={InboxEmptinesses.HIDDEN_BY_DEFAULT}
         onClear={vi.fn()}
         onShowArchived={vi.fn()}
+        onShowAll={vi.fn()}
         onShowHidden={onShowHidden}
         onShowInbox={vi.fn()}
       />,
@@ -62,12 +64,35 @@ describe("EmptyInbox", () => {
         reason={InboxEmptinesses.FILTERED}
         onClear={vi.fn()}
         onShowArchived={vi.fn()}
+        onShowAll={vi.fn()}
         onShowHidden={vi.fn()}
         onShowInbox={vi.fn()}
       />,
     );
 
     expect(screen.queryByText(/hidden by default/)).toBeNull();
+  });
+
+  it("an empty held view says nothing is held and offers every row", () => {
+    const onShowAll = vi.fn();
+    render(
+      <EmptyInbox
+        archivedTotal={0}
+        defaultStatus
+        reason={InboxEmptinesses.HELD_ONLY}
+        onClear={vi.fn()}
+        onShowAll={onShowAll}
+        onShowArchived={vi.fn()}
+        onShowHidden={vi.fn()}
+        onShowInbox={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "No held pull requests" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(onShowAll).toHaveBeenCalledTimes(1);
   });
 
   it("an empty archived view offers the way back to the Inbox", () => {
@@ -79,6 +104,7 @@ describe("EmptyInbox", () => {
         reason={InboxEmptinesses.ARCHIVED_ONLY}
         onClear={vi.fn()}
         onShowArchived={vi.fn()}
+        onShowAll={vi.fn()}
         onShowHidden={vi.fn()}
         onShowInbox={onShowInbox}
       />,
@@ -100,6 +126,7 @@ describe("EmptyInbox", () => {
         reason={InboxEmptinesses.ALL_ARCHIVED}
         onClear={vi.fn()}
         onShowArchived={onShowArchived}
+        onShowAll={vi.fn()}
         onShowHidden={vi.fn()}
         onShowInbox={vi.fn()}
       />,

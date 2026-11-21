@@ -61,10 +61,12 @@ const OUTSIDE_REPO = brand(301n, isRepoId);
 const ACME_ONE: InstallationRepository = {
   fullName: "acme/one",
   viewerIsAdmin: true,
+  viewerCanPush: true,
 };
 const OCTO_TWO: InstallationRepository = {
   fullName: "octo/two",
   viewerIsAdmin: false,
+  viewerCanPush: false,
 };
 
 const UPSTREAM_DOWN: GitHubApiError = {
@@ -215,11 +217,13 @@ describe("the installation resolver", () => {
       installationId: ACME_ID,
       fullName: "acme/one",
       viewerIsAdmin: true,
+      viewerCanPush: true,
     });
     expect(resolved.ok && resolved.value.allowed.get(OCTO_REPO)).toEqual({
       installationId: OCTO_ID,
       fullName: "octo/two",
       viewerIsAdmin: false,
+      viewerCanPush: false,
     });
   });
 

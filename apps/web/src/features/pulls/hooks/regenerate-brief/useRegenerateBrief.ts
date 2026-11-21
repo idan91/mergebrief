@@ -1,6 +1,6 @@
 // The Regenerate write's hook: pending, the re-entry guard, the outcome
 // announcement and the meta refresh. Nothing else calls the write.
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -26,6 +26,10 @@ export interface UseRegenerateBriefInput {
   readonly notices?: RegenerateNoticeKeys;
   /** Once a queued run's brief lands, `notice` is announced in the same region. */
   readonly arrival?: RunArrival;
+  /** A page-level live region to speak through instead of this hook's own. */
+  readonly announce?: (text: string) => void;
+  /** Another read an answer that refreshes the meta leaves stale too. */
+  readonly alsoInvalidates?: QueryKey;
 }
 
 export interface RegenerateBrief {
@@ -40,10 +44,13 @@ export function useRegenerateBrief({
   prNumber,
   notices = RegenerateNotices,
   arrival,
+  announce: announceElsewhere,
+  alsoInvalidates,
 }: UseRegenerateBriefInput): RegenerateBrief {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { text, announce } = useAnnouncer();
+  const announcer = useAnnouncer();
+  const announce = announceElsewhere ?? announcer.announce;
   const markQueued = useArrivalAnnouncement(arrival, announce);
   const [pending, setPending] = useState(false);
   const inFlight = useRef(false);
@@ -63,9 +70,15 @@ export function useRegenerateBrief({
           markQueued(requestedHead);
         }
         if (refreshesMeta(kind)) {
-          await queryClient.invalidateQueries({
-            queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,
-          });
+          const metaKey = buildPrMetaQueryOptions(repoId, prNumber).queryKey;
+          const staleKeys =
+            alsoInvalidates === undefined
+              ? [metaKey]
+              : [metaKey, alsoInvalidates];
+          const refreshes = staleKeys.map((queryKey) =>
+            queryClient.invalidateQueries({ queryKey }),
+          );
+          await Promise.all(refreshes);
         }
         const notice = readRegenerateNotice(t, kind, notices);
         if (notice !== undefined) {
@@ -88,5 +101,5 @@ export function useRegenerateBrief({
     })();
   }
 
-  return { pending, announcement: text, regenerate };
+  return { pending, announcement: announcer.text, regenerate };
 }

@@ -10,6 +10,10 @@ import {
 
 import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
+import {
+  keepReadableUnmetConditions,
+  unmetConditionSchema,
+} from "@web/features/pulls/schemas";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 
@@ -19,13 +23,19 @@ const prStateSchema = buildOpenEnumSchema(PrStates);
 const sourceSchema = buildOpenEnumSchema(PullRequestSources);
 const generationStatusSchema = buildOpenEnumSchema(GenerationStatuses);
 
-export const inboxGenerationSchema = dropInvalidKeys(
-  z.object({
-    status: generationStatusSchema,
-    errorCode: z.enum(GenerationFailureCodes).exactOptional(),
-    updatedAt: z.string(),
-  }),
-  ["errorCode"],
+/** An unmet item this bundle predates drops and marks the list partial. */
+export const inboxGenerationSchema = z.preprocess(
+  keepReadableUnmetConditions,
+  dropInvalidKeys(
+    z.object({
+      status: generationStatusSchema,
+      errorCode: z.enum(GenerationFailureCodes).exactOptional(),
+      updatedAt: z.string(),
+      unmetConditions: z.array(unmetConditionSchema).readonly().exactOptional(),
+      unmetConditionsPartial: z.literal(true).exactOptional(),
+    }),
+    ["errorCode", "unmetConditions"],
+  ),
 );
 
 export const inboxStackPositionSchema = z.object({
@@ -47,6 +57,8 @@ export const inboxItemSchema = dropNullKeys(
     authorLogin: z.string().exactOptional(),
     viewerIsAuthor: z.boolean(),
     viewerCanDelete: z.boolean(),
+    // An API one release older sends no push bit: offer nothing that needs one.
+    viewerCanPush: z.boolean().default(false),
     reviewState: buildOpenEnumSchema(InboxReviewStates).exactOptional(),
     behind: z.boolean(),
     unreachable: z.boolean(),
@@ -105,6 +117,7 @@ export const inboxResponseSchema = dropInvalidKeys(
     // An API one release older sends neither count: no search, no match.
     searchMatchTotal: z.number().int().min(0).default(0),
     archivedSearchMatchTotal: z.number().int().min(0).default(0),
+    heldTotal: z.number().int().min(0).default(0),
     counts: inboxCountsSchema,
     viewer: inboxViewerSchema,
     reachableInstallations: z.array(reachableInstallationSchema),

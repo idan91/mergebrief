@@ -63,6 +63,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -613,6 +614,32 @@ describe("InboxList", () => {
     ).toBeTruthy();
   });
 
+  it("the row link's text keeps the age, the reason and its count apart", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({
+            generation: {
+              status: "held",
+              updatedAt: "2026-09-20T10:00:00Z",
+              unmetConditions: [
+                { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+                { kind: "never", setBy: "repo" },
+              ],
+            },
+          }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const reason = screen.getByTestId("inbox-row-reason");
+    const link = reason.closest("a");
+    const text = link?.textContent ?? "";
+    expect(text).toMatch(/\S Needs the label needs-brief 1 more$/);
+  });
+
   it("a row behind GitHub carries the new-commits chip in its name", async () => {
     await renderInRouter(
       <InboxList
@@ -1040,6 +1067,7 @@ describe("InboxList", () => {
             source: "url",
             viewerIsAuthor: true,
             viewerCanDelete: true,
+            viewerCanPush: false,
           }),
         ]}
         sort={InboxSorts.UPDATED}
