@@ -7,7 +7,11 @@ import {
 } from "../../../entry-comment";
 import { EntryBodyKinds } from "../../../entry-comment/types";
 import type { AcquiredRepoConfig } from "../../../repo-config";
-import { EntryWrites, type RunContext } from "../../types";
+import {
+  EntryWrites,
+  type LiveBodyMatcher,
+  type RunContext,
+} from "../../types";
 import { buildHeldEntryLinks } from "../../utils";
 import { resolveEntryCommentAllowed } from "../entry-comment-gate";
 import { queueEntrySync } from "../entry-sync";
@@ -41,16 +45,17 @@ export async function postHeldEntry(
   const links = buildHeldEntryLinks(entryCommentManager, priorBriefs);
   const body = buildEntryCommentHeldBody(deps.translate, { ...links, unmet });
   const { headSha } = context.target;
+  const isEditable: LiveBodyMatcher = (live) => {
+    const editable =
+      isEntryCommentBody(live) && !isHeadClosedEntryBody(live, headSha);
+    return editable;
+  };
   await postStatusEntry(context, {
     body,
     status: GenerationStatuses.HELD,
     label: EntryBodyKinds.HELD,
     async write(held) {
-      const written = await entryCommentManager.editOrCreate(
-        held,
-        (live) =>
-          isEntryCommentBody(live) && !isHeadClosedEntryBody(live, headSha),
-      );
+      const written = await entryCommentManager.editOrCreate(held, isEditable);
       if (written === EntryWrites.LEFT) {
         await queueEntrySync(context);
       }
