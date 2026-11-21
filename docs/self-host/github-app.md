@@ -276,9 +276,10 @@ to the section that explains it.
       Pull requests write, no Entry comment posts
       ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
       and without Checks and Commit statuses a `ci` condition with a check
-      to read, and the App bots of a `bots` condition that have not
-      reported, hold as missing the permission, until the next push or a
-      Generate click after the approval
+      to read, the App bots of a `bots` condition that have not reported,
+      and `claude: clean`, which needs Checks alone, hold as missing the
+      permission, until the next push or a Generate click after the
+      approval
       ([Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
