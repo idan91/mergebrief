@@ -2817,7 +2817,7 @@ describe("check runs and statuses wake a held head", () => {
     });
   }
 
-  function checkRunPayload(input: {
+  function makeCheckRunPayload(input: {
     action?: string;
     prNumbers?: readonly number[];
   }): Record<string, unknown> {
@@ -2834,7 +2834,7 @@ describe("check runs and statuses wake a held head", () => {
     };
   }
 
-  function statusPayload(state = "success"): Record<string, unknown> {
+  function makeStatusPayload(state = "success"): Record<string, unknown> {
     return {
       sha: HEAD_SHA,
       state,
@@ -2872,7 +2872,7 @@ describe("check runs and statuses wake a held head", () => {
     const res = await deliver(
       app,
       "check_run",
-      checkRunPayload({ prNumbers: [2] }),
+      makeCheckRunPayload({ prNumbers: [2] }),
     );
 
     expect(res.status).toBe(200);
@@ -2889,7 +2889,7 @@ describe("check runs and statuses wake a held head", () => {
     const res = await deliver(
       app,
       "check_run",
-      checkRunPayload({ action: "created" }),
+      makeCheckRunPayload({ action: "created" }),
     );
 
     expect(res.status).toBe(200);
@@ -2902,7 +2902,7 @@ describe("check runs and statuses wake a held head", () => {
       const app = buildApp();
       await openHead(app, true);
 
-      const res = await deliver(app, "status", statusPayload(state));
+      const res = await deliver(app, "status", makeStatusPayload(state));
 
       expect(res.status).toBe(200);
       expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
@@ -2918,7 +2918,7 @@ describe("check runs and statuses wake a held head", () => {
     );
     await harness.raw("update graphile_worker.jobs set locked_at = now()");
 
-    await deliver(app, "status", statusPayload());
+    await deliver(app, "status", makeStatusPayload());
 
     expect(await readJobHeads()).toEqual([
       { head: HEAD_SHA },
@@ -2930,7 +2930,7 @@ describe("check runs and statuses wake a held head", () => {
     const app = buildApp();
     await openHead(app, false);
 
-    await deliver(app, "status", statusPayload());
+    await deliver(app, "status", makeStatusPayload());
 
     expect(await readJobHeads()).toEqual([]);
   });
@@ -2940,8 +2940,8 @@ describe("check runs and statuses wake a held head", () => {
     await openHead(app, false);
     await harness.raw("update generation set status = 'succeeded'");
 
-    await deliver(app, "check_run", checkRunPayload({ prNumbers: [2] }));
-    await deliver(app, "status", statusPayload());
+    await deliver(app, "check_run", makeCheckRunPayload({ prNumbers: [2] }));
+    await deliver(app, "status", makeStatusPayload());
 
     expect(await readJobHeads()).toEqual([]);
     expect(await harness.raw("select status from generation")).toEqual([
@@ -2959,7 +2959,7 @@ describe("check runs and statuses wake a held head", () => {
     );
     await harness.raw("delete from graphile_worker.jobs");
 
-    await deliver(app, "status", statusPayload());
+    await deliver(app, "status", makeStatusPayload());
 
     expect(await readJobHeads()).toEqual([]);
   });
@@ -2974,7 +2974,7 @@ describe("check runs and statuses wake a held head", () => {
     );
     await harness.raw("delete from graphile_worker.jobs");
 
-    await deliver(app, "status", statusPayload());
+    await deliver(app, "status", makeStatusPayload());
 
     expect(await readJobHeads()).toEqual([]);
   });
@@ -2986,7 +2986,7 @@ describe("check runs and statuses wake a held head", () => {
     const res = await deliver(
       app,
       "check_run",
-      checkRunPayload({ action: "rerequested", prNumbers: [2] }),
+      makeCheckRunPayload({ action: "rerequested", prNumbers: [2] }),
     );
 
     expect(res.status).toBe(200);
@@ -2999,7 +2999,7 @@ describe("check runs and statuses wake a held head", () => {
       allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
     });
 
-    const res = await deliver(unlisted, "status", statusPayload());
+    const res = await deliver(unlisted, "status", makeStatusPayload());
 
     expect(res.status).toBe(200);
     expect(await readJobHeads()).toEqual([]);
@@ -3017,7 +3017,7 @@ describe("check runs and statuses wake a held head", () => {
       allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
     });
 
-    await deliver(unlisted, "status", statusPayload());
+    await deliver(unlisted, "status", makeStatusPayload());
     await deliver(
       unlisted,
       "pull_request",
@@ -3034,7 +3034,7 @@ describe("check runs and statuses wake a held head", () => {
   it("skips a replayed report and records it once", async () => {
     const app = buildApp();
     await openHead(app, true);
-    const payload = statusPayload();
+    const payload = makeStatusPayload();
 
     await deliver(app, "status", payload);
     await harness.raw("delete from graphile_worker.jobs");
