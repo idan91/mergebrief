@@ -21,8 +21,9 @@ deprecation note here, removal only at a major.
   passes, or at once on `POST .../regenerate`, which now also takes a held
   head. While `held`, the summary carries `unmetConditions`, one item per
   unmet condition (`{ kind, setBy, ... }`, `setBy` is `repo` or
-  `instance`), with an `any` item grouping the members of an unmet `any:`
-  group. `kind` is an open vocabulary: drop an item of a kind you do not know.
+  `instance`). An unmet `any:` group is one `{ kind: "any", conditions }`
+  item with no `setBy` of its own; each member carries its own. `kind` is an
+  open vocabulary: drop an item of a kind you do not know.
   When the server itself cannot read a stored item, it drops it and sends
   `unmetConditionsPartial: true`: `unmetConditions` is then not the whole
   reason, and is absent when no item was readable.

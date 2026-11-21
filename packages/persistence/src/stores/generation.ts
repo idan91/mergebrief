@@ -408,9 +408,10 @@ export interface GenerationProjection {
    * from `failed`) no live lease holds and no Generate click stamped, with a
    * fresh claim budget, under the pull request's row lock a click also
    * takes, so a click either lands first and wins or releases the hold after
-   * it. A stamped or kept row answers `status-kept`, a claimed one
-   * `claim-lost`. Not a failure: `attempts` is untouched. A name list or
-   * name past the stored bounds is cut, never refused.
+   * it. A stamped row, or one in a kept status, answers `status-kept`; any
+   * other row outside the holdable set answers `claim-lost`. Not a failure:
+   * `attempts` is untouched. A name list or name past the stored bounds is
+   * cut, never refused.
    */
   markHeld(
     target: GenerationTarget,
