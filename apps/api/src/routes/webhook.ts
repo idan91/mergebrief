@@ -307,10 +307,9 @@ function findStoredPullRequest(
 }
 
 /**
- * A draft flip queues no fresh run: that could repost Entry comments, spend
- * on comparisons or retry a failed generation. It advances the guard like
- * every state write: an older push that lands after it is skipped whole,
- * never applied over it.
+ * A draft flip projects nothing; it only re-checks a held or in-flight head.
+ * It advances the guard like every state write: an older push that lands
+ * after it is skipped whole, never applied over the draft flag.
  */
 async function recordDraftFlipAndRecheck(
   handle: AppDatabase,
