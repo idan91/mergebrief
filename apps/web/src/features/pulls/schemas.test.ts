@@ -1155,13 +1155,39 @@ describe("generationSummarySchema unmetConditions", () => {
     expect(generation?.unmetConditionsPartial).toBe(true);
   });
 
-  it("ignores a partial mark the wire sends with a whole list", () => {
+  it("keeps the partial mark a server sends after dropping an item", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
       generation: {
         ...HELD_GENERATION,
         unmetConditions: [CI_ITEM],
         unmetConditionsPartial: true,
+      },
+    });
+
+    const generation = parsed.ok ? parsed.value.generation : undefined;
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("keeps the server's partial mark when it sends no readable item", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: { ...HELD_GENERATION, unmetConditionsPartial: true },
+    });
+
+    const generation = parsed.ok ? parsed.value.generation : undefined;
+    expect(generation).not.toHaveProperty("unmetConditions");
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("reads no partial mark the server leaves off", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        ...HELD_GENERATION,
+        unmetConditions: [CI_ITEM],
+        unmetConditionsPartial: false,
       },
     });
 
