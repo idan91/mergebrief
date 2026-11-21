@@ -185,7 +185,7 @@ notification.
 | `readyForReview` | `on` | The pull request is not a draft. |
 | `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. `changedLines` is additions plus deletions. |
 | `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push. `claude` and `copilot` never approve; only `claude` reports `clean`. |
-| `reviewRequested` | `on` | A review is requested from a person or a team and not yet given. GitHub drops a request once that reviewer reviews. |
+| `reviewRequested` | `on` | A review is requested from a person or a team and not yet given; a request to a bot does not count. GitHub drops a request once that reviewer reviews. |
 | `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push. `required` reads the base branch's rulesets, not classic branch protection. |
 | `paths` | A list of globs | A changed file matches one. This file only; the instance config refuses it. |
 | `labels` | A list of label names | The pull request carries one of them. Case is ignored, as GitHub ignores it in label names. |
