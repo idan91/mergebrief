@@ -23,6 +23,12 @@ function makeHeld(
   return { status: "held", updatedAt: AT, unmetConditions };
 }
 
+function makePartlyReadHeld(
+  unmetConditions: NonNullable<InboxGeneration["unmetConditions"]>,
+): InboxGeneration {
+  return { ...makeHeld(unmetConditions), unmetConditionsPartial: true };
+}
+
 describe("readHeldReason", () => {
   it("leads with what needs a change, then counts the rest", () => {
     const held = makeHeld([CI_RUNNING, LABELS, BOT_RUNNING]);
@@ -49,12 +55,25 @@ describe("readHeldReason", () => {
     });
   });
 
-  it("reads an any group left with one member as that member", () => {
+  it("reads a one-member any group as that member", () => {
     const group = makeAnyGroup(SIZE_OVER);
 
     expect(readHeldReason(t, makeHeld([group]), "open")?.text).toBe(
       "1284 changed lines, over the 800 maximum",
     );
+  });
+
+  it("gives no reason for a list this bundle read only in part", () => {
+    const held = makePartlyReadHeld([BOT_RUNNING]);
+
+    expect(readHeldReason(t, held, "open")).toBeUndefined();
+  });
+
+  it("never reads a partly read any group as its one member", () => {
+    const group = makeAnyGroup(SIZE_OVER);
+    const held = makePartlyReadHeld([group]);
+
+    expect(readHeldReason(t, held, "open")).toBeUndefined();
   });
 
   it("puts a plain blocker ahead of an any group", () => {

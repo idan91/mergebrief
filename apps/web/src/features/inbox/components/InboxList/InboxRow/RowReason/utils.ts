@@ -29,7 +29,8 @@ function describeLead(
 /**
  * What the row's second line says about an open pull request's held head:
  * the first item someone must act on, else the first wait, and how many
- * more there are. Nothing for any other head.
+ * more there are. Nothing for any other head, nor for a list this bundle
+ * read only in part, whose lead or count may be wrong.
  */
 export function readHeldReason(
   t: TFunction,
@@ -38,6 +39,9 @@ export function readHeldReason(
 ): HeldReason | undefined {
   const held = generation?.status === GenerationStatuses.HELD;
   if (!held || isNoLongerOpen(state)) {
+    return undefined;
+  }
+  if (generation.unmetConditionsPartial === true) {
     return undefined;
   }
 
