@@ -196,10 +196,13 @@ describe("HeldCard", () => {
   });
 
   it.each(["closed", "merged"] as const)(
-    "on a %s PR offers no Generate now and lists no reasons",
+    "on a %s PR says no brief was generated and lists no reasons",
     (prState) => {
       renderCard({ prState });
 
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "No brief generated",
+      );
       expect(screen.queryByRole("button", { name: GENERATE })).toBeNull();
       expect(screen.queryByTestId("held-conditions")).toBeNull();
       expect(

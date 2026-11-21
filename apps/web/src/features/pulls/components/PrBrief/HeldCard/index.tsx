@@ -28,7 +28,7 @@ export interface HeldCardProps {
 
 export function HeldCard(props: HeldCardProps) {
   const { t } = useTranslation();
-  const { lead, showsConditions, pending, announcement, onGenerate } =
+  const { heading, lead, showsConditions, pending, announcement, onGenerate } =
     useHeldCardFacade(props);
 
   return (
@@ -40,7 +40,7 @@ export function HeldCard(props: HeldCardProps) {
       <header className={styles["head"]}>
         <div className={styles["title"]}>
           <h1 className={styles["heading"]} id={HEADING_ID}>
-            {t("pulls.held.heading")}
+            {heading}
           </h1>
           <p className={styles["lead"]}>{lead}</p>
         </div>
