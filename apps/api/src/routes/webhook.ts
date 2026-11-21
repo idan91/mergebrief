@@ -74,6 +74,7 @@ import {
   type RepoId,
   type UncoveredWork,
   type PullRequestLifecycle,
+  type PullRequestRow,
   type PullRequestUpsertInput,
   type TenantContext,
   type TriggerGenerationInput,
@@ -191,12 +192,11 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
 ]);
 
 /**
- * Actions that change what a trigger condition reads without a new push.
- * `review_requested` and a base move are generation triggers, whose queued
- * job checks a held head already.
+ * Actions that change only what the worker reads from GitHub, never a stored
+ * field, so they write no row. `review_requested` and a base move are
+ * generation triggers, whose queued job checks a held head already.
  */
-const CONDITION_FACT_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
-  PullRequestActions.CONVERTED_TO_DRAFT,
+const RECHECK_ONLY_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.LABELED,
   PullRequestActions.UNLABELED,
   PullRequestActions.REVIEW_REQUEST_REMOVED,
@@ -209,13 +209,11 @@ function isGenerationTrigger(event: ParsedPullRequestEvent): boolean {
   return GENERATION_TRIGGER_ACTIONS.has(event.action);
 }
 
-function changesConditionFact(event: ParsedPullRequestEvent): boolean {
-  if (event.action === PullRequestActions.EDITED) {
-    const retitledOnly =
-      event.titleChanged === true && event.baseChanged !== true;
-    return retitledOnly;
+function isRetitle(event: ParsedPullRequestEvent): boolean {
+  if (event.action !== PullRequestActions.EDITED) {
+    return false;
   }
-  return CONDITION_FACT_ACTIONS.has(event.action);
+  return event.titleChanged === true && event.baseChanged !== true;
 }
 
 /** The work an event names that a stored brief for its pair leaves undone. */
@@ -296,6 +294,42 @@ function logSkippedEvent(
   });
 }
 
+function findStoredPullRequest(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedPullRequestEvent,
+): Promise<PullRequestRow | undefined> {
+  return createTenantRepository(handle, ctx).pullRequests.getByNumber(
+    event.repoId,
+    event.prNumber,
+  );
+}
+
+/**
+ * A draft flip or a retitle queues no fresh run: that could repost Entry
+ * comments, spend on comparisons or retry a failed generation. A held or
+ * pending head is the exception, its conditions checked again. It advances
+ * the guard like every state write: an older push that lands after it is
+ * skipped whole, never applied over it.
+ */
+async function recordFactAndRecheck(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedPullRequestEvent,
+  log: Logger,
+): Promise<void> {
+  const ingest = createIngestRoutines(handle, ctx);
+  const recorded = await ingest.recordState(
+    shapePullRequestUpsert(event, { state: PrStates.OPEN }),
+  );
+  if (!recorded.applied) {
+    logSkippedEvent(log, event);
+    return;
+  }
+
+  await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
+}
+
 async function handlePullRequest(
   deps: WebhookRouteDeps,
   ctx: TenantContext,
@@ -315,20 +349,29 @@ async function handlePullRequest(
     await syncTrackedEntry(ingest, recorded);
     return;
   }
-  if (changesConditionFact(event)) {
-    // A draft flip, a label, a dropped review request or a retitle projects
-    // nothing; it only re-checks a held or in-flight head. It advances the
-    // guard like every state write: an older push that lands after it is
-    // skipped whole, never applied over it.
-    const ingest = createIngestRoutines(handle, ctx);
-    const recorded = await ingest.recordState(
-      shapePullRequestUpsert(event, { state: PrStates.OPEN }),
-    );
-    if (!recorded.applied) {
-      logSkippedEvent(log, event);
-      return;
+  if (RECHECK_ONLY_ACTIONS.has(event.action)) {
+    // A row written here could invent an open row for a closed PR, or skip a
+    // late `opened` behind the guard, so only a stored PR's head is rechecked.
+    const known = await findStoredPullRequest(handle, ctx, event);
+    if (known !== undefined) {
+      await createIngestRoutines(handle, ctx).recheckCurrentHead({
+        pullRequestId: known.id,
+      });
     }
-    await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
+    return;
+  }
+  if (isRetitle(event)) {
+    // Recorded only on a stored PR GitHub still shows open, for the same two
+    // reasons; a closed PR's title rides its close.
+    const stillOpen = event.closedAt === undefined;
+    const known = await findStoredPullRequest(handle, ctx, event);
+    if (stillOpen && known !== undefined) {
+      await recordFactAndRecheck(handle, ctx, event, log);
+    }
+    return;
+  }
+  if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
+    await recordFactAndRecheck(handle, ctx, event, log);
     return;
   }
   if (isGenerationTrigger(event)) {

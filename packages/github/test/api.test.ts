@@ -826,6 +826,41 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.value.authorIsBot).toBe(expected);
   });
 
+  it("counts no review request a bot reviewer holds", async () => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
+        state: "open",
+        draft: false,
+        merged: false,
+        title: "A PR",
+        body: "",
+        html_url: "https://github.com/o/r/pull/5",
+        commits: 1,
+        labels: [],
+        requested_reviewers: [
+          { login: "copilot-pull-request-reviewer[bot]", type: "Bot" },
+          { login: "octocat", type: "User" },
+        ],
+        requested_teams: [],
+        user: { login: "octocat" },
+        closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 5,
+    });
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.pendingReviewRequests).toBe(1);
+  });
+
   it("counts no pending review request when GitHub sends none", async () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {

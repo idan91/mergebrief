@@ -101,15 +101,21 @@ export async function fetchPullRequest(
 }
 
 interface ReviewRequestLists {
-  readonly requested_reviewers?: readonly unknown[] | null;
+  readonly requested_reviewers?: readonly { readonly type?: string }[] | null;
   readonly requested_teams?: readonly unknown[] | null;
 }
 
-/** GitHub drops a reviewer from the lists once their review lands. */
+/**
+ * GitHub drops a reviewer from the lists once their review lands. A bot's
+ * request is a review tool's, never a person's.
+ */
 function countPendingReviewRequests(lists: ReviewRequestLists): number {
-  const users = lists.requested_reviewers?.length ?? 0;
+  const reviewers = lists.requested_reviewers ?? [];
+  const people = reviewers.filter(
+    (reviewer) => reviewer.type !== GitHubAccountTypes.BOT,
+  );
   const teams = lists.requested_teams?.length ?? 0;
-  return users + teams;
+  return people.length + teams;
 }
 
 /**
