@@ -14,6 +14,7 @@ import {
   supersedeUnclaimedRecovery,
 } from "./logic/claim-recovery";
 import { applyAuthorGate } from "./logic/author-gate";
+import { applyConditionCheck } from "./logic/condition-check";
 import {
   isPermanentSyncFailure,
   queueEntrySync,
@@ -47,6 +48,7 @@ import {
 import { bindAbortSignal } from "./logic/supersession-watch";
 import {
   AuthorGateKinds,
+  ConditionCheckKinds,
   JobFailureOutcomes,
   RunDecisionKinds,
   RunPools,
@@ -395,6 +397,10 @@ async function runGeneration(
   if (authorGate.kind === AuthorGateKinds.AWAITING_TRIGGER) {
     return;
   }
+  const conditions = await applyConditionCheck(context, authorGate.repoConfig);
+  if (conditions.kind === ConditionCheckKinds.HELD) {
+    return;
+  }
   const routed = await traceRunStep(
     "generation.route",
     listRunStops(context),
@@ -430,7 +436,7 @@ async function runGeneration(
   if (decision.kind === RunDecisionKinds.STAND_DOWN) {
     return;
   }
-  await generateUnderWatch(context, decision, authorGate.repoConfig);
+  await generateUnderWatch(context, decision, conditions.repoConfig);
 }
 
 /**

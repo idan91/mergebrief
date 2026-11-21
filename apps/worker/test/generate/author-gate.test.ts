@@ -18,11 +18,12 @@ import {
   buildEntryCommentOnDemandBody,
 } from "../../src/task/entry-comment";
 import {
+  addSettings,
   BASE,
-  buildRepoFile,
   captureLogger,
   ctx,
   ENTRY_PR_VIEW,
+  failFirstSettingsRead,
   failHeadReadsAfterFirst,
   FIRST_ATTEMPT,
   FIRST_BRIEF_INDEX,
@@ -79,15 +80,6 @@ function makeBotGitHub(headSha: string): FakeGitHub {
     authorIsBot: true,
   });
   return github;
-}
-
-function addSettings(github: FakeGitHub, content: string, ref?: string): void {
-  const file = buildRepoFile(content, "sha-settings");
-  if (ref === undefined) {
-    github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS }, file);
-    return;
-  }
-  github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS, ref }, file);
 }
 
 async function countAttempts(): Promise<number> {
@@ -390,6 +382,26 @@ describe("generate task, author gate", () => {
       (path) => path === RepoConfigPaths.SETTINGS,
     );
     expect(settingsReads).toHaveLength(1);
+  });
+
+  it("generates a listed bot PR whose settings read clears in the run", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeBotGitHub(HEAD_1);
+    addSettings(github, LISTED_SETTINGS);
+    const failing = makeBotGitHub(HEAD_1);
+    failing.failRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      FakeFailures.SERVER_ERROR,
+    );
+    const reads = failFirstSettingsRead(github, failing);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(payload, { job: FIRST_ATTEMPT });
+
+    expect(reads.count).toBe(2);
+    expect(generator.calls).toContain("brief");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("holds an unlisted bot PR awaiting trigger with no claim", async () => {
