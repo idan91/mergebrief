@@ -517,11 +517,30 @@ async function releaseLockedHeldHead(
     return false;
   }
 
-  const { headSha } = head.row;
+  return releaseAndQueueHeldHead(tx, scope, pullRequestId, head.row.headSha);
+}
+
+/** False when a claim took the head first, so nothing was released. */
+async function releaseAndQueueHeldHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<boolean> {
   const released = await releaseHeldHead(tx, scope, pullRequestId, headSha);
   if (!released) {
     return false;
   }
+  await queueOnDemandRun(tx, scope, pullRequestId, headSha);
+  return true;
+}
+
+async function queueOnDemandRun(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<void> {
   await stampBriefTriggered(tx, scope, pullRequestId, headSha);
   await enqueueGenerateJob(
     tx,
@@ -530,7 +549,6 @@ async function releaseLockedHeldHead(
     pullRequestId,
     TRIGGER_ON_DEMAND_DELAY_SECONDS,
   );
-  return true;
 }
 
 /**
@@ -1228,39 +1246,32 @@ export function createIngestRoutines(
 
         const { headSha } = head.row;
         if (head.row.status === GenerationStatuses.HELD) {
-          const released = await releaseHeldHead(
+          const released = await releaseAndQueueHeldHead(
             tx,
             scope,
             pullRequestId,
             headSha,
           );
-          if (!released) {
-            return TriggerOnDemandOutcomes.RUNNING;
-          }
-        } else {
-          const projected = await projectPendingGeneration(tx, scope, {
-            pullRequestId,
-            kind: GenerationKinds.BRIEF,
-            headSha,
-            baselineSha: null,
-          });
-          if (projected.inFlight) {
-            return TriggerOnDemandOutcomes.RUNNING;
-          }
-          await stampGenerateRequested(tx, scope, pullRequestId, headSha);
+          return released
+            ? TriggerOnDemandOutcomes.QUEUED
+            : TriggerOnDemandOutcomes.RUNNING;
         }
+
+        const projected = await projectPendingGeneration(tx, scope, {
+          pullRequestId,
+          kind: GenerationKinds.BRIEF,
+          headSha,
+          baselineSha: null,
+        });
+        if (projected.inFlight) {
+          return TriggerOnDemandOutcomes.RUNNING;
+        }
+        await stampGenerateRequested(tx, scope, pullRequestId, headSha);
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {
           await approvePullRequestTrigger(tx, scope, pullRequestId, approverId);
         }
-        await stampBriefTriggered(tx, scope, pullRequestId, headSha);
-        await enqueueGenerateJob(
-          tx,
-          scope,
-          { headSha, refreshRunAt: true },
-          pullRequestId,
-          TRIGGER_ON_DEMAND_DELAY_SECONDS,
-        );
+        await queueOnDemandRun(tx, scope, pullRequestId, headSha);
         return TriggerOnDemandOutcomes.QUEUED;
       });
     },
