@@ -118,6 +118,25 @@ function countPendingReviewRequests(lists: ReviewRequestLists): number {
   return people.length + teams;
 }
 
+interface ListedPullRequestFile {
+  readonly filename: string;
+  readonly previous_filename?: string;
+  readonly additions: number;
+  readonly deletions: number;
+}
+
+function mapPullRequestFile(file: ListedPullRequestFile): PullRequestFile {
+  const mapped: Mutable<PullRequestFile> = {
+    path: file.filename,
+    additions: file.additions,
+    deletions: file.deletions,
+  };
+  if (file.previous_filename !== undefined) {
+    mapped.previousPath = file.previous_filename;
+  }
+  return mapped;
+}
+
 /**
  * List a PR's changed files, the per-file generation input and the whole-PR
  * churn denominator for the huge-span heuristic.
@@ -135,11 +154,7 @@ export async function fetchPullRequestFiles(
     });
     return {
       ok: true,
-      value: files.map((file) => ({
-        path: file.filename,
-        additions: file.additions,
-        deletions: file.deletions,
-      })),
+      value: files.map(mapPullRequestFile),
     };
   } catch (error) {
     return {
