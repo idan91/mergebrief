@@ -27,6 +27,12 @@ import {
 } from "./helpers";
 
 const shared = registerSharedPglite();
+
+function readStoredConditions(
+  stored: string | null | undefined,
+): readonly UnmetCondition[] | undefined {
+  return parseUnmetConditions(stored ?? null)?.conditions;
+}
 const CAP_TEST_LEASE_MS = 120_000;
 
 const UNMET: readonly UnmetCondition[] = [
@@ -80,7 +86,7 @@ describe("markHeld", () => {
 
     const row = await gen.get(target);
     expect(row?.status).toBe(GenerationStatuses.HELD);
-    expect(parseUnmetConditions(row?.unmetConditions ?? null)).toEqual(UNMET);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual(UNMET);
   });
 
   it("rewrites the conditions of a head already held", async () => {
@@ -93,7 +99,7 @@ describe("markHeld", () => {
 
     expect(again.ok).toBe(true);
     const row = await gen.get(target);
-    expect(parseUnmetConditions(row?.unmetConditions ?? null)).toEqual(fewer);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual(fewer);
   });
 
   it("keeps a succeeded head", async () => {
@@ -159,7 +165,7 @@ describe("markHeld", () => {
 
     expect(held.ok).toBe(true);
     const row = await gen.get(target);
-    const [stored] = parseUnmetConditions(row?.unmetConditions ?? null) ?? [];
+    const [stored] = readStoredConditions(row?.unmetConditions) ?? [];
     expect(stored).toEqual({
       ...unmet[0],
       failed: ["x".repeat(255)],
@@ -188,7 +194,7 @@ describe("a held head between checks", () => {
 
     const row = await gen.get(target);
     expect(row?.status).toBe(GenerationStatuses.HELD);
-    expect(parseUnmetConditions(row?.unmetConditions ?? null)).toEqual(UNMET);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual(UNMET);
     expect(again.queued).toBe(true);
     expect(await countQueuedJobs(shared)).toBe(1);
   });
@@ -253,22 +259,41 @@ describe("reading stored unmet conditions", () => {
   it("keeps the readable items beside one of an unknown kind", () => {
     const stored = JSON.stringify([unknown, ready]);
 
-    expect(parseUnmetConditions(stored)).toEqual([ready]);
+    expect(parseUnmetConditions(stored)).toEqual({
+      conditions: [ready],
+      partial: true,
+    });
   });
 
   it("keeps an any group's readable members and drops an unknown key", () => {
     const group = { kind: "any", conditions: [unknown, labels] };
     const stored = JSON.stringify([{ ...ready, addedLater: true }, group]);
 
-    expect(parseUnmetConditions(stored)).toEqual([
-      ready,
-      { kind: "any", conditions: [labels] },
-    ]);
+    expect(parseUnmetConditions(stored)).toEqual({
+      conditions: [ready, { kind: "any", conditions: [labels] }],
+      partial: true,
+    });
   });
 
-  it("reads nothing when no item is readable", () => {
+  it("reads a list it knows whole as complete", () => {
+    const stored = JSON.stringify([{ ...ready, addedLater: true }, labels]);
+
+    expect(parseUnmetConditions(stored)).toEqual({
+      conditions: [ready, labels],
+      partial: false,
+    });
+  });
+
+  it("reads no item and marks the list partial when none is readable", () => {
     const stored = JSON.stringify([unknown]);
 
-    expect(parseUnmetConditions(stored)).toBeUndefined();
+    expect(parseUnmetConditions(stored)).toEqual({
+      conditions: [],
+      partial: true,
+    });
+  });
+
+  it("reads nothing for a row with no stored conditions", () => {
+    expect(parseUnmetConditions(null)).toBeUndefined();
   });
 });

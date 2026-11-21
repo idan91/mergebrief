@@ -67,11 +67,12 @@ export function buildGenerationSummary(
   };
 
   if (latestGeneration.status === GenerationStatuses.HELD) {
-    const unmetConditions = parseUnmetConditions(
-      latestGeneration.unmetConditions,
-    );
-    if (unmetConditions !== undefined) {
-      summary.unmetConditions = unmetConditions;
+    const unmet = parseUnmetConditions(latestGeneration.unmetConditions);
+    if (unmet !== undefined && unmet.conditions.length > 0) {
+      summary.unmetConditions = unmet.conditions;
+    }
+    if (unmet?.partial === true) {
+      summary.unmetConditionsPartial = true;
     }
   }
   if (waitReason !== undefined) {
