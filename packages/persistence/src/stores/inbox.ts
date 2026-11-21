@@ -353,9 +353,11 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
 }
 
 /**
- * The newest brief-kind projection row of the pull request, ordered as the
- * page's generation read orders it, in the row's own world. It stops at the
- * first entry of `generation_pull_request_kind_triggered_at_idx`.
+ * An open pull request whose newest brief-kind projection row is held,
+ * ordered as the page's generation read orders it, in the row's own world. It
+ * stops at the first entry of `generation_pull_request_kind_triggered_at_idx`.
+ * A closed or merged pull request keeps its held row but is never held here:
+ * nothing on its row is actionable.
  */
 function buildHeld(): SQL<boolean> {
   const newestStatus = sql`(
@@ -366,7 +368,7 @@ function buildHeld(): SQL<boolean> {
     order by g.triggered_at desc, g.id desc
     limit 1
   )`;
-  return sql<boolean>`coalesce(${newestStatus} = ${GenerationStatuses.HELD}, false)`;
+  return sql<boolean>`${pullRequest.state} = ${PrStates.OPEN} and coalesce(${newestStatus} = ${GenerationStatuses.HELD}, false)`;
 }
 
 function canReachInstallations(input: InboxListInput): boolean {

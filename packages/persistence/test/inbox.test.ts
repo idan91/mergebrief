@@ -1285,7 +1285,7 @@ describe("createInboxStore.list, held heads", () => {
     expect(view.counts).toEqual(inbox.counts);
   });
 
-  it("the held total follows the other filters and the archive view", async () => {
+  it("the held total follows the filters and skips a merged pull request", async () => {
     const handle = shared.handle;
     const open = await seedRow(handle, {
       ctx: CTX_ACME,
@@ -1336,7 +1336,8 @@ describe("createInboxStore.list, held heads", () => {
 
     expect(inbox.items.map((item) => item.pullRequest.prNumber)).toEqual([1]);
     expect(inbox.heldTotal).toBe(1);
-    expect(widened.heldTotal).toBe(2);
+    expect(widened.items.map((item) => item.pullRequest.prNumber)).toEqual([1]);
+    expect(widened.heldTotal).toBe(1);
     expect(archive.items.map((item) => item.pullRequest.prNumber)).toEqual([3]);
     expect(archive.heldTotal).toBe(1);
   });
