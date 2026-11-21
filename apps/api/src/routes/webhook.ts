@@ -295,10 +295,9 @@ async function handlePullRequest(
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    // Draft re-entry queues no fresh run: that could repost Entry comments,
-    // spend on comparisons or retry a failed generation.
-    // It advances the guard like every state write: an older push that lands
-    // after it is skipped whole, never applied over the draft flag.
+    // Draft re-entry projects nothing; it only re-checks a held or in-flight
+    // head. It advances the guard like every state write: an older push that
+    // lands after it is skipped whole, never applied over the draft flag.
     const ingest = createIngestRoutines(handle, ctx);
     const recorded = await ingest.recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),
