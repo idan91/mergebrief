@@ -205,6 +205,18 @@ export function createEntryCommentManager(
     return settleEntryComment(body, isReplaceable, true, editEntryComment);
   }
 
+  async function editOrRefreshEntryComment(
+    body: string,
+    isEditable: LiveBodyMatcher,
+  ): Promise<EntryWrite> {
+    const live = await readLiveBody();
+    const editable = live.kind === LiveBodyKinds.READ && isEditable(live.body);
+    if (editable) {
+      return editEntryComment(body);
+    }
+    return refreshEntryComment(body);
+  }
+
   async function replaceEntryComment(
     body: string,
     isReplaceable: LiveBodyMatcher,
@@ -444,5 +456,6 @@ export function createEntryCommentManager(
     replaceOrCreate: replaceOrCreateEntryComment,
     editOrCreate: editOrCreateEntryComment,
     replace: replaceEntryComment,
+    editOrRefresh: editOrRefreshEntryComment,
   };
 }
