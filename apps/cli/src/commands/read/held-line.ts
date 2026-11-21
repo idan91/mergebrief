@@ -138,7 +138,8 @@ function listKnownConditions(items: readonly HeldItem[]): UnmetCondition[] {
 
 /**
  * The line `pr <n>` prints under a held head, or `undefined` when the head
- * is not held. Known items follow the Entry's order; raw kinds trail them.
+ * is not held. Known items follow the Entry's order; raw kinds trail them,
+ * and a list with nothing readable still says why the head waits.
  */
 export function formatHeldLine(
   status: string | undefined,
@@ -154,5 +155,8 @@ export function formatHeldLine(
     item.rawKind === undefined ? [] : [formatDisplayText(item.rawKind)],
   );
   const phrases = [...known.flatMap(describeKnownItem), ...raw];
+  if (phrases.length === 0) {
+    return "held: trigger conditions not met\n";
+  }
   return `held: ${phrases.join("; ")}\n`;
 }
