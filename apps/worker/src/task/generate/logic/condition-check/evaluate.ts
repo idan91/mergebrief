@@ -34,6 +34,7 @@ import {
   type KindCheck,
   type KindCheckInput,
 } from "./types";
+import { isKindConfigured, listSettings } from "./utils";
 
 type KindChecks = {
   readonly [Kind in TriggerConditionKind]?: KindCheck<Kind>;
@@ -418,8 +419,7 @@ export function isVerdictOnPaths(
 function findPathsSetting(
   effective: EffectiveTriggerConditions,
 ): PathsSetting | undefined {
-  const conditions = [...effective.all, ...effective.any];
-  return conditions.map((item) => item.setting).find(isPathsSetting);
+  return listSettings(effective).find(isPathsSetting);
 }
 
 /**
@@ -470,11 +470,9 @@ export function deriveOwedStamps(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
 ): OwedStamps {
-  const settings = [...effective.all, ...effective.any].map(
-    (condition) => condition.setting,
-  );
-  const reviewRequestedSet = settings.some(
-    (setting) => setting.kind === TriggerConditionKinds.REVIEW_REQUESTED,
+  const reviewRequestedSet = isKindConfigured(
+    effective,
+    TriggerConditionKinds.REVIEW_REQUESTED,
   );
   const reviewUnstamped = facts.stamps.reviewRequestedMetAt === undefined;
   const owed: Mutable<OwedStamps> = {
