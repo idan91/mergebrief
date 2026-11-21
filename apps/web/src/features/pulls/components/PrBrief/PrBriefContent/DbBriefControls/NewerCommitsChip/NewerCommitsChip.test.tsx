@@ -231,7 +231,7 @@ describe("NewerCommitsChip", () => {
       statusLabel: "New brief held",
       title: "New brief held",
       action: generate,
-      heldConditions: [
+      unmetConditions: [
         UnmetFixtures.CI_RUNNING,
         makeAnyGroup(UnmetFixtures.LABELS, UnmetFixtures.SIZE_OVER),
       ],
@@ -262,8 +262,8 @@ describe("NewerCommitsChip", () => {
       state: NewerCommitsStates.HELD,
       statusLabel: "New brief held",
       title: "New brief held",
-      heldConditions: [UnmetFixtures.CI_RUNNING],
-      heldConditionsPartial: true,
+      unmetConditions: [UnmetFixtures.CI_RUNNING],
+      unmetConditionsPartial: true,
     });
     render(makeChip(status));
 

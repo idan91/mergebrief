@@ -409,7 +409,7 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
 
     expect(status?.state).toBe(NewerCommitsStates.HELD);
     expect(status?.statusLabel).toBe("New brief held");
-    expect(status?.heldConditions).toEqual(unmet);
+    expect(status?.unmetConditions).toEqual(unmet);
     expect(status?.explanation).toContain(
       "MergeBrief holds the latest push until its trigger conditions are met.",
     );
@@ -427,8 +427,8 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
 
     const status = derive(makeMeta(partial));
 
-    expect(status?.heldConditions).toEqual(unmet);
-    expect(status?.heldConditionsPartial).toBe(true);
+    expect(status?.unmetConditions).toEqual(unmet);
+    expect(status?.unmetConditionsPartial).toBe(true);
   });
 
   it("names the hold for anyone else and offers nothing", () => {
@@ -436,7 +436,7 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
 
     expect(status?.statusLabel).toBe("New brief held");
     expect(status?.action).toBeUndefined();
-    expect(status?.heldConditions).toEqual(unmet);
+    expect(status?.unmetConditions).toEqual(unmet);
   });
 
   it("keeps the hold and its Generate beside a newer brief", () => {
@@ -445,7 +445,7 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
     expect(status?.statusLabel).toBe("New brief held");
     expect(status?.action?.kind).toBe(NewerCommitsActionKinds.NAVIGATE);
     expect(status?.runAction?.kind).toBe(NewerCommitsActionKinds.GENERATE);
-    expect(status?.heldConditions).toEqual(unmet);
+    expect(status?.unmetConditions).toEqual(unmet);
   });
 
   it("names a held head on a new base once its old base holds a brief", () => {
@@ -462,7 +462,7 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
     const status = derive(makeMeta({ ...held, state }));
 
     expect(status?.state).toBe(NewerCommitsStates.NO_BRIEF);
-    expect(status?.heldConditions).toBeUndefined();
+    expect(status?.unmetConditions).toBeUndefined();
   });
 });
 
