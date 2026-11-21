@@ -25,7 +25,6 @@ export interface DraftPolicyNoticeSource {
 }
 
 export interface DraftPolicyNotice {
-  readonly kind: "damped";
   readonly text: string;
 }
 
@@ -34,16 +33,16 @@ export interface DraftPolicyNotice {
  * (damping window). It is shown to the DRAFT'S OWN AUTHOR only; reviewers of
  * someone else's draft and any ready-PR view get nothing. The text states the
  * CONFIGURED window (never a hardcoded duration, since the operator picks it).
- * Null when there is nothing to explain: no policy on the row (list rows) or
- * the zero-config default.
+ * Absent when there is nothing to explain: no policy on the row (list rows)
+ * or the zero-config default.
  */
 export function draftPolicyNotice(
   t: TFunction,
   policy: DraftPolicyNoticeSource | undefined,
   view: OwnDraftSource,
-): DraftPolicyNotice | null {
+): DraftPolicyNotice | undefined {
   if (policy === undefined || !isOwnDraft(view)) {
-    return null;
+    return undefined;
   }
   if (policy.debounceSeconds !== undefined) {
     // "can take up to" is an upper bound, deliberately: the FE cannot tell a
@@ -53,13 +52,12 @@ export function draftPolicyNotice(
     // wait there; the bound is true in every case. Revisit trigger recorded
     // in the plan (echo the applied window on the generation summary).
     return {
-      kind: "damped",
       text: t("pulls.ownDraft.damped", {
         window: formatWindow(t, policy.debounceSeconds),
       }),
     };
   }
-  return null;
+  return undefined;
 }
 
 /** "about a minute" under 2 minutes, else "about N minutes" (rounded). */
