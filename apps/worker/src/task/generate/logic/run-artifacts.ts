@@ -30,7 +30,7 @@ import {
 import {
   buildAttemptFields,
   getGenerationOrigin,
-  isReleasedHold,
+  mayReleaseHold,
 } from "../utils";
 import { listRunStops, traceRunStep } from "./step-span";
 import {
@@ -121,7 +121,7 @@ async function generateFreshBrief(
     watch: context.watch,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
-    generatingEntryIsSilent: isReleasedHold(context.projected),
+    generatingEntryIsSilent: mayReleaseHold(context.projected),
     translate: deps.translate,
     priorBriefs: context.priorBriefs,
     prevBrief: context.prevBrief,
