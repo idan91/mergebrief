@@ -1,6 +1,5 @@
 import type { CheckRun, CommitStatus, SubmittedReview } from "github";
 import type { TriggerConditionValues } from "generators/trigger-conditions";
-import type { Logger } from "logging";
 import type {
   SizeMeasure,
   TriggerConditionKind,
@@ -54,6 +53,12 @@ export interface ConditionFacts {
   readonly changedPaths?: readonly string[] | undefined;
   /** Each renamed file's old path, read with `changedPaths`. */
   readonly previousPaths?: readonly string[] | undefined;
+  /**
+   * Whether a changed path or a rename's old one matched the `paths` globs,
+   * from the run's one scan (`addPathsMatch`); a scan past its budget is
+   * false. Absent when nothing was scanned.
+   */
+  readonly pathsMatched?: boolean;
   readonly reports: HeadReports;
 }
 
@@ -61,7 +66,6 @@ export interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
   readonly setBy: TriggerConditionSetter;
   readonly facts: ConditionFacts;
-  readonly log?: Logger | undefined;
 }
 
 /** A kind's check: the unmet items it leaves, none when the push meets it. */
