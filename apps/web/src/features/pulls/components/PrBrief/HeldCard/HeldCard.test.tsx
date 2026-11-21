@@ -212,15 +212,11 @@ describe("HeldCard", () => {
       renderCard({ prState });
 
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "No brief generated",
+        t("pulls.held.notOpenHeading"),
       );
       expect(screen.queryByRole("button", { name: GENERATE })).toBeNull();
       expect(screen.queryByTestId("held-conditions")).toBeNull();
-      expect(
-        screen.getByText(
-          "This pull request is no longer open, so its brief will not be generated.",
-        ),
-      ).toBeTruthy();
+      expect(screen.getByText(t("pulls.held.lead.notOpen"))).toBeTruthy();
     },
   );
 

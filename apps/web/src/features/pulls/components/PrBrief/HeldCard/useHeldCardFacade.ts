@@ -40,7 +40,7 @@ export function useHeldCardFacade({
   });
   const noLongerOpen = isNoLongerOpen(prState);
   const heading = noLongerOpen
-    ? t("pulls.awaitingTrigger.notOpenHeading")
+    ? t("pulls.held.notOpenHeading")
     : t("pulls.held.heading");
   const lead = noLongerOpen
     ? t("pulls.held.lead.notOpen")

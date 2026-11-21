@@ -232,6 +232,7 @@
     },
     "held": {
       "heading": "No brief for this push yet",
+      "notOpenHeading": "No brief generated",
       "lead": {
         "waits": "It generates by itself once these finish.",
         "needs": "It won't generate by itself until the changes below are made.",
