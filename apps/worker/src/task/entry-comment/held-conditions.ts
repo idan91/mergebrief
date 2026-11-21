@@ -1,16 +1,26 @@
 import type { TFunction } from "i18next";
 import {
   BotStates,
-  ReviewBotNames,
+  ReviewBots,
   SizeBoundSides,
   TriggerConditionKinds,
   UnmetConditionKinds,
+  type ReviewBot,
   type UnmetBot,
   type UnmetCi,
   type UnmetCondition,
   type UnmetPlainCondition,
   type UnmetSize,
 } from "types/trigger-conditions";
+
+/** Each review bot's product name, a proper noun shown as is. */
+const ReviewBotNames = {
+  [ReviewBots.UNBLOCKED]: "Unblocked",
+  [ReviewBots.CODERABBIT]: "CodeRabbit",
+  [ReviewBots.CLAUDE]: "Claude Code Review",
+  [ReviewBots.GREPTILE]: "Greptile",
+  [ReviewBots.COPILOT]: "Copilot",
+} as const satisfies Record<ReviewBot, string>;
 
 /** A CI line names this many checks, then counts the rest. */
 const CHECK_NAMES_SHOWN = 3;
