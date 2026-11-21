@@ -13,7 +13,7 @@ import { buildPrMetaQueryOptions } from "../../queries";
 import {
   turnOffGenerateEveryPush,
   turnOnGenerateEveryPush,
-} from "../../transport/generateEveryPush";
+} from "../../transport/generate-every-push";
 import { EveryPushResultKinds } from "../../types";
 import { readEveryPushNotice } from "./utils";
 

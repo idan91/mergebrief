@@ -13,7 +13,7 @@ import { apiFetch } from "../../../data/apiFetch";
 import {
   turnOffGenerateEveryPush,
   turnOnGenerateEveryPush,
-} from "./generateEveryPush";
+} from "./generate-every-push";
 import { answerApiFetch } from "../test-utils";
 
 const apiFetchMock = vi.mocked(apiFetch);
