@@ -64,7 +64,7 @@ export async function decideRun(context: RunContext): Promise<RunDecision> {
       return claimed;
     },
   );
-  if (claim.kind === ClaimOutcomes.HELD) {
+  if (claim.kind === ClaimOutcomes.RUNNING) {
     await followHolder(context, claim.leaseRemainingMs);
   }
   if (claim.kind === ClaimOutcomes.EXHAUSTED) {

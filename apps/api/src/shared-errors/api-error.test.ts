@@ -44,7 +44,7 @@ describe("ApiError classes", () => {
     new Conflict(ApiErrorCodes.PENDING_REVIEW_HELD),
     new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ),
     new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ),
-    new Conflict(ApiErrorCodes.GENERATION_HELD),
+    new Conflict(ApiErrorCodes.GENERATION_RUNNING),
     new Conflict(ApiErrorCodes.GENERATION_NOT_REGENERABLE),
     new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE),
     new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE),

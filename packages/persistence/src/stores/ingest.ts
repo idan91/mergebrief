@@ -368,8 +368,8 @@ async function findTriggerOnDemandRefusal(
   if (prRow.state !== PrStates.OPEN) {
     return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
-  if (head.held) {
-    return TriggerOnDemandOutcomes.HELD;
+  if (head.claimed) {
+    return TriggerOnDemandOutcomes.RUNNING;
   }
   if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
     return undefined;
@@ -743,7 +743,7 @@ export function createIngestRoutines(
             await stampBriefTriggered(tx, scope, prRow.id, trigger.headSha);
           }
           value.generation = projected.row;
-          if (projected.held) {
+          if (projected.claimed) {
             return value;
           }
           const keepsFinishedRow =
@@ -953,8 +953,8 @@ export function createIngestRoutines(
           headSha,
           baselineSha: null,
         });
-        if (projected.held) {
-          return TriggerOnDemandOutcomes.HELD;
+        if (projected.claimed) {
+          return TriggerOnDemandOutcomes.RUNNING;
         }
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {

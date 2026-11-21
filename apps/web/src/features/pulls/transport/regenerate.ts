@@ -17,7 +17,7 @@ type RegenerateFailureKind = Exclude<
 >;
 
 const RegenerateKinds: WriteKindTable<RegenerateFailureKind> = {
-  [ApiErrorCodes.GENERATION_HELD]: RegenerateResultKinds.HELD,
+  [ApiErrorCodes.GENERATION_RUNNING]: RegenerateResultKinds.RUNNING,
   [ApiErrorCodes.GENERATION_NOT_REGENERABLE]:
     RegenerateResultKinds.NOT_REGENERABLE,
   [ApiErrorCodes.NOT_FOUND]: RegenerateResultKinds.NOT_ALLOWED,

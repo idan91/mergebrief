@@ -13,6 +13,13 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-21)
+
+- **Changed** the `409` code `generation-held` is now `generation-running`,
+  on `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, while a run holds
+  the head. "Held" now names a head that trigger conditions keep from
+  generating; the meaning of the 409 is unchanged.
+
 ## dev (2026-11-18)
 
 - **Added** `q` on `GET /api/inbox`: search text that narrows the list

@@ -29,7 +29,7 @@ describe("regenerateBrief", () => {
   });
 
   it.each([
-    ["generation-held", "held"],
+    ["generation-running", "running"],
     ["generation-not-regenerable", "not-regenerable"],
   ])("maps the 409 %s to the %s kind", async (code, kind) => {
     answerApiFetch(apiFetchMock, 409, code);

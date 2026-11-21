@@ -137,7 +137,7 @@ export const ClaimOutcomes = {
   /** The row is now this run's: a fresh run id, a lease, one paid attempt. */
   CLAIMED: "claimed",
   /** Another run's lease is live; nothing was written. */
-  HELD: "held",
+  RUNNING: "running",
   /** The day's attempts reached the cap; the claim wrote the row's end instead, its `ClaimEnd`. */
   CAPPED: "capped",
   /** The row already succeeded; there is nothing to claim. */
@@ -176,7 +176,7 @@ export const TriggerOnDemandOutcomes = {
   /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
   QUEUED: "queued",
   /** A live claim holds the head; nothing was written. */
-  HELD: "held",
+  RUNNING: "running",
   /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",
   /** The PR is outside the scope, or the scope is an owner's; nothing was written. */

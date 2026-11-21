@@ -186,8 +186,8 @@ describe("claimRun", () => {
 
     const second = await claim(world);
 
-    if (second.kind !== ClaimOutcomes.HELD) {
-      throw new Error(`expected held, got ${second.kind}`);
+    if (second.kind !== ClaimOutcomes.RUNNING) {
+      throw new Error(`expected running, got ${second.kind}`);
     }
     expect(second.leaseRemainingMs).toBeGreaterThan(LEASE_MS - LEASE_SLACK_MS);
     expect(second.leaseRemainingMs).toBeLessThanOrEqual(LEASE_MS);

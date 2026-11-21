@@ -75,7 +75,7 @@ describe.skipIf(databaseUrl === undefined)(
         const outcome = await triggering;
 
         expect(whileUncommitted).toBe("timer");
-        expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
+        expect(outcome).toBe(TriggerOnDemandOutcomes.RUNNING);
         const after = await gen.get(target);
         expect(after?.runId).toBe(LATE_RUN_ID);
         expect(after?.claims).toBe(failed.claims + 1);

@@ -270,7 +270,7 @@ describe("triggerOnDemand", () => {
 
     const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.RUNNING);
     const after = await readRow(world);
     expect(after.runId).toBe(runId);
     expect(after.updatedAt).toEqual(before.updatedAt);
@@ -315,7 +315,7 @@ describe("triggerOnDemand", () => {
 
     const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.RUNNING);
     expect((await readRow(world)).runId).toBe(runId);
     expect(await readJobs()).toHaveLength(1);
   });

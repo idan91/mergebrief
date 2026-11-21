@@ -47,9 +47,9 @@ describe("GenerateNotices", () => {
     ).toBe("This brief no longer waits for a click.");
   });
 
-  it("keeps the shared held copy and stays quiet on queued", () => {
+  it("keeps the shared running copy and stays quiet on queued", () => {
     expect(
-      readRegenerateNotice(t, RegenerateResultKinds.HELD, GenerateNotices),
+      readRegenerateNotice(t, RegenerateResultKinds.RUNNING, GenerateNotices),
     ).toMatch(/already generating/);
     expect(
       readRegenerateNotice(t, RegenerateResultKinds.QUEUED, GenerateNotices),

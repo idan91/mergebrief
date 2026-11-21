@@ -190,7 +190,7 @@ export type SupersededStop = ValueOf<typeof SupersededStops>;
 export const RegenerateResultKinds = {
   QUEUED: "queued",
   /** A run already holds the head; the meta read shows it. */
-  HELD: "held",
+  RUNNING: "running",
   /** The head moved past failed, or failed in a way a rerun cannot help. */
   NOT_REGENERABLE: "not-regenerable",
   /** No push access, no App installation, a token below the write, or the row is gone. */
