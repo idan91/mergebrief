@@ -9,9 +9,12 @@ import {
   MULTI_CALL_SETUP_MINUTES,
 } from "../consts";
 import {
+  EntryWrites,
   HeadReadings,
   type RunContext,
+  type LiveBodyMatcher,
   type SupersessionWatch,
+  type UnreadHeadRead,
 } from "../types";
 import { deriveNextHeadIndex } from "../utils";
 import { isPermanentFailure } from "./errors";
@@ -21,7 +24,7 @@ import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 
 export interface GeneratingEntryPost extends UnreadHeadPost {
   readonly watch: SupersessionWatch;
-  /** The run may release a hold: a live held body is edited in place, so the ready post is the one ping. */
+  /** This head's live held body, if any, is edited in place, so the ready post is the one ping. */
   readonly silent: boolean;
 }
 
@@ -31,11 +34,38 @@ export interface LargeRunCalls {
   readonly missing: number;
 }
 
+function buildHeldBodyMatcher(headSha: string): LiveBodyMatcher {
+  return (live) => isHeadHeldEntryBody(live, headSha);
+}
+
+/**
+ * On an unread head a silent post still edits this head's held body in
+ * place, so a released hold pings once; any other body it replaces only when
+ * the body names this head, and it never creates the comment.
+ */
+async function writeOnUnreadHead(
+  post: GeneratingEntryPost,
+  body: string,
+  head: UnreadHeadRead,
+): Promise<void> {
+  if (post.silent) {
+    const editable = buildHeldBodyMatcher(post.headSha);
+    const edited = await post.entryCommentManager.editMatching(body, editable);
+    if (edited !== EntryWrites.LEFT) {
+      post.log.warn("generate: head unread, the held Entry edited in place", {
+        error: head.error,
+      });
+      return;
+    }
+  }
+  await replaceOnUnreadHead(post, body, head);
+}
+
 /**
  * Settles a generating body whose head is not current: a moved head ends the
  * run before the detail calls and stands the post down after them, an unread
- * one replaces only this head's body. False when the head is current and the
- * caller writes the body.
+ * one writes only over this head's body. False when the head is current and
+ * the caller writes the body.
  */
 async function settleOffHeadPost(
   post: GeneratingEntryPost,
@@ -47,7 +77,7 @@ async function settleOffHeadPost(
     return true;
   }
   if (head.kind === HeadReadings.UNREAD) {
-    await replaceOnUnreadHead(post, body, head);
+    await writeOnUnreadHead(post, body, head);
     return true;
   }
   return false;
@@ -61,10 +91,8 @@ export async function postGeneratingEntry(
     return;
   }
   if (post.silent) {
-    const { headSha } = post;
-    await post.entryCommentManager.editOrRefresh(body, (live) =>
-      isHeadHeldEntryBody(live, headSha),
-    );
+    const editable = buildHeldBodyMatcher(post.headSha);
+    await post.entryCommentManager.editOrRefresh(body, editable);
     return;
   }
   await post.entryCommentManager.refresh(body);

@@ -224,6 +224,13 @@ export function createEntryCommentManager(
     return settleEntryComment(body, isReplaceable, false, refreshEntryComment);
   }
 
+  async function editMatchingEntryComment(
+    body: string,
+    isEditable: LiveBodyMatcher,
+  ): Promise<EntryWrite> {
+    return settleEntryComment(body, isEditable, false, editEntryComment);
+  }
+
   async function settleEntryComment(
     body: string,
     isReplaceable: LiveBodyMatcher,
@@ -456,6 +463,7 @@ export function createEntryCommentManager(
     replaceOrCreate: replaceOrCreateEntryComment,
     editOrCreate: editOrCreateEntryComment,
     replace: replaceEntryComment,
+    editMatching: editMatchingEntryComment,
     editOrRefresh: editOrRefreshEntryComment,
   };
 }
