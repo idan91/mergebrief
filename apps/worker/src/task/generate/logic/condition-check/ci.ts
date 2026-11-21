@@ -125,7 +125,9 @@ function readCheckOutcome(
       ? listLatestOutcomes(reports, check.context)
       : listPinnedOutcomes(reports, check.context, check.appId);
   const outcome = combineOutcomes(outcomes);
-  if (outcome === CheckOutcomes.PASSED && isReadRefused(reports)) {
+  const passedWhileRefused =
+    outcome === CheckOutcomes.PASSED && isReadRefused(reports);
+  if (passedWhileRefused) {
     return CheckOutcomes.MISSING;
   }
   return outcome;
@@ -157,7 +159,8 @@ export function checkCi({
   };
   for (const check of checks) {
     const list = lists[readCheckOutcome(reports, check)];
-    if (list !== undefined && !list.includes(check.context)) {
+    const isNewName = list !== undefined && !list.includes(check.context);
+    if (isNewName) {
       list.push(check.context);
     }
   }
