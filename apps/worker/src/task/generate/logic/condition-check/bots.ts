@@ -140,10 +140,15 @@ function readNormalFindings(text: string | undefined): number | undefined {
   }
 }
 
+function isAnyRun(): boolean {
+  return true;
+}
+
 /**
- * Claude's latest completed run decides: its no-issues title, or no `normal`
- * findings on its severity line. A skipped run, a repeat it did not run, or a
- * missing line gives no verdict.
+ * Claude's latest run on the head decides: while it runs, the bot is running;
+ * once done, its no-issues title, or no `normal` findings on its severity
+ * line. A skipped run, a repeat it did not run, or a missing line gives no
+ * verdict.
  */
 function readCleanHold(
   reports: BotReports,
@@ -152,7 +157,10 @@ function readCleanHold(
   if (facts.reports.statusChecksForbidden) {
     return { state: BotStates.PERMISSION_MISSING };
   }
-  const latest = findLatestRun(reports.runs, (run) => run.completed);
+  const latest = findLatestRun(reports.runs, isAnyRun);
+  if (latest?.completed === false) {
+    return { state: BotStates.RUNNING };
+  }
   if (latest?.title === CLAUDE_NO_ISSUES_TITLE) {
     return undefined;
   }

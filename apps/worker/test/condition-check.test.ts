@@ -1007,6 +1007,36 @@ describe("evaluateTriggerConditions, bots clean", () => {
     expect(unmet).toMatchObject([{ state: "permission-missing" }]);
   });
 
+  it("holds as running while a rerun follows a clean run", () => {
+    const runs = [
+      makeClaudeRun({ title: "Code review found no issues" }),
+      makeClaudeRun({ completed: false }),
+    ];
+
+    const unmet = evaluateBots({ claude: "clean" }, { checkRuns: runs });
+
+    expect(unmet).toMatchObject([{ state: "running" }]);
+  });
+
+  it("holds as running while a rerun follows a run with issues", () => {
+    const runs = [
+      makeClaudeRun({ text: SEVERITY_TWO }),
+      makeClaudeRun({ completed: false }),
+    ];
+
+    const unmet = evaluateBots({ claude: "clean" }, { checkRuns: runs });
+
+    expect(unmet).toEqual([
+      {
+        kind: "bots",
+        setBy: "repo",
+        bot: "claude",
+        verdict: "clean",
+        state: "running",
+      },
+    ]);
+  });
+
   it("holds as running while Claude's only run is in progress", () => {
     const run = makeClaudeRun({ completed: false });
 
