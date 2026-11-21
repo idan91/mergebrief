@@ -196,11 +196,12 @@ function namesKind(
   if (block.off) {
     return false;
   }
-  return (
+  const isKind = (setting: TriggerConditionSetting) => setting.kind === kind;
+  const blockNamesKind =
     block.dropped.includes(kind) ||
-    block.all.some((setting) => setting.kind === kind) ||
-    block.any.some((setting) => setting.kind === kind)
-  );
+    block.all.some(isKind) ||
+    block.any.some(isKind);
+  return blockNamesKind;
 }
 
 /**
