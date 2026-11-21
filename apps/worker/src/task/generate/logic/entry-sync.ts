@@ -45,6 +45,7 @@ import {
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type LiveBodyMatcher,
+  type RunContext,
   type RunStart,
   type SupersessionWatch,
 } from "../types";
@@ -114,16 +115,25 @@ async function enqueueEntrySync(
 
 export interface LandedWriteCheck {
   readonly watch: Pick<SupersessionWatch, "readHead" | "getObserved">;
-  /** The run's head, the one its own bodies name. */
-  readonly headSha: string;
   readonly queueEntrySync: (headSha: string) => Promise<void>;
+}
+
+/** The landed-write check of a run's own Entry write. */
+export function buildLandedWriteCheck(
+  context: Pick<RunContext, "deps" | "payload" | "log" | "watch">,
+): LandedWriteCheck {
+  return {
+    watch: context.watch,
+    queueEntrySync: (headSha) => queueEntrySync(context, headSha),
+  };
 }
 
 /**
  * A write lands after the head read that cleared it, so a newer head's body
  * posted in between is gone under it. A head that moved meanwhile gets its
- * own sync, which renders that head's body from its row; a head read that
- * fails queues this head's.
+ * own sync, which renders that head's body from its row. A failed read
+ * queues nothing, since this head's sync stands down on a moved head: the
+ * thread keeps this body until the newer head's next Entry write.
  */
 export async function queueSyncAfterLandedWrite(
   check: LandedWriteCheck,
@@ -133,13 +143,14 @@ export async function queueSyncAfterLandedWrite(
     return;
   }
   const head = await check.watch.readHead();
-  if (head.kind === HeadReadings.CURRENT) {
+  if (head.kind !== HeadReadings.MOVED) {
     return;
   }
 
   const movedTo = check.watch.getObserved()?.headSha;
-  const moved = head.kind === HeadReadings.MOVED && movedTo !== undefined;
-  await check.queueEntrySync(moved ? movedTo : check.headSha);
+  if (movedTo !== undefined) {
+    await check.queueEntrySync(movedTo);
+  }
 }
 
 /**

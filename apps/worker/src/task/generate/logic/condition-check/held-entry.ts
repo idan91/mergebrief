@@ -14,7 +14,11 @@ import {
 } from "../../types";
 import { buildHeldEntryLinks } from "../../utils";
 import { resolveEntryCommentAllowed } from "../entry-comment-gate";
-import { queueEntrySync, queueSyncAfterLandedWrite } from "../entry-sync";
+import {
+  buildLandedWriteCheck,
+  queueEntrySync,
+  queueSyncAfterLandedWrite,
+} from "../entry-sync";
 import { postStatusEntry } from "../status-entry";
 
 /**
@@ -50,12 +54,7 @@ export async function postHeldEntry(
       isEntryCommentBody(live) && !isHeadClosedEntryBody(live, headSha);
     return editable;
   };
-  const landedWriteCheck = {
-    watch: context.watch,
-    headSha,
-    queueEntrySync: (syncHeadSha: string) =>
-      queueEntrySync(context, syncHeadSha),
-  };
+  const landedWriteCheck = buildLandedWriteCheck(context);
   await postStatusEntry(context, {
     body,
     status: GenerationStatuses.HELD,

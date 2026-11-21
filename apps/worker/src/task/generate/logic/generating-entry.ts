@@ -17,7 +17,11 @@ import {
   type UnreadHeadRead,
 } from "../types";
 import { deriveNextHeadIndex } from "../utils";
-import { queueSyncAfterLandedWrite, type LandedWriteCheck } from "./entry-sync";
+import {
+  buildLandedWriteCheck,
+  queueSyncAfterLandedWrite,
+  type LandedWriteCheck,
+} from "./entry-sync";
 import { isPermanentFailure } from "./errors";
 import { isRunSignal } from "./run-signals";
 import { readEntryPostHead } from "./supersession-watch";
@@ -54,6 +58,7 @@ async function writeOnUnreadHead(
     post.log.warn("generate: head unread, the held Entry edited in place", {
       error: head.error,
     });
+    await queueSyncAfterLandedWrite(post, edited);
     return;
   }
   if (edited !== EntryWrites.LEFT) {
@@ -184,5 +189,6 @@ async function editLargeGeneratingEntry(
     );
     return;
   }
-  await entryCommentManager.edit(body);
+  const written = await entryCommentManager.edit(body);
+  await queueSyncAfterLandedWrite(buildLandedWriteCheck(context), written);
 }
