@@ -209,6 +209,23 @@ describe("selectRedeliveries", () => {
     ).toEqual([4, 3]);
   });
 
+  it("resends pull request deliveries ahead of older status checks", () => {
+    const reports = Array.from({ length: 25 }, (_, index) =>
+      makeDelivery(index + 1, `s${String(index)}`, 502, 2 * HOUR_MS + index, {
+        event: index % 2 === 0 ? "check_run" : "status",
+      }),
+    );
+    const pushes = [
+      makeDelivery(101, "p1", 502, HOUR_MS),
+      makeDelivery(102, "p2", 502, HOUR_MS + 1),
+    ];
+
+    const selected = selectIds([...reports, ...pushes]);
+
+    expect(selected).toHaveLength(20);
+    expect(selected.slice(0, 2)).toEqual([102, 101]);
+  });
+
   it("sends at most twenty in one tick", () => {
     const failed = Array.from({ length: 30 }, (_, index) =>
       makeDelivery(index + 1, `g${String(index)}`, 502, HOUR_MS + index),
@@ -219,6 +236,33 @@ describe("selectRedeliveries", () => {
 });
 
 describe("the reconcile task", () => {
+  const listNoFailures: ReconcileWebhookDeliveriesTaskDeps["listFailedDeliveries"] =
+    async () => ({ ok: true, value: { deliveries: [] } });
+
+  function makeCappedTask(
+    unreadFailures: readonly HookDelivery[],
+    log: ReconcileWebhookDeliveriesTaskDeps["log"],
+  ): () => Promise<void> {
+    return createReconcileWebhookDeliveriesTask({
+      listDeliveries: async () => ({
+        ok: true,
+        value: {
+          deliveries: [
+            makeDelivery(1, "a", 200, HOUR_MS, { event: "check_run" }),
+          ],
+          nextCursor: "more",
+        },
+      }),
+      listFailedDeliveries: async () => ({
+        ok: true,
+        value: { deliveries: unreadFailures },
+      }),
+      redeliver: makeRedeliverSpy().redeliver,
+      log,
+      now: () => NOW,
+    });
+  }
+
   function makeRedeliverSpy(
     failOn?: number,
     failure: { readonly code: string; readonly status?: number } = {
@@ -264,6 +308,7 @@ describe("the reconcile task", () => {
           },
         };
       },
+      listFailedDeliveries: listNoFailures,
       redeliver: spy.redeliver,
       log: captureLogger().logger,
       now: () => NOW,
@@ -287,6 +332,7 @@ describe("the reconcile task", () => {
           ],
         },
       }),
+      listFailedDeliveries: listNoFailures,
       redeliver: spy.redeliver,
       log: captureLogger().logger,
       now: () => NOW,
@@ -310,6 +356,7 @@ describe("the reconcile task", () => {
           ],
         },
       }),
+      listFailedDeliveries: listNoFailures,
       redeliver: spy.redeliver,
       log: capture.logger,
       now: () => NOW,
@@ -327,6 +374,7 @@ describe("the reconcile task", () => {
         ok: false,
         error: { code: "server-error" },
       }),
+      listFailedDeliveries: listNoFailures,
       redeliver: spy.redeliver,
       log: captureLogger().logger,
       now: () => NOW,
@@ -345,6 +393,7 @@ describe("the reconcile task", () => {
         pages += 1;
         return { ok: true, value: { deliveries: [], nextCursor: "more" } };
       },
+      listFailedDeliveries: listNoFailures,
       redeliver: spy.redeliver,
       log: captureLogger().logger,
       now: () => NOW,
@@ -352,6 +401,75 @@ describe("the reconcile task", () => {
 
     await task();
 
-    expect(pages).toBe(10);
+    expect(pages).toBe(100);
+  });
+
+  it("logs below warn when only status checks went unread", async () => {
+    const capture = captureLogger();
+    const task = makeCappedTask(
+      [
+        makeDelivery(2, "b", 502, 10 * HOUR_MS, { event: "check_run" }),
+        makeDelivery(3, "c", 500, 20 * HOUR_MS, { event: "status" }),
+        makeDelivery(4, "d", 502, 30 * MINUTE_MS),
+      ],
+      capture.logger,
+    );
+
+    await task();
+
+    const levels = capture.readLines().map((line) => line["level"]);
+    expect(levels).toEqual(["info"]);
+  });
+
+  it("warns when a failed pull request delivery went unread", async () => {
+    const capture = captureLogger();
+    const task = makeCappedTask(
+      [
+        makeDelivery(2, "b", 502, 10 * HOUR_MS, { event: "check_run" }),
+        makeDelivery(3, "c", 502, 20 * HOUR_MS),
+      ],
+      capture.logger,
+    );
+
+    await task();
+
+    expect(capture.readLines()).toEqual([
+      expect.objectContaining({ level: "warn", unreadFailures: 1 }),
+    ]);
+  });
+
+  it("counts no unread failure past GitHub's redelivery window", async () => {
+    const capture = captureLogger();
+    const task = makeCappedTask(
+      [makeDelivery(2, "b", 502, 71.5 * HOUR_MS)],
+      capture.logger,
+    );
+
+    await task();
+
+    const levels = capture.readLines().map((line) => line["level"]);
+    expect(levels).toEqual(["info"]);
+  });
+
+  it("warns when the unread failures cannot be listed", async () => {
+    const capture = captureLogger();
+    const task = createReconcileWebhookDeliveriesTask({
+      listDeliveries: async () => ({
+        ok: true,
+        value: { deliveries: [], nextCursor: "more" },
+      }),
+      listFailedDeliveries: async () => ({
+        ok: false,
+        error: { code: "server-error" },
+      }),
+      redeliver: makeRedeliverSpy().redeliver,
+      log: capture.logger,
+      now: () => NOW,
+    });
+
+    await task();
+
+    const levels = capture.readLines().map((line) => line["level"]);
+    expect(levels).toEqual(["warn"]);
   });
 });

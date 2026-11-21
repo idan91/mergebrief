@@ -117,6 +117,9 @@ export type {
   ParsedInstallationEvent,
   ParsedInstallationRepositoriesEvent,
   ParsedGitHubAppAuthorizationEvent,
+  ParsedCheckRunEvent,
+  ParsedStatusEvent,
+  ParsedStatusCheck,
   IgnoredWebhookEvent,
   EventParseError,
   EventParseErrorCode,
@@ -127,9 +130,11 @@ export type {
 } from "./webhook/events";
 export {
   AuthorAssociations,
+  CheckRunActions,
   GitHubAppAuthorizationActions,
   TRUSTED_AUTHOR_ASSOCIATIONS,
   type AuthorAssociation,
+  type CheckRunAction,
   type GitHubAppAuthorizationAction,
 } from "./webhook/types";
 
@@ -156,6 +161,7 @@ export {
 export type { InstallationRepository, RepositoryInfo } from "./operations/repo";
 // Installation presence, on the App's own JWT: 404 reads gone.
 export {
+  listFailedHookDeliveries,
   listHookDeliveries,
   redeliverHookDelivery,
 } from "./operations/hook-deliveries";

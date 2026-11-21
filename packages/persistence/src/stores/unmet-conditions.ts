@@ -8,6 +8,7 @@ import {
   TriggerConditionKinds,
   TriggerConditionSetters,
   UnmetConditionKinds,
+  type TriggerConditionKind,
   type UnmetBaseBranches,
   type UnmetCondition,
   type UnmetPlainCondition,
@@ -207,6 +208,39 @@ function readStoredItem(item: unknown): StoredItemRead {
     kept: { kind: UnmetConditionKinds.ANY, conditions: members },
     dropped,
   };
+}
+
+/** The kinds a check run or status can move: only they read the head's reports. */
+const STATUS_CHECK_KINDS: ReadonlySet<TriggerConditionKind> = new Set([
+  TriggerConditionKinds.BOTS,
+  TriggerConditionKinds.CI,
+]);
+
+function isStatusCheckKind(condition: UnmetPlainCondition): boolean {
+  return STATUS_CHECK_KINDS.has(condition.kind);
+}
+
+/**
+ * Whether a check run or status can move a held head: a `bots` or `ci` item
+ * holds it, alone or in an `any` group. A document read only in part, or
+ * with nothing readable, answers true: an item this build cannot read may be
+ * one a report moves, so the head is checked again rather than left.
+ */
+export function isHeldOnStatusChecks(stored: string | null): boolean {
+  const parsed = parseUnmetConditions(stored);
+  if (parsed === undefined || parsed.partial) {
+    return true;
+  }
+  const { conditions } = parsed;
+  if (conditions.length === 0) {
+    return true;
+  }
+  return conditions.some((condition) => {
+    if (condition.kind !== UnmetConditionKinds.ANY) {
+      return isStatusCheckKind(condition);
+    }
+    return condition.conditions.some(isStatusCheckKind);
+  });
 }
 
 /**

@@ -82,26 +82,26 @@ async function parseDeliveriesBody(body: unknown): Promise<unknown> {
   return parsed;
 }
 
-export async function listHookDeliveries(
+/** GitHub's delivery outcome filter: `failure` lists status codes 400 to 599 alone. */
+const FAILURE_OUTCOME = "failure";
+
+interface DeliveriesQuery {
+  per_page: number;
+  cursor?: string;
+  status?: typeof FAILURE_OUTCOME;
+  request: { parseSuccessResponseBody: boolean };
+}
+
+async function requestDeliveriesPage(
   app: AppClient,
-  cursor?: string,
+  query: DeliveriesQuery,
 ): Promise<Result<HookDeliveryPage, GitHubApiError>> {
   try {
-    const parameters: {
-      per_page: number;
-      cursor?: string;
-      request: { parseSuccessResponseBody: boolean };
-    } = {
-      per_page: PAGE_SIZE,
-      request: { parseSuccessResponseBody: false },
-    };
-    if (cursor !== undefined) {
-      parameters.cursor = cursor;
-    }
-    const response = await app.octokit.request(
-      "GET /app/hook/deliveries",
-      parameters,
-    );
+    const response = await app.octokit.request({
+      method: "GET",
+      url: "/app/hook/deliveries",
+      ...query,
+    });
     const parsed = hookDeliveriesSchema.safeParse(
       await parseDeliveriesBody(response.data),
     );
@@ -123,6 +123,38 @@ export async function listHookDeliveries(
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "list hook deliveries") };
   }
+}
+
+function makeDeliveriesQuery(cursor: string | undefined): DeliveriesQuery {
+  const query: DeliveriesQuery = {
+    per_page: PAGE_SIZE,
+    request: { parseSuccessResponseBody: false },
+  };
+  if (cursor !== undefined) {
+    query.cursor = cursor;
+  }
+  return query;
+}
+
+/** Every attempt, newest first. */
+export async function listHookDeliveries(
+  app: AppClient,
+  cursor?: string,
+): Promise<Result<HookDeliveryPage, GitHubApiError>> {
+  return requestDeliveriesPage(app, makeDeliveriesQuery(cursor));
+}
+
+/**
+ * The attempts GitHub classes as failed, newest first. An attempt that never
+ * connected (status 0) is not among them.
+ */
+export async function listFailedHookDeliveries(
+  app: AppClient,
+  cursor?: string,
+): Promise<Result<HookDeliveryPage, GitHubApiError>> {
+  const query = makeDeliveriesQuery(cursor);
+  query.status = FAILURE_OUTCOME;
+  return requestDeliveriesPage(app, query);
 }
 
 /** GitHub answers 422 when it reads the attempts as spam. */

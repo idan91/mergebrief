@@ -2,6 +2,7 @@ import { RequestError, type Octokit } from "octokit";
 import type { z } from "zod/v4";
 import { HttpStatuses } from "types/http";
 import type { Mutable, Result } from "types/utils";
+import { CHECK_RUN_COMPLETED_STATUS } from "../../types";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -16,7 +17,6 @@ import {
 import type { BranchRef, CheckRun, CommitRef, CommitStatus } from "./types";
 
 const PER_PAGE = 100;
-const COMPLETED_STATUS = "completed";
 const REQUIRED_STATUS_CHECKS_RULE = "required_status_checks";
 /** GitHub Free answers a private repository's rules read with a 403 asking for an upgrade. */
 const UPGRADE_REQUIRED_PATTERN = /\bupgrade\b/i;
@@ -25,7 +25,7 @@ type CheckRunEntry = z.infer<typeof checkRunListSchema>[number];
 type CommitStatusEntry = z.infer<typeof commitStatusListSchema>[number];
 
 function shapeCheckRun(entry: CheckRunEntry): CheckRun {
-  const completed = entry.status === COMPLETED_STATUS;
+  const completed = entry.status === CHECK_RUN_COMPLETED_STATUS;
   const run: Mutable<CheckRun> = {
     checkRunId: BigInt(entry.id),
     name: entry.name,

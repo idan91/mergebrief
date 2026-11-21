@@ -5,15 +5,17 @@
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
-// rows and enqueue one debounced job, with no model call. The only GitHub calls are bounded
+// rows and enqueue one debounced job, with no model call. A finished check run or a status writes
+// no row beyond its signature, recorded as below; `recheckHeadsAtSha` decides which heads at
+// its SHA wake. The only GitHub calls are bounded
 // confirmation reads, no retry, well inside the budget: a destructive event's before it
 // purges, and the repository permission of a reviewer or PR author no association trusts,
 // whose failure counts them off the team.
 // Natural-key upserts plus graphile job_key replacement make redelivery idempotent. A pull
-// request or review delivery's signature digest is recorded after its dispatch succeeds, and
-// the same signature within 72h is skipped; a failed one records nothing, so its redelivery
-// processes. Concurrent duplicates both process: the seen-set holds no lock, the writes are
-// idempotent. A destructive event bypasses the seen-set: its confirmation is its replay guard.
+// request, review, check run or status delivery's signature digest is recorded after its
+// dispatch succeeds, and the same signature within 72h is skipped; a failed one records
+// nothing, so its redelivery processes. Concurrent duplicates both process: the seen-set
+// holds no lock, the writes are idempotent. A destructive event bypasses the seen-set: its confirmation is its replay guard.
 //
 // Status contract:
 //   401 missing or invalid signature (nothing parsed, nothing written)
@@ -47,6 +49,7 @@ import {
   TRUSTED_COLLABORATOR_PERMISSIONS,
   parseWebhookEvent,
   verifyWebhookSignature,
+  type ParsedStatusCheck,
   type ParsedGitHubAppAuthorizationEvent,
   type ParsedInstallationEvent,
   type ParsedInstallationRepositoriesEvent,
@@ -130,6 +133,20 @@ interface RepositoryPerson {
   readonly logFields: Readonly<Record<string, unknown>>;
 }
 
+/** Kinds that start or wake a run, so an unlisted repository owner's are dropped. */
+const OWNER_GATED_KINDS = [
+  ParsedWebhookEventKinds.PULL_REQUEST,
+  ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
+  ParsedWebhookEventKinds.CHECK_RUN,
+  ParsedWebhookEventKinds.STATUS,
+] as const;
+
+/** A delivery naming a repository, which `allowed.accounts` gates by its owner. */
+type RepositoryDelivery = Extract<
+  ParsedWebhookEvent,
+  { readonly kind: (typeof OWNER_GATED_KINDS)[number] }
+>;
+
 /** What a trigger sets beyond the event itself. */
 type TriggerOptions = Pick<
   TriggerGenerationInput,
@@ -149,6 +166,10 @@ const DISPATCHED: Result<void, ConfirmationFailure> = {
   ok: true,
   value: undefined,
 };
+
+const OWNER_GATED_KIND_SET: ReadonlySet<ParsedWebhookEventKind> = new Set(
+  OWNER_GATED_KINDS,
+);
 
 /** Half of GitHub's 10s delivery budget: the purge and the answer need the rest. */
 const CONFIRMATION_TIMEOUT_MS = 5 * 1000;
@@ -796,6 +817,30 @@ async function handleInstallationRepositories(
   return DISPATCHED;
 }
 
+/**
+ * A fork PR's run names no PR and a status never does, so the SHA finds the
+ * PRs; `recheckHeadsAtSha` owns which heads wake and when.
+ */
+async function handleStatusCheck(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedStatusCheck,
+  log: Logger,
+): Promise<void> {
+  const ingest = createIngestRoutines(handle, ctx);
+  const { rechecked } = await ingest.recheckHeadsAtSha({
+    repoId: event.repoId,
+    headSha: event.headSha,
+  });
+  if (rechecked.length > 0) {
+    log.debug("status check woke heads", {
+      repoId: String(event.repoId),
+      headSha: event.headSha,
+      prIds: rechecked.map(String),
+    });
+  }
+}
+
 /** A revoked authorization ends every sign-in of that user; GitHub already killed the token. */
 async function handleAppAuthorization(
   handle: AppDatabase,
@@ -812,6 +857,12 @@ async function handleAppAuthorization(
   });
 }
 
+function isRepositoryDelivery(
+  event: ParsedWebhookEvent,
+): event is RepositoryDelivery {
+  return OWNER_GATED_KIND_SET.has(event.kind);
+}
+
 /**
  * A delivery naming no owner matches nothing, so it starts nothing. Checked
  * ahead of the seen-set: a drop records nothing, so a redelivery after the
@@ -820,11 +871,8 @@ async function handleAppAuthorization(
 function findUnlistedOwnerDelivery(
   deps: WebhookRouteDeps,
   event: ParsedWebhookEvent,
-): ParsedPullRequestEvent | ParsedPullRequestReviewEvent | undefined {
-  const startsRuns =
-    event.kind === ParsedWebhookEventKinds.PULL_REQUEST ||
-    event.kind === ParsedWebhookEventKinds.PULL_REQUEST_REVIEW;
-  if (!startsRuns) {
+): RepositoryDelivery | undefined {
+  if (!isRepositoryDelivery(event)) {
     return undefined;
   }
   const ownerId = event.repoOwnerId;
@@ -840,7 +888,7 @@ function findUnlistedOwnerDelivery(
  */
 async function recordUnlistedLifecycle(
   deps: WebhookRouteDeps,
-  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+  event: RepositoryDelivery,
 ): Promise<void> {
   if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
     return;
@@ -900,6 +948,10 @@ async function dispatch(
       return handleInstallation(deps, ctx, event, log);
     case ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES:
       return handleInstallationRepositories(deps, ctx, event, log);
+    case ParsedWebhookEventKinds.CHECK_RUN:
+    case ParsedWebhookEventKinds.STATUS:
+      await handleStatusCheck(deps.handle, ctx, event, log);
+      return DISPATCHED;
   }
 }
 
@@ -908,6 +960,26 @@ interface VerifiedDelivery {
   readonly signature: string;
   readonly deliveryId: DeliveryId | undefined;
   readonly receivedAt: Date;
+}
+
+/** A push brings status checks by the dozen, so their drops log at debug. */
+const QUIET_DROP_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
+  ParsedWebhookEventKinds.CHECK_RUN,
+  ParsedWebhookEventKinds.STATUS,
+]);
+
+function logUnlistedDrop(log: Logger, delivery: RepositoryDelivery): void {
+  const message =
+    "webhook: ignored a delivery from an account this instance does not list";
+  const fields = {
+    accountId: String(delivery.repoOwnerId),
+    repo: delivery.repoFullName,
+  };
+  if (QUIET_DROP_KINDS.has(delivery.kind)) {
+    log.debug(message, fields);
+    return;
+  }
+  log.warn(message, fields);
 }
 
 /**
@@ -922,13 +994,7 @@ async function dispatchOnce(
 ): Promise<Result<void, ConfirmationFailure>> {
   const unlisted = findUnlistedOwnerDelivery(deps, event);
   if (unlisted !== undefined) {
-    log.warn(
-      "webhook: ignored a delivery from an account this instance does not list",
-      {
-        accountId: String(unlisted.repoOwnerId),
-        repo: unlisted.repoFullName,
-      },
-    );
+    logUnlistedDrop(log, unlisted);
     await recordUnlistedLifecycle(deps, unlisted);
     return DISPATCHED;
   }

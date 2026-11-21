@@ -21,4 +21,13 @@ export const ATTEMPT_WAITS_MS: readonly number[] = [
 ];
 
 export const MAX_REDELIVERIES_PER_TICK = 20;
-export const MAX_PAGES_PER_TICK = 10;
+/**
+ * Check run and status deliveries fill the App's log by the dozen per push.
+ * Each page is one App JWT request: with the failed-only pages below, at most
+ * 440 an hour at a tick every 15 minutes. A failure older than the last page
+ * read is never seen.
+ */
+export const MAX_PAGES_PER_TICK = 100;
+
+/** The failed-only pages read past that cap, to tell what went unread. */
+export const MAX_FAILURE_PAGES_PER_TICK = 10;
