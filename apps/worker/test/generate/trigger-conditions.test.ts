@@ -950,7 +950,7 @@ describe("generate task, trigger conditions", () => {
     github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
     addSettings(github, PATHS_SETTINGS);
 
-    await makeTask({ github })(payload);
+    await makeLargePoolTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toEqual([
@@ -965,7 +965,7 @@ describe("generate task, trigger conditions", () => {
     github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
     addSettings(github, PATHS_SETTINGS);
 
-    await makeTask({ github })(payload);
+    await makeLargePoolTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).not.toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toBeUndefined();
@@ -978,7 +978,7 @@ describe("generate task, trigger conditions", () => {
     github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
     addSettings(github, PATHS_OR_LABELS_SETTINGS);
 
-    await makeTask({ github })(payload);
+    await makeLargePoolTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toEqual([
