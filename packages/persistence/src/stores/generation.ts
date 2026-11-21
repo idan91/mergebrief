@@ -288,8 +288,11 @@ interface ReleaseClaimOptions {
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
-  /** A run owns the row, so a projection leaves every column as stored. */
-  readonly running: boolean;
+  /**
+   * The projection keeps the row in flight (a live claim, or the previous
+   * release's running row), so it leaves every column as stored.
+   */
+  readonly inFlight: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -750,12 +753,12 @@ function computeLeaseRemainingMs(): SQL<number> {
  * What the projection keeps as it is: a live lease, or a `running` row with no
  * claim, which the previous release's worker leaves behind while it runs.
  */
-function isProjectionRunning(): SQL {
+function isProjectionInFlight(): SQL {
   return sql`(${isLeaseLive()} or (${generation.runId} is null and ${generation.status} = ${GenerationStatuses.RUNNING}))`;
 }
 
-function keepWhileRunning(column: PgColumn, reset: SQL | string | null): SQL {
-  return sql`case when ${isProjectionRunning()} then ${column} else ${reset} end`;
+function keepWhileInFlight(column: PgColumn, reset: SQL | string | null): SQL {
+  return sql`case when ${isProjectionInFlight()} then ${column} else ${reset} end`;
 }
 
 const CLAIM_CLEARED = {
@@ -784,25 +787,26 @@ const TERMINAL_CLEARED = {
 /**
  * A trigger's reset of a row already on the key: `status` with `attempts` as
  * given, clearing `phase`, the error columns, `repo_config` and the claim. A
- * row a live claim names keeps every column, so a live run is never
- * clobbered and a dropped trigger is not a paid attempt; a `running` row
- * whose lease lapsed (a dead worker) is projected afresh.
+ * row the projection keeps in flight (a live claim, or the previous release's
+ * running row) keeps every column, so a live run is never clobbered and a
+ * dropped trigger is not a paid attempt; a `running` row whose lease lapsed
+ * (a dead worker) is projected afresh.
  */
 function buildTriggerReset(
   status: GenerationStatus,
   attempts: SQL,
 ): GenerationSet {
   return {
-    status: keepWhileRunning(generation.status, status),
-    attempts: keepWhileRunning(generation.attempts, attempts),
-    phase: keepWhileRunning(generation.phase, null),
-    errorCode: keepWhileRunning(generation.errorCode, null),
-    errorParams: keepWhileRunning(generation.errorParams, null),
-    repoConfig: keepWhileRunning(generation.repoConfig, null),
-    runId: keepWhileRunning(generation.runId, null),
-    leaseExpiresAt: keepWhileRunning(generation.leaseExpiresAt, null),
-    claims: keepWhileRunning(generation.claims, sql`0`),
-    awaitsRecovery: keepWhileRunning(generation.awaitsRecovery, sql`false`),
+    status: keepWhileInFlight(generation.status, status),
+    attempts: keepWhileInFlight(generation.attempts, attempts),
+    phase: keepWhileInFlight(generation.phase, null),
+    errorCode: keepWhileInFlight(generation.errorCode, null),
+    errorParams: keepWhileInFlight(generation.errorParams, null),
+    repoConfig: keepWhileInFlight(generation.repoConfig, null),
+    runId: keepWhileInFlight(generation.runId, null),
+    leaseExpiresAt: keepWhileInFlight(generation.leaseExpiresAt, null),
+    claims: keepWhileInFlight(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileInFlight(generation.awaitsRecovery, sql`false`),
     updatedAt: stampWriteTime(),
   };
 }
@@ -865,15 +869,15 @@ async function projectTriggeredRow(
     })
     .returning({
       ...getTableColumns(generation),
-      running: sql<boolean>`${isProjectionRunning()}`,
+      inFlight: sql<boolean>`${isProjectionInFlight()}`,
     });
   const projected = rows[0];
   if (projected === undefined) {
     throw new Error("generation projection returned no row");
   }
 
-  const { running, ...row } = projected;
-  return { row, running };
+  const { inFlight, ...row } = projected;
+  return { row, inFlight };
 }
 
 /**
@@ -984,7 +988,7 @@ export async function readCurrentBriefHead(
   const rows = await executor
     .select({
       row: getTableColumns(generation),
-      running: sql<boolean>`${isProjectionRunning()}`,
+      inFlight: sql<boolean>`${isProjectionInFlight()}`,
     })
     .from(generation)
     .where(
@@ -1290,7 +1294,7 @@ export function createGenerationProjection(
         and(
           keyWhere(target),
           ne(generation.status, GenerationStatuses.SUCCEEDED),
-          not(isProjectionRunning()),
+          not(isProjectionInFlight()),
           isWrittenBy(pickedUpAt),
         ),
       )

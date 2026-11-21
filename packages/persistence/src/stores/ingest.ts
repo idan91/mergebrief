@@ -368,7 +368,7 @@ async function findTriggerOnDemandRefusal(
   if (prRow.state !== PrStates.OPEN) {
     return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
-  if (head.running) {
+  if (head.inFlight) {
     return TriggerOnDemandOutcomes.RUNNING;
   }
   if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
@@ -428,8 +428,8 @@ export interface TriggerGenerationInput {
    * Replace a pending job's `run_at` with this trigger's window instead of
    * keeping the first push's. The `ready_for_review` flip sets it so a
    * draft-damped job is pulled in to the short window; nothing else should,
-   * since every replace re-arms the debounce. A claimed head still gets no
-   * job; the live run reads the flip itself.
+   * since every replace re-arms the debounce. A head the projection keeps in
+   * flight still gets no job; the live run reads the flip itself.
    */
   readonly refreshRunAt?: boolean;
   /**
@@ -717,9 +717,10 @@ export function createIngestRoutines(
         }
 
         // 2. Project the brief generation as `pending`, or `awaiting-trigger`
-        // while the PR owes an approval. A claimed head is never re-enqueued,
-        // refreshRunAt included: under N slots a fresh job for the same head
-        // would run beside the live one. The live run re-reads draft state
+        // while the PR owes an approval. A head the projection keeps in flight
+        // (a live claim, or the previous release's running row) is never
+        // re-enqueued, refreshRunAt included: under N slots a fresh job for
+        // the same head would run beside the live one. The live run re-reads draft state
         // before its ready Entry instead. A gated trigger on a head that
         // already has a row keeps it, and queues a job only while that row
         // still waits for one, so a failed head keeps its failure.
@@ -743,7 +744,7 @@ export function createIngestRoutines(
             await stampBriefTriggered(tx, scope, prRow.id, trigger.headSha);
           }
           value.generation = projected.row;
-          if (projected.running) {
+          if (projected.inFlight) {
             return value;
           }
           const keepsFinishedRow =
@@ -953,7 +954,7 @@ export function createIngestRoutines(
           headSha,
           baselineSha: null,
         });
-        if (projected.running) {
+        if (projected.inFlight) {
           return TriggerOnDemandOutcomes.RUNNING;
         }
         const approves = awaitingTrigger && approverId !== undefined;

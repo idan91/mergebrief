@@ -157,7 +157,7 @@ export const ClaimEnds = {
   KEPT_FAILED: "kept-failed",
   /** The pair's brief is stored, so the row is `succeeded`. */
   SETTLED: "settled",
-  /** Over a stored brief, the row was written after the run's pickup or a previous release's run holds it; it is left to that writer. */
+  /** Over a stored brief, the row was written after the run's pickup or the projection keeps it in flight (a live claim, or the previous release's running row); it is left to that writer. */
   LEFT: "left",
 } as const;
 export type ClaimEnd = ValueOf<typeof ClaimEnds>;
