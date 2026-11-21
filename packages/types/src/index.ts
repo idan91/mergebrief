@@ -109,3 +109,13 @@ export {
   type ComparisonBaselineLabel,
 } from "./comparisons";
 export { TicketTrackers, type TicketTracker } from "./trackers";
+export {
+  BotVerdicts,
+  ReviewBots,
+  TriggerConditionKinds,
+  TriggerConditionSources,
+  type BotVerdict,
+  type ReviewBot,
+  type TriggerConditionKind,
+  type TriggerConditionSource,
+} from "./trigger-conditions";

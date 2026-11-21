@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import type { ConfigError } from "../contract/errors";
 import { ENV_VAR_NAME } from "./consts";
-import { renderKey } from "./readRoot";
+import { renderKey } from "./render-key";
 
 /**
  * The instance-config `contextSources:` block: the providers that need a

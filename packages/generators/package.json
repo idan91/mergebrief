@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./generation": "./src/contract/generation.ts",
     "./instance-policy": "./src/config/instancePolicy.ts",
-    "./trackers": "./src/config/trackers.ts"
+    "./trackers": "./src/config/trackers.ts",
+    "./trigger-conditions": "./src/config/trigger-conditions/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
