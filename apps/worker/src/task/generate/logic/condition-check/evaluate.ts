@@ -107,9 +107,7 @@ function checkSize(
   input: KindCheckInput<typeof TriggerConditionKinds.SIZE>,
 ): UnmetPlainCondition[] {
   const measures = Object.values(SizeMeasures);
-  return measures.flatMap((measure) =>
-    listMissedSizeBounds(measure, input),
-  );
+  return measures.flatMap((measure) => listMissedSizeBounds(measure, input));
 }
 
 function checkReviewRequested({
