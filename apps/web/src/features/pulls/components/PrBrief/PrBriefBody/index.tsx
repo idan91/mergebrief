@@ -29,7 +29,7 @@ import { readEmptyCopyOverride, readSupersededAnnouncementKey } from "./utils";
 
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;
 
-/** The draft-policy notice for this meta (null for non-authors/defaults). */
+/** The draft-policy notice for this meta (absent for non-authors/defaults). */
 function metaPolicyNotice(t: TFunction, meta: PrSummary) {
   return draftPolicyNotice(t, meta.draftPolicy, meta);
 }
@@ -71,7 +71,7 @@ export function stateAnnouncement(
         status: state.status,
         phase: state.phase,
         waitReason: state.waitReason,
-        pendingNotice: notice?.kind === "damped" ? notice.text : undefined,
+        pendingNotice: notice?.text,
       });
     case "failed":
       return t("pulls.announce.failed");
@@ -173,9 +173,7 @@ function PrBriefBodyState({
             parts={state.parts}
             phase={state.phase}
             prNumber={prNumber}
-            pendingNotice={
-              policyNotice?.kind === "damped" ? policyNotice.text : undefined
-            }
+            pendingNotice={policyNotice?.text}
             repoId={repoId}
             rerun={{
               prState: meta.state,

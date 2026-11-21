@@ -26,29 +26,29 @@ describe("draftPolicyNotice", () => {
   const ownDraft = { draft: true, viewerIsAuthor: true };
   const damped = { debounceSeconds: 900 };
 
-  it("is null for anyone but the draft's own author", () => {
+  it("is absent for anyone but the draft's own author", () => {
     expect(
       draftPolicyNotice(t, damped, { draft: true, viewerIsAuthor: false }),
-    ).toBeNull();
+    ).toBeUndefined();
     expect(
       draftPolicyNotice(t, damped, { draft: false, viewerIsAuthor: true }),
-    ).toBeNull();
+    ).toBeUndefined();
   });
 
-  it("is null when the policy is absent or all-default", () => {
-    expect(draftPolicyNotice(t, undefined, ownDraft)).toBeNull();
-    expect(draftPolicyNotice(t, {}, ownDraft)).toBeNull();
+  it("is absent when the policy is absent or all-default", () => {
+    expect(draftPolicyNotice(t, undefined, ownDraft)).toBeUndefined();
+    expect(draftPolicyNotice(t, {}, ownDraft)).toBeUndefined();
   });
 
   it("states the CONFIGURED damping window in minutes", () => {
     const notice = draftPolicyNotice(t, damped, ownDraft);
-    expect(notice?.kind).toBe("damped");
-    expect(notice?.text).toContain("15 minutes");
+    expect(notice).toEqual({ text: expect.stringContaining("15 minutes") });
   });
 
   it("rounds sub-2-minute windows to 'about a minute'", () => {
     const notice = draftPolicyNotice(t, { debounceSeconds: 90 }, ownDraft);
-    expect(notice?.kind).toBe("damped");
-    expect(notice?.text).toContain("about a minute");
+    expect(notice).toEqual({
+      text: expect.stringContaining("about a minute"),
+    });
   });
 });
