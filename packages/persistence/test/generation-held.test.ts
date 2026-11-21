@@ -797,14 +797,49 @@ describe("recheckHeadsAtSha", () => {
     expect(await countQueuedJobs(shared)).toBe(0);
   });
 
-  it("queues the job of a pending head at the SHA", async () => {
-    const triggered = await trigger();
+  it("leaves a pending head at the SHA with no job alone", async () => {
+    await trigger();
     await clearQueue();
 
     const outcome = await recheckAtSha();
 
-    expect(outcome.rechecked).toEqual([triggered.pullRequest.id]);
-    expect(await countQueuedJobs(shared)).toBe(1);
+    expect(outcome.rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("keeps a waiting generate-large job at the SHA as it is", async () => {
+    await seedHeldAt();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set task_identifier = 'generate-large', run_at = now() + interval '1 hour'",
+    );
+    const readJobs = () =>
+      shared.harness.raw(
+        "select id, task_identifier, run_at from graphile_worker.jobs",
+      );
+    const before = await readJobs();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([]);
+    expect(await readJobs()).toEqual(before);
+  });
+
+  it("queues a fresh job beside a failed head's locked job at the SHA", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    await failTestRun(
+      createGenerationProjection(shared.handle, GATE_CTX),
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+      { code: GenerationFailureCodes.PROVIDER_TIMEOUT },
+    );
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([pullRequestId]);
+    expect(await countQueuedJobs(shared)).toBe(2);
   });
 
   it("queues a fresh job beside a pending head's locked job", async () => {

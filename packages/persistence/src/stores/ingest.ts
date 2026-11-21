@@ -357,10 +357,9 @@ async function recheckLockedHead(
 }
 
 /**
- * The scope's open PRs in the repository with a held or pending brief row at
- * the SHA,
- * in id order, the order their row locks are taken in. Unlocked: the wake
- * reads each one again under its lock.
+ * The scope's open PRs in the repository with a brief row at the SHA the wake
+ * may name, in id order, the order their row locks are taken in. Unlocked:
+ * the wake reads each one again under its lock.
  */
 async function listHeldHeadCandidates(
   tx: IngestTransaction,
@@ -675,11 +674,10 @@ export interface IngestRoutines {
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
    * `recheckCurrentHead` for every open PR in the repository whose current head is
-   * the SHA, held or pending, for a check report that names a commit and no
-   * PR. Each PR is
-   * locked in id order and read again under its lock; a head the PR has
-   * pushed past, another repository's or installation's PR and an owner
-   * scope queue nothing.
+   * the SHA, by the same rule, for a check report that names a commit and no
+   * PR. Each PR is locked in id order and read again under its lock; a head
+   * the PR has pushed past, another repository's or installation's PR and an
+   * owner scope queue nothing.
    */
   recheckHeadsAtSha(
     input: RecheckHeadsAtShaInput,

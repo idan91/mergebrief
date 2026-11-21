@@ -2898,13 +2898,30 @@ describe("check runs and statuses wake a held head", () => {
     },
   );
 
-  it("queues a pending head's job, its check maybe mid-run", async () => {
+  it("queues a job beside a pending head's job a check has locked", async () => {
+    const app = buildApp();
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw("update graphile_worker.jobs set locked_at = now()");
+
+    await deliver(app, "status", statusPayload());
+
+    expect(await readJobHeads()).toEqual([
+      { head: HEAD_SHA },
+      { head: HEAD_SHA },
+    ]);
+  });
+
+  it("leaves a pending head with no job alone", async () => {
     const app = buildApp();
     await openHead(app, false);
 
     await deliver(app, "status", statusPayload());
 
-    expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+    expect(await readJobHeads()).toEqual([]);
   });
 
   it("queues nothing for a settled head", async () => {

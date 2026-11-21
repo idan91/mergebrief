@@ -139,8 +139,8 @@ webhook events (`packages/github/src/webhook/events.ts`):
   `admin`. Then it triggers a generation so the delta from that checkpoint can
   be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
 - `check_run` (`created`, `completed`) and `status` (every state): queue the
-  job of each open pull request in the repository whose current head is held at
-  that commit, so the worker checks its `bots` and `ci` conditions again. A fork
+  job of each open pull request in the repository whose current head at that
+  commit is held, or pending or failed with a run in flight, so the worker checks its `bots` and `ci` conditions again. A fork
   pull request's run names no pull request and a status never does, so the
   commit SHA finds them. Nothing else is written.
 - `installation` (`deleted`) purges every row of that Installation;
