@@ -254,7 +254,7 @@
     },
     "everyPush": {
       "label": "Generate on every push",
-      "hint": "Generates this push now, and every later push on this pull request, whatever its conditions.",
+      "hint": "Generates this push now and every later one, whatever its conditions.",
       "turnedOn": "Every push on this pull request now generates a brief.",
       "turnedOff": "Pushes on this pull request wait for their conditions again.",
       "notAllowed": "Changing this needs push access to this repository and the MergeBrief App installed on it.",
