@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { InboxItem } from "../../../../types";
-import { offersEveryPush, offersGenerateNow, openOnGithub } from "./utils";
+import { offersEveryPush, offersGenerate, openOnGithub } from "./utils";
 
 const HELD_ROW: InboxItem = {
   repoId: "424242",
@@ -19,9 +19,9 @@ const HELD_ROW: InboxItem = {
   generation: { status: "held", updatedAt: "2026-09-20T10:00:00Z" },
 };
 
-describe("offersGenerateNow", () => {
+describe("offersGenerate", () => {
   it("offers it on an open installation row held for a pusher", () => {
-    expect(offersGenerateNow(HELD_ROW)).toBe(true);
+    expect(offersGenerate(HELD_ROW)).toBe(true);
   });
 
   it.each([
@@ -38,7 +38,7 @@ describe("offersGenerateNow", () => {
       },
     ],
   ])("withholds it with %s", (_label, overrides) => {
-    expect(offersGenerateNow({ ...HELD_ROW, ...overrides })).toBe(false);
+    expect(offersGenerate({ ...HELD_ROW, ...overrides })).toBe(false);
   });
 });
 

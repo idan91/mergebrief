@@ -18,7 +18,7 @@ import { HeldRowGenerateNotices } from "./consts";
 
 const INBOX_QUERY_KEY = [INBOX_QUERY_ROOT];
 
-/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate, Generate now on a held head, and the every-push switch. */
+/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate, Generate brief on a held head, and the every-push switch. */
 export function useRowActionsFacade(
   item: InboxItem,
   view: InboxArchivedFilter,
@@ -36,7 +36,7 @@ export function useRowActionsFacade(
     announceArchived: onArchived,
     onRemoved,
   });
-  const generateNow = useRegenerateBrief({
+  const generateBrief = useRegenerateBrief({
     repoId: item.repoId,
     prNumber: item.prNumber,
     notices: HeldRowGenerateNotices,
@@ -80,8 +80,8 @@ export function useRowActionsFacade(
   return {
     archiving: archiving.pending,
     regenerating,
-    generatingNow: generateNow.pending,
-    generateNow: generateNow.regenerate,
+    generating: generateBrief.pending,
+    generate: generateBrief.regenerate,
     everyPushOn: everyPush.checked,
     everyPushPending: everyPush.pending,
     toggleEveryPush: () => {
