@@ -303,10 +303,40 @@ function isConditionMet(
   return checkCondition(condition, facts).length === 0;
 }
 
+/** Kinds decided from a GitHub read of the head, so never settled ahead of it. */
+const HEAD_READ_KINDS: ReadonlySet<TriggerConditionKind> = new Set([
+  TriggerConditionKinds.BOTS,
+  TriggerConditionKinds.CI,
+]);
+
+function isSettledUnmet(
+  condition: EffectiveCondition,
+  facts: ConditionFacts,
+): boolean {
+  if (HEAD_READ_KINDS.has(condition.setting.kind)) {
+    return false;
+  }
+  return !isConditionMet(condition, facts);
+}
+
+/** An `any` group with no `paths` member and every member settled unmet. */
+function isAnyGroupHolding(
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): boolean {
+  const { any } = effective;
+  if (any.length === 0 || any.some(isPathsCondition)) {
+    return false;
+  }
+  return any.every((item) => isSettledUnmet(item, facts));
+}
+
 /**
  * Whether the changed paths can decide the verdict, judged on the other
  * conditions alone: not while another plain condition holds the head
- * anyway, and not for an `any` group another member already meets.
+ * anyway, nor while an `any` group without `paths` holds it (a `bots` or
+ * `ci` member counts as undecided there), and not for an `any` group
+ * another member already meets.
  */
 export function isVerdictOnPaths(
   effective: EffectiveTriggerConditions,
@@ -318,7 +348,7 @@ export function isVerdictOnPaths(
     return false;
   }
   if (effective.all.some(isPathsCondition)) {
-    return true;
+    return !isAnyGroupHolding(effective, facts);
   }
   if (!effective.any.some(isPathsCondition)) {
     return false;
