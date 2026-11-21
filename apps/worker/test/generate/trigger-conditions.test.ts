@@ -6,7 +6,7 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { parseInstanceTriggerConditions } from "generators/trigger-conditions";
-import { FakeFailures } from "github/testing";
+import { FakeFailures, type FakeGitHub } from "github/testing";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
 import {
@@ -16,19 +16,21 @@ import {
   FIRST_ATTEMPT,
   harness,
   HEAD_1,
-  LAST_ATTEMPT,
+  failFirstSettingsRead,
+  interceptInstallationRepo,
   makeGitHub,
   makeReviewerId,
   makeTarget,
   makeTask,
+  type ReadCount,
   PR_REF,
   readRowStatus,
   REPO,
-  SECOND_ATTEMPT,
   setUpHarness,
   stubGenerator,
   trigger,
 } from "./helpers";
+import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
 
 setUpHarness();
 
@@ -55,6 +57,27 @@ async function readUnmet(pr: PullRequestRow) {
   return parseUnmetConditions(row?.unmetConditions ?? null)?.conditions;
 }
 
+const SETTINGS_READS_PER_RUN = SETTINGS_READ_RETRY_DELAYS_MS.length + 1;
+
+/** Counts the run's `settings.yaml` reads, calling `onRead` before each. */
+function countSettingsReads(
+  github: FakeGitHub,
+  onRead: () => Promise<void> = async () => {},
+): ReadCount {
+  const reads: ReadCount = { count: 0 };
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async fetchRepoFile(input) {
+      if (input.path === RepoConfigPaths.SETTINGS) {
+        reads.count += 1;
+        await onRead();
+      }
+      return client.fetchRepoFile(input);
+    },
+  }));
+  return reads;
+}
+
 describe("generate task, trigger conditions", () => {
   it("holds a draft under the instance's readyForReview with no claim", async () => {
     const { pr, payload } = await trigger(HEAD_1);
@@ -76,39 +99,26 @@ describe("generate task, trigger conditions", () => {
     expect(await countStartedRuns()).toBe(0);
   });
 
-  it("holds on the retry after a settings read failed transiently", async () => {
+  it("reads the repo's conditions when a settings read clears in the run", async () => {
     const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, "version: 1\ntriggerConditions:\n  never: on\n");
     const failing = makeGitHub(HEAD_1);
-    failing.updatePullRequest(PR_REF, { draft: true });
     failing.failRepoFile(
       REPO,
       { path: RepoConfigPaths.SETTINGS },
       FakeFailures.SERVER_ERROR,
     );
-    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    const reads = failFirstSettingsRead(github, failing);
 
-    await expect(
-      makeTask({ github: failing, triggerConditions: readyForReview })(
-        payload,
-        { job: FIRST_ATTEMPT },
-      ),
-    ).rejects.toThrow("settings read failed");
-    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.FAILED);
+    await makeTask({ github })(payload, { job: FIRST_ATTEMPT });
 
-    const retried = makeGitHub(HEAD_1);
-    retried.updatePullRequest(PR_REF, { draft: true });
-    await makeTask({ github: retried, triggerConditions: readyForReview })(
-      payload,
-      { job: SECOND_ATTEMPT },
-    );
-
+    expect(reads.count).toBe(2);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
-    expect(await readUnmet(pr)).toEqual([
-      { kind: "ready-for-review", source: "instance" },
-    ]);
+    expect(await readUnmet(pr)).toEqual([{ kind: "never", source: "repo" }]);
   });
 
-  it("holds on the instance's conditions when the last settings read fails", async () => {
+  it("holds on the instance's conditions when every read in the run fails", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { draft: true });
@@ -117,12 +127,18 @@ describe("generate task, trigger conditions", () => {
       { path: RepoConfigPaths.SETTINGS },
       FakeFailures.SERVER_ERROR,
     );
+    const statuses: (string | undefined)[] = [];
+    const reads = countSettingsReads(github, async () => {
+      statuses.push(await readRowStatus(pr, HEAD_1));
+    });
 
     await makeTask({
       github,
       triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
-    })(payload, { job: LAST_ATTEMPT });
+    })(payload, { job: FIRST_ATTEMPT });
 
+    expect(reads.count).toBe(SETTINGS_READS_PER_RUN);
+    expect(statuses).not.toContain(GenerationStatuses.FAILED);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toEqual([
       { kind: "ready-for-review", source: "instance" },

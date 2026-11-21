@@ -23,6 +23,7 @@ import {
   captureLogger,
   ctx,
   ENTRY_PR_VIEW,
+  failFirstSettingsRead,
   failHeadReadsAfterFirst,
   FIRST_ATTEMPT,
   FIRST_BRIEF_INDEX,
@@ -390,6 +391,26 @@ describe("generate task, author gate", () => {
       (path) => path === RepoConfigPaths.SETTINGS,
     );
     expect(settingsReads).toHaveLength(1);
+  });
+
+  it("generates a listed bot PR whose settings read clears in the run", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeBotGitHub(HEAD_1);
+    addSettings(github, LISTED_SETTINGS);
+    const failing = makeBotGitHub(HEAD_1);
+    failing.failRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      FakeFailures.SERVER_ERROR,
+    );
+    const reads = failFirstSettingsRead(github, failing);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(payload, { job: FIRST_ATTEMPT });
+
+    expect(reads.count).toBe(2);
+    expect(generator.calls).toContain("brief");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("holds an unlisted bot PR awaiting trigger with no claim", async () => {

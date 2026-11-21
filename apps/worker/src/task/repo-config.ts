@@ -49,7 +49,7 @@ export interface AcquiredRepoConfig {
   /** Per-file outcome table, fetch-level outcomes already merged in. */
   readonly files: readonly RepoConfigFileOutcome[];
   readonly collisions: readonly string[];
-  /** Why the `settings.yaml` read failed; the author gate retries a transient one. */
+  /** Why the `settings.yaml` read failed; the pre-claim gates retry a transient one. */
   readonly settingsFetchFailure?: GitHubCallFailure;
 }
 
