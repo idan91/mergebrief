@@ -1,8 +1,7 @@
 import { z } from "zod/v4";
 
+import { safeIdSchema } from "../../ids";
 import { CommitStatusStates } from "./types";
-
-const safeIdSchema = z.number().refine(Number.isSafeInteger);
 
 export const checkRunListSchema = z.array(
   z.object({

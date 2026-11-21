@@ -70,6 +70,9 @@ export const installationIdSchema = brandedIdSchema(
 export const repoIdSchema = brandedIdSchema(isRepoId, "repository id");
 export const reviewerIdSchema = brandedIdSchema(isReviewerId, "reviewer id");
 
+/** A GitHub numeric id read as a number, refused past 2^53 where JSON rounds it. */
+export const safeIdSchema = z.number().refine(Number.isSafeInteger);
+
 /**
  * A positive `bigint` from a JSON number, UNbranded, for actor ids that have
  * no dedicated branded family in `persistence`.

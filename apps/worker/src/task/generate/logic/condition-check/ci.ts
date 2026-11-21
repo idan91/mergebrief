@@ -16,6 +16,7 @@ import {
   type HeadReports,
   type KindCheckInput,
 } from "./types";
+import { findLatestRun } from "./utils";
 
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set([
   CheckRunConclusions.SUCCESS,
@@ -39,26 +40,15 @@ function readRunOutcome(run: CheckRun): CheckOutcome {
   return passed ? CheckOutcomes.PASSED : CheckOutcomes.FAILED;
 }
 
-/** A rerun takes a higher id, so the highest is the run GitHub counts. */
-function findLatestRun(
-  runs: readonly CheckRun[],
-  name: string,
-): CheckRun | undefined {
-  const named = runs.filter((run) => run.name === name);
-  return named.reduce<CheckRun | undefined>((latest, run) => {
-    if (latest === undefined || run.checkRunId > latest.checkRunId) {
-      return run;
-    }
-    return latest;
-  }, undefined);
-}
-
 function listLatestOutcomes(
   reports: HeadReports,
   name: string,
 ): CheckOutcome[] {
   const outcomes: CheckOutcome[] = [];
-  const run = findLatestRun(reports.checkRuns, name);
+  const run = findLatestRun(
+    reports.checkRuns,
+    (listed) => listed.name === name,
+  );
   if (run !== undefined) {
     outcomes.push(readRunOutcome(run));
   }

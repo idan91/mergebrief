@@ -12,7 +12,6 @@ import {
 import {
   BotStates,
   BotVerdicts,
-  ReviewBots,
   TriggerConditionKinds,
   type BotState,
   type BotVerdict,
@@ -24,6 +23,7 @@ import type { Mutable } from "types/utils";
 
 import { CLAUDE_NO_ISSUES_TITLE, REVIEW_BOT_ACCOUNTS } from "./consts";
 import type { ConditionFacts, KindCheckInput, ReviewBotAccount } from "./types";
+import { findLatestRun, isReviewBot } from "./utils";
 
 /** What one bot left on the head, from its own accounts only. */
 interface BotReports {
@@ -42,25 +42,24 @@ interface BotHold {
 const SEVERITY_LINE_PATTERN = /^<!--\s*bughunter-severity:\s*(\{.*\})\s*-->$/;
 const severitySchema = z.object({ normal: z.int().nonnegative() });
 
-function isReviewBot(key: string): key is ReviewBot {
-  return Object.values<string>(ReviewBots).includes(key);
-}
-
 function collectBotReports(
   account: ReviewBotAccount,
   facts: ConditionFacts,
 ): BotReports {
   const { reports, headSha } = facts;
-  const runs = reports.checkRuns.filter(
-    (run) => account.appId !== undefined && run.appId === account.appId,
-  );
+  const runs = reports.checkRuns.filter((run) => {
+    const fromBotApp =
+      account.appId !== undefined && run.appId === account.appId;
+    return fromBotApp;
+  });
   const statuses = reports.statuses.filter(
     (status) => status.creatorId === account.userId,
   );
-  const reviews = reports.reviews.filter(
-    (review) =>
-      review.authorId === account.userId && review.commitId === headSha,
-  );
+  const reviews = reports.reviews.filter((review) => {
+    const botReviewOfHead =
+      review.authorId === account.userId && review.commitId === headSha;
+    return botReviewOfHead;
+  });
   return { runs, statuses, reviews };
 }
 
@@ -137,18 +136,6 @@ function readNormalFindings(text: string | undefined): number | undefined {
   }
 }
 
-function findLatestCompletedRun(
-  runs: readonly CheckRun[],
-): CheckRun | undefined {
-  const completed = runs.filter((run) => run.completed);
-  return completed.reduce<CheckRun | undefined>((latest, run) => {
-    if (latest === undefined || run.checkRunId > latest.checkRunId) {
-      return run;
-    }
-    return latest;
-  }, undefined);
-}
-
 /**
  * Claude's latest completed run decides: its no-issues title, or no `normal`
  * findings on its severity line. A skipped run, a repeat it did not run, or a
@@ -161,7 +148,7 @@ function readCleanHold(
   if (facts.reports.statusChecksForbidden) {
     return { state: BotStates.PERMISSION_MISSING };
   }
-  const latest = findLatestCompletedRun(reports.runs);
+  const latest = findLatestRun(reports.runs, (run) => run.completed);
   if (latest?.title === CLAUDE_NO_ISSUES_TITLE) {
     return undefined;
   }

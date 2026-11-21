@@ -109,7 +109,9 @@ export async function listCommitStatuses(
 function isUpgradeRequired(error: unknown): boolean {
   const refused =
     error instanceof RequestError && error.status === HttpStatuses.FORBIDDEN;
-  return refused && UPGRADE_REQUIRED_PATTERN.test(error.message);
+  const upgradeRequired =
+    refused && UPGRADE_REQUIRED_PATTERN.test(error.message);
+  return upgradeRequired;
 }
 
 function collectRequiredContexts(
