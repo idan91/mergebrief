@@ -212,7 +212,7 @@ async function seedBrief(
 }
 
 const HELD_CONDITIONS = [
-  { kind: "ready-for-review", source: "instance" },
+  { kind: "ready-for-review", setBy: "instance" },
 ] as const;
 
 /** The row's head, held by the worker on an unmet trigger condition. */

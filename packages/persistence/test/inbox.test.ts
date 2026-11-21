@@ -189,7 +189,7 @@ async function stampSubmittedReviews(
 }
 
 const HELD_CONDITIONS = JSON.stringify([
-  { kind: "ready-for-review", source: "instance" },
+  { kind: "ready-for-review", setBy: "instance" },
 ]);
 
 /** One brief-kind projection row; a later trigger time makes it the head the row shows. */

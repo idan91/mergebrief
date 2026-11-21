@@ -623,8 +623,8 @@ describe("InboxList", () => {
               status: "held",
               updatedAt: "2026-09-20T10:00:00Z",
               unmetConditions: [
-                { kind: "labels", source: "repo", labels: ["needs-brief"] },
-                { kind: "never", source: "repo" },
+                { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+                { kind: "never", setBy: "repo" },
               ],
             },
           }),
