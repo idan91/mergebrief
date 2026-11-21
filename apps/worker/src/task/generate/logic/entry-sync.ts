@@ -36,10 +36,12 @@ import type {
 import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../consts";
 import {
+  EntryWriteModes,
   EntryWrites,
   HeadReadings,
   type EntryCommentManager,
   type EntryWrite,
+  type EntryWriteMode,
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type LiveBodyMatcher,
@@ -55,14 +57,11 @@ import {
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
 
-/** The body the head's row names, and the live bodies it may replace. */
-export interface EntrySyncPlan {
+/** The body the head's row names, the live bodies it may replace, and how it lands. */
+interface EntrySyncPlan {
   readonly body: string;
   readonly isReplaceable: LiveBodyMatcher;
-  /** Post the body when no comment is live; the closed body never does. */
-  readonly createsComment: boolean;
-  /** Rewrite a replaceable body in place, as a hold does, so nobody is pinged. */
-  readonly inPlace?: boolean;
+  readonly writeMode: EntryWriteMode;
 }
 
 interface EntrySyncFacts {
@@ -344,21 +343,18 @@ async function writeEntrySync(
   }
 }
 
-export function writePlannedEntry(
+function writePlannedEntry(
   entryCommentManager: EntryCommentManager,
   plan: EntrySyncPlan,
 ): Promise<EntryWrite> {
   const { body, isReplaceable } = plan;
-  if (plan.inPlace === true && plan.createsComment) {
+  if (plan.writeMode === EntryWriteModes.EDIT_OR_CREATE) {
     return entryCommentManager.editOrCreate(body, isReplaceable);
   }
-  if (plan.inPlace === true) {
-    return entryCommentManager.editMatching(body, isReplaceable);
+  if (plan.writeMode === EntryWriteModes.REPLACE) {
+    return entryCommentManager.replace(body, isReplaceable);
   }
-  if (plan.createsComment) {
-    return entryCommentManager.replaceOrCreate(body, isReplaceable);
-  }
-  return entryCommentManager.replace(body, isReplaceable);
+  return entryCommentManager.replaceOrCreate(body, isReplaceable);
 }
 
 async function queueSyncSuccessor(
@@ -402,14 +398,16 @@ function planEntrySync(facts: EntrySyncFacts): EntrySyncPlan | undefined {
     return {
       body: buildEntryCommentBody(translate, briefLink),
       isReplaceable: open ? isEntryCommentBody : isClosedReplaceable,
-      createsComment: open,
+      writeMode: open
+        ? EntryWriteModes.REPLACE_OR_CREATE
+        : EntryWriteModes.REPLACE,
     };
   }
   if (!open) {
     return {
       body: buildEntryCommentClosedBody(translate, headSha),
       isReplaceable: isOwnBody,
-      createsComment: false,
+      writeMode: EntryWriteModes.REPLACE,
     };
   }
   return planRowEntry(facts, isOwnBody);
@@ -462,14 +460,14 @@ function planRowEntry(
     return {
       body: buildEntryCommentFailedBody(translate, nextLink, failureCode),
       isReplaceable: isOwnBody,
-      createsComment: true,
+      writeMode: EntryWriteModes.REPLACE_OR_CREATE,
     };
   }
   if (row?.status === GenerationStatuses.AWAITING_TRIGGER) {
     return {
       body: buildEntryCommentOnDemandBody(translate, nextLink),
       isReplaceable: isEntryCommentBody,
-      createsComment: true,
+      writeMode: EntryWriteModes.REPLACE_OR_CREATE,
     };
   }
   if (row?.status === GenerationStatuses.CAPPED) {
@@ -495,8 +493,7 @@ function planHeldEntry(
   return {
     body: buildEntryCommentHeldBody(translate, { ...links, unmet }),
     isReplaceable: isEntryCommentBody,
-    createsComment: true,
-    inPlace: true,
+    writeMode: EntryWriteModes.EDIT_OR_CREATE,
   };
 }
 
@@ -516,9 +513,12 @@ function planCappedEntry(
     resetsAt: utcDayBounds(row.updatedAt).to,
     units,
   });
+  const tracked = prRow.entryCommentId !== null;
   return {
     body,
     isReplaceable: isEntryCommentBody,
-    createsComment: prRow.entryCommentId !== null,
+    writeMode: tracked
+      ? EntryWriteModes.REPLACE_OR_CREATE
+      : EntryWriteModes.REPLACE,
   };
 }

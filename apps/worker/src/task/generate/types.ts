@@ -426,6 +426,14 @@ export type EntryWrite = ValueOf<typeof EntryWrites>;
 /** Whether a live Entry body is one a post may replace. */
 export type LiveBodyMatcher = (body: string) => boolean;
 
+/** The `EntryCommentManager` write an Entry sync lands its body with, named for that method. */
+export const EntryWriteModes = {
+  REPLACE_OR_CREATE: "replace-or-create",
+  REPLACE: "replace",
+  EDIT_OR_CREATE: "edit-or-create",
+} as const;
+export type EntryWriteMode = ValueOf<typeof EntryWriteModes>;
+
 /** The operations over one live Entry comment id, plus a read of it. */
 export interface EntryCommentManager {
   getCurrentId(): bigint | null;
