@@ -720,8 +720,8 @@ export function createIngestRoutines(
         // while the PR owes an approval. A head the projection keeps in flight
         // (a live claim, or the previous release's running row) is never
         // re-enqueued, refreshRunAt included: under N slots a fresh job for
-        // the same head would run beside the live one. The live run re-reads draft state
-        // before its ready Entry instead. A gated trigger on a head that
+        // the same head would run beside the live one. The live run re-reads
+        // draft state before its ready Entry instead. A gated trigger on a head that
         // already has a row keeps it, and queues a job only while that row
         // still waits for one, so a failed head keeps its failure.
         const value: Mutable<IngestOutcome> = {
