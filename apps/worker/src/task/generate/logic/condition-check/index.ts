@@ -45,23 +45,15 @@ function buildProceedOutcome(
 }
 
 /**
- * A url-box job is the viewer's own paste, a recovery run or a stored
- * brief's run already passed, a succeeded row has nothing to hold, a
- * Generate click stamped its head to skip the conditions, and a PR
- * generating on every push skips them for every head.
+ * A gateable run, unless a Generate click stamped its head or the PR
+ * generates on every push, which skips the conditions for every head.
  */
 function isCheckable(context: RunContext): boolean {
-  const { payload, recovering, existingBrief, projected, prRow } = context;
+  const { projected, prRow } = context;
   const stamped =
     projected !== undefined && projected.generateRequestedAt !== null;
   const everyPush = prRow.generateEveryPushAt !== null;
-  const checkable =
-    payload.grantId === undefined &&
-    !recovering &&
-    existingBrief === undefined &&
-    projected?.status !== GenerationStatuses.SUCCEEDED &&
-    !stamped &&
-    !everyPush;
+  const checkable = isGateable(context) && !stamped && !everyPush;
   return checkable;
 }
 
