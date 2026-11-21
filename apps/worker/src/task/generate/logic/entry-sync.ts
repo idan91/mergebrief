@@ -487,13 +487,19 @@ function planHeldEntry(
   row: GenerationRow,
 ): EntrySyncPlan | undefined {
   const { translate, entryCommentManager, briefs } = facts;
-  const unmet = parseUnmetConditions(row.unmetConditions)?.conditions;
-  if (unmet === undefined || unmet.length === 0) {
+  const stored = parseUnmetConditions(row.unmetConditions);
+  if (stored === undefined) {
+    return undefined;
+  }
+  const { conditions: unmet, partial: unmetConditionsPartial } = stored;
+  const namesNothing = unmet.length === 0 && !unmetConditionsPartial;
+  if (namesNothing) {
     return undefined;
   }
   const links = buildHeldEntryLinks(entryCommentManager, briefs);
+  const held = { ...links, unmet, unmetConditionsPartial };
   return {
-    body: buildEntryCommentHeldBody(translate, { ...links, unmet }),
+    body: buildEntryCommentHeldBody(translate, held),
     isReplaceable: isEntryCommentBody,
     createsComment: true,
     inPlace: true,

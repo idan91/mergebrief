@@ -94,6 +94,8 @@ Never suggest a bare `auth login`: it writes over the default profile.
      Tell the user and stop.
    - `held`: trigger conditions keep the head from generating;
      `generation.unmetConditions` names each one. Report them and stop.
+     With `generation.unmetConditionsPartial: true` the server could not
+     read every condition, so say the list may be incomplete.
    - `failed` or `capped`: report the code and stop.
 
    Run `mergebrief generate <url>`, or `mergebrief generate <n>` for a held

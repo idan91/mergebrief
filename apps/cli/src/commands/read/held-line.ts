@@ -51,11 +51,13 @@ function listKnownConditions(items: readonly HeldItem[]): HeldCondition[] {
 /**
  * The line `pr <n>` prints under a held head, or `undefined` when the head
  * is not held. Known items follow the Entry's order; raw kinds trail them,
- * and a list with nothing readable still says why the head waits.
+ * then a list the server read only in part says so, and a list with nothing
+ * readable still says why the head waits.
  */
 export function formatHeldLine(
   status: string | undefined,
   rawItems: unknown,
+  unmetConditionsPartial = false,
 ): string | undefined {
   if (status !== GenerationStatuses.HELD) {
     return undefined;
@@ -67,6 +69,9 @@ export function formatHeldLine(
     item.rawKind === undefined ? [] : [formatDisplayText(item.rawKind)],
   );
   const phrases = [...known.flatMap(describeKnownItem), ...raw];
+  if (unmetConditionsPartial) {
+    phrases.push(t("triggerCondition.unreadable"));
+  }
   if (phrases.length === 0) {
     return "held: trigger conditions not met\n";
   }
