@@ -16,8 +16,6 @@ import type {
 import { createLogger, type Logger } from "logging";
 
 const HEAD = "a".repeat(40);
-/** A scan that spends the whole step budget runs past vitest's 5 s default under coverage. */
-const BUDGET_SCAN_TIMEOUT_MS = 30_000;
 
 const NO_REPORTS: HeadReports = {
   checkRuns: [],
@@ -344,31 +342,30 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toHaveLength(1);
   });
 
-  it(
-    "holds once the scan outruns its step budget",
-    () => {
-      const glob = `**/${"x".repeat(196)}*`;
-      const misses = Array.from(
-        { length: 2999 },
-        (_, index) => `src/${String(index).padStart(195, "0")}`,
-      );
-      const lastMatches = `a/${"x".repeat(197)}`;
+  it("holds once the scan outruns its step budget", () => {
+    const glob = `**/${"x".repeat(196)}*`;
+    const misses = Array.from(
+      { length: 2999 },
+      (_, index) => `src/${String(index).padStart(195, "0")}`,
+    );
+    const lastMatches = `a/${"x".repeat(197)}`;
 
-      const lines: Record<string, unknown>[] = [];
+    const lines: Record<string, unknown>[] = [];
 
-      const unmet = evaluateTriggerConditions(
-        makeEffective({ kind: "paths", value: [glob] }),
-        makeFacts({ changedPaths: [...misses, lastMatches] }),
-        stubLogger(lines),
-      );
+    const unmet = evaluateTriggerConditions(
+      makeEffective({ kind: "paths", value: [glob] }),
+      makeFacts({
+        changedPaths: [...misses, lastMatches],
+        previousPaths: ["old/a.ts", "old/b.ts"],
+      }),
+      stubLogger(lines),
+    );
 
-      expect(unmet).toHaveLength(1);
-      expect(lines).toEqual([
-        expect.objectContaining({ level: "warn", globs: 1, paths: 3000 }),
-      ]);
-    },
-    BUDGET_SCAN_TIMEOUT_MS,
-  );
+    expect(unmet).toHaveLength(1);
+    expect(lines).toEqual([
+      expect.objectContaining({ level: "warn", globs: 1, paths: 3002 }),
+    ]);
+  });
 
   it("skips paths outside a glob's literal prefix at no cost", () => {
     const misses = Array.from(
@@ -417,33 +414,29 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toEqual([]);
   });
 
-  it(
-    "matches a mass rename's last new path within the step budget",
-    () => {
-      const renamedTo = Array.from(
-        { length: 2999 },
-        (_, index) => `apps/${String(index).padStart(195, "0")}`,
-      );
-      const renamedFrom = Array.from(
-        { length: 2999 },
-        (_, index) => `libs/${String(index).padStart(195, "0")}`,
-      );
+  it("matches a mass rename's last new path within the step budget", () => {
+    const renamedTo = Array.from(
+      { length: 2999 },
+      (_, index) => `apps/${String(index).padStart(195, "0")}`,
+    );
+    const renamedFrom = Array.from(
+      { length: 2999 },
+      (_, index) => `libs/${String(index).padStart(195, "0")}`,
+    );
 
-      const unmet = evaluateOne(
-        {
-          kind: "paths",
-          value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
-        },
-        {
-          changedPaths: [...renamedTo, "services/ledger/post.ts"],
-          previousPaths: renamedFrom,
-        },
-      );
+    const unmet = evaluateOne(
+      {
+        kind: "paths",
+        value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
+      },
+      {
+        changedPaths: [...renamedTo, "services/ledger/post.ts"],
+        previousPaths: renamedFrom,
+      },
+    );
 
-      expect(unmet).toEqual([]);
-    },
-    BUDGET_SCAN_TIMEOUT_MS,
-  );
+    expect(unmet).toEqual([]);
+  });
 
   it("matches a rename by its old path once every new path misses", () => {
     const unmet = evaluateOne(
