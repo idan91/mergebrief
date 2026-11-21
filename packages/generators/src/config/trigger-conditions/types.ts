@@ -5,7 +5,7 @@ import type {
   TriggerConditionKind,
   TriggerConditionKinds,
   TriggerConditionSetter,
-} from "types";
+} from "types/trigger-conditions";
 
 /** Inclusive bounds; at least one is set. */
 export interface SizeBounds {

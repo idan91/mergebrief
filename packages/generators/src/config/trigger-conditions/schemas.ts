@@ -15,11 +15,11 @@ import {
   type TriggerConditionSetting,
 } from "./types";
 
-export const MAX_LISTED_NAMES = 50;
+const MAX_LISTED_NAMES = 50;
 const MAX_NAME_CHARS = 200;
 
 /** YAML 1.2 reads `on`/`off` as strings, so both they and booleans are taken. */
-export const onSchema = z
+const onSchema = z
   .union([z.literal("on"), z.literal(true)])
   .transform((): true => true);
 
