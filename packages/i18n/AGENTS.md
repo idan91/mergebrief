@@ -1,12 +1,12 @@
 # packages/i18n: agent notes
 
-The string-catalog boundary. `src/locales/en.json` is the single source of truth for user-facing copy; `createI18n()` bakes every shipped catalog into a ready instance. apps/web binds react-i18next on top; the CLI and the worker (its Entry comment bodies) call `t()` bare. This package depends on i18next only: react-i18next stays in apps/web (the CLI never pulls React).
+The string-catalog boundary. `src/locales/en.json` is the single source of truth for user-facing copy; `createI18n()` bakes every shipped catalog into a ready instance. apps/web binds react-i18next on top; the CLI and the worker (its Entry comment bodies) call `t()` bare. This package depends on i18next and `types` only: react-i18next stays in apps/web (the CLI never pulls React).
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/locales/` holds one `<id>.json` per shipped locale; the QA gates live in this package's `test/`. The pseudo locale is a postProcessor (accent map + ~35% pad), dev-only.
+`src/locales/` holds one `<id>.json` per shipped locale; the QA gates live in this package's `test/`. The pseudo locale is a postProcessor (accent map + ~35% pad), dev-only. `src/trigger-conditions.ts` words an unmet trigger condition for the PR page, the CLI and the Entry comment; each surface passes its own formatting of third-party names.
 
 ## Invariants (enforced, don't weaken)
 

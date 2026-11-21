@@ -15,12 +15,12 @@
     "test": "pnpm generate:types:check && vitest run --coverage"
   },
   "dependencies": {
-    "i18next": "^26.3.6"
+    "i18next": "^26.3.6",
+    "types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "types": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
   }

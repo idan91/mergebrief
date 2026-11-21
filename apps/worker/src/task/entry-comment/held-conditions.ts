@@ -1,16 +1,10 @@
 import { sortUnmetConditions } from "contract";
+import { describeUnmetCondition } from "i18n";
 import type { TFunction } from "i18next";
 import {
-  BotStates,
-  ReviewBotNames,
-  SizeBoundSides,
-  TriggerConditionKinds,
   UnmetConditionKinds,
-  type UnmetBot,
-  type UnmetCi,
   type UnmetCondition,
   type UnmetPlainCondition,
-  type UnmetSize,
 } from "types/trigger-conditions";
 
 /** A CI line names this many checks, then counts the rest. */
@@ -45,106 +39,19 @@ function formatCheckList(t: TFunction, names: readonly string[]): string {
   return t("triggerCondition.moreChecks", { names: shown, count: rest });
 }
 
-function describeSize(t: TFunction, condition: UnmetSize): string {
-  const params = {
-    actual: String(condition.actual),
-    measure: t(`triggerCondition.reason.sizeMeasure.${condition.measure}`),
-    limit: String(condition.limit),
-  };
-  if (condition.side === SizeBoundSides.MAX) {
-    return t("triggerCondition.reason.sizeMax", params);
-  }
-  return t("triggerCondition.reason.sizeMin", params);
-}
-
-function describeBot(t: TFunction, condition: UnmetBot): string {
-  const bot = ReviewBotNames[condition.bot];
-  if (condition.state === BotStates.ISSUES) {
-    return t("triggerCondition.reason.bots.issues", {
-      bot,
-      count: condition.issues ?? 0,
-    });
-  }
-  return t(`triggerCondition.reason.bots.${condition.state}`, { bot });
-}
-
-function describeCi(t: TFunction, condition: UnmetCi): string[] {
-  if (condition.permissionMissing) {
-    return [t("triggerCondition.reason.ciPermissionMissing")];
-  }
-
-  const lines: string[] = [];
-  if (condition.failed.length > 0) {
-    const checks = formatCheckList(t, condition.failed);
-    lines.push(t("triggerCondition.reason.ciFailed", { checks }));
-  }
-  if (condition.running.length > 0) {
-    const checks = formatCheckList(t, condition.running);
-    lines.push(t("triggerCondition.reason.ciRunning", { checks }));
-  }
-  if (condition.missing.length > 0) {
-    const checks = formatCheckList(t, condition.missing);
-    const count = condition.missing.length;
-    lines.push(t("triggerCondition.reason.ciMissing", { checks, count }));
-  }
-  return lines;
-}
-
-/** One unmet condition's reasons, most kinds one line and CI one per state. */
-function describeCondition(
-  t: TFunction,
-  condition: UnmetPlainCondition,
-): string[] {
-  switch (condition.kind) {
-    case TriggerConditionKinds.READY_FOR_REVIEW:
-    case TriggerConditionKinds.NEVER:
-    case TriggerConditionKinds.REVIEW_REQUESTED:
-      return [t(`triggerCondition.reason.${condition.kind}`)];
-    case TriggerConditionKinds.SIZE:
-      return [describeSize(t, condition)];
-    case TriggerConditionKinds.LABELS:
-      return [
-        t("triggerCondition.reason.labels", {
-          labels: formatCodeList(condition.labels),
-          count: condition.labels.length,
-        }),
-      ];
-    case TriggerConditionKinds.TITLE_KEYWORDS:
-      return [
-        t("triggerCondition.reason.title-keywords", {
-          keywords: formatCodeList(condition.keywords),
-          count: condition.keywords.length,
-        }),
-      ];
-    case TriggerConditionKinds.BASE_BRANCHES:
-      return [
-        t("triggerCondition.reason.base-branches", {
-          base: formatInlineCode(condition.base),
-          branches: formatCodeList(condition.branches),
-          count: condition.branches.length,
-        }),
-      ];
-    case TriggerConditionKinds.PATHS:
-      return [
-        t("triggerCondition.reason.paths", {
-          paths: formatCodeList(condition.paths),
-          count: condition.paths.length,
-        }),
-      ];
-    case TriggerConditionKinds.BOTS:
-      return [describeBot(t, condition)];
-    case TriggerConditionKinds.CI:
-      return describeCi(t, condition);
-  }
-}
-
 /** A condition's reasons, each naming whose setting it is. */
 function describeConditionWithSetBy(
   t: TFunction,
   condition: UnmetPlainCondition,
 ): string[] {
   const setBy = t(`triggerCondition.setBy.${condition.setBy}`);
-  return describeCondition(t, condition).map((reason) =>
+  const reasons = describeUnmetCondition(condition, {
+    t,
+    formatName: formatInlineCode,
+    formatNames: formatCodeList,
+    formatChecks: (names) => formatCheckList(t, names),
+  });
+  return reasons.map((reason) =>
     t("triggerCondition.condition", { reason, setBy }),
   );
 }
