@@ -50,8 +50,8 @@
     },
     "held": {
       "heading": "No brief for {{shortSha}}.",
-      "condition": "{{reason}} ({{owner}})",
-      "owner": {
+      "condition": "{{reason}} ({{setBy}})",
+      "setBy": {
         "repo": "this repository's setting",
         "instance": "this MergeBrief instance's setting"
       },
@@ -67,7 +67,7 @@
         "review-requested": "Needs a review requested from someone",
         "sizeMax": "{{actual}} {{measure}}, over the {{limit}} maximum",
         "sizeMin": "{{actual}} {{measure}}, under the {{limit}} minimum",
-        "sizeCount": {
+        "sizeMeasure": {
           "changed-lines": "changed lines",
           "additions": "added lines",
           "deletions": "deleted lines"
