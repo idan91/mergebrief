@@ -407,7 +407,7 @@ async function handlePullRequest(
       },
       log,
     );
-    if (isPersonReviewRequest(event)) {
+    if (isNonBotReviewRequest(event)) {
       await createTenantRepository(
         handle,
         ctx,
@@ -420,7 +420,7 @@ async function handlePullRequest(
  * A request to a person or a team keeps `reviewRequested` met for the PR,
  * even once removed before any run saw it; a bot's request is a tool's.
  */
-function isPersonReviewRequest(event: ParsedPullRequestEvent): boolean {
+function isNonBotReviewRequest(event: ParsedPullRequestEvent): boolean {
   const requested = event.action === PullRequestActions.REVIEW_REQUESTED;
   return requested && event.requestedReviewerIsBot !== true;
 }
