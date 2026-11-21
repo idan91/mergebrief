@@ -241,7 +241,7 @@ export function InboxRow({
           <span>{t("home.inbox.number", { number: item.prNumber })}</span>{" "}
           {age === undefined ? null : (
             <span suppressHydrationWarning>{age}</span>
-          )}
+          )}{" "}
           <RowReason
             className={styles["reason"]}
             generation={generation}
