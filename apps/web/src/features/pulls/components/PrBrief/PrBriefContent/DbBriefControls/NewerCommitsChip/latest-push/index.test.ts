@@ -89,7 +89,6 @@ describe("buildCappedPushDetail", () => {
     cappedAt: CAPPED_AT,
     prState: "open",
     appInstalled: true,
-    awaitsReadyForReview: false,
   } as const;
 
   it("names the reset and the push that runs after it", () => {
@@ -149,13 +148,6 @@ describe("buildCappedPushDetail", () => {
     },
   );
 
-  it("points a draft its instance skips at ready for review", () => {
-    const input = { ...OPEN_INSTALLED, awaitsReadyForReview: true };
-    const detail = buildCappedPushDetail(appI18n.t, input, BEFORE_RESET);
-    expect(detail).toMatch(/marking this pull request ready for review/);
-    expect(detail).not.toMatch(/next push/);
-  });
-
   it.each(["closed", "merged"] as const)(
     "promises no brief on a %s installation PR",
     (prState) => {
@@ -174,7 +166,6 @@ describe("buildFailedPushDetail", () => {
       offersRegenerate: true,
       prState: "open",
       appInstalled: true,
-      awaitsReadyForReview: false,
     });
 
     expect(detail).toBe(
@@ -188,25 +179,10 @@ describe("buildFailedPushDetail", () => {
       offersRegenerate: false,
       prState: "open",
       appInstalled: false,
-      awaitsReadyForReview: false,
     });
 
     expect(detail).toBe(
       "The model provider timed out before finishing. 1 attempt so far. Paste this pull request's URL on the home page to retry it.",
-    );
-  });
-
-  it("points a draft its instance skips at ready for review", () => {
-    const detail = buildFailedPushDetail(appI18n.t, {
-      generation: makeGeneration(),
-      offersRegenerate: false,
-      prState: "open",
-      appInstalled: true,
-      awaitsReadyForReview: true,
-    });
-
-    expect(detail).toBe(
-      "The model provider timed out before finishing. 1 attempt so far. Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review queues a new run.",
     );
   });
 
@@ -216,7 +192,6 @@ describe("buildFailedPushDetail", () => {
       offersRegenerate: true,
       prState: "open",
       appInstalled: true,
-      awaitsReadyForReview: false,
     });
 
     expect(detail).toBe(appI18n.t("generationError.attempts-exhausted"));

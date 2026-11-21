@@ -6,6 +6,9 @@ import {
   createGenerationProjection,
   createIngestRoutines,
   GenerationErrorCodes,
+  isGrantRowId,
+  isReviewerId,
+  MAX_GENERATION_ATTEMPTS,
   parseUnmetConditions,
   TriggerOnDemandOutcomes,
 } from "../src/index";
@@ -21,6 +24,7 @@ import {
   GATE_HEAD_SHA,
   GATE_REPO_ID,
   GATE_REVIEWER,
+  brandWith,
   countQueuedJobs,
   makeBriefTarget,
   registerSharedPglite,
@@ -131,6 +135,22 @@ describe("markHeld", () => {
     expect(row?.status).toBe(GenerationStatuses.HELD);
     expect(row?.claims).toBe(0);
     expect(row?.errorCode).toBeNull();
+  });
+
+  it("keeps a head that failed in a way a rerun cannot help", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_CUT,
+    });
+
+    const held = await gen.markHeld(target, UNMET);
+
+    expect(held.ok).toBe(false);
+    const row = await gen.get(target);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
   });
 
   it("holds a head a transient settings read left failed", async () => {
@@ -425,5 +445,260 @@ describe("reading stored unmet conditions", () => {
 
   it("reads nothing for a row with no stored conditions", () => {
     expect(parseUnmetConditions(null)).toBeUndefined();
+  });
+});
+
+describe("recheckCurrentHead", () => {
+  async function clearQueue() {
+    await shared.harness.raw("delete from graphile_worker.jobs");
+  }
+
+  function recheck(
+    pullRequestId: Awaited<ReturnType<typeof seedHeldHead>>["pullRequestId"],
+  ) {
+    return createIngestRoutines(shared.handle, GATE_CTX).recheckCurrentHead({
+      pullRequestId,
+    });
+  }
+
+  it("queues a held head's job and leaves the row held", async () => {
+    const { pullRequestId, gen, target } = await seedHeldHead();
+    await clearQueue();
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: true });
+    expect(await countQueuedJobs(shared)).toBe(1);
+    expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues a fresh job beside a pending head's job a check has locked", async () => {
+    const triggered = await trigger();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: true });
+    const keys = await shared.harness.raw(
+      "select key from graphile_worker.jobs order by id",
+    );
+    expect(keys.map((job) => job["key"])).toEqual([
+      null,
+      `generate:${triggered.pullRequest.id}`,
+    ]);
+  });
+
+  it("keeps a pending head's waiting job as it is", async () => {
+    const triggered = await trigger();
+    const readRunAt = () =>
+      shared.harness.raw("select id, run_at from graphile_worker.jobs");
+    const before = await readRunAt();
+
+    await recheck(triggered.pullRequest.id);
+
+    expect(await readRunAt()).toEqual(before);
+  });
+
+  it("keeps a waiting generate-large job's task and run_at", async () => {
+    const { pullRequestId } = await seedHeldHead();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set task_identifier = 'generate-large', run_at = now() + interval '1 hour'",
+    );
+    const readJobs = () =>
+      shared.harness.raw(
+        "select id, task_identifier, run_at from graphile_worker.jobs",
+      );
+    const before = await readJobs();
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await readJobs()).toEqual(before);
+  });
+
+  it("queues a fresh job beside a failed head's job a retry has locked", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: true });
+    expect(await countQueuedJobs(shared)).toBe(2);
+  });
+
+  it.each([
+    GenerationFailureCodes.GITHUB_ACCESS,
+    GenerationFailureCodes.OUTPUT_CUT,
+    GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+  ] as const)("leaves a final %s failure's locked job alone", async (code) => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("leaves a transient failure's locked job alone once claims ran out", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    await shared.harness.raw(
+      `update generation set claims = ${MAX_GENERATION_ATTEMPTS}`,
+    );
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("queues nothing once the pull request is closed", async () => {
+    const { pullRequestId, gen, target } = await seedHeldHead();
+    await clearQueue();
+    await shared.harness.raw("update pull_request set state = 'closed'");
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+    expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues nothing under an owner scope", async () => {
+    const ownerCtx = { ownerUserId: brandWith(isReviewerId, 555n) };
+    const ingest = createIngestRoutines(shared.handle, ownerCtx);
+    const recorded = await ingest.recordState({
+      repoId: GATE_REPO_ID,
+      prNumber: 9,
+      state: PrStates.OPEN,
+    });
+    const pullRequestId = recorded.pullRequest.id;
+    await createGenerationProjection(shared.handle, ownerCtx).upsertPending(
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+    );
+    await ingest.requeueGenerateJob({
+      pullRequestId,
+      headSha: GATE_HEAD_SHA,
+      grantId: brandWith(isGrantRowId, 9n),
+      delaySeconds: 0,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await ingest.recheckCurrentHead({ pullRequestId });
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("leaves a pending head with no job alone", async () => {
+    const triggered = await trigger();
+    await clearQueue();
+
+    const outcome = await recheck(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("leaves a pending head's unlocked waiting job unqueued", async () => {
+    const triggered = await trigger();
+
+    const outcome = await recheck(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it.each([
+    ["with no job", true],
+    ["with an unlocked waiting job", false],
+  ])("leaves a failed head %s alone", async (_case, emptyQueue) => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    if (emptyQueue) {
+      await clearQueue();
+    }
+    const before = await countQueuedJobs(shared);
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(before);
+  });
+
+  it("queues nothing for a head a run has claimed", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await claimTestRun(
+      gen,
+      makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA),
+    );
+    await clearQueue();
+
+    const outcome = await recheck(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+});
+
+describe("a claim on a failure a rerun cannot help", () => {
+  it("is refused and writes nothing", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_SECRET,
+    });
+    const before = await gen.get(target);
+
+    const claiming = claimTestRun(gen, target);
+
+    await expect(claiming).rejects.toThrow(ClaimOutcomes.HOPELESS);
+    expect(await gen.get(target)).toEqual(before);
+  });
+
+  it("goes through once a trigger projects the head again", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.OUTPUT_CUT,
+    });
+    await trigger();
+
+    const runId = await claimTestRun(gen, target);
+
+    expect((await gen.get(target))?.runId).toBe(runId);
   });
 });

@@ -4,7 +4,6 @@ import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerat
 import { isNoLongerOpen } from "../../../utils/pr-state";
 import { GenerateNotices, readOffersTrigger } from "../trigger-offer";
 import type { AwaitingTriggerCardProps } from ".";
-import { readAwaitingDetailKey } from "../awaiting-head";
 
 export function useAwaitingTriggerCardFacade({
   repoId,
@@ -12,7 +11,6 @@ export function useAwaitingTriggerCardFacade({
   viewerCanPush,
   appInstalled,
   prState,
-  awaitsReadyForReview,
 }: AwaitingTriggerCardProps) {
   const { t } = useTranslation();
   const { pending, announcement, regenerate } = useRegenerateBrief({
@@ -32,7 +30,9 @@ export function useAwaitingTriggerCardFacade({
     heading: noLongerOpen
       ? t("pulls.awaitingTrigger.notOpenHeading")
       : t("pulls.awaitingTrigger.heading"),
-    detail: t(readAwaitingDetailKey({ noLongerOpen, awaitsReadyForReview })),
+    detail: noLongerOpen
+      ? t("pulls.awaitingTrigger.notOpenCopy")
+      : t("pulls.awaitingTrigger.copy"),
     pending,
     announcement,
     onGenerate: offersGenerate ? regenerate : undefined,

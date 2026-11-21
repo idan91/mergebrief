@@ -104,12 +104,11 @@ operators: # example; no default
 #   maxGenerationsPerDay: 300 # default
 
 # --- Draft pull requests -----------------------------------------------------
-# `generate: off` holds a draft's first brief until it is marked ready.
 # `debounceSeconds` sets a longer wait before a draft regenerates. Unset, a
-# draft waits the normal 60 seconds.
+# draft waits the normal 60 seconds. To hold drafts until they are marked
+# ready, set `triggerConditions.readyForReview: on`.
 # docs/self-host/repo-config.md#related-instance-block-drafts-operator-side
 # drafts:
-#   generate: on # default
 #   debounceSeconds: 900 # example; no default
 
 # --- Trackers (the boards every repo reads tickets from) ---------------------

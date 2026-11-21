@@ -250,18 +250,6 @@ describe("deriveBriefRouteState", () => {
     expect(shouldPollMeta(closedUrlRow)).toBe(true);
   });
 
-  it("a skipped draft's superseded row ends the fast poll", () => {
-    const superseded = generation({ status: "superseded" });
-    const heldDraft = meta({
-      generation: superseded,
-      appInstalled: true,
-      draft: true,
-      draftPolicy: { generate: false },
-    });
-
-    expect(shouldPollMeta(heldDraft)).toBe(false);
-  });
-
   it("an awaiting-trigger head reads its own state and ends the fast poll", () => {
     const awaiting = meta({
       generation: generation({ status: "awaiting-trigger" }),

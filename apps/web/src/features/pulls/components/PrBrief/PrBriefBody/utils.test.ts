@@ -11,7 +11,6 @@ import {
 const OPEN_INSTALLED: SupersededStopSource = {
   state: "open",
   appInstalled: true,
-  draft: false,
 };
 
 describe("readSupersededAnnouncementKey", () => {
@@ -31,26 +30,17 @@ describe("readSupersededAnnouncementKey", () => {
 });
 
 describe("readEmptyCopyOverride", () => {
-  const HELD_DRAFT: EmptyCopySource = {
-    appInstalled: true,
-    state: "open",
-    draft: true,
-    draftPolicy: { generate: false },
-    viewerIsAuthor: false,
-  };
+  const OPEN_META: EmptyCopySource = { appInstalled: true, state: "open" };
 
-  it("promises no brief for a held draft, which the author gate may hold", () => {
-    const line = readEmptyCopyOverride(appI18n.t, HELD_DRAFT);
-
-    expect(line).toContain("marked ready for review");
-    expect(line).not.toMatch(/brief (will )?generates?/i);
+  it("keeps the default line on an open installation PR", () => {
+    expect(readEmptyCopyOverride(appI18n.t, OPEN_META)).toBeUndefined();
   });
 
-  it("hands the draft's author their own drafts-off notice", () => {
-    const own = { ...HELD_DRAFT, viewerIsAuthor: true };
+  it("promises no brief on a closed installation PR", () => {
+    const closed = { ...OPEN_META, state: "closed" as const };
 
-    expect(readEmptyCopyOverride(appI18n.t, own)).toBe(
-      appI18n.t("pulls.ownDraft.draftsOff"),
+    expect(readEmptyCopyOverride(appI18n.t, closed)).toBe(
+      appI18n.t("pulls.empty.notOpenCopy"),
     );
   });
 });

@@ -87,8 +87,6 @@ export function buildCappedLabel(
 export interface CappedCardDetailInput {
   readonly prState: PrSummary["state"];
   readonly appInstalled: boolean;
-  /** A draft under a drafts-off instance: its next push queues nothing. */
-  readonly awaitsReadyForReview: boolean;
   /** A large run's refusal: named in place of the instance's limit. */
   readonly units?: GenerationUnitsParams | undefined;
 }
@@ -96,12 +94,11 @@ export interface CappedCardDetailInput {
 /**
  * What the cap is and how this head gets a brief. A capped head never reruns
  * on its own: a url row reruns on a paste whatever its state, an
- * installation row on its next push while the PR is open, or on ready for
- * review when it is a draft its instance does not generate.
+ * installation row on its next push while the PR is open.
  */
 export function buildCappedCardDetail(
   t: TFunction,
-  { prState, appInstalled, awaitsReadyForReview, units }: CappedCardDetailInput,
+  { prState, appInstalled, units }: CappedCardDetailInput,
 ): string {
   if (units !== undefined && isPastDailyCap(units)) {
     const closed = appInstalled && isNoLongerOpen(prState);
@@ -116,9 +113,6 @@ export function buildCappedCardDetail(
   }
   if (isNoLongerOpen(prState)) {
     return `${limit} ${t("pulls.failed.notOpenNote")}`;
-  }
-  if (awaitsReadyForReview) {
-    return `${limit} ${t("pulls.capped.readyForReviewNote")}`;
   }
   return `${limit} ${t("pulls.capped.nextPush")}`;
 }
