@@ -22,6 +22,7 @@ export interface ExplainPopoverProps {
 export function ExplainPopover({ status }: ExplainPopoverProps) {
   const titleId = useId();
   const { action, runAction, failure, heldConditions } = status;
+  const heldPartial = status.heldConditionsPartial === true;
   const panelVariant = heldConditions === undefined ? undefined : "held";
 
   return (
@@ -52,6 +53,7 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
             <HeldConditions
               layout={HeldConditionsLayouts.POPOVER}
               unmet={heldConditions}
+              unmetPartial={heldPartial}
             />
           )}
           <div className={styles["actions"]}>

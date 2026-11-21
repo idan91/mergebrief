@@ -68,6 +68,8 @@ export interface NewerCommitsStatus {
   readonly runAction?: NewerCommitsAction;
   /** A held latest push's unmet conditions, grouped in the popover. */
   readonly heldConditions?: readonly HeldCondition[];
+  /** The held list left out an item the server could not read. */
+  readonly heldConditionsPartial?: boolean;
 }
 
 /** A run the chip can start, and whether its request is in flight. */
