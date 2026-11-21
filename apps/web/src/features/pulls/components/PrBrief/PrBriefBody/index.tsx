@@ -223,6 +223,7 @@ function PrBriefBodyState({
         <main className="main" id="main-content" tabIndex={-1}>
           <HeldCard
             appInstalled={meta.appInstalled}
+            generateEveryPush={meta.generateEveryPush}
             prNumber={prNumber}
             prState={meta.state}
             repoId={repoId}

@@ -22,6 +22,9 @@ import { renderTerminalDiff, type TerminalDiffOptions } from "./terminal-diff";
 import { buildRequestPath } from "../request-path";
 import { isRecord } from "../../utils";
 
+/** Set from a signed-in browser only; the CLI shows it, never sets it. */
+const EVERY_PUSH_LINE = "generates on every push\n";
+
 // ---------------------------------------------------------------------------
 // Commands. Each takes the resolved client + repoId and the io sinks.
 // ---------------------------------------------------------------------------
@@ -41,7 +44,7 @@ export async function runPrList(
   renderPrList(response.bodyText, io);
 }
 
-/** `pr <n>`: PR-meta, verbatim; a held head adds its `held:` line. */
+/** `pr <n>`: PR-meta, verbatim; a held head adds its `held:` line, and a PR that generates on every push says so. */
 export async function runPrMeta(
   client: ApiClient,
   repoId: string,
@@ -71,6 +74,9 @@ export async function runPrMeta(
   );
   if (held !== undefined) {
     io.stdout(held);
+  }
+  if (meta.slice.generateEveryPush === true) {
+    io.stdout(EVERY_PUSH_LINE);
   }
 }
 

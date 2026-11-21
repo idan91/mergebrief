@@ -44,13 +44,31 @@ function buildProceedOutcome(
   return { kind: ConditionCheckKinds.PROCEED, repoConfig, files };
 }
 
-/** A gateable run, unless a Generate click stamped its head to skip the conditions. */
+/**
+ * A url-box job is the viewer's own paste, a recovery run or a stored
+ * brief's run already passed, a succeeded row has nothing to hold, a
+ * Generate click stamped its head to skip the conditions, and a PR
+ * generating on every push skips them for every head.
+ */
 function isCheckable(context: RunContext): boolean {
-  const { projected } = context;
+  const { payload, recovering, existingBrief, projected, prRow } = context;
   const stamped =
     projected !== undefined && projected.generateRequestedAt !== null;
-  const checkable = isGateable(context) && !stamped;
+  const everyPush = prRow.generateEveryPushAt !== null;
+  const checkable =
+    payload.grantId === undefined &&
+    !recovering &&
+    existingBrief === undefined &&
+    projected?.status !== GenerationStatuses.SUCCEEDED &&
+    !stamped &&
+    !everyPush;
   return checkable;
+}
+
+/** The switch went on after pickup read the row; the store refused the hold under its lock. */
+async function isEveryPushSince(context: RunContext): Promise<boolean> {
+  const row = await context.repo.pullRequests.getById(context.prRow.id);
+  return row !== undefined && row.generateEveryPushAt !== null;
 }
 
 function listSettings(
@@ -222,7 +240,8 @@ function readConditionFacts(
  * instance's alone. An unmet condition holds the row and ends the run:
  * no claim, no attempt, no model. A hold the store refuses (a Generate
  * click, a live claim, a kept status) stands the run down the same way;
- * the click's own job runs the head. A held head gets the held Entry.
+ * the click's own job runs the head, but a PR turned to every push goes on
+ * to the claim, since no other job runs it. A held head gets the held Entry.
  */
 export async function applyConditionCheck(
   context: RunContext,
@@ -252,6 +271,9 @@ export async function applyConditionCheck(
 
   const held = await projection.markHeld(target, unmet);
   if (!held.ok) {
+    if (await isEveryPushSince(context)) {
+      return proceed(repoConfig, files);
+    }
     log.info("generate: condition hold stood down", { code: held.error.code });
     return HELD;
   }

@@ -64,6 +64,7 @@ describe("parseInboxResponse", () => {
     const { heldTotal: _heldTotal, ...older } = WIRE_PAGE;
     const olderItem: Record<string, unknown> = { ...ITEM };
     delete olderItem["viewerCanPush"];
+    delete olderItem["generateEveryPush"];
 
     const parsed = parseInboxResponse({ ...older, items: [olderItem] });
 
@@ -72,6 +73,7 @@ describe("parseInboxResponse", () => {
     }
     expect(parsed.value.heldTotal).toBe(0);
     expect(parsed.value.items[0]?.viewerCanPush).toBe(false);
+    expect(parsed.value.items[0]?.generateEveryPush).toBe(false);
   });
 
   it("reads a held head's unmet conditions and drops an unknown kind", () => {

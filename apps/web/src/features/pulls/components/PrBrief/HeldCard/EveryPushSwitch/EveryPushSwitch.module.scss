@@ -1,0 +1,29 @@
+@layer components {
+  .foot {
+    display: grid;
+    gap: var(--space-1);
+    justify-items: start;
+    padding: var(--space-4) var(--space-6) var(--space-5);
+    border-block-start: 1px solid var(--color-line);
+  }
+
+  .hint,
+  .outcome {
+    max-inline-size: 64ch;
+    margin: 0;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- tracks Checkbox's 14px box and its gap, so the text starts under the label */
+    padding-inline-start: calc(14px + var(--space-3));
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+    text-wrap: pretty;
+  }
+
+  .outcome {
+    margin-block-start: var(--space-2);
+
+    &:empty {
+      margin-block-start: 0;
+    }
+  }
+}

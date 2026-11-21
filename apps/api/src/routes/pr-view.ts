@@ -127,5 +127,6 @@ export function buildPrView(
     generation: buildGenerationSummary(latestGeneration, waitReason, progress),
     updatedAt: row.updatedAt.toISOString(),
     behind,
+    generateEveryPush: row.generateEveryPushAt !== null,
   };
 }

@@ -164,6 +164,8 @@ export interface PrSummary {
    * false and the composer's attach control stays off.
    */
   readonly appInstalled: boolean;
+  /** Every push of this PR generates, trigger conditions or not; a server predating the field reads false. */
+  readonly generateEveryPush: boolean;
   readonly generation?: GenerationSummary;
   readonly updatedAt: string;
   /** GitHub reports a head the latest brief does not cover; a server predating the field reads false. */
@@ -206,6 +208,21 @@ export type RegenerateResultKind = ValueOf<typeof RegenerateResultKinds>;
 
 export interface RegenerateResult {
   readonly kind: RegenerateResultKind;
+}
+
+/** What turning generate on every push on or off answered. */
+export const EveryPushResultKinds = {
+  SAVED: "saved",
+  /** No push access, no App installation, a session-only refusal, or the row is gone. */
+  NOT_ALLOWED: "not-allowed",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
+  UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
+} as const;
+export type EveryPushResultKind = ValueOf<typeof EveryPushResultKinds>;
+
+export interface EveryPushResult {
+  readonly kind: EveryPushResultKind;
 }
 
 /** What each answer announces; `undefined` where the card swap speaks instead. */

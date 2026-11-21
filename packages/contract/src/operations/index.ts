@@ -256,6 +256,18 @@ export const ProductOperations = {
     method: HttpMethods.POST,
     path: "/api/repos/:repoId/pulls/:prNumber/unarchive",
   },
+  [ProductActionIds.TURN_ON_GENERATE_EVERY_PUSH]: {
+    kind: OperationKinds.ACTION,
+    classification: AccessLevels.EXTERNAL_WRITE,
+    method: HttpMethods.POST,
+    path: "/api/repos/:repoId/pulls/:prNumber/generate-every-push/on",
+  },
+  [ProductActionIds.TURN_OFF_GENERATE_EVERY_PUSH]: {
+    kind: OperationKinds.ACTION,
+    classification: AccessLevels.PRIVATE_WRITE,
+    method: HttpMethods.POST,
+    path: "/api/repos/:repoId/pulls/:prNumber/generate-every-push/off",
+  },
   [ProductActionIds.MINT_TOKEN]: {
     kind: OperationKinds.ACTION,
     classification: AccessLevels.PRIVATE_WRITE,

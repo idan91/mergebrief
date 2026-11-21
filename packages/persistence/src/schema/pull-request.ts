@@ -104,6 +104,16 @@ export const pullRequest = pgTable(
     triggerApprovedAt: timestamp("trigger_approved_at", {
       withTimezone: true,
     }),
+    /**
+     * The pusher who turned on generating on every push, and when: while set,
+     * trigger conditions never hold a push of this PR. CHECK-paired.
+     */
+    generateEveryPushBy: bigint("generate_every_push_by", {
+      mode: "bigint",
+    }).$type<ReviewerId>(),
+    generateEveryPushAt: timestamp("generate_every_push_at", {
+      withTimezone: true,
+    }),
     /** NULL while open; the retention sweep's one input once closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /**
@@ -152,6 +162,10 @@ export const pullRequest = pgTable(
       check(
         "pull_request_trigger_approval_shape",
         sql`(${table.triggerApprovedBy} is null) = (${table.triggerApprovedAt} is null)`,
+      ),
+      check(
+        "pull_request_generate_every_push_shape",
+        sql`(${table.generateEveryPushBy} is null) = (${table.generateEveryPushAt} is null)`,
       ),
       check(
         "pull_request_owner_shape",

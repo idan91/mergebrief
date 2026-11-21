@@ -126,6 +126,18 @@ const EXPECTED_POLICY = {
   [ProductActionIds.SET_REVIEW_OUTCOME]: ["requiresStoredPullRequest"],
   [ProductActionIds.SUBMIT_REVIEW]: ["requiresStoredPullRequest"],
   [ProductActionIds.UNARCHIVE_PULL]: ["requiresStoredPullRequest"],
+  [ProductActionIds.TURN_ON_GENERATE_EVERY_PUSH]: [
+    "browserSessionOnly",
+    "requiresPushAccess",
+    "requiresInstallation",
+    "requiresStoredPullRequest",
+  ],
+  [ProductActionIds.TURN_OFF_GENERATE_EVERY_PUSH]: [
+    "browserSessionOnly",
+    "requiresPushAccess",
+    "requiresInstallation",
+    "requiresStoredPullRequest",
+  ],
   [ProductActionIds.UNRESOLVE_THREAD]: ["requiresStoredPullRequest"],
   [ProductActionIds.UPDATE_DRAFT_COMMENT]: ["requiresStoredPullRequest"],
   [ProductActionIds.UPLOAD_ATTACHMENT]: ["requiresInstallation"],
