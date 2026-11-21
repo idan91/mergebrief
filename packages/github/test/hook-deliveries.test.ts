@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppClient } from "../src/auth/app";
 import {
+  listFailedHookDeliveries,
   listHookDeliveries,
   redeliverHookDelivery,
 } from "../src/operations/hook-deliveries";
@@ -97,6 +98,20 @@ describe("listHookDeliveries", () => {
     const listed = await listHookDeliveries(appClient);
 
     expect(listed.ok).toBe(false);
+  });
+});
+
+describe("listFailedHookDeliveries", () => {
+  it("asks GitHub for failed deliveries alone", async () => {
+    const stub = stubGitHub(() => ({ status: 200, body: [DELIVERY] }));
+
+    const appClient = createAppClient(makeAppConfig());
+    const listed = await listFailedHookDeliveries(appClient, "v1_77");
+
+    expect(listed.ok && listed.value.deliveries).toHaveLength(1);
+    const search = new URLSearchParams(stub.requests[0]?.search);
+    expect(search.get("status")).toBe("failure");
+    expect(search.get("cursor")).toBe("v1_77");
   });
 });
 

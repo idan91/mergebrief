@@ -30,7 +30,7 @@ const RECHECK_ONLY_EVENTS: ReadonlySet<string> = new Set([
   "status",
 ]);
 
-function isRecheckOnly({ event }: HookDelivery): boolean {
+export function isRecheckOnly({ event }: HookDelivery): boolean {
   return RECHECK_ONLY_EVENTS.has(event);
 }
 
