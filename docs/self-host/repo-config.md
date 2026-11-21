@@ -177,7 +177,7 @@ generates as before.
 | --- | --- | --- |
 | `readyForReview` | `on` | The pull request is not a draft. |
 | `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. |
-| `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push. `claude` never approves; only `claude` reports `clean`. |
+| `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push. `claude` and `copilot` never approve; only `claude` reports `clean`. |
 | `reviewRequested` | `on` | A review is requested from someone. |
 | `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push. `required` reads the base branch's rulesets, not classic branch protection. |
 | `paths` | A list of globs | A changed file matches one. This file only; the instance config refuses it. |
@@ -189,8 +189,12 @@ generates as before.
 
 The instance's conditions apply too, merged per kind: a kind you set here
 replaces the instance's, a kind you leave out is inherited, and a list is
-one value. `<kind>: off` drops one inherited kind, and `triggerConditions:
-off` drops them all. An empty block is invalid. A bad block rejects the
+one value. A kind's place travels with its value, so one you set inside
+`any:` sits in the group even where the instance set it outside. There is
+one `any:` group: the instance's inherited members and yours join it, and
+one passing member from either is enough. `<kind>: off` drops one inherited
+kind, and `triggerConditions: off` drops them all. An empty block is
+invalid. A bad block rejects the
 whole file, and a file that cannot be read or is rejected applies the
 instance's conditions alone. The block is read from the default branch
 only, so a pull request's own edit to it applies once merged.
