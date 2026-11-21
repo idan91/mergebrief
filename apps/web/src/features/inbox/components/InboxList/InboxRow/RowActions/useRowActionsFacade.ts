@@ -36,7 +36,7 @@ export function useRowActionsFacade(
     announceArchived: onArchived,
     onRemoved,
   });
-  const generateNow = useRegenerateBrief({
+  const generateBrief = useRegenerateBrief({
     repoId: item.repoId,
     prNumber: item.prNumber,
     notices: HeldRowGenerateNotices,
@@ -80,8 +80,8 @@ export function useRowActionsFacade(
   return {
     archiving: archiving.pending,
     regenerating,
-    generatingNow: generateNow.pending,
-    generateNow: generateNow.regenerate,
+    generating: generateBrief.pending,
+    generate: generateBrief.regenerate,
     everyPushOn: everyPush.checked,
     everyPushPending: everyPush.pending,
     toggleEveryPush: () => {
