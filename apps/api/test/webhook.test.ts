@@ -852,7 +852,7 @@ describe("POST /api/webhooks/github", () => {
     );
     await harness.raw("delete from graphile_worker.jobs");
     await harness.raw(
-      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","source":"repo"}]'`,
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
     );
 
     const res = await deliver(
