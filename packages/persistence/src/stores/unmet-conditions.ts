@@ -225,8 +225,8 @@ function isCheckReportKind(condition: UnmetPlainCondition): boolean {
  * answers true, so the head is checked again rather than left.
  */
 export function isHeldOnCheckReports(stored: string | null): boolean {
-  const conditions = parseUnmetConditions(stored);
-  if (conditions === undefined) {
+  const conditions = parseUnmetConditions(stored)?.conditions;
+  if (conditions === undefined || conditions.length === 0) {
     return true;
   }
   return conditions.some((condition) => {

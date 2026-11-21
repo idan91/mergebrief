@@ -17,7 +17,7 @@ import {
   type ScopeContext,
 } from "../src/index";
 import { claimTestRun, failTestRun, succeedTestRun } from "../src/testing";
-import { CHECK_REPORT_WAKE_DELAY_SECONDS } from "../src/stores/ingest";
+import { CHECK_REPORT_RECHECK_DELAY_SECONDS } from "../src/stores/ingest";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -769,7 +769,7 @@ describe("recheckHeadsAtSha", () => {
     const rows = await shared.harness.raw(
       "select extract(epoch from run_at - now())::int as delay from graphile_worker.jobs",
     );
-    expect(Number(rows[0]?.["delay"])).toBe(CHECK_REPORT_WAKE_DELAY_SECONDS);
+    expect(Number(rows[0]?.["delay"])).toBe(CHECK_REPORT_RECHECK_DELAY_SECONDS);
   });
 
   it("leaves a head held on no bots or ci item asleep", async () => {
