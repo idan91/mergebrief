@@ -92,9 +92,9 @@ The release that added the `bots` and `ci` [trigger conditions](./repo-config.md
 2. Under events, subscribe to **Check run** and **Status**. Each checkbox appears once its permission is set.
 3. Accept the updated permissions on each installation's settings page on GitHub.
 
-Until an installation accepts, a `ci` condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold every push as missing the permission, and the brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
+Until an installation accepts, a `ci` condition holds a push as missing the permission whenever it has a check to read; a `ci: required` on a base with no required check still passes. A `bots` condition holds Unblocked, CodeRabbit, Claude or Greptile as missing the permission while they have not reported: their `finished` and `approved` verdicts can also come from a pull request review, which needs neither permission. The brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
 
-Two cases read check runs only and need Checks alone: `claude: clean`, and a `ci: required` check a ruleset pins to one App. Every other verdict on those four bots, and every other `ci` check, needs both, so an App granted only one of the two still holds them as missing the permission. A `ci` check that passes on the source the App can read holds as missing while the other source is unreadable; a failure or a run still going shows as such ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
+`claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted. Every other verdict on those four bots, and every `ci` check, a check a ruleset pins to one App included, needs both, so an App granted only one of the two holds them as above: a `ci` condition while it has a check to read, a bot while it has not reported. A `ci` check that passes on the source the App can read holds as missing while the other source is unreadable, and the held push then shows only the line asking for the permission, even when another check failed or is still running ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
 
 Accepting the permissions wakes nothing: a push already held as missing them waits for its next push or a Generate click.
 
@@ -275,9 +275,10 @@ to the section that explains it.
       Any permission added after install needs the same approval: without
       Pull requests write, no Entry comment posts
       ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
-      and without Checks and Commit statuses a `ci` condition and the App
-      bots of a `bots` condition hold as missing the permission, until the
-      next push or a Generate click after the approval
+      and without Checks and Commit statuses a `ci` condition with a check
+      to read, and the App bots of a `bots` condition that have not
+      reported, hold as missing the permission, until the next push or a
+      Generate click after the approval
       ([Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
