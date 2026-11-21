@@ -2792,7 +2792,7 @@ describe("POST /api/webhooks/github", () => {
 
 describe("check runs and statuses wake a held head", () => {
   const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
-  /** A hold a check report can move: only `bots` and `ci` read reports. */
+  /** A hold a status check can move: only `bots` and `ci` read reports. */
   const HELD_ON_CI = JSON.stringify([
     {
       kind: "ci",

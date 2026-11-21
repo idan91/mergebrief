@@ -8,6 +8,7 @@ import {
   TriggerConditionKinds,
   TriggerConditionSetters,
   UnmetConditionKinds,
+  type TriggerConditionKind,
   type UnmetBaseBranches,
   type UnmetCondition,
   type UnmetPlainCondition,
@@ -210,13 +211,13 @@ function readStoredItem(item: unknown): StoredItemRead {
 }
 
 /** The kinds a check run or status can move: only they read the head's reports. */
-const CHECK_REPORT_KINDS: ReadonlySet<string> = new Set([
+const STATUS_CHECK_KINDS: ReadonlySet<TriggerConditionKind> = new Set([
   TriggerConditionKinds.BOTS,
   TriggerConditionKinds.CI,
 ]);
 
-function isCheckReportKind(condition: UnmetPlainCondition): boolean {
-  return CHECK_REPORT_KINDS.has(condition.kind);
+function isStatusCheckKind(condition: UnmetPlainCondition): boolean {
+  return STATUS_CHECK_KINDS.has(condition.kind);
 }
 
 /**
@@ -225,7 +226,7 @@ function isCheckReportKind(condition: UnmetPlainCondition): boolean {
  * with nothing readable, answers true: an item this build cannot read may be
  * one a report moves, so the head is checked again rather than left.
  */
-export function isHeldOnCheckReports(stored: string | null): boolean {
+export function isHeldOnStatusChecks(stored: string | null): boolean {
   const parsed = parseUnmetConditions(stored);
   if (parsed === undefined || parsed.partial) {
     return true;
@@ -236,9 +237,9 @@ export function isHeldOnCheckReports(stored: string | null): boolean {
   }
   return conditions.some((condition) => {
     if (condition.kind !== UnmetConditionKinds.ANY) {
-      return isCheckReportKind(condition);
+      return isStatusCheckKind(condition);
     }
-    return condition.conditions.some(isCheckReportKind);
+    return condition.conditions.some(isStatusCheckKind);
   });
 }
 

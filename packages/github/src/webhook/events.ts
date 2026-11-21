@@ -10,8 +10,8 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
-import { CHECK_RUN_COMPLETED_STATUS } from "../operations/status-checks";
 import {
+  CHECK_RUN_COMPLETED_STATUS,
   GitHubAccountTypes,
   RepositoryVisibilities,
   type GitHubAccountType,
@@ -216,8 +216,8 @@ export interface ParsedInstallationRepositoriesEvent {
   readonly repoIdsRemoved: readonly RepoId[];
 }
 
-/** What a check report names: a commit in a repository, never a PR a fork opened. */
-export interface ParsedCommitReport {
+/** What a status check names: a commit in a repository, never a PR a fork opened. */
+export interface ParsedStatusCheck {
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
   /** The account holding the repository, which `allowed.accounts` matches. */
@@ -227,13 +227,13 @@ export interface ParsedCommitReport {
   readonly headSha: string;
 }
 
-export interface ParsedCheckRunEvent extends ParsedCommitReport {
+export interface ParsedCheckRunEvent extends ParsedStatusCheck {
   readonly kind: typeof ParsedWebhookEventKinds.CHECK_RUN;
   readonly action: CheckRunAction;
 }
 
 /** A commit status in any state; a status names no PR. */
-export interface ParsedStatusEvent extends ParsedCommitReport {
+export interface ParsedStatusEvent extends ParsedStatusCheck {
   readonly kind: typeof ParsedWebhookEventKinds.STATUS;
 }
 
@@ -638,21 +638,21 @@ function parseGitHubAppAuthorization(
   };
 }
 
-function shapeCommitReport(
+function shapeStatusCheck(
   installationId: InstallationId,
   repository: z.infer<typeof repositoryRefSchema>,
   headSha: string,
-): Mutable<ParsedCommitReport> {
-  const report: Mutable<ParsedCommitReport> = {
+): Mutable<ParsedStatusCheck> {
+  const statusCheck: Mutable<ParsedStatusCheck> = {
     installationId,
     repoId: repository.id,
     repoFullName: repository.full_name,
     headSha,
   };
   if (repository.owner !== undefined) {
-    report.repoOwnerId = BigInt(repository.owner.id);
+    statusCheck.repoOwnerId = BigInt(repository.owner.id);
   }
-  return report;
+  return statusCheck;
 }
 
 function parseCheckRun(
@@ -670,14 +670,14 @@ function parseCheckRun(
   if (startedUnfinished) {
     return { ok: true, value: ignored(HANDLED_EVENT_NAMES.CHECK_RUN, action) };
   }
-  const report = shapeCommitReport(
+  const statusCheck = shapeStatusCheck(
     installation.id,
     repository,
     checkRun.head_sha,
   );
   return {
     ok: true,
-    value: { ...report, kind: ParsedWebhookEventKinds.CHECK_RUN, action },
+    value: { ...statusCheck, kind: ParsedWebhookEventKinds.CHECK_RUN, action },
   };
 }
 
@@ -689,10 +689,10 @@ function parseStatus(
     return invalidPayload(HANDLED_EVENT_NAMES.STATUS, parsed.error);
   }
   const { installation, repository, sha } = parsed.data;
-  const report = shapeCommitReport(installation.id, repository, sha);
+  const statusCheck = shapeStatusCheck(installation.id, repository, sha);
   return {
     ok: true,
-    value: { ...report, kind: ParsedWebhookEventKinds.STATUS },
+    value: { ...statusCheck, kind: ParsedWebhookEventKinds.STATUS },
   };
 }
 

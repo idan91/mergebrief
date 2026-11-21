@@ -119,7 +119,7 @@ export type {
   ParsedGitHubAppAuthorizationEvent,
   ParsedCheckRunEvent,
   ParsedStatusEvent,
-  ParsedCommitReport,
+  ParsedStatusCheck,
   IgnoredWebhookEvent,
   EventParseError,
   EventParseErrorCode,
