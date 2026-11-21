@@ -105,11 +105,10 @@ async function readUnreadFailures(
     const inWindow = listed.value.deliveries.filter(
       (delivery) => delivery.deliveredAt.getTime() >= windowStart,
     );
-    unread.push(
-      ...inWindow.filter(
-        (delivery) => delivery.deliveredAt.getTime() < cutOffAt.getTime(),
-      ),
+    const beforeCutOff = inWindow.filter(
+      (delivery) => delivery.deliveredAt.getTime() < cutOffAt.getTime(),
     );
+    unread.push(...beforeCutOff);
     cursor = listed.value.nextCursor;
     const readAll =
       inWindow.length < listed.value.deliveries.length || cursor === undefined;
