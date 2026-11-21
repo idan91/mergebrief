@@ -780,6 +780,20 @@ describe("recheckHeadsAtSha", () => {
     expect(await countQueuedJobs(shared)).toBe(0);
   });
 
+  it("rechecks a head held on labels while its job is locked", async () => {
+    const pullRequestId = await seedHeldAt({
+      unmet: [{ kind: "labels", setBy: "repo", labels: ["needs-brief"] }],
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([pullRequestId]);
+    expect(await countQueuedJobs(shared)).toBe(2);
+  });
+
   it("wakes a head whose any group holds a ci member", async () => {
     const [ci] = UNMET_CI;
     if (ci === undefined || ci.kind === "any") {

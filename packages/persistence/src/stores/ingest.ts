@@ -271,11 +271,10 @@ function isRetriedFailure(row: GenerationRow): boolean {
  * a pending one only while its run is in flight, and a failed one only while
  * a retry of a failure that may still clear is in flight.
  */
-async function isRecheckOwed(
-  tx: IngestTransaction,
-  pullRequestId: PullRequestRowId,
+function isRecheckOwed(
+  job: QueueJobState | undefined,
   row: GenerationRow,
-): Promise<boolean> {
+): boolean {
   const { status } = row;
   if (!RECHECKED_STATUSES.has(status)) {
     return false;
@@ -285,7 +284,6 @@ async function isRecheckOwed(
   if (finalFailure) {
     return false;
   }
-  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
   if (isJobWaiting(job)) {
     return false;
   }
@@ -329,7 +327,7 @@ interface HeadRecheck {
   /** Only while this is the PR's current head; absent wakes whatever is. */
   readonly headSha?: string;
   readonly delaySeconds: number;
-  /** A check report's recheck: a held head wakes only while a `bots` or `ci` item holds it. */
+  /** A check report's recheck: a held head no run holds wakes only while a `bots` or `ci` item holds it. */
   readonly requiresCheckReportHold: boolean;
 }
 
@@ -356,14 +354,14 @@ async function recheckLockedHead(
   if (headMoved) {
     return false;
   }
-  const owed = await isRecheckOwed(tx, pullRequestId, head.row);
-  if (!owed) {
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  if (!isRecheckOwed(job, head.row)) {
     return false;
   }
-  const held = head.row.status === GenerationStatuses.HELD;
+  const inFlight = job?.locked === true;
   const reportCannotMove =
     recheck.requiresCheckReportHold &&
-    held &&
+    !inFlight &&
     !isHeldOnCheckReports(head.row.unmetConditions);
   if (reportCannotMove) {
     return false;
