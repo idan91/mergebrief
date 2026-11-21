@@ -50,7 +50,7 @@
     },
     "held": {
       "heading": "No brief for {{shortSha}}.",
-      "generateLink": "Generate now",
+      "generateLink": "Generate brief",
       "previousLink": "Brief for {{shortSha}}",
       "footer": "Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates."
     },
