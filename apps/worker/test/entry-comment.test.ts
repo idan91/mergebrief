@@ -432,21 +432,21 @@ describe("held entry body", () => {
         {
           kind: "any",
           conditions: [
-            { kind: "labels", source: "repo", labels: ["needs-brief"] },
+            { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
             {
               kind: "size",
-              source: "repo",
-              count: "changed-lines",
+              setBy: "repo",
+              measure: "changed-lines",
               side: "max",
               limit: 500,
               actual: 1284,
             },
           ],
         },
-        { kind: "ready-for-review", source: "instance" },
+        { kind: "ready-for-review", setBy: "instance" },
         {
           kind: "ci",
-          source: "repo",
+          setBy: "repo",
           failed: [],
           running: ["build", "lint", "test", "e2e"],
           missing: [],
@@ -478,7 +478,7 @@ describe("held entry body", () => {
     const body = buildEntryCommentHeldBody(t, {
       next: LINK,
       previous: undefined,
-      unmet: [{ kind: "never", source: "repo" }],
+      unmet: [{ kind: "never", setBy: "repo" }],
     });
 
     expect(body).toContain(
@@ -494,7 +494,7 @@ describe("held entry body", () => {
     const body = buildEntryCommentHeldBody(t, {
       next: LINK,
       previous: undefined,
-      unmet: [{ kind: "never", source: "instance" }],
+      unmet: [{ kind: "never", setBy: "instance" }],
     });
 
     expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
