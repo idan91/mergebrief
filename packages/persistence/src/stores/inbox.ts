@@ -23,6 +23,7 @@ import {
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxFoldStates,
+  InboxGenerationFilters,
   InboxReviewStates,
   InboxSortDirections,
   InboxSorts,
@@ -485,10 +486,14 @@ function buildStateFilter(input: InboxListInput, state: SQLWrapper): SQL {
 }
 
 function buildGenerationFilter(input: InboxListInput, held: SQLWrapper): SQL {
-  if (input.filters.generation === undefined) {
+  const status = input.filters.generation;
+  if (status === undefined) {
     return sql`true`;
   }
-  return sql`${held}`;
+  switch (status) {
+    case InboxGenerationFilters.HELD:
+      return sql`${held}`;
+  }
 }
 
 function buildArchivedPredicate(
