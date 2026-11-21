@@ -14,6 +14,7 @@ import {
 import { throwOnGitHubFailure } from "../errors";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
 import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
+import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts } from "./types";
 
@@ -37,8 +38,10 @@ function isCheckable(context: RunContext): boolean {
 
 /**
  * Only a `paths` condition that can decide the verdict reads the file list
- * this early. A failure classifies as the run's own later read would: a
- * transient one retries before any hold, so no head is held on a list it
+ * this early, and not in a run about to move to the large pool: unread paths
+ * read as met, so that run routes and the large pool's run reads the list
+ * once and decides. A failure classifies as the run's own later read would:
+ * a transient one retries before any hold, so no head is held on a list it
  * never saw.
  */
 async function readCheckedFiles(
@@ -46,7 +49,8 @@ async function readCheckedFiles(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
 ): Promise<readonly PullRequestFile[] | undefined> {
-  if (!isVerdictOnPaths(effective, facts)) {
+  const pathsDecide = isVerdictOnPaths(effective, facts);
+  if (!pathsDecide || isBoundForLargePool(context)) {
     return undefined;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
