@@ -42,6 +42,7 @@ import {
   buildJobPayload,
   getRecoveryJobKey,
   readQueueJob,
+  type QueueJobState,
 } from "./queue";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
@@ -219,20 +220,23 @@ async function isGenerateJobLocked(
 }
 
 /**
- * Whether a job for the PR waits in the queue with no worker on it yet. A job
- * that spent its attempts stays in graphile's table unlocked but never runs
- * again, so it does not count as waiting.
+ * Whether a job waits in the queue with no worker on it yet. A job that spent
+ * its attempts stays in graphile's table unlocked but never runs again, so it
+ * does not count as waiting.
  */
+function isJobWaiting(job: QueueJobState | undefined): boolean {
+  if (job === undefined) {
+    return false;
+  }
+  return !job.locked && job.hasAttemptsLeft;
+}
+
 async function hasQueuedGenerateJob(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
   const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
-  if (job === undefined) {
-    return false;
-  }
-  const waitsForWorker = !job.locked && job.hasAttemptsLeft;
-  return waitsForWorker;
+  return isJobWaiting(job);
 }
 
 /**
@@ -250,13 +254,12 @@ async function isWakeOwed(
     return false;
   }
   const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
-  const waitsForWorker =
-    job !== undefined && !job.locked && job.hasAttemptsLeft;
-  if (waitsForWorker) {
+  if (isJobWaiting(job)) {
     return false;
   }
 
-  return status === GenerationStatuses.HELD || job?.locked === true;
+  const wakeOwed = status === GenerationStatuses.HELD || job?.locked === true;
+  return wakeOwed;
 }
 
 /**
