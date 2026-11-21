@@ -98,13 +98,12 @@ function describeGenerating(
   const explanation = [t("pulls.newerCommits.explain.generating")];
   if (generation.status === GenerationStatuses.PENDING) {
     const pendingNotice = draftPolicyNotice(t, meta.draftPolicy, meta);
-    const damped = pendingNotice?.kind === "damped";
     explanation.push(
       waitLabel(t, {
         status: generation.status,
         phase: generation.phase,
         waitReason: generation.waitReason,
-        pendingNotice: damped ? pendingNotice.text : undefined,
+        pendingNotice: pendingNotice?.text,
       }),
     );
   }
