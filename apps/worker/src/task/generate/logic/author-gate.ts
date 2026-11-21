@@ -74,7 +74,7 @@ export async function applyAuthorGate(
  * hands it to graphile while attempts remain. A permanent failure, or the
  * last attempt, holds the bot fail-closed.
  */
-function throwOnRetryableSettingsRead(
+export function throwOnRetryableSettingsRead(
   context: RunContext,
   repoConfig: AcquiredRepoConfig,
 ): void {

@@ -153,6 +153,48 @@ the brief. MergeBrief also posts a comment on the PR saying a brief is
 available on demand, unless the PR is a draft and this file turns
 `entryCommentOnDrafts` off or cannot be read.
 
+### `triggerConditions:`, what a push must meet before it generates
+
+```yaml
+version: 1
+triggerConditions:
+  readyForReview: on
+  size:
+    changedLines: { max: 1500 }
+  bots:
+    unblocked: finished
+  labels: [needs-brief]
+```
+
+Every condition must pass, unless it sits in an `any:` group, where one
+passing condition is enough. A push that misses one is **held**: nothing
+runs and nothing is spent, it generates by itself once every condition
+passes, and anyone with push access can generate it now from the PR's page
+in MergeBrief. With no conditions set here or on the instance, every push
+generates as before.
+
+| Key | Value | Met when |
+| --- | --- | --- |
+| `readyForReview` | `on` | The pull request is not a draft. |
+| `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. |
+| `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push. `claude` never approves; only `claude` reports `clean`. |
+| `reviewRequested` | `on` | A review is requested from someone. |
+| `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push. `required` reads the base branch's rulesets, not classic branch protection. |
+| `paths` | A list of globs | A changed file matches one. This file only; the instance config refuses it. |
+| `labels` | A list of label names | The pull request carries one of them. |
+| `titleKeywords` | A list of words | The title contains one of them. |
+| `baseBranches` | A list of branch names | The pull request targets one of them directly. A stacked PR into another branch stays held until it retargets. |
+| `never` | `on` | Never: every push waits for a Generate click. It stands alone. |
+| `any` | A map of two or more of the kinds above, `never` excepted | One of them is met. |
+
+The instance's conditions apply too, merged per kind: a kind you set here
+replaces the instance's, a kind you leave out is inherited, and a list is
+one value. `<kind>: off` drops one inherited kind, and `triggerConditions:
+off` drops them all. An empty block is invalid. A bad block rejects the
+whole file, and a file that cannot be read or is rejected applies the
+instance's conditions alone. The block is read from the default branch
+only, so a pull request's own edit to it applies once merged.
+
 ## `policy.yaml` (32 KB, versioned)
 
 ```yaml
