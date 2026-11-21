@@ -1113,6 +1113,39 @@ describe("POST /api/webhooks/github", () => {
     });
   });
 
+  describe("review requests stamp reviewRequested on the pull request", () => {
+    async function requestReview(type: string): Promise<void> {
+      const res = await deliver(app, "pull_request", {
+        ...pullRequestPayload({ action: "review_requested" }),
+        requested_reviewer: { login: "reviewer", type },
+      });
+      expect(res.status).toBe(200);
+    }
+
+    async function readStamped(): Promise<unknown[]> {
+      return harness.raw(
+        "select review_requested_met_at is not null as stamped from pull_request",
+      );
+    }
+
+    it("stamps a request to a person, which a later removal keeps", async () => {
+      await requestReview("User");
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "review_request_removed" }),
+      );
+
+      expect(await readStamped()).toEqual([{ stamped: true }]);
+    });
+
+    it("leaves the pull request unstamped on a request to a bot", async () => {
+      await requestReview("Bot");
+
+      expect(await readStamped()).toEqual([{ stamped: false }]);
+    });
+  });
+
   it("a second event for one head keeps one attempt and the job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);

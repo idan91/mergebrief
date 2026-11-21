@@ -82,6 +82,10 @@ describe("createTenantRepository row_version", () => {
     const everyPushOff = await pullRequests.turnOffGenerateEveryPush(
       inserted.id,
     );
+    await pullRequests.stampReviewRequestedMet(inserted.id);
+    const reviewStamped = await pullRequests.getById(inserted.id);
+    await pullRequests.stampPathsMet(inserted.id, "digest");
+    const pathsStamped = await pullRequests.getById(inserted.id);
     const versions = [
       inserted,
       upserted,
@@ -92,10 +96,12 @@ describe("createTenantRepository row_version", () => {
       approved,
       everyPush,
       everyPushOff,
+      reviewStamped,
+      pathsStamped,
     ];
 
     expect(versions.map((row) => row?.rowVersion)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7, 8,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
     ]);
   });
 });

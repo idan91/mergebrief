@@ -7,11 +7,12 @@ import type {
   TriggerConditionSetter,
   UnmetPlainCondition,
 } from "types/trigger-conditions";
+import type { ConditionStamps } from "persistence";
 import type { ValueOf } from "types/utils";
 
 /**
- * What reported on the head, read only when a `bots` or `ci` condition is
- * set; every list is empty otherwise.
+ * What reported on the head, read only when a condition needs it; every
+ * list is empty otherwise.
  */
 export interface HeadReports {
   readonly checkRuns: readonly CheckRun[];
@@ -19,7 +20,10 @@ export interface HeadReports {
   readonly statuses: readonly CommitStatus[];
   /** GitHub refused the check-run or status read: the installation lacks Checks or Commit statuses read. */
   readonly statusChecksForbidden: boolean;
-  /** Oldest first, on any commit; a check keeps those on the head. */
+  /**
+   * Oldest first, on any commit; a check keeps those on the head. Read for
+   * `bots`, and for `reviewRequested` while no request or stamp meets it.
+   */
   readonly reviews: readonly SubmittedReview[];
   /** The base branch's ruleset-required check names; read only for `ci: required`. */
   readonly requiredChecks: readonly string[];
@@ -33,7 +37,11 @@ export interface ConditionFacts {
   /** The branch the pull request targets directly; absent when GitHub named none. */
   readonly baseRef?: string;
   readonly labels: readonly string[];
+  /** Absent when the author's account is gone; their own review never meets `reviewRequested`. */
+  readonly authorLogin?: string | undefined;
   readonly pendingReviewRequests: number;
+  /** The conditions this PR met on an earlier run or webhook and keeps met. */
+  readonly stamps: ConditionStamps;
   /** GitHub's totals for the whole pull request, per `size` measure. */
   readonly sizes: Readonly<Record<SizeMeasure, number>>;
   /**

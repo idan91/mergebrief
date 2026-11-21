@@ -6,6 +6,7 @@ import {
 } from "types/conversation";
 import type { Mutable, Result } from "types/utils";
 import { positiveBigIntSchema } from "../ids";
+import { GitHubAccountTypes, type GitHubAccountType } from "../types";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -21,6 +22,9 @@ export interface SubmittedReview {
   readonly reviewId: bigint;
   readonly state: ReviewVerdictState;
   readonly authorId?: bigint;
+  readonly authorLogin?: string;
+  /** Absent when GitHub omits it or sends a type we do not know. */
+  readonly authorType?: GitHubAccountType;
   /** The head the review was submitted against. */
   readonly commitId?: string;
 }
@@ -28,7 +32,13 @@ export interface SubmittedReview {
 const reviewEntrySchema = z.object({
   id: positiveBigIntSchema,
   state: z.string(),
-  user: z.object({ id: positiveBigIntSchema }).nullish(),
+  user: z
+    .object({
+      id: positiveBigIntSchema,
+      login: z.string().min(1).optional().catch(undefined),
+      type: z.enum(GitHubAccountTypes).optional().catch(undefined),
+    })
+    .nullish(),
   commit_id: z.string().nullish(),
 });
 const submittedStateSchema = z.enum(ReviewVerdictStates);
@@ -62,11 +72,20 @@ function shapeSubmittedReview(
     reviewId: entry.id,
     state,
   };
-  if (entry.user?.id !== undefined) {
-    review.authorId = entry.user.id;
-  }
   if (typeof entry.commit_id === "string") {
     review.commitId = entry.commit_id;
+  }
+
+  const author = entry.user;
+  if (author === null || author === undefined) {
+    return review;
+  }
+  review.authorId = author.id;
+  if (author.login !== undefined) {
+    review.authorLogin = author.login;
+  }
+  if (author.type !== undefined) {
+    review.authorType = author.type;
   }
   return review;
 }

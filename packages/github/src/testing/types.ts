@@ -37,6 +37,7 @@ import type {
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review";
+import type { GitHubAccountType } from "../types";
 import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
 import type { RepositoryVisibility } from "../types";
 
@@ -130,6 +131,8 @@ export interface FakeReview {
   readonly state: PullRequestReviewState;
   readonly body: string;
   readonly authorId?: bigint;
+  readonly authorLogin?: string;
+  readonly authorType?: GitHubAccountType;
   readonly submittedAt?: Date;
   /** The head the review was submitted against. */
   readonly commitId?: string;

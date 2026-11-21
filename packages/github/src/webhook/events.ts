@@ -161,6 +161,8 @@ export interface ParsedPullRequestEvent {
   readonly baseChanged?: boolean;
   /** Present on `edited`: whether the edit changed the title. */
   readonly titleChanged?: boolean;
+  /** Present on `review_requested`: the request names a bot, not a person or a team. */
+  readonly requestedReviewerIsBot?: boolean;
 }
 
 export interface ParsedPullRequestReviewEvent {
@@ -318,6 +320,10 @@ const pullRequestEventSchema = z.object({
       title: z.object({}).optional(),
     })
     .optional(),
+  requested_reviewer: z
+    .object({ type: accountTypeSchema })
+    .nullish()
+    .catch(undefined),
   installation: installationRefSchema,
   repository: visibleRepositorySchema,
   pull_request: z.object({
@@ -514,6 +520,9 @@ function parsePullRequest(
   if (action === PullRequestActions.EDITED) {
     event.baseChanged = data.changes?.base !== undefined;
     event.titleChanged = data.changes?.title !== undefined;
+  }
+  if (action === PullRequestActions.REVIEW_REQUESTED) {
+    event.requestedReviewerIsBot = isBotAccount(data.requested_reviewer);
   }
 
   return { ok: true, value: event };

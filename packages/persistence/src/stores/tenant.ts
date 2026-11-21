@@ -204,6 +204,21 @@ export interface PullRequestRepository {
   turnOffGenerateEveryPush(
     pullRequestId: PullRequestRowId,
   ): Promise<PullRequestRow | undefined>;
+  /**
+   * Record that the PR met `reviewRequested`. The first stamp stands; true
+   * only when this call wrote it, false for a row already stamped or outside
+   * ctx's scope.
+   */
+  stampReviewRequestedMet(pullRequestId: PullRequestRowId): Promise<boolean>;
+  /**
+   * Record that the PR met `paths` under the globs `digest` names. A stamp
+   * under the same digest stands; another digest replaces it. True only
+   * when this call wrote.
+   */
+  stampPathsMet(
+    pullRequestId: PullRequestRowId,
+    digest: string,
+  ): Promise<boolean>;
 }
 
 export interface CheckpointRepository {
@@ -474,6 +489,45 @@ export function createTenantRepository(
         set: { generateEveryPushBy: null, generateEveryPushAt: null },
         guard: isNotNull(pullRequest.generateEveryPushAt),
       });
+    },
+
+    async stampReviewRequestedMet(pullRequestId) {
+      const stamped = await db
+        .update(pullRequest)
+        .set({
+          reviewRequestedMetAt: sql`now()`,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, pullRequestId),
+            isNull(pullRequest.reviewRequestedMetAt),
+          ),
+        )
+        .returning({ id: pullRequest.id });
+      return stamped.length > 0;
+    },
+
+    async stampPathsMet(pullRequestId, digest) {
+      const stamped = await db
+        .update(pullRequest)
+        .set({
+          pathsMetAt: sql`now()`,
+          pathsMetDigest: digest,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, pullRequestId),
+            sql`${pullRequest.pathsMetDigest} is distinct from ${digest}`,
+          ),
+        )
+        .returning({ id: pullRequest.id });
+      return stamped.length > 0;
     },
   };
 
