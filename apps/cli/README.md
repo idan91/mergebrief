@@ -132,10 +132,13 @@ an installed repo (`generate <url>` queues a pasted PR); poll with backoff
 while `generation.status` is `pending` or `running`, since an
 `awaiting-trigger` head waits for a collaborator's Generate click in the
 browser and a `held` head waits for its trigger conditions, listed in
-`generation.unmetConditions` (`generate <number>` starts a held one now);
+`generation.unmetConditions` (`generate <number>` starts a held one now;
+`generation.unmetConditionsPartial: true` means the server could not read
+every stored condition, so the list is not the whole reason);
 `comparisons.lastReview`, what `delta` resolves. Without `--json`, a held
 head adds a `held:` line naming each unmet condition and whose setting it
-is, every check listed; a condition this CLI does not know prints its kind.
+is, every check listed; a condition this CLI does not know prints its kind,
+and a partial list ends with "Conditions this server could not read".
 
 ```json
 {"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"headBriefStored":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"errorCode":null,"errorParams":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}

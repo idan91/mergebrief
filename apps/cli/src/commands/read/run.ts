@@ -64,7 +64,11 @@ export async function runPrMeta(
     `PR ${prNumber} · brief ${stored ? "available" : "not ready"}` +
       `${baseSha === null || headSha === null ? "" : ` · span ${formatDisplayText(baseSha.slice(0, 7))}..${formatDisplayText(headSha.slice(0, 7))}`}\n`,
   );
-  const held = formatHeldLine(generation?.status, generation?.unmetConditions);
+  const held = formatHeldLine(
+    generation?.status,
+    generation?.unmetConditions,
+    generation?.unmetConditionsPartial === true,
+  );
   if (held !== undefined) {
     io.stdout(held);
   }
