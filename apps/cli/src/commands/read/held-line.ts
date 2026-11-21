@@ -1,9 +1,12 @@
 // `pr <n>`'s `held:` line: each unmet trigger condition as the Entry comment
 // words it, every check named. An item this build does not know prints its
 // kind raw, so a newer server's condition still shows.
-import { sortUnmetConditions } from "contract";
 import { formatDisplayText } from "brief-core/hidden-chars";
-import { createI18n, describeUnmetCondition } from "i18n";
+import {
+  createI18n,
+  describeUnmetCondition,
+  sortUnmetConditions,
+} from "i18n";
 import { GenerationStatuses } from "types/generations";
 import {
   UnmetConditionKinds,
