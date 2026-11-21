@@ -464,6 +464,24 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
     expect(status?.state).toBe(NewerCommitsStates.NO_BRIEF);
     expect(status?.unmetConditions).toBeUndefined();
   });
+
+  it.each(CLOSED_STATES)(
+    "reads the held panel's not-open line on a %s PR",
+    (state) => {
+      const translate = vi.spyOn(appI18n, "t");
+
+      const status = derive(makeMeta({ ...held, state }));
+
+      expect(translate).toHaveBeenCalledWith("pulls.held.lead.notOpen");
+      expect(translate).not.toHaveBeenCalledWith(
+        "pulls.awaitingTrigger.notOpenCopy",
+      );
+      expect(status?.explanation).toContain(
+        appI18n.t("pulls.held.lead.notOpen"),
+      );
+      translate.mockRestore();
+    },
+  );
 });
 
 describe("deriveNewerCommitsStatus: the latest push failed", () => {
