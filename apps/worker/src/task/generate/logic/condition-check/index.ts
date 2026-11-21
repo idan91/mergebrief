@@ -108,6 +108,7 @@ export async function applyConditionCheck(
   const unmet = evaluateTriggerConditions(
     effective,
     readConditionFacts(context, files),
+    log,
   );
   if (unmet.length === 0) {
     return buildProceedOutcome(repoConfig, files);

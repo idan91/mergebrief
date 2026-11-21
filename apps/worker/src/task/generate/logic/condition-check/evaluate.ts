@@ -1,4 +1,5 @@
 import { matchesGlob } from "brief-core/path-matching";
+import type { Logger } from "logging";
 import {
   type EffectiveTriggerConditions,
   type SizeBounds,
@@ -24,6 +25,7 @@ interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
   readonly setBy: TriggerConditionSetter;
   readonly facts: ConditionFacts;
+  readonly log?: Logger | undefined;
 }
 
 /** A kind's check: the unmet items it leaves, none when the push meets it. */
@@ -312,8 +314,8 @@ function matchPaths(
 
 /**
  * Git paths are case-sensitive, so a glob matches as written. A scan past
- * its budget reads as unmet: the head holds, nothing is spent, and a
- * Generate click still runs it. Unread paths read as met: the list is read
+ * its budget reads as unmet and warns: the head holds, nothing is spent, and
+ * a Generate click still runs it. Unread paths read as met: the list is read
  * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
  * another condition lists no `paths` item, nor an `any` group holding one,
  * until the others pass.
@@ -322,13 +324,20 @@ function checkPaths({
   value,
   setBy,
   facts,
+  log,
 }: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
   if (facts.changedPaths === undefined) {
     return [];
   }
-  const met = matchPaths(value, facts.changedPaths) === true;
-  if (met) {
+  const matched = matchPaths(value, facts.changedPaths);
+  if (matched === true) {
     return [];
+  }
+  if (matched === undefined) {
+    log?.warn("generate: paths match budget spent, held as no match", {
+      globs: value.length,
+      paths: facts.changedPaths.length,
+    });
   }
   return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
 }
@@ -349,19 +358,21 @@ function runKindCheck<Kind extends TriggerConditionKind>(
   setting: KindSetting<Kind>,
   setBy: TriggerConditionSetter,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetPlainCondition[] {
   const check: KindCheck<Kind> | undefined = KIND_CHECKS[setting.kind];
   if (check === undefined) {
     return [];
   }
-  return check({ value: setting.value, setBy, facts });
+  return check({ value: setting.value, setBy, facts, log });
 }
 
 function checkCondition(
   condition: EffectiveCondition,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetPlainCondition[] {
-  return runKindCheck(condition.setting, condition.setBy, facts);
+  return runKindCheck(condition.setting, condition.setBy, facts, log);
 }
 
 function isPathsCondition(condition: EffectiveCondition): boolean {
@@ -407,16 +418,17 @@ export function isVerdictOnPaths(
 export function evaluateTriggerConditions(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetCondition[] {
   const unmet: UnmetCondition[] = effective.all.flatMap((condition) =>
-    checkCondition(condition, facts),
+    checkCondition(condition, facts, log),
   );
   if (effective.any.length === 0) {
     return unmet;
   }
 
   const members = effective.any.map((condition) =>
-    checkCondition(condition, facts),
+    checkCondition(condition, facts, log),
   );
   const groupMet = members.some((items) => items.length === 0);
   if (!groupMet) {
