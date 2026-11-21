@@ -1335,12 +1335,11 @@ type UnavailableLastReviewView = Extract<
 >;
 
 const CONTRACT_PINS = {
-  // `errorDetail` and `cappedUnits` are lifted out of the wire's `errorParams`;
-  // the reader marks `unmetConditionsPartial` itself.
+  // `errorDetail` and `cappedUnits` are lifted out of the wire's `errorParams`.
   GenerationSummary: true satisfies ReadsWireFields<
     Omit<
       z.output<typeof generationSummarySchema>,
-      "errorDetail" | "cappedUnits" | "unmetConditionsPartial"
+      "errorDetail" | "cappedUnits"
     >,
     GenerationSummaryView
   >,
