@@ -1,5 +1,6 @@
 // The two every-push writes: one route turns the switch on, the other off.
-// Every refusal reads as not-allowed; the switch's state is the meta's to say.
+// A refusal reads as not-allowed unless the instance does not list the
+// account; the switch's state is the meta's to say.
 import { ProductActionIds } from "contract";
 
 import { ApiErrorCodes } from "../../../data/apiFetch";
@@ -20,7 +21,7 @@ const EveryPushKinds: WriteKindTable<EveryPushFailureKind> = {
   [ApiErrorCodes.NOT_FOUND]: EveryPushResultKinds.NOT_ALLOWED,
   [ApiErrorCodes.FORBIDDEN]: EveryPushResultKinds.NOT_ALLOWED,
   [ApiErrorCodes.HUMAN_ONLY]: EveryPushResultKinds.NOT_ALLOWED,
-  [ApiErrorCodes.ACCOUNT_NOT_ALLOWED]: EveryPushResultKinds.NOT_ALLOWED,
+  [ApiErrorCodes.ACCOUNT_NOT_ALLOWED]: EveryPushResultKinds.ACCOUNT_NOT_ALLOWED,
   [ApiErrorCodes.MALFORMED]: EveryPushResultKinds.INDETERMINATE,
   fallback: EveryPushResultKinds.UPSTREAM,
 };

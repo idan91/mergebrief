@@ -12,6 +12,8 @@ const EveryPushFailureNotices: Readonly<
   Record<EveryPushFailureKind, TranslationKey>
 > = {
   [EveryPushResultKinds.NOT_ALLOWED]: "pulls.everyPush.notAllowed",
+  [EveryPushResultKinds.ACCOUNT_NOT_ALLOWED]:
+    "pulls.briefError.account-not-allowed",
   [EveryPushResultKinds.UNAUTHORIZED]: "pulls.everyPush.unauthorized",
   [EveryPushResultKinds.UPSTREAM]: "pulls.everyPush.upstream",
   [EveryPushResultKinds.INDETERMINATE]: "pulls.everyPush.indeterminate",
