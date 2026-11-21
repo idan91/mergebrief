@@ -266,7 +266,7 @@ from the App. The worker logs `warn`
 waiting for the installation to accept that permission. The generation itself
 succeeds, so nothing in the UI reports this.
 
-**Fix:** set the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these-five)),
+**Fix:** set the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these)),
 then accept the pending request on the installation's settings page on GitHub.
 Changing the App's settings alone does not reach an existing installation. Then
 push a commit to the pull request: the comment is not posted retroactively.

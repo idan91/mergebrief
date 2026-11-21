@@ -5,15 +5,16 @@
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
-// rows and enqueue one debounced job, with no model call. The only GitHub calls are bounded
+// rows and enqueue one debounced job, with no model call. A check run or status only queues
+// the job of a held head at its SHA, and writes nothing else. The only GitHub calls are bounded
 // confirmation reads, no retry, well inside the budget: a destructive event's before it
 // purges, and the repository permission of a reviewer or PR author no association trusts,
 // whose failure counts them off the team.
 // Natural-key upserts plus graphile job_key replacement make redelivery idempotent. A pull
-// request or review delivery's signature digest is recorded after its dispatch succeeds, and
-// the same signature within 72h is skipped; a failed one records nothing, so its redelivery
-// processes. Concurrent duplicates both process: the seen-set holds no lock, the writes are
-// idempotent. A destructive event bypasses the seen-set: its confirmation is its replay guard.
+// request, review, check run or status delivery's signature digest is recorded after its
+// dispatch succeeds, and the same signature within 72h is skipped; a failed one records
+// nothing, so its redelivery processes. Concurrent duplicates both process: the seen-set
+// holds no lock, the writes are idempotent. A destructive event bypasses the seen-set: its confirmation is its replay guard.
 //
 // Status contract:
 //   401 missing or invalid signature (nothing parsed, nothing written)
@@ -47,11 +48,14 @@ import {
   TRUSTED_COLLABORATOR_PERMISSIONS,
   parseWebhookEvent,
   verifyWebhookSignature,
+  type ParsedCheckRunEvent,
+  type ParsedCommitReport,
   type ParsedGitHubAppAuthorizationEvent,
   type ParsedInstallationEvent,
   type ParsedInstallationRepositoriesEvent,
   type ParsedPullRequestEvent,
   type ParsedPullRequestReviewEvent,
+  type ParsedStatusEvent,
   type ParsedWebhookEvent,
   type ParsedWebhookEventKind,
   type PullRequestAction,
@@ -130,6 +134,13 @@ interface RepositoryPerson {
   readonly logFields: Readonly<Record<string, unknown>>;
 }
 
+/** A delivery naming a repository, which `allowed.accounts` gates by its owner. */
+type RepositoryDelivery =
+  | ParsedPullRequestEvent
+  | ParsedPullRequestReviewEvent
+  | ParsedCheckRunEvent
+  | ParsedStatusEvent;
+
 /** What a trigger sets beyond the event itself. */
 type TriggerOptions = Pick<
   TriggerGenerationInput,
@@ -149,6 +160,14 @@ const DISPATCHED: Result<void, ConfirmationFailure> = {
   ok: true,
   value: undefined,
 };
+
+/** Kinds that start or wake a run, so an unlisted repository owner's are dropped. */
+const OWNER_GATED_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
+  ParsedWebhookEventKinds.PULL_REQUEST,
+  ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
+  ParsedWebhookEventKinds.CHECK_RUN,
+  ParsedWebhookEventKinds.STATUS,
+]);
 
 /** Half of GitHub's 10s delivery budget: the purge and the answer need the rest. */
 const CONFIRMATION_TIMEOUT_MS = 5 * 1000;
@@ -796,6 +815,31 @@ async function handleInstallationRepositories(
   return DISPATCHED;
 }
 
+/**
+ * A run or status on a commit can change what a `bots` or `ci` condition reads,
+ * so a held head at that SHA is checked again. A fork PR's run names no PR and
+ * a status never does, so the SHA finds the PRs; nothing else is written.
+ */
+async function handleCommitReport(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedCommitReport,
+  log: Logger,
+): Promise<void> {
+  const ingest = createIngestRoutines(handle, ctx);
+  const { rechecked } = await ingest.recheckHeadsAtSha({
+    repoId: event.repoId,
+    headSha: event.headSha,
+  });
+  if (rechecked.length > 0) {
+    log.debug("check report woke held heads", {
+      repoId: String(event.repoId),
+      headSha: event.headSha,
+      prIds: rechecked.map(String),
+    });
+  }
+}
+
 /** A revoked authorization ends every sign-in of that user; GitHub already killed the token. */
 async function handleAppAuthorization(
   handle: AppDatabase,
@@ -812,6 +856,12 @@ async function handleAppAuthorization(
   });
 }
 
+function isRepositoryDelivery(
+  event: ParsedWebhookEvent,
+): event is RepositoryDelivery {
+  return OWNER_GATED_KINDS.has(event.kind);
+}
+
 /**
  * A delivery naming no owner matches nothing, so it starts nothing. Checked
  * ahead of the seen-set: a drop records nothing, so a redelivery after the
@@ -820,11 +870,8 @@ async function handleAppAuthorization(
 function findUnlistedOwnerDelivery(
   deps: WebhookRouteDeps,
   event: ParsedWebhookEvent,
-): ParsedPullRequestEvent | ParsedPullRequestReviewEvent | undefined {
-  const startsRuns =
-    event.kind === ParsedWebhookEventKinds.PULL_REQUEST ||
-    event.kind === ParsedWebhookEventKinds.PULL_REQUEST_REVIEW;
-  if (!startsRuns) {
+): RepositoryDelivery | undefined {
+  if (!isRepositoryDelivery(event)) {
     return undefined;
   }
   const ownerId = event.repoOwnerId;
@@ -840,7 +887,7 @@ function findUnlistedOwnerDelivery(
  */
 async function recordUnlistedLifecycle(
   deps: WebhookRouteDeps,
-  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+  event: RepositoryDelivery,
 ): Promise<void> {
   if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
     return;
@@ -900,6 +947,10 @@ async function dispatch(
       return handleInstallation(deps, ctx, event, log);
     case ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES:
       return handleInstallationRepositories(deps, ctx, event, log);
+    case ParsedWebhookEventKinds.CHECK_RUN:
+    case ParsedWebhookEventKinds.STATUS:
+      await handleCommitReport(deps.handle, ctx, event, log);
+      return DISPATCHED;
   }
 }
 

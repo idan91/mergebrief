@@ -33,6 +33,8 @@ export const ParsedWebhookEventKinds = {
   INSTALLATION_REPOSITORIES: "installation-repositories",
   IGNORED: "ignored",
   GITHUB_APP_AUTHORIZATION: "github-app-authorization",
+  CHECK_RUN: "check-run",
+  STATUS: "status",
 } as const;
 export type ParsedWebhookEventKind = ValueOf<typeof ParsedWebhookEventKinds>;
 
@@ -65,6 +67,13 @@ export type InstallationRepositoriesAction = ValueOf<
   typeof InstallationRepositoriesActions
 >;
 
+/** A run starting or finishing; a rerun request changes no run until GitHub creates one. */
+export const CheckRunActions = {
+  CREATED: "created",
+  COMPLETED: "completed",
+} as const;
+export type CheckRunAction = ValueOf<typeof CheckRunActions>;
+
 // GitHub's raw `action` string → our normalized action. Any raw action absent
 // from a map is an unhandled action for that event → `ignored`.
 const RAW_PULL_REQUEST_ACTION: Readonly<Record<string, PullRequestAction>> = {
@@ -84,6 +93,10 @@ const RAW_INSTALLATION_ACTION: Readonly<Record<string, InstallationAction>> = {
   created: InstallationActions.CREATED,
   deleted: InstallationActions.DELETED,
 };
+const RAW_CHECK_RUN_ACTION: Readonly<Record<string, CheckRunAction>> = {
+  created: CheckRunActions.CREATED,
+  completed: CheckRunActions.COMPLETED,
+};
 const RAW_INSTALLATION_REPOSITORIES_ACTION: Readonly<
   Record<string, InstallationRepositoriesAction>
 > = {
@@ -99,6 +112,8 @@ const HANDLED_EVENT_NAMES = {
   INSTALLATION: "installation",
   INSTALLATION_REPOSITORIES: "installation_repositories",
   GITHUB_APP_AUTHORIZATION: "github_app_authorization",
+  CHECK_RUN: "check_run",
+  STATUS: "status",
 } as const satisfies Record<string, WebhookEventName>;
 
 // ---------------------------------------------------------------------------
@@ -205,6 +220,27 @@ export interface ParsedInstallationRepositoriesEvent {
   readonly repoIdsRemoved: readonly RepoId[];
 }
 
+/** What a check report names: a commit in a repository, never a PR a fork opened. */
+export interface ParsedCommitReport {
+  readonly installationId: InstallationId;
+  readonly repoId: RepoId;
+  /** The account holding the repository, which `allowed.accounts` matches. */
+  readonly repoOwnerId?: bigint;
+  readonly repoFullName: string;
+  /** The commit the run or status reports on. */
+  readonly headSha: string;
+}
+
+export interface ParsedCheckRunEvent extends ParsedCommitReport {
+  readonly kind: typeof ParsedWebhookEventKinds.CHECK_RUN;
+  readonly action: CheckRunAction;
+}
+
+/** A commit status in any state; a status names no PR. */
+export interface ParsedStatusEvent extends ParsedCommitReport {
+  readonly kind: typeof ParsedWebhookEventKinds.STATUS;
+}
+
 /** A user revoked their authorization of the App; it carries no installation. */
 export interface ParsedGitHubAppAuthorizationEvent {
   readonly kind: typeof ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION;
@@ -225,7 +261,9 @@ export type ParsedWebhookEvent =
   | ParsedInstallationEvent
   | ParsedInstallationRepositoriesEvent
   | IgnoredWebhookEvent
-  | ParsedGitHubAppAuthorizationEvent;
+  | ParsedGitHubAppAuthorizationEvent
+  | ParsedCheckRunEvent
+  | ParsedStatusEvent;
 
 // ---------------------------------------------------------------------------
 // Errors.
@@ -342,6 +380,18 @@ const installationRepositoriesEventSchema = z.object({
   installation: installationRefSchema,
   repositories_added: z.array(z.object({ id: repoIdSchema })).default([]),
   repositories_removed: z.array(z.object({ id: repoIdSchema })).default([]),
+});
+
+const checkRunEventSchema = z.object({
+  installation: installationRefSchema,
+  repository: repositoryRefSchema,
+  check_run: z.object({ head_sha: z.string().min(1) }),
+});
+
+const statusEventSchema = z.object({
+  installation: installationRefSchema,
+  repository: repositoryRefSchema,
+  sha: z.string().min(1),
 });
 
 const githubAppAuthorizationEventSchema = z.object({
@@ -592,6 +642,58 @@ function parseGitHubAppAuthorization(
   };
 }
 
+function shapeCommitReport(
+  installationId: InstallationId,
+  repository: z.infer<typeof repositoryRefSchema>,
+  headSha: string,
+): Mutable<ParsedCommitReport> {
+  const report: Mutable<ParsedCommitReport> = {
+    installationId,
+    repoId: repository.id,
+    repoFullName: repository.full_name,
+    headSha,
+  };
+  if (repository.owner !== undefined) {
+    report.repoOwnerId = BigInt(repository.owner.id);
+  }
+  return report;
+}
+
+function parseCheckRun(
+  payload: unknown,
+  action: CheckRunAction,
+): Result<ParsedWebhookEvent, EventParseError> {
+  const parsed = checkRunEventSchema.safeParse(payload);
+  if (!parsed.success) {
+    return invalidPayload(HANDLED_EVENT_NAMES.CHECK_RUN, parsed.error);
+  }
+  const { installation, repository, check_run: checkRun } = parsed.data;
+  const report = shapeCommitReport(
+    installation.id,
+    repository,
+    checkRun.head_sha,
+  );
+  return {
+    ok: true,
+    value: { ...report, kind: ParsedWebhookEventKinds.CHECK_RUN, action },
+  };
+}
+
+function parseStatus(
+  payload: unknown,
+): Result<ParsedWebhookEvent, EventParseError> {
+  const parsed = statusEventSchema.safeParse(payload);
+  if (!parsed.success) {
+    return invalidPayload(HANDLED_EVENT_NAMES.STATUS, parsed.error);
+  }
+  const { installation, repository, sha } = parsed.data;
+  const report = shapeCommitReport(installation.id, repository, sha);
+  return {
+    ok: true,
+    value: { ...report, kind: ParsedWebhookEventKinds.STATUS },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Entry point.
 // ---------------------------------------------------------------------------
@@ -661,6 +763,17 @@ export function parseWebhookEvent(
         return { ok: true, value: ignored(eventName, rawAction) };
       }
       return parseInstallationRepositories(payload, action);
+    }
+    case HANDLED_EVENT_NAMES.CHECK_RUN: {
+      const action =
+        rawAction === undefined ? undefined : RAW_CHECK_RUN_ACTION[rawAction];
+      if (action === undefined) {
+        return { ok: true, value: ignored(eventName, rawAction) };
+      }
+      return parseCheckRun(payload, action);
+    }
+    case HANDLED_EVENT_NAMES.STATUS: {
+      return parseStatus(payload);
     }
     case HANDLED_EVENT_NAMES.GITHUB_APP_AUTHORIZATION: {
       if (rawAction !== GitHubAppAuthorizationActions.REVOKED) {

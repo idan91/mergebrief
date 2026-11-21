@@ -209,6 +209,23 @@ describe("selectRedeliveries", () => {
     ).toEqual([4, 3]);
   });
 
+  it("resends pull request deliveries ahead of older check reports", () => {
+    const reports = Array.from({ length: 25 }, (_, index) =>
+      makeDelivery(index + 1, `s${String(index)}`, 502, 2 * HOUR_MS + index, {
+        event: index % 2 === 0 ? "check_run" : "status",
+      }),
+    );
+    const pushes = [
+      makeDelivery(101, "p1", 502, HOUR_MS),
+      makeDelivery(102, "p2", 502, HOUR_MS + 1),
+    ];
+
+    const selected = selectIds([...reports, ...pushes]);
+
+    expect(selected).toHaveLength(20);
+    expect(selected.slice(0, 2)).toEqual([102, 101]);
+  });
+
   it("sends at most twenty in one tick", () => {
     const failed = Array.from({ length: 30 }, (_, index) =>
       makeDelivery(index + 1, `g${String(index)}`, 502, HOUR_MS + index),
@@ -352,6 +369,6 @@ describe("the reconcile task", () => {
 
     await task();
 
-    expect(pages).toBe(10);
+    expect(pages).toBe(30);
   });
 });

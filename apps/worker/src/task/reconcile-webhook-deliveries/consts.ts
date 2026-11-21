@@ -21,4 +21,5 @@ export const ATTEMPT_WAITS_MS: readonly number[] = [
 ];
 
 export const MAX_REDELIVERIES_PER_TICK = 20;
-export const MAX_PAGES_PER_TICK = 10;
+/** Check run and status deliveries fill the App's log by the dozen per push. */
+export const MAX_PAGES_PER_TICK = 30;
