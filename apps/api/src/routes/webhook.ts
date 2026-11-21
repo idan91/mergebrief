@@ -819,7 +819,7 @@ async function handleInstallationRepositories(
 
 /**
  * A run or status on a commit can change what a `bots` or `ci` condition reads,
- * so a held head at that SHA is checked again. A fork PR's run names no PR and
+ * so a head at that SHA it can move is checked again. A fork PR's run names no PR and
  * a status never does, so the SHA finds the PRs; nothing else is written.
  */
 async function handleStatusCheck(
@@ -834,7 +834,7 @@ async function handleStatusCheck(
     headSha: event.headSha,
   });
   if (rechecked.length > 0) {
-    log.debug("status check woke held heads", {
+    log.debug("status check woke heads", {
       repoId: String(event.repoId),
       headSha: event.headSha,
       prIds: rechecked.map(String),

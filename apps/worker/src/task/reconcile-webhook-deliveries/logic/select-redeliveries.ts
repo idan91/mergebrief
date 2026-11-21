@@ -22,8 +22,8 @@ const ROW_WRITING_EVENTS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * A replay of one of these only wakes a held head, and they come by the
- * dozen per push, so they resend after every other due delivery.
+ * A replay of one of these only wakes a head to check it again, and they
+ * come by the dozen per push, so they resend after every other due delivery.
  */
 const RECHECK_ONLY_EVENTS: ReadonlySet<string> = new Set([
   "check_run",

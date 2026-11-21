@@ -382,7 +382,7 @@ async function recheckLockedHead(
  * may name, in id order, the order their row locks are taken in. Unlocked:
  * the wake reads each one again under its lock.
  */
-async function listHeldHeadCandidates(
+async function listRecheckCandidates(
   tx: IngestTransaction,
   scope: RowScope,
   input: RecheckHeadsAtShaInput,
@@ -767,7 +767,7 @@ export interface RecheckHeadsAtShaInput {
 }
 
 export interface RecheckHeadsOutcome {
-  /** The PRs whose held head got its job queued, in id order. */
+  /** The PRs whose head at the SHA got a recheck job queued, in id order. */
   readonly rechecked: readonly PullRequestRowId[];
 }
 
@@ -1094,7 +1094,7 @@ export function createIngestRoutines(
       }
 
       return db.transaction(async (tx) => {
-        const candidates = await listHeldHeadCandidates(tx, scope, input);
+        const candidates = await listRecheckCandidates(tx, scope, input);
         const rechecked: PullRequestRowId[] = [];
         for (const pullRequestId of candidates) {
           const queued = await recheckLockedHead(tx, scope, {
