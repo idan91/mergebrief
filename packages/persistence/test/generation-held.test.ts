@@ -71,6 +71,10 @@ async function seedHeldHead() {
   return { pullRequestId, gen, target };
 }
 
+type SeededHeldHead = Awaited<ReturnType<typeof seedHeldHead>>;
+
+const NEWER_HEAD_SHA = "b".repeat(40);
+
 function clickGenerate(
   pullRequestId: Awaited<ReturnType<typeof seedHeldHead>>["pullRequestId"],
 ) {
@@ -224,6 +228,65 @@ describe("a held head between checks", () => {
     const row = await gen.get(target);
     expect(row?.status).toBe(GenerationStatuses.CAPPED);
     expect(row?.unmetConditions).toBeNull();
+  });
+});
+
+describe("unclaimed writes on a held head", () => {
+  const marks = [
+    [
+      "markFailed",
+      (gen: SeededHeldHead["gen"], target: SeededHeldHead["target"]) =>
+        gen.markFailed(target, {
+          code: GenerationFailureCodes.GITHUB_UNAVAILABLE,
+        }),
+    ],
+    [
+      "markSuperseded",
+      (gen: SeededHeldHead["gen"], target: SeededHeldHead["target"]) =>
+        gen.markSuperseded(target),
+    ],
+    [
+      "markCapped",
+      (gen: SeededHeldHead["gen"], target: SeededHeldHead["target"]) =>
+        gen.markCapped(target),
+    ],
+  ] as const;
+
+  it.each(marks)(
+    "%s keeps the head held with its conditions",
+    async (_markName, mark) => {
+      const { gen, target } = await seedHeldHead();
+
+      const marked = await mark(gen, target);
+
+      expect(!marked.ok && marked.error.code).toBe(
+        GenerationErrorCodes.STATUS_KEPT,
+      );
+      const row = await gen.get(target);
+      expect(row?.status).toBe(GenerationStatuses.HELD);
+      expect(readStoredConditions(row?.unmetConditions)).toEqual(UNMET);
+    },
+  );
+
+  it("stays held when a newer head's run supersedes stale briefs", async () => {
+    const { pullRequestId, gen, target } = await seedHeldHead();
+    await createIngestRoutines(shared.handle, GATE_CTX).triggerGeneration({
+      pullRequest: { repoId: GATE_REPO_ID, prNumber: 7, state: PrStates.OPEN },
+      headSha: NEWER_HEAD_SHA,
+      debounceSeconds: 0,
+    });
+    const pickedUpAt = await gen.readClock();
+
+    const swept = await gen.supersedeStaleBriefs(
+      pullRequestId,
+      NEWER_HEAD_SHA,
+      pickedUpAt,
+    );
+
+    expect(swept).toBe(0);
+    const row = await gen.get(target);
+    expect(row?.status).toBe(GenerationStatuses.HELD);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual(UNMET);
   });
 });
 
