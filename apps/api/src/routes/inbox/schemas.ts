@@ -2,6 +2,7 @@ import { InboxQueryKeys } from "contract";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxGenerationFilters,
   InboxReviewStates,
   InboxSortDirections,
   InboxSorts,
@@ -58,6 +59,7 @@ export const inboxQuerySchema = z.object({
   [InboxQueryKeys.ARCHIVED]: z
     .enum(InboxArchivedFilters)
     .default(InboxArchivedFilters.HIDE),
+  [InboxQueryKeys.GENERATION]: z.enum(InboxGenerationFilters).optional(),
   [InboxQueryKeys.SEARCH_TEXT]: z
     .string()
     .optional()

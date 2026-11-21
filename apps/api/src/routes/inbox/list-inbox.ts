@@ -11,16 +11,18 @@ import { readLiveStacks } from "./logic/live-stacks";
 import type { InboxQuery } from "./schemas";
 import type { ListInboxDeps, ListInboxFailure } from "./types";
 
-function collectAdminRepoIds(
+/** The repositories whose walk answer grants the viewer `permission`. */
+function collectRepoIdsWith(
   allowed: ReadonlyMap<RepoId, AllowedRepo>,
+  permission: "viewerIsAdmin" | "viewerCanPush",
 ): ReadonlySet<RepoId> {
-  const admin = new Set<RepoId>();
+  const granted = new Set<RepoId>();
   for (const [repoId, repo] of allowed) {
-    if (repo.viewerIsAdmin) {
-      admin.add(repoId);
+    if (repo[permission]) {
+      granted.add(repoId);
     }
   }
-  return admin;
+  return granted;
 }
 
 /** The viewer's readable repositories, grouped by the installation holding each. */
@@ -60,6 +62,9 @@ function shapeFilters(query: InboxQuery): InboxFilters {
   }
   if (query.q !== undefined) {
     filters.searchText = query.q;
+  }
+  if (query.generation !== undefined) {
+    filters.generation = query.generation;
   }
   return filters;
 }
@@ -120,7 +125,8 @@ export async function listInbox(
     {
       installations: reachable.value.installations,
       allowedRepoIds: [...allowed.value.allowed.keys()],
-      adminRepoIds: collectAdminRepoIds(allowed.value.allowed),
+      adminRepoIds: collectRepoIdsWith(allowed.value.allowed, "viewerIsAdmin"),
+      pushRepoIds: collectRepoIdsWith(allowed.value.allowed, "viewerCanPush"),
       reviewerId: readerId,
       reviewerLogin: session.reviewerLogin,
       filters: shapeFilters(query),

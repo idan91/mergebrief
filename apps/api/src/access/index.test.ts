@@ -100,6 +100,7 @@ function stubInstallations(): InstallationResolver {
         installationId: INSTALLATION_ID,
         fullName: "acme/inside",
         viewerIsAdmin: false,
+        viewerCanPush: false,
       },
     ],
   ]);

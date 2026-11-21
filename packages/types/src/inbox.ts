@@ -1,3 +1,4 @@
+import { GenerationStatuses } from "./generations";
 import type { ValueOf } from "./utils";
 
 /** The viewer's review state on a pull request's latest Brief; the viewer's own rows carry none. */
@@ -63,3 +64,9 @@ export const InboxLayouts = {
   MIXED: "mixed",
 } as const;
 export type InboxLayout = ValueOf<typeof InboxLayouts>;
+
+/** The generation filter's values: the head's stored generation status, narrowed to the ones a view lists. */
+export const InboxGenerationFilters = {
+  HELD: GenerationStatuses.HELD,
+} as const;
+export type InboxGenerationFilter = ValueOf<typeof InboxGenerationFilters>;

@@ -22,6 +22,7 @@ export const InboxQueryKeys = {
   AUTHOR: "author",
   INSTALLATION: "installation",
   ARCHIVED: "archived",
+  GENERATION: "generation",
   SEARCH_TEXT: "q",
 } as const;
 export type InboxQueryKey = ValueOf<typeof InboxQueryKeys>;
@@ -73,6 +74,12 @@ export interface InboxItem {
    * an installation row whose repository GitHub says they administer.
    */
   readonly viewerCanDelete: boolean;
+  /**
+   * GitHub says the viewer may push to an installation row's repository, as
+   * the listing read it: the bar Generate now on a held head asks for. False
+   * on a url row.
+   */
+  readonly viewerCanPush: boolean;
   /** Null for the viewer's own pull requests. */
   readonly reviewState: InboxReviewState | null;
   /** GitHub reports a head the latest brief does not cover. */
@@ -116,6 +123,8 @@ export interface InboxResponse extends Page<InboxItem> {
   readonly searchMatchTotal: number;
   /** The rows of `searchMatchTotal` the viewer archived, so a miss can say which view holds the matches. */
   readonly archivedSearchMatchTotal: number;
+  /** The rows of the view on screen whose head trigger conditions hold, under every filter but the generation one. */
+  readonly heldTotal: number;
   readonly counts: InboxCountsView;
   readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];

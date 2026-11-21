@@ -243,7 +243,12 @@ function arrangeAccount(github: FakeGitHub): void {
   );
   github.addInstallation(
     { installationId: requireInstallationId(99n), accountLogin: "acme" },
-    new Map([[REPO_ID, { fullName: "acme/widgets", viewerIsAdmin: true }]]),
+    new Map([
+      [
+        REPO_ID,
+        { fullName: "acme/widgets", viewerIsAdmin: true, viewerCanPush: false },
+      ],
+    ]),
   );
   github.setInstallationRepoIds(requireInstallationId(99n), [REPO_ID]);
 }
