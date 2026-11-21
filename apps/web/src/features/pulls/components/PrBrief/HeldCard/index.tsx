@@ -6,7 +6,7 @@ import type { PrState } from "types";
 
 import type { UnknownValue } from "@web/utils/open-enum/types";
 import { HeldConditions } from "../HeldConditions";
-import type { HeldCondition } from "../held-head/types";
+import type { HeldCondition } from "../../../types";
 import { HeldConditionsLayouts } from "../HeldConditions/types";
 import { TriggerAction } from "../TriggerAction";
 import { useHeldCardFacade } from "./useHeldCardFacade";

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { IconNames } from "@web/components/Icon/types";
 import { splitUnmetConditions } from "../held-head";
-import type { HeldCondition } from "../held-head/types";
+import type { HeldCondition } from "../../../types";
 import { ConditionGroup } from "./ConditionGroup";
 import { GroupHeadingLevels } from "./consts";
 import type { HeldConditionsLayout } from "./types";

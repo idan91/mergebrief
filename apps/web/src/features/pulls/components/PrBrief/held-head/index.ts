@@ -5,11 +5,8 @@ import {
 } from "i18n";
 import type { TFunction } from "i18next";
 
-import type {
-  HeldCondition,
-  HeldConditionSplit,
-  HeldPlainCondition,
-} from "./types";
+import type { HeldCondition, HeldPlainCondition } from "../../../types";
+import type { HeldConditionSplit } from "./types";
 
 const NAME_SEPARATOR = ", ";
 
