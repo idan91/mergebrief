@@ -16,6 +16,7 @@ import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import {
   getGenerateJobKey,
+  isHopelessFailure,
   projectAwaitingTrigger,
   projectPendingGeneration,
   readCurrentBriefHead,
@@ -402,15 +403,6 @@ async function pinLateTriggerToCurrentHead(
   return named.length > 0 ? pinned : input;
 }
 
-/** A rerun of these fails the same way and still spends. */
-function isRerunHopeless(row: GenerationRow): boolean {
-  if (row.errorCode === null) {
-    return false;
-  }
-  const failureClass = GenerationFailureClassByCode[row.errorCode];
-  return failureClass === GenerationFailureClasses.CANNOT_HELP;
-}
-
 /**
  * Why the current head cannot take a fresh run, or `undefined` when it can:
  * a head waiting for its Trigger approval, one trigger conditions hold, or
@@ -440,7 +432,7 @@ async function findTriggerOnDemandRefusal(
     return undefined;
   }
   const failed = head.row.status === GenerationStatuses.FAILED;
-  const regenerable = failed && !isRerunHopeless(head.row);
+  const regenerable = failed && !isHopelessFailure(head.row.errorCode);
   if (!regenerable) {
     return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }

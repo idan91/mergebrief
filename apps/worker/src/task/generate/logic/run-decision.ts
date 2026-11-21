@@ -195,6 +195,10 @@ function decideFromClaim(
   }
 
   run.leaveRow = true;
+  if (claim.kind === ClaimOutcomes.HOPELESS) {
+    log.info("generate: standing down, a rerun of this failure cannot help");
+    return { kind: RunDecisionKinds.STAND_DOWN };
+  }
   log.info(`generate: standing down, the generation row is ${claim.kind}`);
   return { kind: RunDecisionKinds.STAND_DOWN };
 }
