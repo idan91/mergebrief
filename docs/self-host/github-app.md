@@ -27,13 +27,8 @@ This doc is the canonical setup reference for both contributors and self-hosters
 > **Adding Issues to an App you already registered:** GitHub asks for the same approval. Until
 > then, a GitHub ticket reads as refused on the brief, and generation continues without it.
 
-> **Adding Checks and Commit statuses to an App you already registered:** each installation
-> must accept the new permissions on its settings page on GitHub. Until it does, a `ci`
-> condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold the push
-> as missing the permission; `copilot` reports through reviews and is checked as before. A
-> repository with neither condition is unaffected, and anyone with push access can still
-> generate a held push from MergeBrief. Accepting the permissions wakes nothing: a push
-> already held as missing them waits for its next push or a Generate click.
+> **Adding Checks and Commit statuses to an App you already registered:** follow
+> [Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions).
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
@@ -84,6 +79,24 @@ is the complete set.
 When a user revokes MergeBrief from their GitHub settings, `github_app_authorization` arrives
 and MergeBrief deletes every sign-in session, API token and stored GitHub credential that user
 held, and records it in the audit log. They sign in again to come back.
+
+## Upgrading an App you already registered
+
+A release that reads something new from GitHub needs a permission or an event the App you registered earlier does not have. Changing the App's settings does not reach an existing installation: GitHub asks each one to accept the updated permissions, and until it does, the installation keeps working on its old ones.
+
+### Accept the Checks and Commit statuses permissions
+
+The release that added the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) reads check runs and commit statuses. On an App registered before it:
+
+1. In the App's settings, set **Checks** and **Commit statuses** to **Read-only**.
+2. Under events, subscribe to **Check run** and **Status**. Each checkbox appears once its permission is set.
+3. Accept the updated permissions on each installation's settings page on GitHub.
+
+Until an installation accepts, a `ci` condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold every push as missing the permission, and the brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
+
+Two cases read check runs only and need Checks alone: `claude: clean`, and a `ci: required` check a ruleset pins to one App. Every other verdict on those four bots, and every other `ci` check, needs both, so an App granted only one of the two still holds them as missing the permission. A `ci` check that passes on the source the App can read holds as missing while the other source is unreadable; a failure or a run still going shows as such ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
+
+Accepting the permissions wakes nothing: a push already held as missing them waits for its next push or a Generate click.
 
 ## Reviewer sign-in
 
@@ -264,7 +277,8 @@ to the section that explains it.
       ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
       and without Checks and Commit statuses a `ci` condition and the App
       bots of a `bots` condition hold as missing the permission, until the
-      next push or a Generate click after the approval.
+      next push or a Generate click after the approval
+      ([Accept the Checks and Commit statuses permissions](#accept-the-checks-and-commit-statuses-permissions)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
       `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_OAUTH_CLIENT_ID`,
