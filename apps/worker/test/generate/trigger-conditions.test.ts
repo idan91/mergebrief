@@ -1304,8 +1304,11 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ github, log: logger })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
-    const messages = readLines().map((line) => line["msg"]);
-    expect(messages).toContain("generate: condition stamp write failed");
+    const warned = readLines().find(
+      (line) => line["msg"] === "generate: condition stamp write failed",
+    );
+    expect(warned).toMatchObject({ errorCode: "P0001" });
+    expect(JSON.stringify(warned)).not.toContain("stamp refused");
   });
 
   it("meets reviewRequested from its stamp after GitHub dropped it", async () => {
