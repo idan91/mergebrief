@@ -51,7 +51,8 @@ interface DeliveriesRead {
 
 function readOldestTime(deliveries: readonly HookDelivery[], now: Date): Date {
   const times = deliveries.map((delivery) => delivery.deliveredAt.getTime());
-  return new Date(Math.min(now.getTime(), ...times));
+  const oldestMs = Math.min(now.getTime(), ...times);
+  return new Date(oldestMs);
 }
 
 /** Every attempt in the look-back; a failed page refuses the whole read. */
@@ -121,7 +122,8 @@ async function readUnreadFailures(
 
 /**
  * Warns only when a delivery other than a check run or status may have gone
- * unread: those only wake a held head, which its next report wakes again.
+ * unread: those only wake a head to check it again, which its next report
+ * wakes again.
  */
 async function reportUnreadTail(
   deps: ReconcileWebhookDeliveriesTaskDeps,
