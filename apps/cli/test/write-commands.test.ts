@@ -299,6 +299,21 @@ describe("write commands over the real api app", () => {
 describe("write relays over a scripted api", () => {
   const submit = { method: "POST", path: SUBMIT_PATH, body: SUBMIT_RECEIPT };
 
+  it("generate <number> presses Generate on the PR's current head", async () => {
+    const regenerate = {
+      method: "POST",
+      path: `${PULL_PATH}/regenerate`,
+      status: 202,
+    };
+    const result = await runCliOffline(["generate", "7"], {
+      routes: [OFFLINE_REPOS_ROUTE, regenerate],
+    });
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe("");
+    expectRelayedRequest(result, regenerate, undefined);
+  });
+
   it("submit -F <file> reads the payload from disk", async () => {
     const payload = JSON.stringify({ outcome: "comment", body: "ok" });
     const result = await runCliOffline(

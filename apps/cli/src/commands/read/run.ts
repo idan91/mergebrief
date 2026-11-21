@@ -17,6 +17,7 @@ import { readGroupChunks } from "../brief-chunks";
 import { fetchPrMeta, isSpanBriefStored } from "../span/pr-meta";
 import type { SpanFlags } from "../span/types";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
+import { formatHeldLine } from "./held-line";
 import { renderTerminalDiff, type TerminalDiffOptions } from "./terminal-diff";
 import { buildRequestPath } from "../request-path";
 import { isRecord } from "../../utils";
@@ -40,7 +41,7 @@ export async function runPrList(
   renderPrList(response.bodyText, io);
 }
 
-/** `pr <n>`: PR-meta, verbatim. */
+/** `pr <n>`: PR-meta, verbatim; a held head adds its `held:` line. */
 export async function runPrMeta(
   client: ApiClient,
   repoId: string,
@@ -57,12 +58,16 @@ export async function runPrMeta(
     return;
   }
   const meta = await fetchPrMeta(client, repoId, prNumber);
-  const { baseSha, headSha } = meta.slice;
+  const { baseSha, headSha, generation } = meta.slice;
   const stored = isSpanBriefStored(meta.slice);
   io.stdout(
     `PR ${prNumber} · brief ${stored ? "available" : "not ready"}` +
       `${baseSha === null || headSha === null ? "" : ` · span ${formatDisplayText(baseSha.slice(0, 7))}..${formatDisplayText(headSha.slice(0, 7))}`}\n`,
   );
+  const held = formatHeldLine(generation?.status, generation?.unmetConditions);
+  if (held !== undefined) {
+    io.stdout(held);
+  }
 }
 
 /** `groups <n>`: the brief artifact body for the span, verbatim. */

@@ -113,6 +113,11 @@ export function readIo(deps: CliDeps, global: GlobalOptions): CommandIo {
   };
 }
 
+/** A bare number names a PR in the target repository; anything else is a URL. */
+export function isPrNumberArgument(raw: string): boolean {
+  return /^\d+$/.test(raw);
+}
+
 export function parsePrNumber(raw: string): number {
   if (!/^\d+$/.test(raw)) {
     throw new CliError(
