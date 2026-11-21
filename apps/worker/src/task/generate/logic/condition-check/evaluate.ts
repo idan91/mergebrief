@@ -213,7 +213,6 @@ function checkBaseBranches({
  */
 const PATHS_MATCH_STEPS = 20_000_000;
 const GLOB_SYNTAX_START = /[*?[{\\!]/;
-const LAST_WILDCARD = /[*?](?!.*[*?])/;
 
 /** A glob's literal ends: a path that lacks either cannot match. */
 interface GlobFilter {
@@ -228,10 +227,43 @@ function readLiteralPrefix(glob: string): string {
   return wildcard === -1 ? glob : glob.slice(0, wildcard);
 }
 
-/** The characters after a glob's last wildcard, empty when they hold any glob syntax. */
+/**
+ * The index past the star token at `start`, read as `matchesGlob` reads it:
+ * `*`, `**`, or `**\/`, whose slash the token consumes, since it can match
+ * zero directories.
+ */
+function skipStarToken(glob: string, start: number): number {
+  if (glob[start + 1] !== "*") {
+    return start + 1;
+  }
+  if (glob[start + 2] === "/") {
+    return start + 3;
+  }
+  return start + 2;
+}
+
+/** Where the literal tail after a glob's last wildcard token starts. */
+function findLiteralTailStart(glob: string): number {
+  let tailStart = 0;
+  let index = 0;
+  while (index < glob.length) {
+    const char = glob[index];
+    if (char === "*") {
+      index = skipStarToken(glob, index);
+      tailStart = index;
+      continue;
+    }
+    index += 1;
+    if (char === "?") {
+      tailStart = index;
+    }
+  }
+  return tailStart;
+}
+
+/** The characters after a glob's last wildcard token, empty when they hold any glob syntax. */
 function readLiteralSuffix(glob: string): string {
-  const wildcard = glob.search(LAST_WILDCARD);
-  const tail = wildcard === -1 ? glob : glob.slice(wildcard + 1);
+  const tail = glob.slice(findLiteralTailStart(glob));
   return GLOB_SYNTAX_START.test(tail) ? "" : tail;
 }
 
@@ -283,7 +315,8 @@ function matchPaths(
  * its budget reads as unmet: the head holds, nothing is spent, and a
  * Generate click still runs it. Unread paths read as met: the list is read
  * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
- * another condition lists no `paths` item until the others pass.
+ * another condition lists no `paths` item, nor an `any` group holding one,
+ * until the others pass.
  */
 function checkPaths({
   value,
