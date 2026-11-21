@@ -1,74 +1,71 @@
 import { z } from "zod/v4";
 import {
   BotStates,
-  BotVerdicts,
   ReviewBots,
   SizeBoundSides,
-  SizeCounts,
+  SizeMeasures,
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   UnmetConditionKinds,
-  type UnmetCondition,
-  type UnmetPlainCondition,
 } from "types/trigger-conditions";
 import { isRecord } from "../../utils";
 
-const sourceSchema = z.enum(TriggerConditionSources);
-const namesSchema = z.array(z.string());
+const setBySchema = z.enum(TriggerConditionSetters);
+const namesSchema = z.array(z.string()).readonly();
 
-const plainConditionSchema = z.discriminatedUnion("kind", [
+/** One condition this build knows; a bot's verdict is never printed, so it is not read. */
+export const heldPlainConditionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal(TriggerConditionKinds.READY_FOR_REVIEW),
-    source: sourceSchema,
+    setBy: setBySchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.NEVER),
-    source: sourceSchema,
+    setBy: setBySchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.REVIEW_REQUESTED),
-    source: sourceSchema,
+    setBy: setBySchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.SIZE),
-    source: sourceSchema,
-    count: z.enum(SizeCounts),
+    setBy: setBySchema,
+    measure: z.enum(SizeMeasures),
     side: z.enum(SizeBoundSides),
     limit: z.number(),
     actual: z.number(),
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.LABELS),
-    source: sourceSchema,
+    setBy: setBySchema,
     labels: namesSchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.TITLE_KEYWORDS),
-    source: sourceSchema,
+    setBy: setBySchema,
     keywords: namesSchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
-    source: sourceSchema,
+    setBy: setBySchema,
     base: z.string(),
     branches: namesSchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.PATHS),
-    source: sourceSchema,
+    setBy: setBySchema,
     paths: namesSchema,
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.BOTS),
-    source: sourceSchema,
+    setBy: setBySchema,
     bot: z.enum(ReviewBots),
-    verdict: z.enum(BotVerdicts),
     state: z.enum(BotStates),
     issues: z.number().exactOptional(),
   }),
   z.object({
     kind: z.literal(TriggerConditionKinds.CI),
-    source: sourceSchema,
+    setBy: setBySchema,
     failed: namesSchema,
     running: namesSchema,
     missing: namesSchema,
@@ -81,26 +78,56 @@ const anyGroupSchema = z.object({
   conditions: z.array(z.unknown()),
 });
 
+export type HeldPlainCondition = z.output<typeof heldPlainConditionSchema>;
+
+/** An `any` group: the members this build knows, and the kinds of those it does not. */
+interface HeldAnyGroup {
+  readonly kind: typeof UnmetConditionKinds.ANY;
+  readonly conditions: readonly HeldPlainCondition[];
+  readonly rawKinds: readonly string[];
+}
+
+export type HeldCondition = HeldPlainCondition | HeldAnyGroup;
+
 /** One unmet item as this build reads it: a condition it knows, or the kind it does not. */
 export interface HeldItem {
-  readonly known: UnmetCondition | undefined;
+  readonly known: HeldCondition | undefined;
   readonly rawKind: string | undefined;
 }
 
-function parsePlainCondition(raw: unknown): UnmetPlainCondition | undefined {
-  const parsed = plainConditionSchema.safeParse(raw);
+function parsePlainCondition(raw: unknown): HeldPlainCondition | undefined {
+  const parsed = heldPlainConditionSchema.safeParse(raw);
   return parsed.success ? parsed.data : undefined;
 }
 
-function readRawKind(raw: unknown): HeldItem {
+function readKind(raw: unknown): string | undefined {
   const kind = isRecord(raw) ? raw["kind"] : undefined;
-  return {
-    known: undefined,
-    rawKind: typeof kind === "string" ? kind : undefined,
-  };
+  return typeof kind === "string" ? kind : undefined;
 }
 
-/** An `any` group keeps the members this build knows; with none it prints raw. */
+function readRawKind(raw: unknown): HeldItem {
+  return { known: undefined, rawKind: readKind(raw) };
+}
+
+function readAnyGroup(members: readonly unknown[]): HeldAnyGroup {
+  const conditions: HeldPlainCondition[] = [];
+  const rawKinds: string[] = [];
+  for (const member of members) {
+    const parsed = parsePlainCondition(member);
+    const kind = readKind(member);
+    if (parsed !== undefined) {
+      conditions.push(parsed);
+    } else if (kind !== undefined) {
+      rawKinds.push(kind);
+    }
+  }
+  return { kind: UnmetConditionKinds.ANY, conditions, rawKinds };
+}
+
+/**
+ * An `any` group keeps the members this build knows and the raw kinds of
+ * those it does not; with neither it prints raw.
+ */
 function parseHeldItem(raw: unknown): HeldItem {
   const plain = parsePlainCondition(raw);
   if (plain !== undefined) {
@@ -110,14 +137,13 @@ function parseHeldItem(raw: unknown): HeldItem {
   if (!group.success) {
     return readRawKind(raw);
   }
-  const conditions = group.data.conditions.flatMap((member) => {
-    const parsed = parsePlainCondition(member);
-    return parsed === undefined ? [] : [parsed];
-  });
-  if (conditions.length === 0) {
+
+  const known = readAnyGroup(group.data.conditions);
+  const readsNoMember =
+    known.conditions.length === 0 && known.rawKinds.length === 0;
+  if (readsNoMember) {
     return readRawKind(raw);
   }
-  const known = { kind: UnmetConditionKinds.ANY, conditions };
   return { known, rawKind: undefined };
 }
 
