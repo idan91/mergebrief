@@ -194,11 +194,12 @@ export interface PullRequestRepository {
     input: PullRequestStackInput,
   ): Promise<PullRequestRow | undefined>;
   /**
-   * Turn off generating on every push: later pushes face the trigger
-   * conditions again, and a head already queued, running or generated is
-   * left as it is. A row already off writes nothing, `row_version`
-   * included, and is returned as it is. `undefined` if no row in ctx's
-   * scope. Turning it on is ingest's, since it may release a held head.
+   * Turn off generating on every push. A head released while it was on
+   * keeps its Generate stamp and skips the conditions; any other head,
+   * queued or pushed later, faces them when it runs. A row already off
+   * writes nothing, `row_version` included, and is returned as it is.
+   * `undefined` if no row in ctx's scope. Turning it on is ingest's, since
+   * it may release a held head.
    */
   turnOffGenerateEveryPush(
     pullRequestId: PullRequestRowId,
