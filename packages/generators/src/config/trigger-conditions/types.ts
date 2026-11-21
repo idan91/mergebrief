@@ -1,19 +1,11 @@
 import type {
   BotVerdict,
   ReviewBot,
+  SizeMeasure,
   TriggerConditionKind,
   TriggerConditionKinds,
   TriggerConditionSource,
-  ValueOf,
 } from "types";
-
-/** The `size` measures, as their YAML keys. */
-export const SizeMeasures = {
-  CHANGED_LINES: "changedLines",
-  ADDITIONS: "additions",
-  DELETIONS: "deletions",
-} as const;
-export type SizeMeasure = ValueOf<typeof SizeMeasures>;
 
 /** Inclusive bounds; at least one is set. */
 export interface SizeBounds {

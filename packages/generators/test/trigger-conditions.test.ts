@@ -61,6 +61,23 @@ describe("parsing a triggerConditions block", () => {
     ]);
   });
 
+  it("keys a size setting by its kebab-case measures", () => {
+    const block = parseRepo({
+      size: { changedLines: { max: 800 }, additions: { min: 1 } },
+    });
+    expect(block.off ? undefined : block.all[0]).toEqual({
+      kind: "size",
+      value: { "changed-lines": { max: 800 }, additions: { min: 1 } },
+    });
+  });
+
+  it("refuses a size measure written in its stored kebab-case form", () => {
+    const parsed = parseRepoTriggerConditions({
+      size: { "changed-lines": { max: 800 } },
+    });
+    expect(listIssues(parsed)).not.toEqual([]);
+  });
+
   it("reads named CI checks", () => {
     const block = parseRepo({ ci: { checks: ["build", "test"] } });
     expect(block.off ? undefined : block.all[0]).toEqual({
@@ -189,7 +206,7 @@ describe("merging the instance and repo blocks", () => {
         item.setting.value,
       ]),
     ).toEqual([
-      ["size", "instance", { changedLines: { min: 1000 } }],
+      ["size", "instance", { "changed-lines": { min: 1000 } }],
       ["labels", "repo", ["other"]],
       ["bots", "repo", { unblocked: "finished" }],
     ]);

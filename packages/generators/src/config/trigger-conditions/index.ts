@@ -247,4 +247,4 @@ export type {
   TriggerConditionSetting,
   TriggerConditionsBlock,
 } from "./types";
-export { CiModes, SizeMeasures } from "./types";
+export { CiModes } from "./types";

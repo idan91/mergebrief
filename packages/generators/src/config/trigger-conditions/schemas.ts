@@ -2,11 +2,18 @@ import { z } from "zod/v4";
 import {
   BotVerdicts,
   ReviewBots,
+  SizeMeasures,
   TriggerConditionKinds,
+  type SizeMeasure,
   type TriggerConditionKind,
 } from "types/trigger-conditions";
 
-import { CiModes, SizeMeasures, type TriggerConditionSetting } from "./types";
+import {
+  CiModes,
+  type SizeBounds,
+  type SizeSetting,
+  type TriggerConditionSetting,
+} from "./types";
 
 export const MAX_LISTED_NAMES = 50;
 const MAX_NAME_CHARS = 200;
@@ -44,15 +51,39 @@ const sizeBoundsSchema = z
     { error: "min is above max" },
   );
 
+/** The YAML key each `size` measure takes. */
+const SIZE_KEYS = {
+  changedLines: SizeMeasures.CHANGED_LINES,
+  additions: SizeMeasures.ADDITIONS,
+  deletions: SizeMeasures.DELETIONS,
+} as const satisfies Record<string, SizeMeasure>;
+
+function isSizeKey(key: string): key is keyof typeof SIZE_KEYS {
+  return Object.hasOwn(SIZE_KEYS, key);
+}
+
+function keySizeByMeasure(
+  size: Readonly<Record<string, SizeBounds | undefined>>,
+): SizeSetting {
+  const setting: Partial<Record<SizeMeasure, SizeBounds>> = {};
+  for (const [key, bounds] of Object.entries(size)) {
+    if (isSizeKey(key) && bounds !== undefined) {
+      setting[SIZE_KEYS[key]] = bounds;
+    }
+  }
+  return setting;
+}
+
 const sizeSchema = z
   .strictObject({
-    [SizeMeasures.CHANGED_LINES]: sizeBoundsSchema.exactOptional(),
-    [SizeMeasures.ADDITIONS]: sizeBoundsSchema.exactOptional(),
-    [SizeMeasures.DELETIONS]: sizeBoundsSchema.exactOptional(),
+    changedLines: sizeBoundsSchema.exactOptional(),
+    additions: sizeBoundsSchema.exactOptional(),
+    deletions: sizeBoundsSchema.exactOptional(),
   })
   .refine((size) => Object.keys(size).length > 0, {
     error: "name changedLines, additions or deletions",
-  });
+  })
+  .transform(keySizeByMeasure);
 
 const botsSchema = z
   .partialRecord(
