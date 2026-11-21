@@ -48,7 +48,7 @@ export const heldPlainConditionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
     setBy: setBySchema,
-    base: z.string(),
+    base: z.string().exactOptional(),
     branches: namesSchema,
   }),
   z.object({

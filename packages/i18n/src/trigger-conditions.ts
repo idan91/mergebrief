@@ -4,6 +4,7 @@ import {
   ReviewBots,
   SizeBoundSides,
   TriggerConditionKinds,
+  type UnmetBaseBranches,
   UnmetConditionKinds,
   type ReviewBot,
   type UnmetBot,
@@ -44,6 +45,20 @@ function describeSize(t: TFunction, condition: UnmetSize): string {
     return t("triggerCondition.reason.sizeMax", params);
   }
   return t("triggerCondition.reason.sizeMin", params);
+}
+
+function describeBaseBranches(
+  format: UnmetConditionFormat,
+  condition: UnmetBaseBranches,
+): string {
+  const { t, formatName, formatNames } = format;
+  const branches = formatNames(condition.branches);
+  const count = condition.branches.length;
+  if (condition.base === undefined) {
+    return t("triggerCondition.reason.baseUnnamed", { branches, count });
+  }
+  const base = formatName(condition.base);
+  return t("triggerCondition.reason.base-branches", { base, branches, count });
 }
 
 function describeBot(
@@ -91,7 +106,7 @@ export function describeUnmetCondition(
   condition: DescribableCondition,
   format: UnmetConditionFormat,
 ): string[] {
-  const { t, formatName, formatNames } = format;
+  const { t, formatNames } = format;
   switch (condition.kind) {
     case TriggerConditionKinds.READY_FOR_REVIEW:
     case TriggerConditionKinds.NEVER:
@@ -114,13 +129,7 @@ export function describeUnmetCondition(
         }),
       ];
     case TriggerConditionKinds.BASE_BRANCHES:
-      return [
-        t("triggerCondition.reason.base-branches", {
-          base: formatName(condition.base),
-          branches: formatNames(condition.branches),
-          count: condition.branches.length,
-        }),
-      ];
+      return [describeBaseBranches(format, condition)];
     case TriggerConditionKinds.PATHS:
       return [
         t("triggerCondition.reason.paths", {

@@ -175,7 +175,10 @@ function checkTitleKeywords({
   ];
 }
 
-/** Git branch names are case-sensitive, so the match is exact. */
+/**
+ * Git branch names are case-sensitive, so the match is exact. A base GitHub
+ * did not name matches no branch, and its item names none.
+ */
 function checkBaseBranches({
   value,
   setBy,
@@ -183,14 +186,20 @@ function checkBaseBranches({
 }: KindCheckInput<
   typeof TriggerConditionKinds.BASE_BRANCHES
 >): UnmetPlainCondition[] {
-  if (value.includes(facts.baseRef)) {
+  const { baseRef } = facts;
+  if (baseRef === undefined) {
+    return [
+      { kind: TriggerConditionKinds.BASE_BRANCHES, setBy, branches: value },
+    ];
+  }
+  if (value.includes(baseRef)) {
     return [];
   }
   return [
     {
       kind: TriggerConditionKinds.BASE_BRANCHES,
       setBy,
-      base: facts.baseRef,
+      base: baseRef,
       branches: value,
     },
   ];

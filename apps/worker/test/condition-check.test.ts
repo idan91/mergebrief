@@ -19,6 +19,11 @@ function makeFacts(overrides: Partial<ConditionFacts> = {}): ConditionFacts {
   return { ...BASE_FACTS, ...overrides };
 }
 
+function makeFactsWithoutBase(): ConditionFacts {
+  const { baseRef: _absent, ...facts } = BASE_FACTS;
+  return facts;
+}
+
 function makeEffective(
   setting: TriggerConditionSetting,
 ): EffectiveTriggerConditions {
@@ -197,6 +202,17 @@ describe("evaluateTriggerConditions, baseBranches", () => {
         base: "feature/parent",
         branches: ["main"],
       },
+    ]);
+  });
+
+  it("holds without a base when GitHub named none", () => {
+    const unmet = evaluateTriggerConditions(
+      makeEffective({ kind: "base-branches", value: ["main"] }),
+      makeFactsWithoutBase(),
+    );
+
+    expect(unmet).toStrictEqual([
+      { kind: "base-branches", setBy: "repo", branches: ["main"] },
     ]);
   });
 
