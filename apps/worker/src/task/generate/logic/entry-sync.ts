@@ -118,7 +118,6 @@ export interface LandedWriteCheck {
   readonly queueEntrySync: (headSha: string) => Promise<void>;
 }
 
-/** The landed-write check of a run's own Entry write. */
 export function buildLandedWriteCheck(
   context: Pick<RunContext, "deps" | "payload" | "log" | "watch">,
 ): LandedWriteCheck {
