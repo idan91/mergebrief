@@ -31,7 +31,7 @@ import {
 
 setUpHarness();
 
-function instanceConditions(block: unknown) {
+function makeInstanceConditions(block: unknown) {
   const parsed = parseInstanceTriggerConditions(block);
   if (!parsed.ok) {
     throw new Error(parsed.error.issues.join("; "));
@@ -64,7 +64,7 @@ describe("generate task, trigger conditions", () => {
     await makeTask({
       github,
       generator,
-      triggerConditions: instanceConditions({ readyForReview: "on" }),
+      triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
     })(payload);
 
     expect(generator.calls).toEqual([]);
@@ -84,7 +84,7 @@ describe("generate task, trigger conditions", () => {
       { path: RepoConfigPaths.SETTINGS },
       FakeFailures.SERVER_ERROR,
     );
-    const readyForReview = instanceConditions({ readyForReview: "on" });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
 
     await expect(
       makeTask({ github: failing, triggerConditions: readyForReview })(
@@ -113,7 +113,7 @@ describe("generate task, trigger conditions", () => {
 
     await makeTask({
       generator,
-      triggerConditions: instanceConditions({ readyForReview: "on" }),
+      triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
     })(payload);
 
     expect(generator.calls.length).toBeGreaterThan(0);
@@ -138,7 +138,7 @@ describe("generate task, trigger conditions", () => {
 
     await makeTask({
       github,
-      triggerConditions: instanceConditions({ never: "on" }),
+      triggerConditions: makeInstanceConditions({ never: "on" }),
     })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
@@ -146,7 +146,7 @@ describe("generate task, trigger conditions", () => {
 
   it("generates a head a Generate click released, skipping the conditions", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const never = instanceConditions({ never: "on" });
+    const never = makeInstanceConditions({ never: "on" });
     await makeTask({ triggerConditions: never })(payload);
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
 
