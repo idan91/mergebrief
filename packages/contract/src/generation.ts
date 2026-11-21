@@ -57,6 +57,11 @@ export interface GenerationSummaryView {
    * dropped, never a failure of the response.
    */
   readonly unmetConditions?: readonly UnmetCondition[];
+  /**
+   * Present only while held, when the server dropped a stored item it cannot
+   * read: `unmetConditions` is then not the whole reason, and may be absent.
+   */
+  readonly unmetConditionsPartial?: true;
 }
 
 export interface ScheduledTakeoverView {
