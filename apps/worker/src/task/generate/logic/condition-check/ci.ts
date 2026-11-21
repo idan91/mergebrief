@@ -70,26 +70,27 @@ function isBotStatus(status: CommitStatus, name: string): boolean {
 
 /**
  * A pin names the App that must provide the check, by a run or a status. A
- * run is told by its App; a status shows only that an App's bot posted it,
- * so another App's bot posting the name passes too. A user's status never
- * counts.
+ * run is told by its App, and once the App has one under the name, it alone
+ * counts, as GitHub counts it. A status shows only that an App's bot posted
+ * it, so the latest bot status counts only when the App has no run there,
+ * and another App's bot posting the name then passes too. A user's status
+ * never counts.
  */
 function listPinnedOutcomes(
   reports: HeadReports,
   name: string,
   appId: bigint,
 ): CheckOutcome[] {
-  const outcomes: CheckOutcome[] = [];
   const appRuns = reports.checkRuns.filter((run) => run.appId === appId);
   const run = findLatestRun(appRuns, name);
   if (run !== undefined) {
-    outcomes.push(readRunOutcome(run));
+    return [readRunOutcome(run)];
   }
   const status = reports.statuses.find((listed) => isBotStatus(listed, name));
-  if (status !== undefined) {
-    outcomes.push(STATUS_OUTCOMES[status.state]);
+  if (status === undefined) {
+    return [];
   }
-  return outcomes;
+  return [STATUS_OUTCOMES[status.state]];
 }
 
 /** Any check, pinned or not, may report through either source. */

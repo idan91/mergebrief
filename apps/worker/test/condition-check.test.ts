@@ -1611,6 +1611,26 @@ describe("evaluateTriggerConditions, ci pinned to an App", () => {
     expect(unmet).toMatchObject([{ running: ["build"] }]);
   });
 
+  it("passes the pinned run over another bot's failing status", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun()],
+      statuses: [makeStatus({ state: "failure", creatorType: "Bot" })],
+    });
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("holds a running pinned run over another bot's passing status", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ completed: false })],
+      statuses: [makeStatus({ creatorType: "Bot" })],
+    });
+
+    expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
   it("never passes a pinned name on a status a user posted", () => {
     const unmet = evaluateCi(REQUIRED, {
       requiredChecks: [PINNED_BUILD],
