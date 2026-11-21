@@ -29,6 +29,9 @@ export function useHeldCardFacade({
     appInstalled,
   });
   const noLongerOpen = isNoLongerOpen(prState);
+  const heading = noLongerOpen
+    ? t("pulls.awaitingTrigger.notOpenHeading")
+    : t("pulls.held.heading");
   const lead = noLongerOpen
     ? t("pulls.awaitingTrigger.notOpenCopy")
     : readHeldLead(
@@ -38,6 +41,7 @@ export function useHeldCardFacade({
       );
 
   return {
+    heading,
     lead,
     showsConditions: !noLongerOpen,
     pending,
