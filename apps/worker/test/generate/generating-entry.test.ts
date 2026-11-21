@@ -37,7 +37,6 @@ async function postHeldEditOnUnreadHead(edit: EntryWrite): Promise<string[]> {
       headSha: "a".repeat(40),
       log: logger,
       watch: stubUnreadWatch(),
-      editsHeldEntry: true,
     },
     "generating",
   );

@@ -237,7 +237,6 @@ async function postFreshGeneratingEntry(
   headIndex: number,
 ): Promise<void> {
   const { watch, translate, entryCommentManager, prInfo, log } = inputs;
-  const editsHeldEntry = inputs.generatingEntryEditsHeldEntry;
   const generatingBody = buildEntryCommentGeneratingBody(
     translate,
     entryCommentManager.buildDeepLink(headIndex),
@@ -248,7 +247,6 @@ async function postFreshGeneratingEntry(
       entryCommentManager,
       headSha: prInfo.headSha,
       log,
-      editsHeldEntry,
     },
     generatingBody,
   );

@@ -27,11 +27,7 @@ import {
   type RunContext,
   type RunInputs,
 } from "../types";
-import {
-  buildAttemptFields,
-  getGenerationOrigin,
-  mayReleaseHold,
-} from "../utils";
+import { buildAttemptFields, getGenerationOrigin } from "../utils";
 import { listRunStops, traceRunStep } from "./step-span";
 import {
   backfillMissingChunkLayout,
@@ -121,7 +117,6 @@ async function generateFreshBrief(
     watch: context.watch,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
-    generatingEntryEditsHeldEntry: mayReleaseHold(context.projected),
     translate: deps.translate,
     priorBriefs: context.priorBriefs,
     prevBrief: context.prevBrief,

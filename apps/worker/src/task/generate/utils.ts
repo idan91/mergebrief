@@ -12,11 +12,10 @@ import {
   GenerationKinds,
   MAX_GENERATION_ATTEMPTS,
   type BriefSpanRow,
-  type GenerationRow,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
-import { AnchorStates, GenerationStatuses } from "types/generations";
+import { AnchorStates } from "types/generations";
 import { PermanentJobError } from "../failure";
 import { splitRepoSlug } from "../github-port";
 import type { EntryCommentHeldLinks } from "../entry-comment/types";
@@ -180,21 +179,6 @@ export function getPrLocator(pr: PullRequestRow): PrLocator {
     throw new PermanentJobError("pull_request row has no usable repo slug");
   }
   return { owner: split.owner, repo: split.repo, number: pr.prNumber };
-}
-
-/**
- * A run that may release a hold: the row was held when it picked it up, its
- * conditions now passing, or a Generate click stamped it. A stamp also marks
- * a failed head's rerun, which no hold touched, so the caller edits only a
- * live held body and reposts any other.
- */
-export function mayReleaseHold(projected: GenerationRow | undefined): boolean {
-  if (projected === undefined) {
-    return false;
-  }
-  const held = projected.status === GenerationStatuses.HELD;
-  const stamped = projected.generateRequestedAt !== null;
-  return held || stamped;
 }
 
 /** The held body's links: Generate on the rev the head takes, and the newest brief. */
