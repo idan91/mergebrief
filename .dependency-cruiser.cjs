@@ -197,7 +197,7 @@ module.exports = {
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
     },
     {
-      name: "repo-config-imports-generators-only-through-trackers",
+      name: "repo-config-imports-generators-only-through-leaves",
       comment:
         "repo-config takes the tracker and trigger-condition schemas from generators and nothing else of it. A type-only import is erased and stays legal.",
       severity: "error",
@@ -205,7 +205,7 @@ module.exports = {
       to: {
         path: "^packages/generators/",
         pathNot:
-          "^packages/generators/src/config/(trackers\\.ts|render-key\\.ts|trigger-conditions/)",
+          "^packages/generators/src/config/(trackers\\.ts|trigger-conditions/)",
         dependencyTypesNot: ["type-only"],
       },
     },

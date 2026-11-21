@@ -4,8 +4,8 @@ import type {
   TriggerConditionKind,
   TriggerConditionKinds,
   TriggerConditionSource,
-} from "types/trigger-conditions";
-import type { ValueOf } from "types/utils";
+  ValueOf,
+} from "types";
 
 /** The `size` measures, as their YAML keys. */
 export const SizeMeasures = {
