@@ -29,11 +29,7 @@ import type { ConditionReads } from "../../../github-port";
 import { throwOnGitHubFailure } from "../errors";
 import { REVIEW_BOT_ACCOUNTS } from "./consts";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
-import {
-  evaluateTriggerConditions,
-  isPastFilesList,
-  isVerdictOnPaths,
-} from "./evaluate";
+import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
 import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts, HeadReports } from "./types";
@@ -107,10 +103,9 @@ function isRulesetRead(effective: EffectiveTriggerConditions): boolean {
 
 /**
  * Only a `paths` condition that can decide the verdict reads the file list
- * this early: not in a run about to move to the large pool, where unread
- * paths read as met, so that run routes and the large pool's run reads the
- * list once and decides, and not for a PR past GitHub's file list, which
- * meets it. A failure classifies as the run's own later read would: a
+ * this early, and not in a run about to move to the large pool: unread paths
+ * read as met, so that run routes and the large pool's run reads the list
+ * once and decides. A failure classifies as the run's own later read would: a
  * transient one retries before any hold, so no head is held on a list it
  * never saw.
  */
@@ -122,12 +117,6 @@ async function readCheckedFiles(
   const pathsDecide = isVerdictOnPaths(effective, facts);
   const filesWait = !pathsDecide || isBoundForLargePool(context);
   if (filesWait) {
-    return undefined;
-  }
-  if (isPastFilesList(facts)) {
-    context.log.debug("generate: paths met past the file list cap", {
-      changedFiles: facts.changedFileCount,
-    });
     return undefined;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
@@ -236,7 +225,6 @@ function readConditionFacts(
       [SizeMeasures.ADDITIONS]: prInfo.additions,
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
-    changedFileCount: prInfo.changedFiles,
     changedPaths: files?.map((file) => file.path),
     previousPaths: files?.flatMap(listPreviousPath),
     reports,

@@ -21,7 +21,6 @@ import {
 
 import { checkBots } from "./bots";
 import { checkCi } from "./ci";
-import { PULL_REQUEST_FILES_LIST_MAX } from "./consts";
 import {
   type ConditionFacts,
   type KindCheck,
@@ -220,18 +219,14 @@ function checkBaseBranches({
  */
 const PATHS_MATCH_STEPS = 40_000_000;
 
-/** GitHub lists none of the files past its cap, so no glob can be ruled out. */
-export function isPastFilesList(facts: ConditionFacts): boolean {
-  return facts.changedFileCount > PULL_REQUEST_FILES_LIST_MAX;
-}
-
 /**
  * Git paths are case-sensitive, so a glob matches as written. A scan past
  * its budget reads as unmet and warns: the head holds, nothing is spent, and
  * a Generate click still runs it. Unread paths read as met: the list is read
  * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
  * another condition lists no `paths` item, nor an `any` group holding one,
- * until the others pass. A PR past GitHub's file list reads as met too.
+ * until the others pass. GitHub lists at most 3,000 files, so a larger PR
+ * matches on those alone.
  */
 function checkPaths({
   value,
@@ -239,7 +234,7 @@ function checkPaths({
   facts,
   log,
 }: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
-  if (facts.changedPaths === undefined || isPastFilesList(facts)) {
+  if (facts.changedPaths === undefined) {
     return [];
   }
   const matched = matchesAnyGlob(

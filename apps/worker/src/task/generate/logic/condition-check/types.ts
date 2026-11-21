@@ -36,8 +36,6 @@ export interface ConditionFacts {
   readonly pendingReviewRequests: number;
   /** GitHub's totals for the whole pull request, per `size` measure. */
   readonly sizes: Readonly<Record<SizeMeasure, number>>;
-  /** GitHub's `changed_files` for the whole pull request. */
-  readonly changedFileCount: number;
   /**
    * Each changed file's path as GitHub lists it, a rename by its new path, a
    * deletion by the path it had. Absent until a `paths` condition can decide
