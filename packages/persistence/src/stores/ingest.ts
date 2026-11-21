@@ -42,6 +42,7 @@ import {
   addQueueJob,
   buildJobPayload,
   getRecoveryJobKey,
+  MAX_GENERATION_ATTEMPTS,
   readQueueJob,
   type QueueJobState,
 } from "./queue";
@@ -253,7 +254,8 @@ function isRetriedFailure(row: GenerationRow): boolean {
     return false;
   }
   const failureClass = GenerationFailureClassByCode[errorCode];
-  return failureClass === GenerationFailureClasses.TRANSIENT;
+  const claimsLeft = row.claims < MAX_GENERATION_ATTEMPTS;
+  return failureClass === GenerationFailureClasses.TRANSIENT && claimsLeft;
 }
 
 /**

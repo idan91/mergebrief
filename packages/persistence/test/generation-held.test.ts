@@ -8,6 +8,7 @@ import {
   GenerationErrorCodes,
   isGrantRowId,
   isReviewerId,
+  MAX_GENERATION_ATTEMPTS,
   parseUnmetConditions,
   TriggerOnDemandOutcomes,
 } from "../src/index";
@@ -545,6 +546,26 @@ describe("recheckCurrentHead", () => {
     await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
       code,
     });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("leaves a transient failure's locked job alone once claims ran out", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    await shared.harness.raw(
+      `update generation set claims = ${MAX_GENERATION_ATTEMPTS}`,
+    );
     await shared.harness.raw(
       "update graphile_worker.jobs set locked_at = now()",
     );
