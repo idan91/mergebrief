@@ -74,9 +74,7 @@ describe("RowEnd", () => {
           generation={{
             status: "held",
             updatedAt: AT,
-            unmetConditions: [
-              { kind: "labels", setBy: "repo", labels: ["x"] },
-            ],
+            unmetConditions: [{ kind: "labels", setBy: "repo", labels: ["x"] }],
           }}
           state="open"
         />
