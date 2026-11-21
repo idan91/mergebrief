@@ -629,6 +629,7 @@ export function makePullRequestInfo(headSha: string): PullRequestInfo {
   return {
     repoId: makeRepoId(7n),
     repoFullName: "acme/widget",
+    repoPrivate: false,
     headSha,
     headRef: "feature/stub",
     baseRef: "main",

@@ -117,6 +117,10 @@ export type { ResolveDsnOptions } from "./db/dsn";
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
 export { createTenantRepository } from "./stores/tenant";
+export {
+  readConditionStamps,
+  type ConditionStamps,
+} from "./stores/condition-stamps";
 export { ScopeViolationError } from "./stores/scope";
 export {
   parseTenantContext,

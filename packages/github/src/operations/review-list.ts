@@ -6,6 +6,8 @@ import {
 } from "types/conversation";
 import type { Mutable, Result } from "types/utils";
 import { safeIdSchema } from "../ids";
+import { GitHubAccountTypes, type GitHubAccountType } from "../types";
+import { AuthorAssociations, type AuthorAssociation } from "../webhook/types";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -21,6 +23,11 @@ export interface SubmittedReview {
   readonly reviewId: bigint;
   readonly state: ReviewVerdictState;
   readonly authorId?: bigint;
+  readonly authorLogin?: string;
+  /** Absent when GitHub omits it or sends a type we do not know. */
+  readonly authorType?: GitHubAccountType;
+  /** The reviewer's tie to the repository; absent when GitHub omits it or sends a value we do not know. */
+  readonly authorAssociation?: AuthorAssociation;
   /** The head the review was submitted against. */
   readonly commitId?: string;
 }
@@ -28,8 +35,15 @@ export interface SubmittedReview {
 const reviewEntrySchema = z.object({
   id: safeIdSchema,
   state: z.string(),
-  user: z.object({ id: safeIdSchema }).nullish(),
+  user: z
+    .object({
+      id: safeIdSchema,
+      login: z.string().min(1).optional().catch(undefined),
+      type: z.enum(GitHubAccountTypes).optional().catch(undefined),
+    })
+    .nullish(),
   commit_id: z.string().nullish(),
+  author_association: z.enum(AuthorAssociations).optional().catch(undefined),
 });
 const submittedStateSchema = z.enum(ReviewVerdictStates);
 
@@ -62,11 +76,23 @@ function shapeSubmittedReview(
     reviewId: BigInt(entry.id),
     state,
   };
-  if (typeof entry.user?.id === "number") {
-    review.authorId = BigInt(entry.user.id);
-  }
   if (typeof entry.commit_id === "string") {
     review.commitId = entry.commit_id;
+  }
+  if (entry.author_association !== undefined) {
+    review.authorAssociation = entry.author_association;
+  }
+
+  const author = entry.user;
+  if (author === null || author === undefined) {
+    return review;
+  }
+  review.authorId = BigInt(author.id);
+  if (author.login !== undefined) {
+    review.authorLogin = author.login;
+  }
+  if (author.type !== undefined) {
+    review.authorType = author.type;
   }
   return review;
 }

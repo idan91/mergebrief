@@ -11,6 +11,7 @@ import {
 } from "../../errors";
 import { repoIdSchema } from "../../ids";
 import { GitHubAccountTypes } from "../../types";
+import { isPrivateRepository } from "../repo-visibility";
 
 import {
   compareMergeBaseSchema,
@@ -61,6 +62,7 @@ export async function fetchPullRequest(
     const info: Mutable<PullRequestInfo> = {
       repoId: repoId.data,
       repoFullName: data.base.repo.full_name,
+      repoPrivate: isPrivateRepository(data.base.repo),
       headSha: data.head.sha,
       headRef: data.head.ref,
       baseSha: data.base.sha,

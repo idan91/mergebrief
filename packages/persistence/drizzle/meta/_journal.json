@@ -36,6 +36,13 @@
       "when": 1795232729846,
       "tag": "0004_generate_every_push",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795250509114,
+      "tag": "0005_sticky_trigger_conditions",
+      "breakpoints": true
     }
   ]
 }

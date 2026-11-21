@@ -1,17 +1,17 @@
 import type { CheckRun, CommitStatus, SubmittedReview } from "github";
 import type { TriggerConditionValues } from "generators/trigger-conditions";
-import type { Logger } from "logging";
 import type {
   SizeMeasure,
   TriggerConditionKind,
   TriggerConditionSetter,
   UnmetPlainCondition,
 } from "types/trigger-conditions";
+import type { ConditionStamps } from "persistence";
 import type { ValueOf } from "types/utils";
 
 /**
- * What reported on the head, read only when a `bots` or `ci` condition is
- * set; every list is empty otherwise.
+ * What reported on the head, read only when a condition needs it; every
+ * list is empty otherwise.
  */
 export interface HeadReports {
   readonly checkRuns: readonly CheckRun[];
@@ -19,7 +19,10 @@ export interface HeadReports {
   readonly statuses: readonly CommitStatus[];
   /** GitHub refused the check-run or status read: the installation lacks Checks or Commit statuses read. */
   readonly statusChecksForbidden: boolean;
-  /** Oldest first, on any commit; a check keeps those on the head. */
+  /**
+   * Oldest first, on any commit; a check keeps those on the head. Read for
+   * `bots`, and for `reviewRequested` while no request or stamp meets it.
+   */
   readonly reviews: readonly SubmittedReview[];
   /** The base branch's ruleset-required check names; read only for `ci: required`. */
   readonly requiredChecks: readonly string[];
@@ -32,8 +35,14 @@ export interface ConditionFacts {
   readonly headSha: string;
   /** The branch the pull request targets directly; absent when GitHub named none. */
   readonly baseRef?: string;
+  /** Private and not internal, so every reviewer was invited. */
+  readonly repoPrivate: boolean;
   readonly labels: readonly string[];
+  /** Absent when the author's account is gone; their own review never meets `reviewRequested`. */
+  readonly authorLogin?: string | undefined;
   readonly pendingReviewRequests: number;
+  /** The conditions this PR met on an earlier run or webhook and keeps met. */
+  readonly stamps: ConditionStamps;
   /** GitHub's totals for the whole pull request, per `size` measure. */
   readonly sizes: Readonly<Record<SizeMeasure, number>>;
   /**
@@ -44,6 +53,12 @@ export interface ConditionFacts {
   readonly changedPaths?: readonly string[] | undefined;
   /** Each renamed file's old path, read with `changedPaths`. */
   readonly previousPaths?: readonly string[] | undefined;
+  /**
+   * Whether a changed path or a rename's old one matched the `paths` globs,
+   * from the run's one scan (`addPathsMatch`); a scan past its budget is
+   * false. Absent when nothing was scanned.
+   */
+  readonly pathsMatched?: boolean;
   readonly reports: HeadReports;
 }
 
@@ -51,7 +66,6 @@ export interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
   readonly setBy: TriggerConditionSetter;
   readonly facts: ConditionFacts;
-  readonly log?: Logger | undefined;
 }
 
 /** A kind's check: the unmet items it leaves, none when the push meets it. */

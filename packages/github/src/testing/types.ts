@@ -38,7 +38,8 @@ import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review";
 import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
-import type { RepositoryVisibility } from "../types";
+import type { GitHubAccountType, RepositoryVisibility } from "../types";
+import type { AuthorAssociation } from "../webhook/types";
 
 /** Every method a binding exposes, named as the interfaces name it. */
 export type GitHubOperation =
@@ -130,6 +131,9 @@ export interface FakeReview {
   readonly state: PullRequestReviewState;
   readonly body: string;
   readonly authorId?: bigint;
+  readonly authorLogin?: string;
+  readonly authorType?: GitHubAccountType;
+  readonly authorAssociation?: AuthorAssociation;
   readonly submittedAt?: Date;
   /** The head the review was submitted against. */
   readonly commitId?: string;

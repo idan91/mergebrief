@@ -11,6 +11,12 @@ import type { RepositoryRef } from "./pull-request/types";
 
 const CONTEXT = "fetch repository visibility";
 
+/** A repository's `private` flag and `visibility`, as a webhook or a pull request read carries them. */
+export interface RepositoryVisibilityFields {
+  readonly private?: boolean | undefined;
+  readonly visibility?: string | undefined;
+}
+
 const repositoryVisibilitySchema = z.object({
   private: z.boolean(),
   visibility: z.enum(RepositoryVisibilities).optional(),
@@ -43,4 +49,12 @@ export async function fetchRepositoryVisibility(
   } catch (error) {
     return { ok: false, error: mapRequestError(error, CONTEXT) };
   }
+}
+
+/** Private and not internal, so only invited people see it; a missing field reads not private. */
+export function isPrivateRepository(
+  repository: RepositoryVisibilityFields,
+): boolean {
+  const invitedOnly = repository.visibility === RepositoryVisibilities.PRIVATE;
+  return repository.private === true && invitedOnly;
 }

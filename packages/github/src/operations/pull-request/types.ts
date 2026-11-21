@@ -29,6 +29,8 @@ export interface PullRequestInfo {
   readonly repoId: RepoId;
   /** The base repo's `owner/name` as GitHub verified it (rename-proof-ish). */
   readonly repoFullName: string;
+  /** The base repository is private and not internal, as the webhooks read it. */
+  readonly repoPrivate: boolean;
   readonly headSha: string;
   /** Head branch name, as GitHub reports it. */
   readonly headRef: string;

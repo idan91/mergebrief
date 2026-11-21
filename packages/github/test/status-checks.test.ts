@@ -196,8 +196,21 @@ describe("listSubmittedReviews", () => {
       status: 200,
       body: [
         { id: 1, state: "PENDING", user: { id: 501 }, commit_id: HEAD },
-        { id: 2, state: "APPROVED", user: { id: 175728472 }, commit_id: HEAD },
-        { id: 3, state: "DISMISSED", user: null, commit_id: null },
+        {
+          id: 2,
+          state: "APPROVED",
+          user: { id: 175728472, login: "copilot", type: "Bot" },
+          commit_id: HEAD,
+          author_association: "COLLABORATOR",
+        },
+        { id: 4, state: "COMMENTED", user: { id: 9, type: "Mannequin" } },
+        {
+          id: 3,
+          state: "DISMISSED",
+          user: null,
+          commit_id: null,
+          author_association: "SOMETHING_NEW",
+        },
       ],
     }));
 
@@ -210,8 +223,12 @@ describe("listSubmittedReviews", () => {
           reviewId: 2n,
           state: "APPROVED",
           authorId: 175728472n,
+          authorLogin: "copilot",
+          authorType: "Bot",
+          authorAssociation: "COLLABORATOR",
           commitId: HEAD,
         },
+        { reviewId: 4n, state: "COMMENTED", authorId: 9n },
         { reviewId: 3n, state: "DISMISSED" },
       ],
     });
