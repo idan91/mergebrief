@@ -262,6 +262,60 @@ describe("deriveBriefRouteState", () => {
     expect(shouldPollMeta(awaiting)).toBe(false);
   });
 
+  it("a held head reads its own state with its unmet conditions", () => {
+    const ready = { kind: "ready-for-review", setBy: "repo" } as const;
+    const held = meta({
+      generation: generation({ status: "held", unmetConditions: [ready] }),
+    });
+
+    expect(deriveBriefRouteState(held, undefined)).toEqual({
+      kind: "held",
+      unmetConditions: [ready],
+      unmetConditionsPartial: false,
+    });
+    expect(shouldPollMeta(held)).toBe(false);
+  });
+
+  it("a held head whose list was read in part says so", () => {
+    const ready = { kind: "ready-for-review", setBy: "repo" } as const;
+    const held = meta({
+      generation: generation({
+        status: "held",
+        unmetConditions: [ready],
+        unmetConditionsPartial: true,
+      }),
+    });
+
+    expect(deriveBriefRouteState(held, undefined)).toEqual({
+      kind: "held",
+      unmetConditions: [ready],
+      unmetConditionsPartial: true,
+    });
+  });
+
+  it("a held head the server names no conditions for still reads held", () => {
+    const held = meta({ generation: generation({ status: "held" }) });
+
+    expect(deriveBriefRouteState(held, undefined)).toEqual({
+      kind: "held",
+      unmetConditions: [],
+      unmetConditionsPartial: false,
+    });
+  });
+
+  it("a held head on a new base keeps the head's stored brief", () => {
+    const held = meta({
+      generation: generation({ status: "held" }),
+      baseSha: "base-1",
+      headBriefStored: true,
+    });
+
+    expect(deriveBriefRouteState(held, undefined)).toEqual({
+      kind: "render",
+      span: { base: "base-1", head: "head-2" },
+    });
+  });
+
   it("a null-base row with a brief at its head warms and settles", () => {
     const nullBase = { briefAvailable: false, headBriefStored: true };
     const running = meta({ ...nullBase, generation: generation({}) });

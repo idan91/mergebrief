@@ -114,10 +114,18 @@ export const prConversationSchema = z
   })
   .readonly();
 
+/** An array schema that reads each entry through `ItemSchema` and keeps what parses. */
+export type TolerantListSchema<ItemSchema extends z.ZodType> = z.ZodReadonly<
+  z.ZodPipe<
+    z.ZodArray<z.ZodUnknown>,
+    z.ZodTransform<z.output<ItemSchema>[], unknown[]>
+  >
+>;
+
 /** Each item its schema rejects is dropped, so one bad row never fails the list. */
-function buildTolerantListSchema<ItemSchema extends z.ZodType>(
+export function buildTolerantListSchema<ItemSchema extends z.ZodType>(
   itemSchema: ItemSchema,
-) {
+): TolerantListSchema<ItemSchema> {
   return z
     .array(z.unknown())
     .transform((entries) =>

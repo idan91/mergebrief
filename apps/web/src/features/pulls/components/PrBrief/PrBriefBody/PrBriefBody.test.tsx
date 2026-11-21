@@ -243,6 +243,34 @@ describe("PrBriefBody awaiting trigger on a closed PR", () => {
   );
 });
 
+describe("PrBriefBody held", () => {
+  it("renders the held panel and announces the hold politely", () => {
+    render(
+      makeBody({
+        status: "held",
+        unmetConditions: [{ kind: "ready-for-review", setBy: "repo" }],
+      }),
+    );
+
+    expect(screen.getByTestId("brief-held-card")).toBeTruthy();
+    expect(getPageRegion().textContent).toBe(
+      "No brief for this push yet. Its trigger conditions are not met.",
+    );
+  });
+
+  it("announces no brief for a closed PR's held head", () => {
+    const meta: PrSummary = {
+      ...makeMeta({ status: "held" }),
+      state: "closed",
+    };
+    render(makeBodyFor(meta));
+
+    expect(getPageRegion().textContent).toBe(
+      "No brief generated. This pull request is no longer open.",
+    );
+  });
+});
+
 describe("PrBriefBody superseded announcement", () => {
   it("says a closed installation PR stopped, not that a newer brief comes", () => {
     const meta: PrSummary = {

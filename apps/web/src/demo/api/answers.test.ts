@@ -33,7 +33,12 @@ import { parseReviewSessionPayload } from "@web/features/review/session";
 import { parseVersion } from "@web/features/version/schemas";
 import { answerDemoRequest } from "./answers";
 import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
-import { DEMO_PR, DEMO_VIEWER_LOGIN } from "./consts";
+import {
+  DEMO_HELD_BEHIND_PR_NUMBER,
+  DEMO_HELD_PR_NUMBER,
+  DEMO_PR,
+  DEMO_VIEWER_LOGIN,
+} from "./consts";
 import { createDemoSessionStore } from "./session";
 import type { PullReadId } from "./types";
 
@@ -58,11 +63,12 @@ function readGet(path: string): Response {
   );
 }
 
-function readPullOperation(id: PullReadId, query = ""): Response {
-  const path = buildOperationPath(id, {
-    repoId: DEMO_PR.repoId,
-    prNumber: DEMO_PR.prNumber,
-  });
+function readPullOperation(
+  id: PullReadId,
+  query = "",
+  prNumber: number = DEMO_PR.prNumber,
+): Response {
+  const path = buildOperationPath(id, { repoId: DEMO_PR.repoId, prNumber });
   return readGet(query === "" ? path : `${path}?${query}`);
 }
 
@@ -125,14 +131,52 @@ describe("answerDemoRequest reads", () => {
     expect(parsed.ok && parsed.value.latest).toBeUndefined();
   });
 
-  it("lists the demo pull request as the one inbox row", async () => {
+  it("lists the demo pull request and the held one in the inbox", async () => {
     const response = readGet("/api/inbox?state=open&page=1");
     const inbox = inboxResponseSchema.parse(await response.json());
 
     expect(inbox.items.map((item) => item.prNumber)).toEqual([
       DEMO_PR.prNumber,
+      DEMO_HELD_PR_NUMBER,
     ]);
     expect(inbox.viewer.login).toBe(DEMO_VIEWER_LOGIN);
+  });
+
+  it("holds the held pull request's head with every condition read", async () => {
+    const response = readPullOperation(
+      ProductQueryIds.READ_PULL,
+      "",
+      DEMO_HELD_PR_NUMBER,
+    );
+    const meta = prSummarySchema.parse(await response.json());
+
+    expect(meta.generation?.status).toBe("held");
+    expect(meta.revisions).toBeUndefined();
+    expect(meta.generation?.unmetConditions?.map((item) => item.kind)).toEqual([
+      "ready-for-review",
+      "ci",
+      "any",
+    ]);
+  });
+
+  it("keeps the first brief behind the held push on the other pull", async () => {
+    const response = readPullOperation(
+      ProductQueryIds.READ_PULL,
+      "",
+      DEMO_HELD_BEHIND_PR_NUMBER,
+    );
+    const meta = prSummarySchema.parse(await response.json());
+    const brief = readPullOperation(
+      ProductQueryIds.READ_BRIEF,
+      REV1_SPAN,
+      DEMO_HELD_BEHIND_PR_NUMBER,
+    );
+
+    expect(meta.generation?.status).toBe("held");
+    expect(meta.revisions?.map((revision) => revision.headSha)).toEqual([
+      DEMO_REV1_HEAD,
+    ]);
+    expect(brief.status).toBe(HttpStatuses.OK);
   });
 
   it("describes two revisions with a previous-brief comparison", async () => {

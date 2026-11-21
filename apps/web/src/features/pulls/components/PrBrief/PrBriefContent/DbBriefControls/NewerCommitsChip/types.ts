@@ -2,6 +2,7 @@ import type { TranslationKey } from "i18n";
 import type { ValueOf } from "types/utils";
 
 import type { PrSummary } from "../../../../../types";
+import type { HeldCondition } from "../../../held-head/types";
 
 /** What the new brief is doing, first match winning in this order. */
 export const NewerCommitsStates = {
@@ -9,6 +10,7 @@ export const NewerCommitsStates = {
   GENERATING: "generating",
   STALLED: "stalled",
   ON_DEMAND: "on-demand",
+  HELD: "held",
   FAILED: "failed",
   EXHAUSTED: "exhausted",
   SKIPPED: "skipped",
@@ -64,6 +66,10 @@ export interface NewerCommitsStatus {
   readonly liveStatus?: boolean;
   /** The latest push's run, offered in the popover while the chip's action moves to a newer stored brief. */
   readonly runAction?: NewerCommitsAction;
+  /** A held latest push's unmet conditions, grouped in the popover. */
+  readonly unmetConditions?: readonly HeldCondition[];
+  /** The held list left out an item the server or this bundle could not read. */
+  readonly unmetConditionsPartial?: boolean;
 }
 
 /** A run the chip can start, and whether its request is in flight. */

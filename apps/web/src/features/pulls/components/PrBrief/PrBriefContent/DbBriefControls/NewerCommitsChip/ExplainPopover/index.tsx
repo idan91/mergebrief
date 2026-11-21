@@ -4,6 +4,8 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { Popover } from "@web/components/Popover";
+import { HeldConditions } from "../../../../HeldConditions";
+import { HeldConditionsLayouts } from "../../../../HeldConditions/types";
 import { ActionButton } from "../ActionButton";
 import type { NewerCommitsStatus } from "../types";
 import styles from "./ExplainPopover.module.scss";
@@ -19,7 +21,9 @@ export interface ExplainPopoverProps {
  */
 export function ExplainPopover({ status }: ExplainPopoverProps) {
   const titleId = useId();
-  const { action, runAction, failure } = status;
+  const { action, runAction, failure, unmetConditions } = status;
+  const unmetConditionsPartial = status.unmetConditionsPartial === true;
+  const panelVariant = unmetConditions === undefined ? undefined : "held";
 
   return (
     <Popover placement="bottom-start" portal={false}>
@@ -28,7 +32,7 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
           <Icon name={IconNames.QUESTION} size={IconSizes.MD} />
         </IconButton>
       </Popover.Trigger>
-      <Popover.Content className={styles["panel"]}>
+      <Popover.Content className={styles["panel"]} variant={panelVariant}>
         <section aria-labelledby={titleId} data-testid="newer-commits-panel">
           <h2 className={styles["label"]}>
             <span aria-hidden="true" className={styles["dot"]} />
@@ -45,6 +49,13 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
               <p className={styles["failure"]}>{failure}</p>
             )}
           </div>
+          {unmetConditions === undefined ? null : (
+            <HeldConditions
+              layout={HeldConditionsLayouts.POPOVER}
+              unmetConditions={unmetConditions}
+              unmetConditionsPartial={unmetConditionsPartial}
+            />
+          )}
           <div className={styles["actions"]}>
             {action === undefined ? null : <ActionButton action={action} />}
             {runAction === undefined ? null : (

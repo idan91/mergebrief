@@ -8,6 +8,16 @@ import {
 import { ChunkLayoutBodySchema } from "brief-core/artifact";
 import { z } from "zod/v4";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
+import {
+  BotStates,
+  BotVerdicts,
+  ReviewBots,
+  SizeBoundSides,
+  SizeMeasures,
+  TriggerConditionKinds,
+  TriggerConditionSetters,
+  UnmetConditionKinds,
+} from "types/trigger-conditions";
 
 import type { ForkPrStack } from "@web/features/brief/model";
 import {
@@ -64,10 +74,167 @@ function liftErrorParams(value: unknown): unknown {
   return lifted;
 }
 
-/** A failure code or wait reason this bundle predates drops; a status it predates reads `unknown`. */
+const triggerConditionSetterSchema = z.enum(TriggerConditionSetters);
+const configuredNamesSchema = z.array(z.string()).readonly();
+
+/** One unmet condition; a kind, bot, state or count this bundle predates fails the item. */
+const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.READY_FOR_REVIEW),
+      setBy: triggerConditionSetterSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.NEVER),
+      setBy: triggerConditionSetterSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.REVIEW_REQUESTED),
+      setBy: triggerConditionSetterSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.SIZE),
+      setBy: triggerConditionSetterSchema,
+      measure: z.enum(SizeMeasures),
+      side: z.enum(SizeBoundSides),
+      limit: z.number(),
+      actual: z.number(),
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.LABELS),
+      setBy: triggerConditionSetterSchema,
+      labels: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.TITLE_KEYWORDS),
+      setBy: triggerConditionSetterSchema,
+      keywords: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
+      setBy: triggerConditionSetterSchema,
+      base: z.string(),
+      branches: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.PATHS),
+      setBy: triggerConditionSetterSchema,
+      paths: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.BOTS),
+      setBy: triggerConditionSetterSchema,
+      bot: z.enum(ReviewBots),
+      verdict: buildOpenEnumSchema(BotVerdicts),
+      state: z.enum(BotStates),
+      issues: z.number().exactOptional(),
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.CI),
+      setBy: triggerConditionSetterSchema,
+      failed: configuredNamesSchema,
+      running: configuredNamesSchema,
+      missing: configuredNamesSchema,
+      permissionMissing: z.boolean(),
+    })
+    .readonly(),
+]);
+
+const unmetAnyGroupSchema = z
+  .object({
+    kind: z.literal(UnmetConditionKinds.ANY),
+    conditions: z.array(unmetPlainConditionSchema).min(1).readonly(),
+  })
+  .readonly();
+
+export const unmetConditionSchema = z.union([
+  unmetPlainConditionSchema,
+  unmetAnyGroupSchema,
+]);
+
+const unmetAnyGroupWireSchema = z.object({
+  kind: z.literal(UnmetConditionKinds.ANY),
+  conditions: z.array(z.unknown()),
+});
+
+function isReadableCondition(entry: unknown): boolean {
+  return z.safeParse(unmetPlainConditionSchema, entry).success;
+}
+
+/** One wire item as this bundle keeps it, and whether reading it left anything out. */
+function keepReadableCondition(entry: unknown) {
+  if (isReadableCondition(entry)) {
+    return { kept: entry, dropped: false };
+  }
+  const group = z.safeParse(unmetAnyGroupWireSchema, entry);
+  if (!group.success) {
+    return { kept: undefined, dropped: true };
+  }
+
+  const members = group.data.conditions.filter(isReadableCondition);
+  const dropped = members.length < group.data.conditions.length;
+  if (members.length === 0) {
+    return { kept: undefined, dropped: true };
+  }
+  return { kept: { ...group.data, conditions: members }, dropped };
+}
+
+/**
+ * Keeps the held items this bundle reads, an `any` group with the members it
+ * reads, and marks the list partial when anything was left out here or the
+ * server says it dropped an item, so a reader never takes part of the reason
+ * for all of it. A value that is no list drops.
+ */
+function keepReadableUnmetConditions(value: unknown): unknown {
+  if (!isPlainRecord(value)) {
+    return value;
+  }
+  const { unmetConditions, unmetConditionsPartial, ...generation } = value;
+  const filtered: Record<string, unknown> = { ...generation };
+  let partial = unmetConditionsPartial === true;
+  if (Array.isArray(unmetConditions)) {
+    const reads = unmetConditions.map(keepReadableCondition);
+    filtered["unmetConditions"] = reads.flatMap(({ kept }) =>
+      kept === undefined ? [] : [kept],
+    );
+    partial ||= reads.some(({ dropped }) => dropped);
+  }
+
+  if (partial) {
+    filtered["unmetConditionsPartial"] = true;
+  }
+  return filtered;
+}
+
+function readGenerationWire(value: unknown): unknown {
+  return keepReadableUnmetConditions(liftErrorParams(value));
+}
+
+/**
+ * A failure code or wait reason this bundle predates drops; a status it
+ * predates reads `unknown`; an unmet item it predates drops and marks the list partial.
+ */
 export const generationSummarySchema = z
   .preprocess(
-    liftErrorParams,
+    readGenerationWire,
     dropInvalidKeys(
       z.object({
         status: buildOpenEnumSchema(GenerationStatuses),
@@ -86,8 +253,21 @@ export const generationSummarySchema = z
           .object({ done: z.number(), total: z.number() })
           .readonly()
           .exactOptional(),
+        unmetConditions: z
+          .array(unmetConditionSchema)
+          .readonly()
+          .exactOptional(),
+        unmetConditionsPartial: z.literal(true).exactOptional(),
       }),
-      ["phase", "errorCode", "cappedUnits", "waitReason", "startedAt", "parts"],
+      [
+        "phase",
+        "errorCode",
+        "cappedUnits",
+        "waitReason",
+        "startedAt",
+        "parts",
+        "unmetConditions",
+      ],
     ),
   )
   .readonly();

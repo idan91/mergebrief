@@ -20,6 +20,7 @@ import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
 import { readSupersededStop } from "./pr-state";
 import { isOwnDraft } from "./ownDraft";
+import type { HeldCondition } from "../components/PrBrief/held-head/types";
 import type { GenerationSummary, PrSummary } from "../types";
 
 export interface Span {
@@ -57,6 +58,12 @@ export type BriefRouteState =
   | { readonly kind: "superseded" }
   /** The PR waits for a collaborator's Trigger approval; nothing ran. */
   | { readonly kind: "awaiting-trigger" }
+  /** Trigger conditions hold the head; nothing ran. Unknown conditions are dropped and mark the list partial. */
+  | {
+      readonly kind: "held";
+      readonly unmetConditions: readonly HeldCondition[];
+      readonly unmetConditionsPartial: boolean;
+    }
   /**
    * Skipped: the repo hit the instance's daily generation cap. `cappedAt` is
    * when the skip was recorded, and the reset time derives from it, so a row
@@ -78,6 +85,8 @@ export type BriefRouteState =
 export function hasStoredHeadBrief(meta: PrSummary): boolean {
   return meta.headBriefStored ?? meta.briefAvailable;
 }
+
+const NO_UNMET_CONDITIONS: readonly HeldCondition[] = [];
 
 function isInFlight(status: GenerationSummary["status"] | undefined): boolean {
   return (
@@ -169,12 +178,17 @@ export function deriveBriefRouteState(
       };
     case GenerationStatuses.AWAITING_TRIGGER:
       return { kind: "awaiting-trigger" };
-    case GenerationStatuses.SUCCEEDED:
     case GenerationStatuses.HELD:
+      return {
+        kind: "held",
+        unmetConditions: generation.unmetConditions ?? NO_UNMET_CONDITIONS,
+        unmetConditionsPartial: generation.unmetConditionsPartial === true,
+      };
+    case GenerationStatuses.SUCCEEDED:
     case UnknownValues.UNKNOWN:
-      // Succeeded without a readable artifact, a held head (its card lands
-      // with the held display), or a status this bundle predates: not a
-      // failure and nothing known to be coming, so the empty state.
+      // Succeeded without a readable artifact, or a status this bundle
+      // predates: not a failure and nothing known to be coming, so the empty
+      // state.
       return { kind: "empty" };
   }
 }

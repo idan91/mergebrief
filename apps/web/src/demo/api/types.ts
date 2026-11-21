@@ -1,4 +1,9 @@
-import type { DiffMode, ProductQueryIds } from "contract";
+import type {
+  ConversationResponse,
+  DiffMode,
+  ProductQueryIds,
+  PullMetaView,
+} from "contract";
 
 /** The reads scoped to one pull request: every path takes `repoId` and `prNumber`. */
 export type PullReadId =
@@ -25,4 +30,11 @@ export interface DemoSpanDiff {
 export interface DemoRead {
   readonly path: string;
   answer(query: URLSearchParams): Response;
+}
+
+/** A pull request the demo answers for: its meta and its conversation. */
+export interface DemoPull {
+  readonly prNumber: number;
+  readonly meta: PullMetaView;
+  readonly conversation: ConversationResponse;
 }
