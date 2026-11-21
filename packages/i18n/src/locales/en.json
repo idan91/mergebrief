@@ -247,6 +247,7 @@
         "instance": "Instance"
       },
       "generate": {
+        "action": "Generate brief",
         "pending": "Generating…",
         "stale": "This push is no longer held."
       }

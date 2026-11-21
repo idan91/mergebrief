@@ -9,6 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { createI18n } from "i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../../../data/apiFetch";
@@ -25,7 +26,8 @@ import { answerApiFetch, stubQueryClient } from "../../../test-utils";
 import { HeldCard, type HeldCardProps } from ".";
 
 const apiFetchMock = vi.mocked(apiFetch);
-const GENERATE = /^generate brief$/i;
+const { t } = createI18n();
+const GENERATE = t("pulls.held.generate.action");
 const META_KEY = ["pr-meta", "424242", 7];
 const EVERY_PUSH = "Generate on every push";
 
