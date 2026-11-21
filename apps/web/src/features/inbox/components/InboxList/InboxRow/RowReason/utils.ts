@@ -1,6 +1,5 @@
 import type { TFunction } from "i18next";
-import { GenerationStatuses } from "types";
-import { UnmetConditionKinds } from "types/trigger-conditions";
+import { GenerationStatuses, UnmetConditionKinds } from "types";
 
 import { isNoLongerOpen } from "@web/features/pulls/utils";
 import {

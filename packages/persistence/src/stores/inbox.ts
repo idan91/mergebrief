@@ -18,26 +18,28 @@ import {
 } from "drizzle-orm";
 import { buildSearchTextPredicate } from "./inbox-search-text";
 import { traceStore } from "./trace-store";
-import { GenerationStatuses } from "types/generations";
 import {
+  GenerationStatuses,
   InboxArchivedFilters,
   InboxAuthorFilters,
   InboxFoldStates,
   InboxGenerationFilters,
+  InboxLayouts,
   InboxReviewStates,
   InboxSortDirections,
   InboxSorts,
   InboxStatuses,
+  PrStates,
+  PullRequestSources,
   type InboxArchivedFilter,
   type InboxAuthorFilter,
   type InboxGenerationFilter,
+  type InboxLayout,
   type InboxReviewState,
   type InboxSort,
   type InboxSortDirection,
   type InboxStatus,
-  InboxLayouts,
-  type InboxLayout,
-} from "types/inbox";
+} from "types";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -54,7 +56,6 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../types";
-import { PrStates, PullRequestSources } from "types/pull-requests";
 
 /** The Repository filter's vocabulary stops here; the URL may carry no more values anyway. */
 export const MAX_INBOX_REPOSITORIES = 100;
