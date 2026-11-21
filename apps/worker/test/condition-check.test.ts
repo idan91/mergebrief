@@ -494,7 +494,31 @@ describe("isVerdictOnPaths", () => {
     expect(isVerdictOnPaths(effective, unread)).toBe(false);
   });
 
-  it("is true while an unmet any group has a member read from GitHub", () => {
+  it("is false while a failing ci member leaves its any group unmet", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [{ setting: paths, setBy: "repo" }],
+      any: [
+        { setting: labels, setBy: "repo" },
+        {
+          setting: { kind: "ci", value: { mode: "named", checks: ["build"] } },
+          setBy: "repo",
+        },
+      ],
+    };
+    const failingBuild: HeadReports = {
+      ...NO_REPORTS,
+      checkRuns: [makeRun({ name: "build", conclusion: "failure" })],
+    };
+
+    const verdictOnPaths = isVerdictOnPaths(effective, {
+      ...unread,
+      reports: failingBuild,
+    });
+
+    expect(verdictOnPaths).toBe(false);
+  });
+
+  it("is true while a met ci member keeps its any group open", () => {
     const effective: EffectiveTriggerConditions = {
       all: [{ setting: paths, setBy: "repo" }],
       any: [

@@ -289,23 +289,6 @@ function isConditionMet(
   return checkCondition(condition, facts).length === 0;
 }
 
-/** Kinds decided from a GitHub read of the head, so never settled ahead of it. */
-const HEAD_READ_KINDS: ReadonlySet<TriggerConditionKind> = new Set([
-  TriggerConditionKinds.BOTS,
-  TriggerConditionKinds.CI,
-]);
-
-function isSettledUnmet(
-  condition: EffectiveCondition,
-  facts: ConditionFacts,
-): boolean {
-  if (HEAD_READ_KINDS.has(condition.setting.kind)) {
-    return false;
-  }
-  return !isConditionMet(condition, facts);
-}
-
-/** An `any` group with no `paths` member and every member settled unmet. */
 function isAnyGroupHolding(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
@@ -314,15 +297,15 @@ function isAnyGroupHolding(
   if (any.length === 0 || any.some(isPathsCondition)) {
     return false;
   }
-  return any.every((item) => isSettledUnmet(item, facts));
+  return any.every((item) => !isConditionMet(item, facts));
 }
 
 /**
  * Whether the changed paths can decide the verdict, judged on the other
  * conditions alone: not while another plain condition holds the head
- * anyway, nor while an `any` group without `paths` holds it (a `bots` or
- * `ci` member counts as undecided there), and not for an `any` group
- * another member already meets.
+ * anyway, nor while an `any` group without `paths` holds it, and not for an
+ * `any` group another member already meets. `facts` must carry the head's
+ * reports, so a `bots` or `ci` member is decided here.
  */
 export function isVerdictOnPaths(
   effective: EffectiveTriggerConditions,
