@@ -20,7 +20,7 @@ deprecation note here, removal only at a major.
   It is not terminal: the head generates by itself once every condition
   passes, or at once on `POST .../regenerate`, which now also takes a held
   head. While `held`, the summary carries `unmetConditions`, one item per
-  unmet condition (`{ kind, source, ... }`, `source` is `repo` or
+  unmet condition (`{ kind, setBy, ... }`, `setBy` is `repo` or
   `instance`), with an `any` item grouping the members of an unmet `any:`
   group. `kind` is an open vocabulary: drop an item of a kind you do not know.
   When the server itself cannot read a stored item, it drops it and sends

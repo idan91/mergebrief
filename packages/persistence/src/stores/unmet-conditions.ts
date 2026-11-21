@@ -4,9 +4,9 @@ import {
   BotVerdicts,
   ReviewBots,
   SizeBoundSides,
-  SizeCounts,
+  SizeMeasures,
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   UnmetConditionKinds,
   type UnmetCondition,
   type UnmetPlainCondition,
@@ -15,56 +15,56 @@ import {
 const MAX_STORED_NAMES = 100;
 const MAX_STORED_NAME_CHARS = 255;
 
-const sourceSchema = z.enum(Object.values(TriggerConditionSources));
+const setBySchema = z.enum(Object.values(TriggerConditionSetters));
 const namesSchema = z
   .array(z.string().max(MAX_STORED_NAME_CHARS))
   .max(MAX_STORED_NAMES)
   .readonly();
 
-function buildSourcedSchema<Shape extends z.core.$ZodLooseShape>(shape: Shape) {
-  return z.object({ ...shape, source: sourceSchema }).readonly();
+function buildSetBySchema<Shape extends z.core.$ZodLooseShape>(shape: Shape) {
+  return z.object({ ...shape, setBy: setBySchema }).readonly();
 }
 
 const plainConditionSchema = z.discriminatedUnion("kind", [
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.READY_FOR_REVIEW),
   }),
-  buildSourcedSchema({ kind: z.literal(TriggerConditionKinds.NEVER) }),
-  buildSourcedSchema({
+  buildSetBySchema({ kind: z.literal(TriggerConditionKinds.NEVER) }),
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.REVIEW_REQUESTED),
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.SIZE),
-    count: z.enum(Object.values(SizeCounts)),
+    measure: z.enum(Object.values(SizeMeasures)),
     side: z.enum(Object.values(SizeBoundSides)),
     limit: z.int().nonnegative(),
     actual: z.int().nonnegative(),
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.LABELS),
     labels: namesSchema,
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.TITLE_KEYWORDS),
     keywords: namesSchema,
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
     base: z.string().max(MAX_STORED_NAME_CHARS),
     branches: namesSchema,
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.PATHS),
     paths: namesSchema,
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.BOTS),
     bot: z.enum(Object.values(ReviewBots)),
     verdict: z.enum(Object.values(BotVerdicts)),
     state: z.enum(Object.values(BotStates)),
     issues: z.int().nonnegative().exactOptional(),
   }),
-  buildSourcedSchema({
+  buildSetBySchema({
     kind: z.literal(TriggerConditionKinds.CI),
     failed: namesSchema,
     running: namesSchema,
