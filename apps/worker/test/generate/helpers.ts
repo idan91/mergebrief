@@ -1055,6 +1055,19 @@ export function buildRepoFile(
   };
 }
 
+export function addSettings(
+  github: FakeGitHub,
+  content: string,
+  ref?: string,
+): void {
+  const file = buildRepoFile(content, "sha-settings");
+  if (ref === undefined) {
+    github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS }, file);
+    return;
+  }
+  github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS, ref }, file);
+}
+
 export interface CapturedLogger {
   logger: Logger;
   readLines: () => Array<Record<string, unknown>>;
