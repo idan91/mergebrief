@@ -780,6 +780,32 @@ describe("recheckHeadsAtSha", () => {
     expect(await countQueuedJobs(shared)).toBe(0);
   });
 
+  it("wakes a head whose stored list holds an item this build cannot read", async () => {
+    const pullRequestId = await seedHeldAt({
+      unmet: [{ kind: "labels", setBy: "repo", labels: ["needs-brief"] }],
+    });
+    await shared.harness.raw(
+      `update generation set unmet_conditions = '[{"kind":"deploy-window","setBy":"repo"},{"kind":"labels","setBy":"repo","labels":["needs-brief"]}]'`,
+    );
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([pullRequestId]);
+  });
+
+  it("leaves a final failure's locked job at the SHA alone", async () => {
+    const pullRequestId = await seedHeldAt();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.GITHUB_ACCESS,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
   it("rechecks a head held on labels while its job is locked", async () => {
     const pullRequestId = await seedHeldAt({
       unmet: [{ kind: "labels", setBy: "repo", labels: ["needs-brief"] }],
