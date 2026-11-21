@@ -944,9 +944,17 @@ describe("POST /api/webhooks/github", () => {
     );
 
     it.each(FACT_EVENTS)(
-      "%s queues a pending head's job",
+      "%s queues a job beside a pending head's locked job",
       async (_name, event) => {
-        await openHead("pending");
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({
+            action: "opened",
+            updatedAt: "2026-09-20T10:00:00Z",
+          }),
+        );
+        await harness.raw("update graphile_worker.jobs set locked_at = now()");
 
         const res = await deliver(
           app,
@@ -955,26 +963,12 @@ describe("POST /api/webhooks/github", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+        expect(await readJobHeads()).toEqual([
+          { head: HEAD_SHA },
+          { head: HEAD_SHA },
+        ]);
       },
     );
-
-    it("a retitle older than the stored row wakes nothing", async () => {
-      await openHead("held");
-
-      const res = await deliver(
-        app,
-        "pull_request",
-        pullRequestPayload({
-          action: "edited",
-          changes: TITLE_CHANGED,
-          updatedAt: "2026-09-20T09:00:00Z",
-        }),
-      );
-
-      expect(res.status).toBe(200);
-      expect(await readJobHeads()).toEqual([]);
-    });
 
     it.each(FACT_EVENTS)(
       "%s on an unknown closed pull request writes nothing",
@@ -1037,9 +1031,12 @@ describe("POST /api/webhooks/github", () => {
       ]);
     });
 
-    it("records a retitle on the stored row", async () => {
+    it("writes no row on a retitle", async () => {
       await openHead("succeeded");
       await harness.raw("update pull_request set title = 'Old title'");
+      const readRow = () =>
+        harness.raw("select title, row_version from pull_request");
+      const before = await readRow();
 
       await deliver(
         app,
@@ -1051,9 +1048,34 @@ describe("POST /api/webhooks/github", () => {
         }),
       );
 
-      expect(await harness.raw("select title from pull_request")).toEqual([
-        { title: "Update the README with new information." },
-      ]);
+      expect(await readRow()).toEqual(before);
+    });
+
+    it("queues a push delivered after a newer retitle", async () => {
+      const nextHeadSha = "c".repeat(40);
+      await openHead("succeeded");
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "edited",
+          changes: TITLE_CHANGED,
+          updatedAt: "2026-09-20T10:05:00Z",
+        }),
+      );
+
+      const res = await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "synchronize",
+          headSha: nextHeadSha,
+          updatedAt: "2026-09-20T10:03:00Z",
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await readJobHeads()).toEqual([{ head: nextHeadSha }]);
     });
 
     it("leaves a held head alone on an edit to the body alone", async () => {

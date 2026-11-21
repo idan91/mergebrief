@@ -192,8 +192,8 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
 ]);
 
 /**
- * Actions that change only what the worker reads from GitHub, never a stored
- * field, so they write no row. `review_requested` and a base move are
+ * Actions that change only what the worker reads from GitHub, so they write
+ * no row; a retitle joins them. `review_requested` and a base move are
  * generation triggers, whose queued job checks a held head already.
  */
 const RECHECK_ONLY_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
@@ -306,11 +306,11 @@ function findStoredPullRequest(
 }
 
 /**
- * A draft flip or a retitle queues no fresh run: that could repost Entry
- * comments, spend on comparisons or retry a failed generation. A held or
- * pending head is the exception, its conditions checked again. It advances
- * the guard like every state write: an older push that lands after it is
- * skipped whole, never applied over it.
+ * A draft flip queues no fresh run: that could repost Entry comments, spend
+ * on comparisons or retry a failed generation. A head the wake rule names is
+ * the exception, its conditions checked again. It advances the guard like
+ * every state write: an older push that lands after it is skipped whole,
+ * never applied over it.
  */
 async function recordFactAndRecheck(
   handle: AppDatabase,
@@ -349,24 +349,16 @@ async function handlePullRequest(
     await syncTrackedEntry(ingest, recorded);
     return;
   }
-  if (RECHECK_ONLY_ACTIONS.has(event.action)) {
+  const rechecksOnly = RECHECK_ONLY_ACTIONS.has(event.action) || isRetitle(event);
+  if (rechecksOnly) {
     // A row written here could invent an open row for a closed PR, or skip a
-    // late `opened` behind the guard, so only a stored PR's head is rechecked.
+    // late `opened` or push behind the guard, so only a stored PR's head is
+    // rechecked.
     const known = await findStoredPullRequest(handle, ctx, event);
     if (known !== undefined) {
       await createIngestRoutines(handle, ctx).recheckCurrentHead({
         pullRequestId: known.id,
       });
-    }
-    return;
-  }
-  if (isRetitle(event)) {
-    // Recorded only on a stored PR GitHub still shows open, for the same two
-    // reasons; a closed PR's title rides its close.
-    const stillOpen = event.closedAt === undefined;
-    const known = await findStoredPullRequest(handle, ctx, event);
-    if (stillOpen && known !== undefined) {
-      await recordFactAndRecheck(handle, ctx, event, log);
     }
     return;
   }
