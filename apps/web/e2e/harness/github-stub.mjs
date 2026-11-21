@@ -48,6 +48,7 @@ function buildFixturePull(number) {
     state: "open",
     draft: false,
     merged: false,
+    labels: [],
     title: "feat: front-door accessibility and keyboard navigation",
     body: "",
     html_url: `https://github.com/${REPO_SLUG}/pull/${number}`,
