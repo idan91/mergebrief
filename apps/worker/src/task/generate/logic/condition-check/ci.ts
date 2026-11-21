@@ -131,7 +131,7 @@ const OUTCOMES_A_REFUSAL_DECIDES: ReadonlySet<CheckOutcome> = new Set([
  * do, so a pass or nothing read while one source was refused is decided by
  * the refusal: missing, unless the pinned App's run decided it.
  */
-function readCheckOutcome(
+function readCheckReading(
   reports: HeadReports,
   check: RequiredStatusCheck,
 ): CheckReading {
@@ -169,13 +169,13 @@ const OUTCOME_SEVERITY: Readonly<Record<CheckOutcome, number>> = {
  * Each name's worst reading, in first-listed order: two rulesets may pin one
  * name to different Apps, and the name must pass under both.
  */
-function readNameOutcomes(
+function readNameReadings(
   reports: HeadReports,
   checks: readonly RequiredStatusCheck[],
 ): Map<string, CheckReading> {
   const readings = new Map<string, CheckReading>();
   for (const check of checks) {
-    const reading = readCheckOutcome(reports, check);
+    const reading = readCheckReading(reports, check);
     const known = readings.get(check.context);
     const isWorse =
       known === undefined ||
@@ -208,7 +208,7 @@ export function checkCi({
     [CheckOutcomes.MISSING]: missing,
   };
   let permissionMissing = false;
-  for (const [name, reading] of readNameOutcomes(reports, checks)) {
+  for (const [name, reading] of readNameReadings(reports, checks)) {
     lists[reading.outcome]?.push(name);
     permissionMissing ||= reading.decidedByRefusal;
   }
