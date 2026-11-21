@@ -1,5 +1,13 @@
 import type { CheckRun } from "github";
-import { ReviewBots, type ReviewBot } from "types/trigger-conditions";
+import type {
+  EffectiveTriggerConditions,
+  TriggerConditionSetting,
+} from "generators/trigger-conditions";
+import {
+  ReviewBots,
+  type ReviewBot,
+  type TriggerConditionKind,
+} from "types/trigger-conditions";
 
 const REVIEW_BOT_NAMES: ReadonlySet<string> = new Set(
   Object.values(ReviewBots),
@@ -21,4 +29,18 @@ export function findLatestRun(
     }
     return latest;
   }, undefined);
+}
+
+export function listSettings(
+  effective: EffectiveTriggerConditions,
+): TriggerConditionSetting[] {
+  const conditions = [...effective.all, ...effective.any];
+  return conditions.map((condition) => condition.setting);
+}
+
+export function isKindConfigured(
+  effective: EffectiveTriggerConditions,
+  kind: TriggerConditionKind,
+): boolean {
+  return listSettings(effective).some((setting) => setting.kind === kind);
 }

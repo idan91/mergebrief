@@ -11,13 +11,8 @@ import {
   CiModes,
   resolveEffectiveTriggerConditions,
   type EffectiveTriggerConditions,
-  type TriggerConditionSetting,
 } from "generators/trigger-conditions";
-import {
-  SizeMeasures,
-  TriggerConditionKinds,
-  type TriggerConditionKind,
-} from "types/trigger-conditions";
+import { SizeMeasures, TriggerConditionKinds } from "types/trigger-conditions";
 import { readConditionStamps } from "persistence";
 import type { Mutable, Result } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
@@ -39,7 +34,7 @@ import {
 import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts, HeadReports } from "./types";
-import { isReviewBot } from "./utils";
+import { isKindConfigured, isReviewBot, listSettings } from "./utils";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
@@ -69,20 +64,6 @@ async function isEveryPushTurnedOnSincePickup(
 ): Promise<boolean> {
   const row = await context.repo.pullRequests.getById(context.prRow.id);
   return row !== undefined && row.generateEveryPushAt !== null;
-}
-
-function listSettings(
-  effective: EffectiveTriggerConditions,
-): TriggerConditionSetting[] {
-  const conditions = [...effective.all, ...effective.any];
-  return conditions.map((condition) => condition.setting);
-}
-
-function isKindConfigured(
-  effective: EffectiveTriggerConditions,
-  kind: TriggerConditionKind,
-): boolean {
-  return listSettings(effective).some((setting) => setting.kind === kind);
 }
 
 /**
