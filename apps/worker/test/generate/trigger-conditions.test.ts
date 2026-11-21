@@ -18,6 +18,7 @@ import {
   HEAD_1,
   failFirstSettingsRead,
   interceptInstallationRepo,
+  listCommentCalls,
   makeGitHub,
   makePullRequestInfo,
   makeReviewerId,
@@ -25,6 +26,7 @@ import {
   makeTask,
   type ReadCount,
   PR_REF,
+  readLiveBodies,
   readRowStatus,
   REPO,
   setUpHarness,
@@ -255,5 +257,47 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ triggerConditions: never })(releasedPayload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("posts the held Entry once and leaves it when nothing changed", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = instanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const [held] = readLiveBodies(github);
+    expect(held).toContain("**No brief for `aaaaaaa`.**");
+    expect(held).toContain(
+      "- Needs this pull request marked ready for review (this MergeBrief instance's setting)",
+    );
+    const before = listCommentCalls(github).length;
+
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const writes = listCommentCalls(github)
+      .slice(before)
+      .filter((call) => !call.startsWith("fetch"));
+    expect(writes).toEqual([]);
+  });
+
+  it("edits a released hold's Entry to generating, then pings once", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = instanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    const before = listCommentCalls(github).length;
+
+    github.updatePullRequest(PR_REF, { draft: false });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const writes = listCommentCalls(github)
+      .slice(before)
+      .filter((call) => !call.startsWith("fetch"));
+    expect(writes[0]).toMatch(/^edit:/);
+    expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    const [ready] = readLiveBodies(github);
+    expect(ready).toContain("mergebrief-entry-kind: ready");
   });
 });

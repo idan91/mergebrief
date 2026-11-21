@@ -1,4 +1,5 @@
 import type { GenerationUnitsParams } from "types/generations";
+import type { UnmetCondition } from "types/trigger-conditions";
 import type { ValueOf } from "types/utils";
 
 /** Which body an Entry comment holds, written into its hidden kind token. */
@@ -9,6 +10,7 @@ export const EntryBodyKinds = {
   CAPPED: "capped",
   CLOSED: "closed",
   ON_DEMAND: "on-demand",
+  HELD: "held",
 } as const;
 export type EntryBodyKind = ValueOf<typeof EntryBodyKinds>;
 
@@ -52,4 +54,17 @@ export interface EntryCommentLargeRun {
   readonly parts: number;
   /** Rounded already; the body shows it as approximate. */
   readonly estimateMinutes: number;
+}
+
+/** Where the held body points: Generate on the head's rev, and the newest brief. */
+export interface EntryCommentHeldLinks {
+  /** The rev the held head's brief takes, where the web offers Generate. */
+  readonly next: EntryCommentLink;
+  /** The PR's newest brief, linked so a reader still has one. */
+  readonly previous: EntryCommentLink | undefined;
+}
+
+/** What the held body says: the head's unmet conditions and where to go from it. */
+export interface EntryCommentHeld extends EntryCommentHeldLinks {
+  readonly unmet: readonly UnmetCondition[];
 }

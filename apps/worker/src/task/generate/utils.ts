@@ -12,17 +12,20 @@ import {
   GenerationKinds,
   MAX_GENERATION_ATTEMPTS,
   type BriefSpanRow,
+  type GenerationRow,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
-import { AnchorStates } from "types/generations";
+import { AnchorStates, GenerationStatuses } from "types/generations";
 import { PermanentJobError } from "../failure";
 import { splitRepoSlug } from "../github-port";
+import type { EntryCommentHeldLinks } from "../entry-comment/types";
 import type { ParsedGeneratePayload } from "../payload";
 import {
   BriefRecoveryFailures,
   type AnchorColumns,
   type CompleteBriefRecovery,
+  type EntryCommentManager,
   type GenerateTaskHelpers,
   type GenerationOrigin,
   type RunStart,
@@ -177,4 +180,34 @@ export function getPrLocator(pr: PullRequestRow): PrLocator {
     throw new PermanentJobError("pull_request row has no usable repo slug");
   }
   return { owner: split.owner, repo: split.repo, number: pr.prNumber };
+}
+
+/**
+ * A head a hold let go: held when the run picked it up, its conditions now
+ * passing, or released by a Generate click's stamp.
+ */
+export function isReleasedHold(projected: GenerationRow | undefined): boolean {
+  if (projected === undefined) {
+    return false;
+  }
+  const held = projected.status === GenerationStatuses.HELD;
+  const stamped = projected.generateRequestedAt !== null;
+  return held || stamped;
+}
+
+/** The held body's links: Generate on the rev the head takes, and the newest brief. */
+export function buildHeldEntryLinks(
+  entryCommentManager: EntryCommentManager,
+  briefs: readonly BriefSpanRow[],
+): EntryCommentHeldLinks {
+  const next = entryCommentManager.buildDeepLink(deriveNextHeadIndex(briefs));
+  const newest = briefs.at(-1);
+  if (newest === undefined) {
+    return { next, previous: undefined };
+  }
+  const previous = {
+    ...entryCommentManager.buildDeepLink(newest.headIndex),
+    headSha: newest.headSha,
+  };
+  return { next, previous };
 }

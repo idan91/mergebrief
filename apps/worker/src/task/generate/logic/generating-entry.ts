@@ -18,6 +18,8 @@ import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 
 export interface GeneratingEntryPost extends UnreadHeadPost {
   readonly watch: SupersessionWatch;
+  /** A released hold's body: edited in place, so the ready post is the one ping. */
+  readonly silent: boolean;
 }
 
 /** A large run's detail calls: every one the grouping planned, and those no stored part answers. */
@@ -53,6 +55,10 @@ export async function postGeneratingEntry(
   body: string,
 ): Promise<void> {
   if (await settleOffHeadPost(post, body)) {
+    return;
+  }
+  if (post.silent) {
+    await post.entryCommentManager.edit(body);
     return;
   }
   await post.entryCommentManager.refresh(body);
