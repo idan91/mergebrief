@@ -67,7 +67,9 @@ export function formatHeldConditionLines(
 ): string[] {
   const lines = sortUnmetConditions(unmet).flatMap((condition) => {
     if (condition.kind !== UnmetConditionKinds.ANY) {
-      return describeConditionWithSetBy(t, condition).map((line) => `- ${line}`);
+      return describeConditionWithSetBy(t, condition).map(
+        (line) => `- ${line}`,
+      );
     }
     const members = condition.conditions.flatMap((member) =>
       describeConditionWithSetBy(t, member).map((line) => `  - ${line}`),
