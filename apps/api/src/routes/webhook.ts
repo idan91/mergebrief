@@ -180,7 +180,7 @@ const SEEN_SET_EXEMPT_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
 /**
  * The `pull_request` actions that always (re)queue a generation. `closed` is
  * handled separately (state write, NO enqueue); `edited` queues only when it
- * moved the base; anything else the parser normalizes is a no-op here.
+ * moved the base; a fact action below only checks a held head again.
  */
 const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.OPENED,
@@ -190,11 +190,32 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.REVIEW_REQUESTED,
 ]);
 
+/**
+ * Actions that change what a trigger condition reads without a new push.
+ * `review_requested` and a base move are generation triggers, whose queued
+ * job checks a held head already.
+ */
+const CONDITION_FACT_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
+  PullRequestActions.CONVERTED_TO_DRAFT,
+  PullRequestActions.LABELED,
+  PullRequestActions.UNLABELED,
+  PullRequestActions.REVIEW_REQUEST_REMOVED,
+]);
+
 function isGenerationTrigger(event: ParsedPullRequestEvent): boolean {
   if (event.action === PullRequestActions.EDITED) {
     return event.baseChanged === true;
   }
   return GENERATION_TRIGGER_ACTIONS.has(event.action);
+}
+
+function changesConditionFact(event: ParsedPullRequestEvent): boolean {
+  if (event.action === PullRequestActions.EDITED) {
+    const retitledOnly =
+      event.titleChanged === true && event.baseChanged !== true;
+    return retitledOnly;
+  }
+  return CONDITION_FACT_ACTIONS.has(event.action);
 }
 
 /** The work an event names that a stored brief for its pair leaves undone. */
@@ -294,11 +315,12 @@ async function handlePullRequest(
     await syncTrackedEntry(ingest, recorded);
     return;
   }
-  if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    // Draft re-entry queues no fresh run: that could repost Entry comments,
-    // spend on comparisons or retry a failed generation.
-    // It advances the guard like every state write: an older push that lands
-    // after it is skipped whole, never applied over the draft flag.
+  if (changesConditionFact(event)) {
+    // A draft flip, a label, a dropped review request or a retitle queues no
+    // fresh run: that could repost Entry comments, spend on comparisons or
+    // retry a failed generation. It advances the guard like every state
+    // write: an older push that lands after it is skipped whole, never
+    // applied over it.
     const ingest = createIngestRoutines(handle, ctx);
     const recorded = await ingest.recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),

@@ -1,4 +1,5 @@
 import { resolveEffectiveTriggerConditions } from "generators/trigger-conditions";
+import { SizeMeasures } from "types/trigger-conditions";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
   ConditionCheckKinds,
@@ -28,7 +29,20 @@ function isCheckable(context: RunContext): boolean {
 }
 
 function readConditionFacts(context: RunContext): ConditionFacts {
-  return { draft: context.prInfo.draft };
+  const { prInfo } = context;
+  const changedLines = prInfo.additions + prInfo.deletions;
+  return {
+    draft: prInfo.draft,
+    title: prInfo.title,
+    baseRef: prInfo.baseRef ?? "",
+    labels: prInfo.labels,
+    pendingReviewRequests: prInfo.pendingReviewRequests,
+    sizes: {
+      [SizeMeasures.CHANGED_LINES]: changedLines,
+      [SizeMeasures.ADDITIONS]: prInfo.additions,
+      [SizeMeasures.DELETIONS]: prInfo.deletions,
+    },
+  };
 }
 
 /**

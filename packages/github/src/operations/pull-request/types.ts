@@ -52,6 +52,10 @@ export interface PullRequestInfo {
   readonly additions: number;
   /** GitHub's `deletions`: the lines the head removes against the base. */
   readonly deletions: number;
+  /** The label names the pull request carries, as GitHub spells them. */
+  readonly labels: readonly string[];
+  /** Requested reviewers plus requested teams whose review is still pending. */
+  readonly pendingReviewRequests: number;
   /** PR author login; null when the account is gone. */
   readonly authorLogin: string | null;
   /** The PR author's account is a `Bot`; false when the account is gone. */

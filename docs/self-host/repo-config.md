@@ -183,14 +183,14 @@ notification.
 | Key | Value | Met when |
 | --- | --- | --- |
 | `readyForReview` | `on` | The pull request is not a draft. |
-| `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. |
+| `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. `changedLines` is additions plus deletions. |
 | `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push. `claude` and `copilot` never approve; only `claude` reports `clean`. |
-| `reviewRequested` | `on` | A review is requested from someone. |
+| `reviewRequested` | `on` | A review is requested from a person or a team and not yet given. GitHub drops a request once that reviewer reviews. |
 | `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push. `required` reads the base branch's rulesets, not classic branch protection. |
 | `paths` | A list of globs | A changed file matches one. This file only; the instance config refuses it. |
-| `labels` | A list of label names | The pull request carries one of them. |
-| `titleKeywords` | A list of words | The title contains one of them. |
-| `baseBranches` | A list of branch names | The pull request targets one of them directly. A stacked PR into another branch stays held until it retargets. |
+| `labels` | A list of label names | The pull request carries one of them. Case is ignored, as GitHub ignores it in label names. |
+| `titleKeywords` | A list of words | The title contains one of them as a whole word, ignoring case: `wip` matches `[WIP] Add widgets` but not `Wipe the cache`. A phrase matches as written. |
+| `baseBranches` | A list of branch names | The pull request targets one of them directly, exact name and case. A stacked PR into another branch stays held until it retargets. |
 | `never` | `on` | Never: every push waits for a Generate click. It stands alone. |
 | `any` | A map of two or more of the kinds above, `never` excepted | One of them is met. |
 

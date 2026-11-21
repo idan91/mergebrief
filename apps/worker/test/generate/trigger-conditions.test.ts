@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PullRequestInfo } from "github";
 import {
   createGenerationProjection,
   createIngestRoutines,
@@ -581,5 +582,83 @@ describe("generate task, trigger conditions", () => {
     expect(writes.filter((call) => call === "post")).toHaveLength(1);
     const [ready] = readLiveBodies(github);
     expect(ready).toContain("mergebrief-entry-kind: ready");
+  });
+
+  it.each<{
+    readonly kind: string;
+    readonly block: Record<string, unknown>;
+    readonly held: Partial<PullRequestInfo>;
+    readonly released: Partial<PullRequestInfo>;
+    readonly unmet: Record<string, unknown>;
+  }>([
+    {
+      kind: "size",
+      block: { size: { changedLines: { max: 5 } } },
+      held: { additions: 8, deletions: 2 },
+      released: { additions: 4, deletions: 1 },
+      unmet: {
+        kind: "size",
+        setBy: "instance",
+        measure: "changed-lines",
+        side: "max",
+        limit: 5,
+        actual: 10,
+      },
+    },
+    {
+      kind: "labels",
+      block: { labels: ["needs-brief"] },
+      held: { labels: ["bug"] },
+      released: { labels: ["bug", "Needs-Brief"] },
+      unmet: { kind: "labels", setBy: "instance", labels: ["needs-brief"] },
+    },
+    {
+      kind: "titleKeywords",
+      block: { titleKeywords: ["brief"] },
+      held: { title: "Debriefing notes" },
+      released: { title: "Brief: debriefing notes" },
+      unmet: {
+        kind: "title-keywords",
+        setBy: "instance",
+        keywords: ["brief"],
+      },
+    },
+    {
+      kind: "baseBranches",
+      block: { baseBranches: ["main"] },
+      held: { baseRef: "feature/parent" },
+      released: { baseRef: "main" },
+      unmet: {
+        kind: "base-branches",
+        setBy: "instance",
+        base: "feature/parent",
+        branches: ["main"],
+      },
+    },
+    {
+      kind: "reviewRequested",
+      block: { reviewRequested: "on" },
+      held: { pendingReviewRequests: 0 },
+      released: { pendingReviewRequests: 1 },
+      unmet: { kind: "review-requested", setBy: "instance" },
+    },
+  ])("holds on $kind, then generates once the fact changes", async (row) => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, row.held);
+    const conditions = makeInstanceConditions(row.block);
+    const generator = stubGenerator();
+    await makeTask({ github, generator, triggerConditions: conditions })(
+      payload,
+    );
+
+    expect(generator.calls).toEqual([]);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([row.unmet]);
+
+    github.updatePullRequest(PR_REF, row.released);
+    await makeTask({ github, triggerConditions: conditions })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 });

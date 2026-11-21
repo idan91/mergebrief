@@ -44,7 +44,10 @@ export const PullRequestActions = {
   CONVERTED_TO_DRAFT: "converted-to-draft",
   CLOSED: "closed",
   REVIEW_REQUESTED: "review-requested",
+  REVIEW_REQUEST_REMOVED: "review-request-removed",
   EDITED: "edited",
+  LABELED: "labeled",
+  UNLABELED: "unlabeled",
 } as const;
 export type PullRequestAction = ValueOf<typeof PullRequestActions>;
 
@@ -72,7 +75,10 @@ const RAW_PULL_REQUEST_ACTION: Readonly<Record<string, PullRequestAction>> = {
   converted_to_draft: PullRequestActions.CONVERTED_TO_DRAFT,
   closed: PullRequestActions.CLOSED,
   review_requested: PullRequestActions.REVIEW_REQUESTED,
+  review_request_removed: PullRequestActions.REVIEW_REQUEST_REMOVED,
   edited: PullRequestActions.EDITED,
+  labeled: PullRequestActions.LABELED,
+  unlabeled: PullRequestActions.UNLABELED,
 };
 const RAW_INSTALLATION_ACTION: Readonly<Record<string, InstallationAction>> = {
   created: InstallationActions.CREATED,
@@ -142,6 +148,8 @@ export interface ParsedPullRequestEvent {
   readonly closedAt?: Date;
   /** Present on `edited`: whether the edit retargeted the base branch. */
   readonly baseChanged?: boolean;
+  /** Present on `edited`: whether the edit changed the title. */
+  readonly titleChanged?: boolean;
 }
 
 export interface ParsedPullRequestReviewEvent {
@@ -270,7 +278,12 @@ const pullRequestEventSchema = z.object({
   number: z.number().int(),
   before: z.string().min(1).optional(),
   after: z.string().min(1).optional(),
-  changes: z.object({ base: z.object({}).optional() }).optional(),
+  changes: z
+    .object({
+      base: z.object({}).optional(),
+      title: z.object({}).optional(),
+    })
+    .optional(),
   installation: installationRefSchema,
   repository: visibleRepositorySchema,
   pull_request: z.object({
@@ -454,6 +467,7 @@ function parsePullRequest(
   }
   if (action === PullRequestActions.EDITED) {
     event.baseChanged = data.changes?.base !== undefined;
+    event.titleChanged = data.changes?.title !== undefined;
   }
 
   return { ok: true, value: event };
