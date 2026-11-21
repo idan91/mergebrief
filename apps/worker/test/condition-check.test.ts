@@ -8,6 +8,7 @@ import {
   isVerdictOnPaths,
 } from "../src/task/generate/logic/condition-check/evaluate";
 import type { ConditionFacts } from "../src/task/generate/logic/condition-check/types";
+import { createLogger, type Logger } from "logging";
 
 const BASE_FACTS: ConditionFacts = {
   draft: false,
@@ -18,6 +19,15 @@ const BASE_FACTS: ConditionFacts = {
   sizes: { "changed-lines": 120, additions: 100, deletions: 20 },
   changedPaths: ["src/widgets/index.ts"],
 };
+
+function stubLogger(lines: Record<string, unknown>[]): Logger {
+  return createLogger({
+    env: {},
+    destination: {
+      write: (line: string) => void lines.push(JSON.parse(line)),
+    },
+  });
+}
 
 function makeFacts(overrides: Partial<ConditionFacts> = {}): ConditionFacts {
   return { ...BASE_FACTS, ...overrides };
@@ -323,12 +333,18 @@ describe("evaluateTriggerConditions, paths", () => {
     );
     const lastMatches = `a/${"x".repeat(197)}`;
 
-    const unmet = evaluateOne(
-      { kind: "paths", value: [glob] },
-      { changedPaths: [...misses, lastMatches] },
+    const lines: Record<string, unknown>[] = [];
+
+    const unmet = evaluateTriggerConditions(
+      makeEffective({ kind: "paths", value: [glob] }),
+      makeFacts({ changedPaths: [...misses, lastMatches] }),
+      stubLogger(lines),
     );
 
     expect(unmet).toHaveLength(1);
+    expect(lines).toEqual([
+      expect.objectContaining({ level: "warn", globs: 1, paths: 3000 }),
+    ]);
   });
 
   it("skips paths outside a glob's literal prefix at no cost", () => {
