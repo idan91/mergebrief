@@ -9,8 +9,13 @@ import {
   isGrantRowId,
   isReviewerId,
   MAX_GENERATION_ATTEMPTS,
+  isRepoId,
+  parseScopeContext,
+  parseTenantContext,
   parseUnmetConditions,
   TriggerOnDemandOutcomes,
+  type RepoId,
+  type ScopeContext,
 } from "../src/index";
 import { claimTestRun, failTestRun, succeedTestRun } from "../src/testing";
 import {
@@ -700,5 +705,140 @@ describe("a claim on a failure a rerun cannot help", () => {
     const runId = await claimTestRun(gen, target);
 
     expect((await gen.get(target))?.runId).toBe(runId);
+  });
+});
+
+describe("recheckHeadsAtSha", () => {
+  const OTHER_CTX = parseTenantContext({ installationId: 101n });
+  const OTHER_REPO_ID = brandWith(isRepoId, 201n);
+  const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
+
+  interface HeldSeed {
+    readonly ctx?: ScopeContext;
+    readonly repoId?: RepoId;
+    readonly prNumber?: number;
+  }
+
+  async function seedHeldAt(seed: HeldSeed = {}) {
+    const ctx = seed.ctx ?? GATE_CTX;
+    const triggered = await createIngestRoutines(
+      shared.handle,
+      ctx,
+    ).triggerGeneration({
+      pullRequest: {
+        repoId: seed.repoId ?? GATE_REPO_ID,
+        prNumber: seed.prNumber ?? 7,
+        state: PrStates.OPEN,
+      },
+      headSha: GATE_HEAD_SHA,
+      debounceSeconds: 0,
+    });
+    const pullRequestId = triggered.pullRequest.id;
+    const held = await createGenerationProjection(shared.handle, ctx).markHeld(
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+      UNMET,
+    );
+    expect(held.ok).toBe(true);
+    return pullRequestId;
+  }
+
+  async function clearQueue() {
+    await shared.harness.raw("delete from graphile_worker.jobs");
+  }
+
+  function recheckAtSha(ctx: ScopeContext = GATE_CTX, headSha = GATE_HEAD_SHA) {
+    return createIngestRoutines(shared.handle, ctx).recheckHeadsAtSha({
+      repoId: GATE_REPO_ID,
+      headSha,
+    });
+  }
+
+  it("queues each open PR whose current head is the held SHA", async () => {
+    const first = await seedHeldAt();
+    const second = await seedHeldAt({ prNumber: 8 });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([first, second]);
+    expect(await countQueuedJobs(shared)).toBe(2);
+    const row = await createGenerationProjection(shared.handle, GATE_CTX).get(
+      makeBriefTarget(first, GATE_HEAD_SHA),
+    );
+    expect(row?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("never wakes another installation's PR at the same SHA", async () => {
+    await seedHeldAt({ ctx: OTHER_CTX });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("wakes only the caller's installation when both hold the SHA", async () => {
+    const own = await seedHeldAt();
+    await seedHeldAt({ ctx: OTHER_CTX });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([own]);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("never wakes a PR in another repository at the same SHA", async () => {
+    await seedHeldAt({ repoId: OTHER_REPO_ID });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing for a head at the SHA no condition holds", async () => {
+    await trigger();
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing for a closed PR whose head is held", async () => {
+    await seedHeldAt();
+    await createIngestRoutines(shared.handle, GATE_CTX).recordState({
+      repoId: GATE_REPO_ID,
+      prNumber: 7,
+      state: PrStates.CLOSED,
+      closedAt: new Date(),
+    });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing for a held SHA the PR has pushed past", async () => {
+    await seedHeldAt();
+    await createIngestRoutines(shared.handle, GATE_CTX).triggerGeneration({
+      pullRequest: { repoId: GATE_REPO_ID, prNumber: 7, state: PrStates.OPEN },
+      headSha: NEXT_HEAD_SHA,
+      debounceSeconds: 0,
+    });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing in the url-box owner world", async () => {
+    await seedHeldAt();
+    await clearQueue();
+
+    const ownerCtx = parseScopeContext({ ownerUserId: GATE_REVIEWER });
+
+    expect((await recheckAtSha(ownerCtx)).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
   });
 });

@@ -107,6 +107,7 @@ export {
   PullRequestActions,
   InstallationActions,
   InstallationRepositoriesActions,
+  CheckRunActions,
   EventParseErrorCodes,
 } from "./webhook/events";
 export type {
@@ -117,6 +118,9 @@ export type {
   ParsedInstallationEvent,
   ParsedInstallationRepositoriesEvent,
   ParsedGitHubAppAuthorizationEvent,
+  ParsedCheckRunEvent,
+  ParsedStatusEvent,
+  ParsedCommitReport,
   IgnoredWebhookEvent,
   EventParseError,
   EventParseErrorCode,
@@ -124,6 +128,7 @@ export type {
   PullRequestAction,
   InstallationAction,
   InstallationRepositoriesAction,
+  CheckRunAction,
 } from "./webhook/events";
 export {
   AuthorAssociations,

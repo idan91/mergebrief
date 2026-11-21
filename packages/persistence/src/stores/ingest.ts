@@ -65,6 +65,7 @@ import {
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
+  type RepoId,
   type TriggerOnDemandOutcome,
   type ReviewerId,
   type UncoveredWork,
@@ -315,6 +316,73 @@ async function lockPullRequestRow(
     .limit(1)
     .for("update");
   return rows[0];
+}
+
+/**
+ * Queues the job of an open PR whose current head the wake rule names, read
+ * under the PR's row lock; with `headSha`, only while that is the current
+ * head.
+ */
+async function recheckLockedHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha?: string,
+): Promise<boolean> {
+  const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+  if (prRow?.state !== PrStates.OPEN) {
+    return false;
+  }
+  const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+  if (head === undefined) {
+    return false;
+  }
+  const headMoved = headSha !== undefined && head.row.headSha !== headSha;
+  if (headMoved) {
+    return false;
+  }
+  const owed = await isRecheckOwed(tx, pullRequestId, head.row);
+  if (!owed) {
+    return false;
+  }
+
+  await enqueueGenerateJob(
+    tx,
+    scope,
+    { headSha: head.row.headSha },
+    pullRequestId,
+    TRIGGER_ON_DEMAND_DELAY_SECONDS,
+  );
+  return true;
+}
+
+/**
+ * The scope's open PRs in the repository with a held brief row at the SHA,
+ * in id order, the order their row locks are taken in. Unlocked: the wake
+ * reads each one again under its lock.
+ */
+async function listHeldHeadCandidates(
+  tx: IngestTransaction,
+  scope: RowScope,
+  input: RecheckHeadsAtShaInput,
+): Promise<PullRequestRowId[]> {
+  const rows = await tx
+    .selectDistinct({ id: pullRequest.id })
+    .from(pullRequest)
+    .innerJoin(generation, eq(generation.pullRequestId, pullRequest.id))
+    .where(
+      and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.repoId, input.repoId),
+        eq(pullRequest.state, PrStates.OPEN),
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, input.headSha),
+        eq(generation.status, GenerationStatuses.HELD),
+      ),
+    )
+    .orderBy(pullRequest.id);
+  return rows.map((row) => row.id);
 }
 
 /**
@@ -605,6 +673,16 @@ export interface IngestRoutines {
    */
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
+   * `recheckCurrentHead` for every open PR in the repository whose current head is
+   * the SHA, for a check report that names a commit and no PR. Each PR is
+   * locked in id order and read again under its lock; a head the PR has
+   * pushed past, another repository's or installation's PR and an owner
+   * scope queue nothing.
+   */
+  recheckHeadsAtSha(
+    input: RecheckHeadsAtShaInput,
+  ): Promise<RecheckHeadsOutcome>;
+  /**
    * A pusher's fresh run of the PR's current head, claims reset and the job
    * queued a few seconds out over a waiting one (a locked job's key detaches,
    * as on a push). A held head is released to `pending` with its conditions
@@ -657,6 +735,16 @@ export interface ReleaseApprovedHoldInput {
 
 export interface RecheckCurrentHeadInput {
   readonly pullRequestId: PullRequestRowId;
+}
+
+export interface RecheckHeadsAtShaInput {
+  readonly repoId: RepoId;
+  readonly headSha: string;
+}
+
+export interface RecheckHeadsOutcome {
+  /** The PRs whose held head got its job queued, in id order. */
+  readonly rechecked: readonly PullRequestRowId[];
 }
 
 export interface RequeueOutcome {
@@ -966,27 +1054,31 @@ export function createIngestRoutines(
       }
 
       return db.transaction(async (tx) => {
-        const { pullRequestId } = input;
-        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
-        if (prRow?.state !== PrStates.OPEN) {
-          return { queued: false };
-        }
-        const head = await readCurrentBriefHead(tx, scope, pullRequestId);
-        const owed =
-          head !== undefined &&
-          (await isRecheckOwed(tx, pullRequestId, head.row));
-        if (!owed) {
-          return { queued: false };
-        }
+        const queued = await recheckLockedHead(tx, scope, input.pullRequestId);
+        return { queued };
+      });
+    },
 
-        await enqueueGenerateJob(
-          tx,
-          scope,
-          { headSha: head.row.headSha },
-          pullRequestId,
-          TRIGGER_ON_DEMAND_DELAY_SECONDS,
-        );
-        return { queued: true };
+    async recheckHeadsAtSha(input) {
+      if (scope.ownerUserId !== null) {
+        return { rechecked: [] };
+      }
+
+      return db.transaction(async (tx) => {
+        const candidates = await listHeldHeadCandidates(tx, scope, input);
+        const rechecked: PullRequestRowId[] = [];
+        for (const pullRequestId of candidates) {
+          const queued = await recheckLockedHead(
+            tx,
+            scope,
+            pullRequestId,
+            input.headSha,
+          );
+          if (queued) {
+            rechecked.push(pullRequestId);
+          }
+        }
+        return { rechecked };
       });
     },
 

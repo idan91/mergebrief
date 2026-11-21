@@ -5,7 +5,7 @@ own account/org, wired to your own deployment. There is no shared hosted App.
 
 This doc is the canonical setup reference for both contributors and self-hosters.
 
-## Permissions (least-privilege, exactly these five)
+## Permissions (least-privilege, exactly these)
 
 | Repository permission | Access | Why |
 |---|---|---|
@@ -13,6 +13,8 @@ This doc is the canonical setup reference for both contributors and self-hosters
 | **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
 | **Issues** | Read-only | Reads the issue a pull request names as its ticket ([trackers.md](./trackers.md#github-issues)). |
+| **Checks** | Read-only | Reads the check runs on a held push for the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates), and lets the App subscribe to **Check run**. |
+| **Commit statuses** | Read-only | Reads the commit statuses on a held push for the same two conditions, and lets the App subscribe to **Status**. |
 
 | Organization permission | Access | Why |
 |---|---|---|
@@ -24,6 +26,13 @@ This doc is the canonical setup reference for both contributors and self-hosters
 
 > **Adding Issues to an App you already registered:** GitHub asks for the same approval. Until
 > then, a GitHub ticket reads as refused on the brief, and generation continues without it.
+
+> **Adding Checks and Commit statuses to an App you already registered:** each installation
+> must accept the new permissions on its settings page on GitHub. Until it does, a `ci`
+> condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold the push
+> as missing the permission; `copilot` reports through reviews and is checked as before. A
+> repository with neither condition is unaffected, and anyone with push access can still
+> generate a held push from MergeBrief.
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
@@ -39,8 +48,9 @@ This doc is the canonical setup reference for both contributors and self-hosters
 - **Issues: write**: a comment on the PR *conversation* timeline uses the issue-comments endpoint,
   but for a pull request that endpoint is authorized by `Pull requests: write`, so write is
   redundant.
-- **Checks**: posting brief status as a Check Run is deferred. Un-parking it
-  would need `Checks: write` and is a design change, not a config toggle.
+- **Checks: write** and **Commit statuses: write**: MergeBrief reads check runs and statuses
+  but never posts one. Posting brief status as a check run is deferred; un-parking it is a
+  design change, not a config toggle.
 - Any other write scope.
 
 ## Events to subscribe to
@@ -57,11 +67,17 @@ On the registration "what events would you like to subscribe to?" screen, check 
   anyone else, such as a private organization member that GitHub reports as a contributor,
   counts only with write access, which one read of their repository permission (covered by
   Metadata) settles. A read, triage or failed answer sets no Checkpoint.
+- **Check run**: a check run created or completed on a commit checks a push held at that
+  commit again, for the `bots` and `ci` conditions. A fork pull request's run names no pull
+  request, so MergeBrief finds the open pull requests whose held push is that commit. A run on
+  any other push changes nothing. The checkbox appears once **Checks** is set.
+- **Status**: a commit status in any state does the same. The checkbox appears once
+  **Commit statuses** is set.
 
 **`installation`, `installation_repositories` and `github_app_authorization` are NOT on
 that list, and don't need to be.** GitHub delivers those to every App automatically
 (install/uninstall, repos added or removed, a user revoking the App), regardless of
-subscription. The checkbox list only covers optional per-resource events. So two checkboxes
+subscription. The checkbox list only covers optional per-resource events. So four checkboxes
 is the complete set.
 
 When a user revokes MergeBrief from their GitHub settings, `github_app_authorization` arrives
@@ -232,18 +248,21 @@ to the section that explains it.
 - [ ] **Expire user authorization tokens** stays checked. Without it GitHub
       issues no refresh token and every sign-in fails
       ([Reviewer sign-in](#reviewer-sign-in)).
-- [ ] **Permissions** are exactly the five in
-      [Permissions](#permissions-least-privilege-exactly-these-five):
-      Contents and Pull requests read and write, Metadata and Issues read, and
-      organization Members read.
-- [ ] **Events**: only **Pull request** and **Pull request review**
+- [ ] **Permissions** are exactly the seven in
+      [Permissions](#permissions-least-privilege-exactly-these):
+      Contents and Pull requests read and write; Metadata, Issues, Checks and
+      Commit statuses read; and organization Members read.
+- [ ] **Events**: only **Pull request**, **Pull request review**,
+      **Check run** and **Status**
       ([Events to subscribe to](#events-to-subscribe-to)).
 - [ ] **Members is approved in every organization.** An organization that
       installed the App before Members was added must approve the new
       permission; until its owner does, team suggestions stay empty there.
       Any permission added after install needs the same approval: without
       Pull requests write, no Entry comment posts
-      ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)).
+      ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
+      and without Checks and Commit statuses a `ci` condition and the App
+      bots of a `bots` condition hold as missing the permission.
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
       `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_OAUTH_CLIENT_ID`,

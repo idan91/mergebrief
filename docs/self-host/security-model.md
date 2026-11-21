@@ -16,9 +16,9 @@ names them ([generators.md](./generators.md#who-may-start-a-brief)):
 | `allowed.users` | Those people, whatever they can install |
 | `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts |
 
-Webhook deliveries answer to the same list. A pull request or review delivery
-starts a run only for a repository on a listed account or an Operator's personal
-account. Anything else is answered 200 and logged at `warn` with the account's id,
+Webhook deliveries answer to the same list. A pull request, review, check run or
+status delivery starts or wakes a run only for a repository on a listed account or
+an Operator's personal account. Anything else is answered 200 and logged at `warn` with the account's id,
 so a stranger who installs a public App spends nothing. Install and uninstall
 events still apply.
 

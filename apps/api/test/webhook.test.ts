@@ -2790,6 +2790,199 @@ describe("POST /api/webhooks/github", () => {
   });
 });
 
+describe("check runs and statuses wake a held head", () => {
+  const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
+
+  function buildApp(
+    policy: Pick<AppDeps, "allowedAccess"> = LISTED_OWNER_DEPS,
+  ): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      ...UNUSED_INSTALLATION_DEPS,
+      ...policy,
+    });
+  }
+
+  function checkRunPayload(input: {
+    action?: string;
+    prNumbers?: readonly number[];
+  }): Record<string, unknown> {
+    return {
+      action: input.action ?? "completed",
+      installation: { id: INSTALLATION_ID },
+      repository: makeRepository(REPO_ID, "public"),
+      check_run: {
+        head_sha: HEAD_SHA,
+        status: "completed",
+        conclusion: "success",
+        pull_requests: (input.prNumbers ?? []).map((number) => ({ number })),
+      },
+    };
+  }
+
+  function statusPayload(state = "success"): Record<string, unknown> {
+    return {
+      sha: HEAD_SHA,
+      state,
+      context: "ci/build",
+      installation: { id: INSTALLATION_ID },
+      repository: makeRepository(REPO_ID, "public"),
+    };
+  }
+
+  /** Open PR #2 at the head, clear its job; `held` marks the head held. */
+  async function openHead(app: ApiApp, held: boolean): Promise<void> {
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw("delete from graphile_worker.jobs");
+    if (held) {
+      await harness.raw(
+        `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+      );
+    }
+  }
+
+  async function readJobHeads(): Promise<unknown[]> {
+    return harness.raw(
+      "select payload->>'head_sha' as head from graphile_worker.jobs",
+    );
+  }
+
+  it("a run naming the PR queues its held head and keeps it held", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+
+    const res = await deliver(
+      app,
+      "check_run",
+      checkRunPayload({ prNumbers: [2] }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+    expect(await harness.raw("select status from generation")).toEqual([
+      { status: "held" },
+    ]);
+  });
+
+  it("a fork PR's run, which names no PR, queues by SHA", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+
+    const res = await deliver(
+      app,
+      "check_run",
+      checkRunPayload({ action: "created" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+  });
+
+  it.each(["pending", "success", "failure", "error"])(
+    "a %s status queues the held head at its SHA",
+    async (state) => {
+      const app = buildApp();
+      await openHead(app, true);
+
+      const res = await deliver(app, "status", statusPayload(state));
+
+      expect(res.status).toBe(200);
+      expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+    },
+  );
+
+  it("queues nothing for a head no condition holds", async () => {
+    const app = buildApp();
+    await openHead(app, false);
+
+    await deliver(app, "check_run", checkRunPayload({ prNumbers: [2] }));
+    await deliver(app, "status", statusPayload());
+
+    expect(await readJobHeads()).toEqual([]);
+    expect(await harness.raw("select status from generation")).toEqual([
+      { status: "pending" },
+    ]);
+  });
+
+  it("queues nothing for a closed PR whose head is held", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: false }),
+    );
+    await harness.raw("delete from graphile_worker.jobs");
+
+    await deliver(app, "status", statusPayload());
+
+    expect(await readJobHeads()).toEqual([]);
+  });
+
+  it("queues nothing for a held SHA the PR has pushed past", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "synchronize", headSha: NEXT_HEAD_SHA }),
+    );
+    await harness.raw("delete from graphile_worker.jobs");
+
+    await deliver(app, "status", statusPayload());
+
+    expect(await readJobHeads()).toEqual([]);
+  });
+
+  it("ignores a rerequested run, which changes no run yet", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+
+    const res = await deliver(
+      app,
+      "check_run",
+      checkRunPayload({ action: "rerequested", prNumbers: [2] }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await readJobHeads()).toEqual([]);
+  });
+
+  it("drops a report from a repository owner the instance does not list", async () => {
+    await openHead(buildApp(), true);
+    const unlisted = buildApp({
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+
+    const res = await deliver(unlisted, "status", statusPayload());
+
+    expect(res.status).toBe(200);
+    expect(await readJobHeads()).toEqual([]);
+    expect(await countRows(harness, "webhook_delivery")).toBe(1);
+  });
+
+  it("skips a replayed report and records it once", async () => {
+    const app = buildApp();
+    await openHead(app, true);
+    const payload = statusPayload();
+
+    await deliver(app, "status", payload);
+    await harness.raw("delete from graphile_worker.jobs");
+    const replay = await deliver(app, "status", payload);
+
+    expect(replay.status).toBe(200);
+    expect(await readJobHeads()).toEqual([]);
+    expect(await countRows(harness, "webhook_delivery")).toBe(2);
+  });
+});
+
 describe("POST /api/webhooks/github, github_app_authorization", () => {
   const keyProvider = createKeyProvider();
   let app: ApiApp;
