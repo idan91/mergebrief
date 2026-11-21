@@ -2792,6 +2792,17 @@ describe("POST /api/webhooks/github", () => {
 
 describe("check runs and statuses wake a held head", () => {
   const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
+  /** A hold a check report can move: only `bots` and `ci` read reports. */
+  const HELD_ON_CI = JSON.stringify([
+    {
+      kind: "ci",
+      setBy: "repo",
+      failed: [],
+      running: ["build"],
+      missing: [],
+      permissionMissing: false,
+    },
+  ]);
 
   function buildApp(
     policy: Pick<AppDeps, "allowedAccess"> = LISTED_OWNER_DEPS,
@@ -2843,7 +2854,7 @@ describe("check runs and statuses wake a held head", () => {
     await harness.raw("delete from graphile_worker.jobs");
     if (held) {
       await harness.raw(
-        `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+        `update generation set status = 'held', unmet_conditions = '${HELD_ON_CI}'`,
       );
     }
   }
