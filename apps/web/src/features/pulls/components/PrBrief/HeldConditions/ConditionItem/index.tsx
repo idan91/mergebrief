@@ -7,7 +7,7 @@ import {
   ChipVariants,
 } from "@web/components/Chip";
 import { describeUnmetReasons } from "../../held-head";
-import type { HeldPlainCondition } from "../../held-head/types";
+import type { HeldPlainCondition } from "../../../../types";
 import styles from "./ConditionItem.module.scss";
 
 export interface ConditionItemProps {

@@ -20,8 +20,7 @@ import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
 import { readSupersededStop } from "./pr-state";
 import { isOwnDraft } from "./ownDraft";
-import type { HeldCondition } from "../components/PrBrief/held-head/types";
-import type { GenerationSummary, PrSummary } from "../types";
+import type { GenerationSummary, HeldCondition, PrSummary } from "../types";
 
 export interface Span {
   readonly base: string;

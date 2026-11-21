@@ -1,8 +1,7 @@
 import type { TranslationKey } from "i18n";
 import type { ValueOf } from "types/utils";
 
-import type { PrSummary } from "../../../../../types";
-import type { HeldCondition } from "../../../held-head/types";
+import type { HeldCondition, PrSummary } from "../../../../../types";
 
 /** What the new brief is doing, first match winning in this order. */
 export const NewerCommitsStates = {
