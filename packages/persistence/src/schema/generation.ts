@@ -82,7 +82,7 @@ export const generation = pgTable(
     unmetConditions: jsonDocument("unmet_conditions"),
     /**
      * A Generate click queued this head, held, failed or awaiting its trigger:
-     * its run skips the trigger conditions.
+     * every run of that head skips the trigger conditions. Never cleared.
      * The audit row records who clicked.
      */
     generateRequestedAt: timestamp("generate_requested_at", {

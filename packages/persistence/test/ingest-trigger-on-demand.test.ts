@@ -475,7 +475,7 @@ describe("triggerOnDemand", () => {
     );
   });
 
-  it("stamps the approved head so its run skips the trigger conditions", async () => {
+  it("stamps the approved head so its runs skip the trigger conditions", async () => {
     const world = await makeGatedWorld();
 
     await triggerOnDemand(world);

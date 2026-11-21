@@ -988,9 +988,9 @@ export async function releaseAwaitingTrigger(
 
 /**
  * A Generate click on a held head: back to `pending` with a fresh claim
- * budget, its unmet conditions cleared, and stamped so its run skips the
- * conditions. Only a `held` row moves; the caller holds the pull request's
- * row lock, which a condition hold also takes.
+ * budget, its unmet conditions cleared, and stamped so every run of that
+ * head skips the conditions. Only a `held` row moves; the caller holds the
+ * pull request's row lock, which a condition hold also takes.
  */
 export async function releaseHeldHead(
   executor: GenerationExecutor,
@@ -1023,8 +1023,8 @@ export async function releaseHeldHead(
 }
 
 /**
- * Stamp a head a Generate click queued, so its run skips the trigger
- * conditions; the caller holds the pull request's row lock.
+ * Stamp a head a Generate click queued, so every run of that head skips the
+ * trigger conditions; the caller holds the pull request's row lock.
  */
 export async function stampGenerateRequested(
   executor: GenerationExecutor,
