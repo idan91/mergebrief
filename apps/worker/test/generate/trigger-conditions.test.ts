@@ -829,6 +829,26 @@ describe("generate task, trigger conditions", () => {
     expect(countFileListReads(github)).toBe(0);
   });
 
+  it("reads no file list while a failing ci member holds an any group", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(
+      github,
+      "version: 1\ntriggerConditions:\n  paths: ['**/*.ts']\n  any:\n    ci: { checks: [build] }\n    labels: [needs-brief]\n",
+    );
+    github.addCheckRun(REPO, HEAD_1, {
+      checkRunId: 1n,
+      name: "build",
+      completed: true,
+      conclusion: "failure",
+    });
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(countFileListReads(github)).toBe(0);
+  });
+
   it("holds an any group of paths and labels until a label lands", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
