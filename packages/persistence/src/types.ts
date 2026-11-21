@@ -175,7 +175,7 @@ export type JobKeyMode = ValueOf<typeof JobKeyModes>;
 export const TriggerOnDemandOutcomes = {
   /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
   QUEUED: "queued",
-  /** The projection keeps the head in flight (a live claim, or the previous release's running row); nothing was written. */
+  /** The head is in flight; nothing was written. */
   RUNNING: "running",
   /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",

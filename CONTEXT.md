@@ -268,7 +268,7 @@ The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs*
 _Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:
-The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
+The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then locked by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
 _Avoid_: task, generation (the record), queued generation
 
 **Slot**:

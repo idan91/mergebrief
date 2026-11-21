@@ -288,10 +288,7 @@ interface ReleaseClaimOptions {
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
-  /**
-   * The projection keeps the row in flight (a live claim, or the previous
-   * release's running row), so it leaves every column as stored.
-   */
+  /** The head is in flight, so the projection left every column as stored. */
   readonly inFlight: boolean;
 }
 
@@ -786,9 +783,8 @@ const TERMINAL_CLEARED = {
 
 /**
  * A trigger's reset of a row already on the key: `status` with `attempts` as
- * given, clearing `phase`, the error columns, `repo_config` and the claim. A
- * row the projection keeps in flight (a live claim, or the previous release's
- * running row) keeps every column, so a live run is never clobbered and a
+ * given, clearing `phase`, the error columns, `repo_config` and the claim. An
+ * in-flight head keeps every column, so a live run is never clobbered and a
  * dropped trigger is not a paid attempt; a `running` row whose lease lapsed
  * (a dead worker) is projected afresh.
  */
