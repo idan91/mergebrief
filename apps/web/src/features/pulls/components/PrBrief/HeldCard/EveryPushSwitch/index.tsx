@@ -9,7 +9,7 @@ import styles from "./EveryPushSwitch.module.scss";
 
 export interface EveryPushSwitchProps {
   checked: boolean;
-  /** The outcome line; its region stays mounted so each change is read. */
+  /** The outcome line, shown here and spoken by the page's region. */
   announcement: string;
   onChange: (next: boolean) => void;
 }
@@ -34,14 +34,7 @@ export function EveryPushSwitch({
       <p className={styles["hint"]} id={hintId}>
         {t("pulls.everyPush.hint")}
       </p>
-      <p
-        aria-atomic="true"
-        aria-live="polite"
-        className={styles["outcome"]}
-        role="status"
-      >
-        {announcement}
-      </p>
+      <p className={styles["outcome"]}>{announcement}</p>
     </footer>
   );
 }

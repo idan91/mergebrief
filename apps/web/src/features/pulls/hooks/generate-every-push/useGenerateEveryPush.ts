@@ -1,6 +1,8 @@
 // The every-push switch's hook: the requested state while the write runs,
 // the re-entry guard, the announcement and the refresh. A failed write
 // clears the request, so the control reads the server's state again.
+// A saved write refreshes PR meta first, which may unmount the caller, so a
+// caller that can leave speaks through a page-level region.
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +22,7 @@ export interface UseGenerateEveryPushInput {
   readonly prNumber: number;
   /** The switch as the server last reported it. */
   readonly on: boolean;
-  /** A page-level live region to speak through instead of this hook's own. */
+  /** A page-level live region to speak through; the outcome text still comes back for display. */
   readonly announce?: (text: string) => void;
   /** Another read a saved switch leaves stale too. */
   readonly alsoInvalidates?: QueryKey;
@@ -30,7 +32,10 @@ export interface GenerateEveryPush {
   /** The state the control shows: the requested one while the write runs. */
   readonly checked: boolean;
   readonly pending: boolean;
-  /** The text of one persistent polite live region, empty until an outcome needs words. */
+  /**
+   * The outcome text, empty until an outcome needs words: for one persistent
+   * polite live region, or for display when `announce` speaks it.
+   */
   readonly announcement: string;
   readonly setOn: (next: boolean) => void;
 }
@@ -45,9 +50,13 @@ export function useGenerateEveryPush({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const announcer = useAnnouncer();
-  const announce = announceElsewhere ?? announcer.announce;
   const [requested, setRequested] = useState<boolean | undefined>(undefined);
   const inFlight = useRef(false);
+
+  function announce(text: string): void {
+    announcer.announce(text);
+    announceElsewhere?.(text);
+  }
 
   function setOn(next: boolean): void {
     if (inFlight.current || next === on) {

@@ -1,7 +1,9 @@
 // The PR's current head is held by its trigger conditions and no brief is
 // shown for it: the conditions grouped by what clears them, Generate now, and
 // the switch that generates every push of the PR.
-// Presentational; the state announcement lives in the body's region.
+// Presentational; the state announcement and the every-push outcome live in
+// the body's regions, since a saved switch releases the head and removes
+// this card.
 import { useTranslation } from "react-i18next";
 import type { PrState } from "types";
 
@@ -22,6 +24,8 @@ export interface HeldCardProps {
   unmetConditions: readonly HeldCondition[];
   /** The list left out an item the server or this bundle could not read. */
   unmetConditionsPartial: boolean;
+  /** The page's live region, which outlives this card. */
+  onAnnounce: (message: string) => void;
   /** Push alone, from PR meta: the regenerate route's collaborator bar. */
   viewerCanPush: boolean;
   appInstalled: boolean;
