@@ -4,7 +4,7 @@ import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerat
 import { isNoLongerOpen } from "../../../utils/pr-state";
 import { splitUnmetConditions } from "@web/utils/unmet-conditions";
 import { readHeldLead } from "../held-head";
-import { HeldGenerateNotices } from "../held-head/consts";
+import { HeldGenerateNotices } from "../../../consts";
 import { readOffersTrigger } from "../trigger-offer";
 import type { HeldCardProps } from ".";
 
