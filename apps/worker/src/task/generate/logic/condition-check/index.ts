@@ -235,7 +235,8 @@ function readConditionFacts(
  * no claim, no attempt, no model. A hold the store refuses (a Generate
  * click, a live claim, a kept status) stands the run down the same way;
  * the click's own job runs the head, but a PR turned to every push goes on
- * to the claim, since no other job runs it. A held head gets the held Entry.
+ * to the claim, since the switch queues a job only for a head it finds held.
+ * A held head gets the held Entry.
  */
 export async function applyConditionCheck(
   context: RunContext,
