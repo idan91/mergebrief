@@ -12,7 +12,8 @@ import {
   type GitHubApiError,
   type GitHubApiErrorCode,
 } from "../errors";
-import type { Result } from "types/utils";
+import { ReviewVerdictStates } from "types/conversation";
+import type { Result, ValueOf } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export interface CreatePullRequestReviewInput {
@@ -22,6 +23,13 @@ export interface CreatePullRequestReviewInput {
   /** The reviewed head, pins every thread to the diff the reviewer saw. */
   readonly commitId: string;
 }
+
+/** GitHub wire values for a review's state, the unsubmitted one included. */
+export const PullRequestReviewStates = {
+  PENDING: "PENDING",
+  ...ReviewVerdictStates,
+} as const;
+export type PullRequestReviewState = ValueOf<typeof PullRequestReviewStates>;
 
 export interface PendingReview {
   /** REST id, what persistence joins own comments on. */

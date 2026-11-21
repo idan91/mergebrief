@@ -7,7 +7,7 @@ import type { SubmittedReview } from "../operations/review-list";
 import {
   PullRequestReviewStates,
   type PullRequestReviewState,
-} from "../operations/review-pending";
+} from "../operations/review";
 import type { ReviewVerdictState } from "types/conversation";
 import { COMMIT_SHA_LENGTH, FAKE_APP_BOT_USER_ID } from "./consts";
 import { buildRepoReader, listOpenPullRequests } from "./repo-reader";

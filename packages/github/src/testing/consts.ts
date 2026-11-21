@@ -1,6 +1,6 @@
 import { HttpStatuses } from "types/http";
 import { GitHubApiErrorCodes, type GitHubApiErrorCode } from "../errors";
-import { PullRequestReviewStates } from "../operations/review-pending";
+import { PullRequestReviewStates } from "../operations/review";
 import { ReviewEvents, type ReviewEvent } from "../operations/review-submit";
 import { FakeFailures, type FakeFailure } from "./types";
 

@@ -36,7 +36,7 @@ import type {
 } from "../operations/repo";
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
-import type { PullRequestReviewState } from "../operations/review-pending";
+import type { PullRequestReviewState } from "../operations/review";
 import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
 import type { RepositoryVisibility } from "../types";
 

@@ -12,14 +12,12 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
+import { HttpStatuses, type Mutable, type Result } from "types";
 import {
-  HttpStatuses,
-  ReviewVerdictStates,
-  type Mutable,
-  type Result,
-  type ValueOf,
-} from "types";
-import type { PendingReview } from "./review";
+  PullRequestReviewStates,
+  type PendingReview,
+  type PullRequestReviewState,
+} from "./review";
 import { readReviewList } from "./review-list";
 
 export interface PullRequestReviewRef {
@@ -31,13 +29,6 @@ export interface PullRequestReviewRef {
 export interface DeletePendingPullRequestReviewInput extends PullRequestReviewRef {
   readonly reviewId: bigint;
 }
-
-/** GitHub wire values for a review's state, the unsubmitted one included. */
-export const PullRequestReviewStates = {
-  PENDING: "PENDING",
-  ...ReviewVerdictStates,
-} as const;
-export type PullRequestReviewState = ValueOf<typeof PullRequestReviewStates>;
 
 const reviewListEntrySchema = z.object({
   id: z.number(),
