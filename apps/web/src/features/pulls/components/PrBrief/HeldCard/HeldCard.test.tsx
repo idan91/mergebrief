@@ -277,7 +277,7 @@ describe("HeldCard", () => {
     expect(box.checked).toBe(false);
     const hintId = box.getAttribute("aria-describedby") ?? "";
     expect(document.getElementById(hintId)?.textContent).toBe(
-      "Generates this push now, and every later push on this pull request, whatever its conditions.",
+      "Generates this push now and every later one, whatever its conditions.",
     );
   });
 
