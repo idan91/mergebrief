@@ -130,9 +130,9 @@ stored at that span, on a base the PR may since have left; `briefAvailable`:
 one is stored for the PR's current base too. Generation is webhook-driven for
 an installed repo (`generate <url>` queues a pasted PR); poll with backoff
 while `generation.status` is `pending` or `running`, since an
-`awaiting-trigger` head waits for a collaborator's Generate click and a
-`held` head waits for its trigger conditions, listed in
-`generation.unmetConditions` (`generate <number>` starts either now);
+`awaiting-trigger` head waits for a collaborator's Generate click in the
+browser and a `held` head waits for its trigger conditions, listed in
+`generation.unmetConditions` (`generate <number>` starts a held one now);
 `comparisons.lastReview`, what `delta` resolves. Without `--json`, a held
 head adds a `held:` line naming each unmet condition and whose setting it
 is, every check listed; a condition this CLI does not know prints its kind.
@@ -332,7 +332,9 @@ Prints nothing on success.
 With a number: Generate on the PR's current head, as the button in the web
 app does. It releases a head trigger conditions hold, or reruns one that
 failed in a way a rerun can help; it needs push access and an
-`external-write` token, and prints nothing on success.
+`external-write` token, and prints nothing on success. A head awaiting a
+collaborator's Trigger approval refuses a token with 403: that click stays in
+the browser.
 
 With a URL: generate a brief for a pasted PR on demand, with no confirm
 prompt (your own key, mirroring the web URL box). The server queues the run

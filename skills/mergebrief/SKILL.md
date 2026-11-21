@@ -96,9 +96,10 @@ Never suggest a bare `auth login`: it writes over the default profile.
      `generation.unmetConditions` names each one. Report them and stop.
    - `failed` or `capped`: report the code and stop.
 
-   Run `mergebrief generate <url>`, or `mergebrief generate <n>` for an
-   awaiting-trigger, held or failed head, only when the user asked for an
-   on-demand run, since it spends model tokens.
+   Run `mergebrief generate <url>`, or `mergebrief generate <n>` for a held
+   or failed head, only when the user asked for an on-demand run, since it
+   spends model tokens. An awaiting-trigger head refuses a token: that click
+   stays in the browser.
 
 ## The loop
 
