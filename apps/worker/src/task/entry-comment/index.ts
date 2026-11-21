@@ -246,6 +246,11 @@ export function isHeadClosedEntryBody(body: string, headSha: string): boolean {
   return isHeadKindEntryBody(body, EntryBodyKinds.CLOSED, headSha);
 }
 
+/** This head's held body, whatever conditions it lists. */
+export function isHeadHeldEntryBody(body: string, headSha: string): boolean {
+  return isHeadKindEntryBody(body, EntryBodyKinds.HELD, headSha);
+}
+
 /** This head's ready body, whatever revision it links. */
 export function isHeadReadyEntryBody(body: string, headSha: string): boolean {
   return isHeadKindEntryBody(body, EntryBodyKinds.READY, headSha);

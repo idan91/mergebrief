@@ -6,7 +6,9 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { parseInstanceTriggerConditions } from "generators/trigger-conditions";
+import { buildEntryCommentClosedBody } from "../../src/task/entry-comment";
 import { FakeFailures, type FakeGitHub } from "github/testing";
+import { createI18n } from "i18n";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
 import {
@@ -23,6 +25,7 @@ import {
   makePullRequestInfo,
   makeReviewerId,
   makeTarget,
+  makeSyncEntryTask,
   makeTask,
   type ReadCount,
   PR_REF,
@@ -32,6 +35,7 @@ import {
   setUpHarness,
   SMALL_DIFF,
   stubGenerator,
+  trackEntryBody,
   trigger,
 } from "./helpers";
 import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
@@ -280,6 +284,28 @@ describe("generate task, trigger conditions", () => {
       .slice(before)
       .filter((call) => !call.startsWith("fetch"));
     expect(writes).toEqual([]);
+  });
+
+  it("leaves a closed body to the Entry sync, which reads the PR fresh", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const closed = buildEntryCommentClosedBody(createI18n().t, HEAD_1);
+    await trackEntryBody(github, pr.id, closed);
+    const readyForReview = instanceConditions({ readyForReview: "on" });
+
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    expect(readLiveBodies(github)).toEqual([closed]);
+    const syncs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'sync-entry'",
+    );
+    expect(syncs).toHaveLength(1);
+
+    await makeSyncEntryTask({ github })(syncs[0]?.["payload"]);
+
+    const [held] = readLiveBodies(github);
+    expect(held).toContain("**No brief for `aaaaaaa`.**");
   });
 
   it("edits a released hold's Entry to generating, then pings once", async () => {

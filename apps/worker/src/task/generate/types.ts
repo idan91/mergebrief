@@ -458,6 +458,8 @@ export interface EntryCommentManager {
   ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
   replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `edit` over a live body `isEditable` accepts; otherwise as `refresh`. */
+  editOrRefresh(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
 }
 
 /**

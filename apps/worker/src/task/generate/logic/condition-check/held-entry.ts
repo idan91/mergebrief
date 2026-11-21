@@ -1,19 +1,23 @@
 import { GenerationStatuses } from "types/generations";
 import type { UnmetCondition } from "types/trigger-conditions";
-import { buildEntryCommentHeldBody } from "../../../entry-comment";
+import {
+  buildEntryCommentHeldBody,
+  isHeadClosedEntryBody,
+} from "../../../entry-comment";
 import type { AcquiredRepoConfig } from "../../../repo-config";
-import { HeadReadings, type RunContext } from "../../types";
+import { EntryWrites, HeadReadings, type RunContext } from "../../types";
 import { buildHeldEntryLinks } from "../../utils";
 import { resolveEntryCommentAllowed } from "../entry-comment-gate";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "../entry-sync";
 
 /**
  * The held head's Entry, written by a silent edit, or posted once when the
- * thread has none: a hold never pings. A body already live stays untouched,
- * so a re-check that changes nothing writes nothing. A click may release the
- * head while this run reads GitHub, so the row is read again before the
- * write, and a thread a newer head now owns is left to it. A post that fails,
- * or stands down on an unread head, queues the head's sync.
+ * thread has none: a hold never pings, and a live body a re-check matches
+ * stays. The row is read again before the write, since a click may release
+ * the head meanwhile, and a newer head's thread is left to it. This head's
+ * closed body may have landed since the PR read, so the write leaves it and
+ * queues the head's sync, which reads the PR fresh, as a failed post or one
+ * that stands down on an unread head does.
  */
 export async function postHeldEntry(
   context: RunContext,
@@ -56,6 +60,14 @@ export async function postHeldEntry(
     return;
   }
 
-  const write = await entryCommentManager.edit(body);
+  const { headSha } = context.target;
+  const write = await entryCommentManager.editOrCreate(
+    body,
+    (live) => !isHeadClosedEntryBody(live, headSha),
+  );
+  if (write === EntryWrites.LEFT) {
+    await queueEntrySync(context);
+    return;
+  }
   await queueEntrySyncOnLostWrite(context, write);
 }

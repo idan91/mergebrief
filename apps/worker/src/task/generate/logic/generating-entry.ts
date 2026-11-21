@@ -1,4 +1,7 @@
-import { buildEntryCommentGeneratingBody } from "../../entry-comment";
+import {
+  buildEntryCommentGeneratingBody,
+  isHeadHeldEntryBody,
+} from "../../entry-comment";
 import { DEFAULT_DETAIL_CONCURRENCY } from "brief-core";
 import {
   DETAIL_CALL_MINUTES,
@@ -18,7 +21,7 @@ import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 
 export interface GeneratingEntryPost extends UnreadHeadPost {
   readonly watch: SupersessionWatch;
-  /** A released hold's body: edited in place, so the ready post is the one ping. */
+  /** The run may release a hold: a live held body is edited in place, so the ready post is the one ping. */
   readonly silent: boolean;
 }
 
@@ -58,7 +61,10 @@ export async function postGeneratingEntry(
     return;
   }
   if (post.silent) {
-    await post.entryCommentManager.edit(body);
+    const { headSha } = post;
+    await post.entryCommentManager.editOrRefresh(body, (live) =>
+      isHeadHeldEntryBody(live, headSha),
+    );
     return;
   }
   await post.entryCommentManager.refresh(body);
