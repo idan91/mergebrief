@@ -15,8 +15,8 @@
     border-inline-start: 1px solid var(--color-line);
     list-style: none;
 
-    > li {
-      padding-block: var(--space-1);
+    > li + li {
+      border-block-start: 1px solid var(--color-line);
     }
   }
 }
