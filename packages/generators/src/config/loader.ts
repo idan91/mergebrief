@@ -245,8 +245,6 @@ export function loadGeneratorConfigFile(
     ({ trackers, siblingRepos } = validated.value);
   }
 
-  // The link fetcher runs per job; a bad policy refuses boot rather than
-  // leaving the fetcher open where the operator believes it is narrowed.
   // Read by the worker per job; a bad block refuses boot rather than
   // holding or releasing pushes on conditions the operator never wrote.
   const triggerConditionsBlock = root["triggerConditions"];
@@ -259,6 +257,8 @@ export function loadGeneratorConfigFile(
     triggerConditions = validated.value;
   }
 
+  // The link fetcher runs per job; a bad policy refuses boot rather than
+  // leaving the fetcher open where the operator believes it is narrowed.
   const linkFetchBlock = root["linkFetch"];
   let linkFetch = DEFAULT_LINK_FETCH;
   if (linkFetchBlock !== undefined) {

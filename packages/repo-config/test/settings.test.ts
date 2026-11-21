@@ -45,6 +45,9 @@ describe("settings.yaml validation", () => {
     );
     expect(result.settings).toBeUndefined();
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+    expect(result.outcomes[1]?.detail).toBe(
+      "schema validation failed (triggerConditions: custom; triggerConditions: custom)",
+    );
   });
 
   it("applies the default entryCommentOnDrafts=true when omitted", () => {
