@@ -772,7 +772,7 @@ export interface BriefGenerationInputs {
    * edits this head's live held body in place, with no ping. Any other live
    * body is reposted as usual.
    */
-  readonly generatingEntryIsSilent: boolean;
+  readonly generatingEntryEditsHeldEntry: boolean;
   readonly translate: TFunction;
   readonly priorBriefs: readonly BriefSpanRow[];
   readonly prevBrief: BriefSpanRow | undefined;

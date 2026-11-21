@@ -121,7 +121,7 @@ async function generateFreshBrief(
     watch: context.watch,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
-    generatingEntryIsSilent: mayReleaseHold(context.projected),
+    generatingEntryEditsHeldEntry: mayReleaseHold(context.projected),
     translate: deps.translate,
     priorBriefs: context.priorBriefs,
     prevBrief: context.prevBrief,
