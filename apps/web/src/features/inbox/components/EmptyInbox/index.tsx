@@ -18,14 +18,17 @@ export interface EmptyInboxProps {
   onShowHidden: () => void;
   onShowArchived: () => void;
   onShowInbox: () => void;
+  /** Leave the held view for every row of the view. */
+  onShowAll: () => void;
 }
 
 /**
  * Where the rows would be when rows exist but none show: filters the
  * reviewer set, with Clear filters; nothing open at all, with one way to
  * see the merged and closed rows the default keeps out of sight; every row
- * archived, with the way to the archived view; or the archived view with
- * nothing in it, with the way back.
+ * archived, with the way to the archived view; the archived view with
+ * nothing in it, with the way back; or the held view with nothing held,
+ * with every row.
  */
 export function EmptyInbox({
   reason,
@@ -35,9 +38,22 @@ export function EmptyInbox({
   onShowHidden,
   onShowArchived,
   onShowInbox,
+  onShowAll,
 }: EmptyInboxProps) {
   const { t } = useTranslation();
 
+  if (reason === InboxEmptinesses.HELD_ONLY) {
+    return (
+      <EmptyBlock
+        action={
+          <Button type="button" variant="secondary" onClick={onShowAll}>
+            {t("home.empty.showAll")}
+          </Button>
+        }
+        heading={<h3>{t("home.empty.heldHeading")}</h3>}
+      />
+    );
+  }
   if (reason === InboxEmptinesses.ARCHIVED_ONLY) {
     return (
       <EmptyBlock

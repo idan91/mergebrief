@@ -60,6 +60,56 @@ describe("parseInboxResponse", () => {
     });
   });
 
+  it("reads a page from an API that predates held heads", () => {
+    const { heldTotal: _heldTotal, ...older } = WIRE_PAGE;
+    const olderItem: Record<string, unknown> = { ...ITEM };
+    delete olderItem["viewerCanPush"];
+
+    const parsed = parseInboxResponse({ ...older, items: [olderItem] });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.heldTotal).toBe(0);
+    expect(parsed.value.items[0]?.viewerCanPush).toBe(false);
+  });
+
+  it("reads a held head's unmet conditions and drops an unknown kind", () => {
+    const held = {
+      status: "held",
+      updatedAt: "2026-09-20T10:00:00Z",
+      unmetConditions: [
+        { kind: "ready-for-review", setBy: "instance" },
+        { kind: "moon-phase", setBy: "repo" },
+      ],
+    };
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [{ ...ITEM, generation: held }],
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items[0]?.generation).toEqual({
+      ...held,
+      unmetConditions: [{ kind: "ready-for-review", setBy: "instance" }],
+    });
+  });
+
+  it("drops unmet conditions that are not a list, keeping the row", () => {
+    const held = { status: "held", updatedAt: "2026-09-20T10:00:00Z" };
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [{ ...ITEM, generation: { ...held, unmetConditions: "soon" } }],
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items[0]?.generation).toEqual(held);
+  });
+
   it("keeps GitHub's creation time when the wire carries it", () => {
     const dated = { ...ITEM, githubCreatedAt: "2026-09-01T08:00:00Z" };
     const parsed = parseInboxResponse({ ...WIRE_PAGE, items: [dated] });

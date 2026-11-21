@@ -20,6 +20,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,

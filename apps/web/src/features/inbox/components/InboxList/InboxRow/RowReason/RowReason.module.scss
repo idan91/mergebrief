@@ -1,0 +1,32 @@
+@use "mixins";
+
+@layer components {
+  .reason {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    min-inline-size: 0;
+
+    &::before {
+      color: var(--color-decorative);
+      content: "·" / "";
+    }
+  }
+
+  .text {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .more {
+    flex: none;
+    color: var(--color-text-3);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .more {
+      display: none;
+    }
+  }
+}

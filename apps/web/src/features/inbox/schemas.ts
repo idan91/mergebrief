@@ -10,8 +10,10 @@ import {
 
 import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
+import { unmetConditionSchema } from "@web/features/pulls/schemas";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
+import { buildTolerantListSchema } from "@web/utils/tolerant-list";
 
 import type { InboxPage } from "./types";
 
@@ -24,8 +26,10 @@ export const inboxGenerationSchema = dropInvalidKeys(
     status: generationStatusSchema,
     errorCode: z.enum(GenerationFailureCodes).exactOptional(),
     updatedAt: z.string(),
+    unmetConditions:
+      buildTolerantListSchema(unmetConditionSchema).exactOptional(),
   }),
-  ["errorCode"],
+  ["errorCode", "unmetConditions"],
 );
 
 export const inboxStackPositionSchema = z.object({
@@ -47,6 +51,8 @@ export const inboxItemSchema = dropNullKeys(
     authorLogin: z.string().exactOptional(),
     viewerIsAuthor: z.boolean(),
     viewerCanDelete: z.boolean(),
+    // An API one release older sends no push bit: offer nothing that needs one.
+    viewerCanPush: z.boolean().default(false),
     reviewState: buildOpenEnumSchema(InboxReviewStates).exactOptional(),
     behind: z.boolean(),
     unreachable: z.boolean(),
@@ -105,6 +111,7 @@ export const inboxResponseSchema = dropInvalidKeys(
     // An API one release older sends neither count: no search, no match.
     searchMatchTotal: z.number().int().min(0).default(0),
     archivedSearchMatchTotal: z.number().int().min(0).default(0),
+    heldTotal: z.number().int().min(0).default(0),
     counts: inboxCountsSchema,
     viewer: inboxViewerSchema,
     reachableInstallations: z.array(reachableInstallationSchema),

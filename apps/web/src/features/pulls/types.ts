@@ -13,7 +13,7 @@ import type {
 } from "types";
 import type { ChunkLayoutBody } from "brief-core/chunk-layout";
 import type { UnknownValue } from "@web/utils/open-enum/types";
-import type { HeldCondition } from "./components/PrBrief/held-head/types";
+import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 
 import { WriteFailureKinds } from "../../data/request/types";
 

@@ -46,6 +46,7 @@ function makeWireItem(prNumber: number) {
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: "new",
     behind: false,
     unreachable: false,

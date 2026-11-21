@@ -74,6 +74,7 @@ export function MissingRows({
       onShowArchived={() => onWrite({ archived: InboxArchivedFilters.ONLY })}
       onShowHidden={() => onWrite({ state: EVERY_STATUS_PARAM })}
       onShowInbox={() => onWrite({ archived: undefined })}
+      onShowAll={() => onWrite({ generation: undefined })}
     />
   );
 }
