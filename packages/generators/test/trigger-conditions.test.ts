@@ -186,7 +186,7 @@ describe("merging the instance and repo blocks", () => {
   it("inherits the instance's kinds when the repo names none", () => {
     const effective = resolveEffectiveTriggerConditions(instance, undefined);
     expect(
-      effective.all.map((item) => [item.setting.kind, item.source]),
+      effective.all.map((item) => [item.setting.kind, item.setBy]),
     ).toEqual([
       ["size", "instance"],
       ["labels", "instance"],
@@ -202,7 +202,7 @@ describe("merging the instance and repo blocks", () => {
     expect(
       effective.all.map((item) => [
         item.setting.kind,
-        item.source,
+        item.setBy,
         item.setting.value,
       ]),
     ).toEqual([
@@ -235,7 +235,7 @@ describe("merging the instance and repo blocks", () => {
     const effective = resolveEffectiveTriggerConditions(instance, repo);
     expect(effective.all.map((item) => item.setting.kind)).toEqual(["size"]);
     expect(
-      effective.any.map((item) => [item.setting.kind, item.source]),
+      effective.any.map((item) => [item.setting.kind, item.setBy]),
     ).toEqual([
       ["labels", "repo"],
       ["base-branches", "repo"],

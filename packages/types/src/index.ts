@@ -114,10 +114,10 @@ export {
   ReviewBots,
   SizeMeasures,
   TriggerConditionKinds,
-  TriggerConditionSources,
+  TriggerConditionSetters,
   type BotVerdict,
   type ReviewBot,
   type SizeMeasure,
   type TriggerConditionKind,
-  type TriggerConditionSource,
+  type TriggerConditionSetter,
 } from "./trigger-conditions";
