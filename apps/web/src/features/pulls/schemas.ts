@@ -199,30 +199,26 @@ function keepReadableCondition(entry: unknown) {
 
 /**
  * Keeps the held items this bundle reads, an `any` group with the members it
- * reads, and marks the list partial when anything was left out, so a reader
- * never takes part of the reason for all of it. A value that is no list drops.
+ * reads, and marks the list partial when anything was left out here or the
+ * server says it dropped an item, so a reader never takes part of the reason
+ * for all of it. A value that is no list drops.
  */
 function keepReadableUnmetConditions(value: unknown): unknown {
   if (!isPlainRecord(value)) {
     return value;
   }
-  const {
-    unmetConditions,
-    unmetConditionsPartial: _readerOnly,
-    ...generation
-  } = value;
-  if (!Array.isArray(unmetConditions)) {
-    return generation;
+  const { unmetConditions, unmetConditionsPartial, ...generation } = value;
+  const filtered: Record<string, unknown> = { ...generation };
+  let partial = unmetConditionsPartial === true;
+  if (Array.isArray(unmetConditions)) {
+    const reads = unmetConditions.map(keepReadableCondition);
+    filtered["unmetConditions"] = reads.flatMap(({ kept }) =>
+      kept === undefined ? [] : [kept],
+    );
+    partial ||= reads.some(({ dropped }) => dropped);
   }
 
-  const reads = unmetConditions.map(keepReadableCondition);
-  const filtered: Record<string, unknown> = {
-    ...generation,
-    unmetConditions: reads.flatMap(({ kept }) =>
-      kept === undefined ? [] : [kept],
-    ),
-  };
-  if (reads.some(({ dropped }) => dropped)) {
+  if (partial) {
     filtered["unmetConditionsPartial"] = true;
   }
   return filtered;
