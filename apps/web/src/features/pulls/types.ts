@@ -9,11 +9,11 @@ import type {
   GenerationStatus,
   GenerationUnitsParams,
   PrState,
-  UnmetCondition,
   ValueOf,
 } from "types";
 import type { ChunkLayoutBody } from "brief-core/chunk-layout";
 import type { UnknownValue } from "@web/utils/open-enum/types";
+import type { HeldCondition } from "./components/PrBrief/held-head/types";
 
 import { WriteFailureKinds } from "../../data/request/types";
 
@@ -48,7 +48,9 @@ export interface GenerationSummary {
   /** PR meta only, once a multi-call run planned its detail calls. */
   readonly parts?: GenerationPartsView;
   /** PR meta only, while held: the conditions this bundle reads, unknown ones dropped. */
-  readonly unmetConditions?: readonly UnmetCondition[];
+  readonly unmetConditions?: readonly HeldCondition[];
+  /** The held list left out an item, or an `any` group member, this bundle predates. */
+  readonly unmetConditionsPartial?: true;
 }
 
 /** The wire discriminates by the unavailable key; parsing adds kind for consumers. */

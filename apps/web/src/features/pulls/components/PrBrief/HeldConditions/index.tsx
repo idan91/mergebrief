@@ -1,15 +1,15 @@
 import { useTranslation } from "react-i18next";
-import type { UnmetCondition } from "types/trigger-conditions";
 
 import { IconNames } from "@web/components/Icon/types";
 import { splitUnmetConditions } from "../held-head";
+import type { HeldCondition } from "../held-head/types";
 import { ConditionGroup } from "./ConditionGroup";
 import { GroupHeadingLevels } from "./consts";
 import type { HeldConditionsLayout } from "./types";
 import styles from "./HeldConditions.module.scss";
 
 export interface HeldConditionsProps {
-  unmet: readonly UnmetCondition[];
+  unmet: readonly HeldCondition[];
   layout: HeldConditionsLayout;
 }
 

@@ -48,7 +48,7 @@ describe("splitUnmetConditions", () => {
 
 describe("readHeldLead", () => {
   it("says the head generates by itself when everything waits", () => {
-    const lead = readHeldLead(t, splitUnmetConditions([CI_RUNNING]));
+    const lead = readHeldLead(t, splitUnmetConditions([CI_RUNNING]), false);
 
     expect(lead).toBe("It generates by itself once these finish.");
   });
@@ -56,13 +56,21 @@ describe("readHeldLead", () => {
   it("says a change is needed when anything needs one", () => {
     const split = splitUnmetConditions([CI_RUNNING, LABELS]);
 
-    expect(readHeldLead(t, split)).toBe(
+    expect(readHeldLead(t, split, false)).toBe(
       "It won't generate by itself until the changes below are made.",
     );
   });
 
   it("falls back to a plain line when no condition is known", () => {
-    expect(readHeldLead(t, splitUnmetConditions([]))).toBe(
+    expect(readHeldLead(t, splitUnmetConditions([]), false)).toBe(
+      "Its trigger conditions are not met yet.",
+    );
+  });
+
+  it("falls back to the plain line when the list was read in part", () => {
+    const split = splitUnmetConditions([CI_RUNNING]);
+
+    expect(readHeldLead(t, split, true)).toBe(
       "Its trigger conditions are not met yet.",
     );
   });

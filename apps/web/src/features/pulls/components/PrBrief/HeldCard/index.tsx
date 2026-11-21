@@ -3,10 +3,10 @@
 // Presentational; the state announcement lives in the body's region.
 import { useTranslation } from "react-i18next";
 import type { PrState } from "types";
-import type { UnmetCondition } from "types/trigger-conditions";
 
 import type { UnknownValue } from "@web/utils/open-enum/types";
 import { HeldConditions } from "../HeldConditions";
+import type { HeldCondition } from "../held-head/types";
 import { HeldConditionsLayouts } from "../HeldConditions/types";
 import { TriggerAction } from "../TriggerAction";
 import { useHeldCardFacade } from "./useHeldCardFacade";
@@ -17,7 +17,9 @@ const HEADING_ID = "held-heading";
 export interface HeldCardProps {
   repoId: string;
   prNumber: number;
-  unmetConditions: readonly UnmetCondition[];
+  unmetConditions: readonly HeldCondition[];
+  /** The list left out an item this bundle predates. */
+  unmetConditionsPartial: boolean;
   /** Push alone, from PR meta: the regenerate route's collaborator bar. */
   viewerCanPush: boolean;
   appInstalled: boolean;

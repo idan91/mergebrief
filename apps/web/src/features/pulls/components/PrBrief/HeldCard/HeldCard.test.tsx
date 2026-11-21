@@ -40,6 +40,7 @@ const BASE_PROPS: HeldCardProps = {
     UnmetFixtures.CI_RUNNING,
     makeAnyGroup(UnmetFixtures.BOT_NOT_APPROVED, UnmetFixtures.SIZE_OVER),
   ],
+  unmetConditionsPartial: false,
   viewerCanPush: true,
   appInstalled: true,
   prState: "open",
@@ -137,6 +138,20 @@ describe("HeldCard", () => {
       screen.getByText("It generates by itself once these finish."),
     ).toBeTruthy();
     expect(screen.queryByText("Needs a change first")).toBeNull();
+  });
+
+  it("promises nothing when the list was read in part", () => {
+    renderCard({
+      unmetConditions: [UnmetFixtures.CI_RUNNING],
+      unmetConditionsPartial: true,
+    });
+
+    expect(
+      screen.getByText("Its trigger conditions are not met yet."),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("It generates by itself once these finish."),
+    ).toBeNull();
   });
 
   it("offers Generate now to a pusher", () => {

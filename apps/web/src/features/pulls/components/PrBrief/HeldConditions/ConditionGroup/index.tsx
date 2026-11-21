@@ -1,19 +1,17 @@
 import { useId } from "react";
-import {
-  UnmetConditionKinds,
-  type UnmetCondition,
-} from "types/trigger-conditions";
+import { UnmetConditionKinds } from "types/trigger-conditions";
 
 import { Icon } from "@web/components/Icon";
 import { IconSizes, type IconName } from "@web/components/Icon/types";
 import { readUnmetConditionKey } from "../../held-head";
+import type { HeldCondition } from "../../held-head/types";
 import { AnyGroupItem } from "../AnyGroupItem";
 import { ConditionItem } from "../ConditionItem";
 import type { HeldGroupHeadingLevel } from "../types";
 import styles from "./ConditionGroup.module.scss";
 
 export interface ConditionGroupProps {
-  conditions: readonly UnmetCondition[];
+  conditions: readonly HeldCondition[];
   headingLevel: HeldGroupHeadingLevel;
   icon: IconName;
   title: string;

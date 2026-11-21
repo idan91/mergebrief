@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
-import type { UnmetAnyGroup } from "types/trigger-conditions";
 
 import { readUnmetConditionKey } from "../../held-head";
+import type { HeldAnyGroup } from "../../held-head/types";
 import { ConditionItem } from "../ConditionItem";
 import styles from "./AnyGroupItem.module.scss";
 
 export interface AnyGroupItemProps {
-  group: UnmetAnyGroup;
+  group: HeldAnyGroup;
 }
 
 /** An `any` group: one passing member is enough, so its members nest under one line. */
