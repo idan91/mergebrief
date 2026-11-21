@@ -6,7 +6,8 @@
 // within the scope in the same transaction, and every READ filters on the
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { checkpoint } from "../schema/checkpoint";
@@ -236,34 +237,39 @@ export interface TenantRepository {
   readonly reviewSessions: ReviewSessionRepository;
 }
 
+type PullRequestWriteExecutor = Pick<
+  ReturnType<typeof internal>,
+  "update" | "select"
+>;
+
+interface GuardedPullRequestUpdate {
+  readonly pullRequestId: PullRequestRowId;
+  readonly set: PgUpdateSetSource<typeof pullRequest>;
+  /** The write lands only on a row this holds for. */
+  readonly guard: SQL;
+}
+
 /**
- * Record a collaborator's Trigger approval. The first approval stands: a
- * later call writes nothing, `row_version` included, and returns the row
- * as it is. `undefined` if no row in scope. Ingest runs it inside its own
- * transaction.
+ * Write `set` on the scope's row while `guard` holds, moving `row_version`.
+ * A row the guard refuses is returned as it is, unwritten; `undefined` if no
+ * row in scope.
  */
-export async function approvePullRequestTrigger(
-  executor: Pick<ReturnType<typeof internal>, "update" | "select">,
+async function updateGuardedPullRequest(
+  executor: PullRequestWriteExecutor,
   scope: RowScope,
-  pullRequestId: PullRequestRowId,
-  reviewerId: ReviewerId,
+  { pullRequestId, set, guard }: GuardedPullRequestUpdate,
 ): Promise<PullRequestRow | undefined> {
   const inScope = and(
     scope.matchesPullRequest(),
     eq(pullRequest.id, pullRequestId),
   );
-  const approved = await executor
+  const written = await executor
     .update(pullRequest)
-    .set({
-      triggerApprovedBy: reviewerId,
-      triggerApprovedAt: sql`now()`,
-      rowVersion: buildNextRowVersion(),
-      updatedAt: new Date(),
-    })
-    .where(and(inScope, isNull(pullRequest.triggerApprovedAt)))
+    .set({ ...set, rowVersion: buildNextRowVersion(), updatedAt: new Date() })
+    .where(and(inScope, guard))
     .returning();
-  if (approved[0] !== undefined) {
-    return approved[0];
+  if (written[0] !== undefined) {
+    return written[0];
   }
 
   const current = await executor
@@ -275,41 +281,41 @@ export async function approvePullRequestTrigger(
 }
 
 /**
+ * Record a collaborator's Trigger approval. The first approval stands: a
+ * later call writes nothing, `row_version` included, and returns the row
+ * as it is. `undefined` if no row in scope. Ingest runs it inside its own
+ * transaction.
+ */
+export async function approvePullRequestTrigger(
+  executor: PullRequestWriteExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  reviewerId: ReviewerId,
+): Promise<PullRequestRow | undefined> {
+  return updateGuardedPullRequest(executor, scope, {
+    pullRequestId,
+    set: { triggerApprovedBy: reviewerId, triggerApprovedAt: sql`now()` },
+    guard: isNull(pullRequest.triggerApprovedAt),
+  });
+}
+
+/**
  * Record who turned on generating on every push. The first stamp stands: a
  * later call writes nothing, `row_version` included, and returns the row as
  * it is. `undefined` if no row in scope. Ingest runs it inside its own
  * transaction, under the pull request's row lock.
  */
 export async function turnOnPullRequestEveryPush(
-  executor: Pick<ReturnType<typeof internal>, "update" | "select">,
+  executor: PullRequestWriteExecutor,
   scope: RowScope,
   pullRequestId: PullRequestRowId,
   userId: ReviewerId,
 ): Promise<PullRequestRow | undefined> {
-  const inScope = and(
-    scope.matchesPullRequest(),
-    eq(pullRequest.id, pullRequestId),
-  );
-  const turnedOn = await executor
-    .update(pullRequest)
-    .set({
-      generateEveryPushBy: userId,
-      generateEveryPushAt: sql`now()`,
-      rowVersion: buildNextRowVersion(),
-      updatedAt: new Date(),
-    })
-    .where(and(inScope, isNull(pullRequest.generateEveryPushAt)))
-    .returning();
-  if (turnedOn[0] !== undefined) {
-    return turnedOn[0];
-  }
-
-  const current = await executor
-    .select()
-    .from(pullRequest)
-    .where(inScope)
-    .limit(1);
-  return current[0];
+  return updateGuardedPullRequest(executor, scope, {
+    pullRequestId,
+    set: { generateEveryPushBy: userId, generateEveryPushAt: sql`now()` },
+    guard: isNull(pullRequest.generateEveryPushAt),
+  });
 }
 
 /**
@@ -462,30 +468,11 @@ export function createTenantRepository(
     },
 
     async turnOffGenerateEveryPush(pullRequestId) {
-      const inScope = and(
-        scope.matchesPullRequest(),
-        eq(pullRequest.id, pullRequestId),
-      );
-      const turnedOff = await db
-        .update(pullRequest)
-        .set({
-          generateEveryPushBy: null,
-          generateEveryPushAt: null,
-          rowVersion: buildNextRowVersion(),
-          updatedAt: new Date(),
-        })
-        .where(and(inScope, isNotNull(pullRequest.generateEveryPushAt)))
-        .returning();
-      if (turnedOff[0] !== undefined) {
-        return turnedOff[0];
-      }
-
-      const current = await db
-        .select()
-        .from(pullRequest)
-        .where(inScope)
-        .limit(1);
-      return current[0];
+      return updateGuardedPullRequest(db, scope, {
+        pullRequestId,
+        set: { generateEveryPushBy: null, generateEveryPushAt: null },
+        guard: isNotNull(pullRequest.generateEveryPushAt),
+      });
     },
   };
 
