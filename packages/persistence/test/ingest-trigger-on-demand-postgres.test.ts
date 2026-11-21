@@ -1,4 +1,4 @@
-// A claim landing between a Trigger's head read and its upsert cannot be
+// A claim landing between a Trigger's head read and its write cannot be
 // staged on PGlite, which runs one connection. This suite runs only against
 // a real Postgres named by MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when
 // unset, red under CI.
@@ -80,6 +80,65 @@ describe.skipIf(databaseUrl === undefined)(
         expect(after?.runId).toBe(LATE_RUN_ID);
         expect(after?.claims).toBe(failed.claims + 1);
         expect(after?.triggeredAt).toEqual(failed.triggeredAt);
+      } finally {
+        holding.release();
+        await holder.end();
+        await deleteTenantRows(handle, tenant);
+      }
+    });
+
+    it("answers running when a claim takes a held head before its release", async () => {
+      if (databaseUrl === undefined) {
+        throw new Error("unreachable");
+      }
+      const { tenant, repoId, ctx } = makeFixture();
+      const handle = await connectMigrated(databaseUrl);
+      const holder = new Pool({ connectionString: databaseUrl, max: 1 });
+      const holding = await holder.connect();
+
+      try {
+        const pr = await createTenantRepository(
+          handle,
+          ctx,
+        ).pullRequests.upsert({
+          repoId,
+          prNumber: 2,
+          state: PrStates.OPEN,
+          repoSlug: "acme/regenerate",
+        });
+        const gen = createGenerationProjection(handle, ctx);
+        const target = makeBriefTarget(pr.id, "b".repeat(40));
+        await gen.upsertPending(target);
+        const held = await gen.markHeld(target, [
+          { kind: "never", setBy: "repo" },
+        ]);
+        expect(held.ok).toBe(true);
+        const before = await gen.get(target);
+        if (before === undefined) {
+          throw new Error("expected the held head's row");
+        }
+        await holding.query("begin");
+        await holding.query(
+          "update generation set status = 'running', run_id = $1, lease_expires_at = now() + interval '2 minutes', claims = claims + 1 where id = $2",
+          [LATE_RUN_ID, before.id],
+        );
+
+        const triggering = createIngestRoutines(handle, ctx).triggerOnDemand({
+          pullRequestId: pr.id,
+        });
+        const whileUncommitted = await Promise.race([
+          triggering,
+          waitMs(HOLD_MS),
+        ]);
+        await holding.query("commit");
+        const outcome = await triggering;
+
+        expect(whileUncommitted).toBe("timer");
+        expect(outcome).toBe(TriggerOnDemandOutcomes.RUNNING);
+        const after = await gen.get(target);
+        expect(after?.runId).toBe(LATE_RUN_ID);
+        expect(after?.generateRequestedAt).toBeNull();
+        expect(after?.triggeredAt).toEqual(before.triggeredAt);
       } finally {
         holding.release();
         await holder.end();

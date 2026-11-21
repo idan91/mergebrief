@@ -175,6 +175,62 @@ describe("markHeld", () => {
     });
   });
 
+  it("cuts names inside an any group's members", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    const labels = Array.from({ length: 150 }, (_, index) => `label-${index}`);
+    const longName = "y".repeat(400);
+    const unmet: readonly UnmetCondition[] = [
+      {
+        kind: "any",
+        conditions: [
+          { kind: "labels", setBy: "repo", labels },
+          { kind: "title-keywords", setBy: "repo", keywords: [longName] },
+        ],
+      },
+    ];
+
+    const held = await gen.markHeld(target, unmet);
+
+    expect(held.ok).toBe(true);
+    const row = await gen.get(target);
+    expect(readStoredConditions(row?.unmetConditions)).toEqual([
+      {
+        kind: "any",
+        conditions: [
+          { kind: "labels", setBy: "repo", labels: labels.slice(0, 100) },
+          {
+            kind: "title-keywords",
+            setBy: "repo",
+            keywords: ["y".repeat(255)],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("cuts a base branch name past the stored bound", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA);
+    const unmet: readonly UnmetCondition[] = [
+      {
+        kind: "base-branches",
+        setBy: "repo",
+        base: "z".repeat(400),
+        branches: ["main"],
+      },
+    ];
+
+    const held = await gen.markHeld(target, unmet);
+
+    expect(held.ok).toBe(true);
+    const row = await gen.get(target);
+    const [stored] = readStoredConditions(row?.unmetConditions) ?? [];
+    expect(stored).toEqual({ ...unmet[0], base: "z".repeat(255) });
+  });
+
   it("refuses a head a live run holds", async () => {
     const triggered = await trigger();
     const gen = createGenerationProjection(shared.handle, GATE_CTX);
