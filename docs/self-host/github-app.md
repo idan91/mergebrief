@@ -32,7 +32,8 @@ This doc is the canonical setup reference for both contributors and self-hosters
 > condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold the push
 > as missing the permission; `copilot` reports through reviews and is checked as before. A
 > repository with neither condition is unaffected, and anyone with push access can still
-> generate a held push from MergeBrief.
+> generate a held push from MergeBrief. Accepting the permissions wakes nothing: a push
+> already held as missing them waits for its next push or a Generate click.
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
@@ -262,7 +263,8 @@ to the section that explains it.
       Pull requests write, no Entry comment posts
       ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)),
       and without Checks and Commit statuses a `ci` condition and the App
-      bots of a `bots` condition hold as missing the permission.
+      bots of a `bots` condition hold as missing the permission, until the
+      next push or a Generate click after the approval.
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
       `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_OAUTH_CLIENT_ID`,

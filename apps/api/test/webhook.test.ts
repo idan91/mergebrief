@@ -2898,16 +2898,26 @@ describe("check runs and statuses wake a held head", () => {
     },
   );
 
-  it("queues nothing for a head no condition holds", async () => {
+  it("queues a pending head's job, its check maybe mid-run", async () => {
     const app = buildApp();
     await openHead(app, false);
+
+    await deliver(app, "status", statusPayload());
+
+    expect(await readJobHeads()).toEqual([{ head: HEAD_SHA }]);
+  });
+
+  it("queues nothing for a settled head", async () => {
+    const app = buildApp();
+    await openHead(app, false);
+    await harness.raw("update generation set status = 'succeeded'");
 
     await deliver(app, "check_run", checkRunPayload({ prNumbers: [2] }));
     await deliver(app, "status", statusPayload());
 
     expect(await readJobHeads()).toEqual([]);
     expect(await harness.raw("select status from generation")).toEqual([
-      { status: "pending" },
+      { status: "succeeded" },
     ]);
   });
 
@@ -2966,6 +2976,31 @@ describe("check runs and statuses wake a held head", () => {
     expect(res.status).toBe(200);
     expect(await readJobHeads()).toEqual([]);
     expect(await countRows(harness, "webhook_delivery")).toBe(1);
+  });
+
+  it("logs a dropped report from an unlisted owner at debug", async () => {
+    const capture = testLogging({ LOG_LEVEL: "debug" });
+    const unlisted = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      ...UNUSED_INSTALLATION_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+
+    await deliver(unlisted, "status", statusPayload());
+    await deliver(
+      unlisted,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    const drops = capture
+      .lines()
+      .filter((line) => line["accountId"] !== undefined)
+      .map((line) => line["level"]);
+    expect(drops).toEqual(["debug", "warn"]);
   });
 
   it("skips a replayed report and records it once", async () => {

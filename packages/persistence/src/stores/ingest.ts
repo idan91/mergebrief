@@ -6,7 +6,7 @@
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a head a live run holds is neither reset nor re-enqueued.
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -357,7 +357,8 @@ async function recheckLockedHead(
 }
 
 /**
- * The scope's open PRs in the repository with a held brief row at the SHA,
+ * The scope's open PRs in the repository with a held or pending brief row at
+ * the SHA,
  * in id order, the order their row locks are taken in. Unlocked: the wake
  * reads each one again under its lock.
  */
@@ -378,7 +379,7 @@ async function listHeldHeadCandidates(
         scope.matchesChild(generation.installationId, generation.pullRequestId),
         eq(generation.kind, GenerationKinds.BRIEF),
         eq(generation.headSha, input.headSha),
-        eq(generation.status, GenerationStatuses.HELD),
+        inArray(generation.status, [...RECHECKED_STATUSES]),
       ),
     )
     .orderBy(pullRequest.id);
@@ -674,7 +675,8 @@ export interface IngestRoutines {
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
    * `recheckCurrentHead` for every open PR in the repository whose current head is
-   * the SHA, for a check report that names a commit and no PR. Each PR is
+   * the SHA, held or pending, for a check report that names a commit and no
+   * PR. Each PR is
    * locked in id order and read again under its lock; a head the PR has
    * pushed past, another repository's or installation's PR and an owner
    * scope queue nothing.
