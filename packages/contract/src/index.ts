@@ -109,7 +109,6 @@ export {
   type TakeoverView,
   type WaitReason,
 } from "./generation";
-export { isWaitingCondition, sortUnmetConditions } from "./unmet-conditions";
 export {
   LocalBriefKinds,
   type LocalBriefKind,

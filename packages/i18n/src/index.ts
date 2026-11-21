@@ -9,9 +9,11 @@ export { LOCALES, RESOURCES, type LocaleEntry } from "./locales";
 // Dev-only pseudo locale (leak detector + growth probe).
 export { PSEUDO_LOCALE, pseudoPostProcessor } from "./pseudo";
 
-// The unmet-trigger-condition describer the PR page, the CLI and the Entry share.
+// The unmet-trigger-condition describer and order the PR page, the CLI and the Entry share.
 export {
   describeUnmetCondition,
+  isWaitingCondition,
+  sortUnmetConditions,
   type DescribableCondition,
   type UnmetConditionFormat,
 } from "./trigger-conditions";

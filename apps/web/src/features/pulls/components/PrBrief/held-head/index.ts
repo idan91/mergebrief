@@ -1,5 +1,8 @@
-import { isWaitingCondition, sortUnmetConditions } from "contract";
-import { describeUnmetCondition } from "i18n";
+import {
+  describeUnmetCondition,
+  isWaitingCondition,
+  sortUnmetConditions,
+} from "i18n";
 import type { TFunction } from "i18next";
 
 import type {

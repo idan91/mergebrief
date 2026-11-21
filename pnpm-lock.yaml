@@ -346,9 +346,6 @@ importers:
       brief-core:
         specifier: workspace:*
         version: link:../../packages/brief-core
-      contract:
-        specifier: workspace:*
-        version: link:../../packages/contract
       generators:
         specifier: workspace:*
         version: link:../../packages/generators

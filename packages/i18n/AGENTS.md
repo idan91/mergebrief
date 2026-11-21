@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/locales/` holds one `<id>.json` per shipped locale; the QA gates live in this package's `test/`. The pseudo locale is a postProcessor (accent map + ~35% pad), dev-only. `src/trigger-conditions.ts` words an unmet trigger condition for the PR page, the CLI and the Entry comment; each surface passes its own formatting of third-party names.
+`src/locales/` holds one `<id>.json` per shipped locale; the QA gates live in this package's `test/`. The pseudo locale is a postProcessor (accent map + ~35% pad), dev-only. `src/trigger-conditions.ts` words an unmet trigger condition for the PR page, the CLI and the Entry comment, and orders the list (what waits on its own first, then what someone must act on, `any` groups last); each surface passes its own formatting of third-party names.
 
 ## Invariants (enforced, don't weaken)
 

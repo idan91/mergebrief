@@ -1,5 +1,4 @@
-import { sortUnmetConditions } from "contract";
-import { describeUnmetCondition } from "i18n";
+import { describeUnmetCondition, sortUnmetConditions } from "i18n";
 import type { TFunction } from "i18next";
 import {
   UnmetConditionKinds,
