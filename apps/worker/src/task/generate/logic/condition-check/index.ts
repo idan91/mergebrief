@@ -229,14 +229,13 @@ function readConditionFacts(
 
 /**
  * Whether the run may go on to its claim. The instance's and the default
- * branch's conditions merge per kind; a repo settings read a retry may
- * clear is tried again in the run, and a refused or last read applies the
- * instance's alone. An unmet condition holds the row and ends the run:
- * no claim, no attempt, no model. A hold the store refuses (a Generate
- * click, a live claim, a kept status) stands the run down the same way;
- * the click's own job runs the head, but a PR turned to every push goes on
- * to the claim, since the switch queues a job only for a head it finds held.
- * A held head gets the held Entry.
+ * branch's conditions merge per kind; a repo settings read a retry may clear
+ * is retried in the run, and a refused or last read applies the instance's
+ * alone. An unmet condition holds the row and ends the run: no claim, no
+ * attempt, no model. A hold the store refuses (a Generate click, a live claim,
+ * a kept status) stands the run down too; the click's job runs the head, but a
+ * PR turned to every push goes on to the claim, since the switch queues a job
+ * only for a held head. A held head gets the held Entry.
  */
 export async function applyConditionCheck(
   context: RunContext,
