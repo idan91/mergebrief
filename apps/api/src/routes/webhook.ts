@@ -298,7 +298,7 @@ async function handlePullRequest(
     // Draft re-entry queues no fresh run: that could repost Entry comments,
     // spend on comparisons or retry a failed generation. The exception is a
     // held head, or a pending or failed one with a run in flight
-    // (`isWakeOwed`), its conditions checked again against the draft flag.
+    // (`isRecheckOwed`), its conditions checked again against the draft flag.
     // It advances the guard like every state write: an older push that lands
     // after it is skipped whole, never applied over the draft flag.
     const ingest = createIngestRoutines(handle, ctx);
@@ -309,7 +309,7 @@ async function handlePullRequest(
       logSkippedEvent(log, event);
       return;
     }
-    await ingest.wakeHeldHead({ pullRequestId: recorded.pullRequest.id });
+    await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
     return;
   }
   if (isGenerationTrigger(event)) {

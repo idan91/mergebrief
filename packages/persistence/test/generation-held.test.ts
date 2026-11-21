@@ -428,15 +428,15 @@ describe("reading stored unmet conditions", () => {
   });
 });
 
-describe("wakeHeldHead", () => {
+describe("recheckCurrentHead", () => {
   async function clearQueue() {
     await shared.harness.raw("delete from graphile_worker.jobs");
   }
 
-  function wake(
+  function recheck(
     pullRequestId: Awaited<ReturnType<typeof seedHeldHead>>["pullRequestId"],
   ) {
-    return createIngestRoutines(shared.handle, GATE_CTX).wakeHeldHead({
+    return createIngestRoutines(shared.handle, GATE_CTX).recheckCurrentHead({
       pullRequestId,
     });
   }
@@ -445,7 +445,7 @@ describe("wakeHeldHead", () => {
     const { pullRequestId, gen, target } = await seedHeldHead();
     await clearQueue();
 
-    const outcome = await wake(pullRequestId);
+    const outcome = await recheck(pullRequestId);
 
     expect(outcome).toEqual({ queued: true });
     expect(await countQueuedJobs(shared)).toBe(1);
@@ -458,7 +458,7 @@ describe("wakeHeldHead", () => {
       "update graphile_worker.jobs set locked_at = now()",
     );
 
-    const outcome = await wake(triggered.pullRequest.id);
+    const outcome = await recheck(triggered.pullRequest.id);
 
     expect(outcome).toEqual({ queued: true });
     const keys = await shared.harness.raw(
@@ -476,7 +476,7 @@ describe("wakeHeldHead", () => {
       shared.harness.raw("select id, run_at from graphile_worker.jobs");
     const before = await readRunAt();
 
-    await wake(triggered.pullRequest.id);
+    await recheck(triggered.pullRequest.id);
 
     expect(await readRunAt()).toEqual(before);
   });
@@ -492,7 +492,7 @@ describe("wakeHeldHead", () => {
       );
     const before = await readJobs();
 
-    const outcome = await wake(pullRequestId);
+    const outcome = await recheck(pullRequestId);
 
     expect(outcome).toEqual({ queued: false });
     expect(await readJobs()).toEqual(before);
@@ -509,7 +509,7 @@ describe("wakeHeldHead", () => {
       "update graphile_worker.jobs set locked_at = now()",
     );
 
-    const outcome = await wake(pullRequestId);
+    const outcome = await recheck(pullRequestId);
 
     expect(outcome).toEqual({ queued: true });
     expect(await countQueuedJobs(shared)).toBe(2);
@@ -519,7 +519,7 @@ describe("wakeHeldHead", () => {
     const triggered = await trigger();
     await clearQueue();
 
-    const outcome = await wake(triggered.pullRequest.id);
+    const outcome = await recheck(triggered.pullRequest.id);
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(0);
@@ -528,7 +528,7 @@ describe("wakeHeldHead", () => {
   it("leaves a pending head's unlocked waiting job unqueued", async () => {
     const triggered = await trigger();
 
-    const outcome = await wake(triggered.pullRequest.id);
+    const outcome = await recheck(triggered.pullRequest.id);
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(1);
@@ -549,7 +549,7 @@ describe("wakeHeldHead", () => {
     }
     const before = await countQueuedJobs(shared);
 
-    const outcome = await wake(pullRequestId);
+    const outcome = await recheck(pullRequestId);
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(before);
@@ -564,7 +564,7 @@ describe("wakeHeldHead", () => {
     );
     await clearQueue();
 
-    const outcome = await wake(triggered.pullRequest.id);
+    const outcome = await recheck(triggered.pullRequest.id);
 
     expect(outcome).toEqual({ queued: false });
     expect(await countQueuedJobs(shared)).toBe(0);

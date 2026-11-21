@@ -368,7 +368,7 @@ export type {
   RequeueGenerateJobInput,
   RouteToLargePoolInput,
   RequeueOutcome,
-  WakeHeldHeadInput,
+  RecheckCurrentHeadInput,
   TriggerGenerationInput,
 } from "./stores/ingest";
 
