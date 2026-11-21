@@ -236,9 +236,10 @@ function checkPaths({
     return [];
   }
   if (matched === undefined) {
+    const previousCount = facts.previousPaths?.length ?? 0;
     log?.warn("generate: paths match budget spent, held as no match", {
       globs: value.length,
-      paths: facts.changedPaths.length,
+      paths: facts.changedPaths.length + previousCount,
     });
   }
   return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
