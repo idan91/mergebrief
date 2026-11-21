@@ -210,6 +210,7 @@ describe("triggerOnDemand", () => {
     expect(row.claims).toBe(0);
     expect(row.errorCode).toBeNull();
     expect(row.runId).toBeNull();
+    expect(row.generateRequestedAt).not.toBeNull();
     const jobs = await readJobs();
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.["key"]).toBe(`generate:${world.pullRequestId}`);
@@ -472,6 +473,14 @@ describe("triggerOnDemand", () => {
     expect(Number(jobs[0]?.["delay"])).toBeLessThanOrEqual(
       TRIGGER_ON_DEMAND_DELAY_SECONDS,
     );
+  });
+
+  it("stamps the approved head so its run skips the trigger conditions", async () => {
+    const world = await makeGatedWorld();
+
+    await triggerOnDemand(world);
+
+    expect((await readRow(world)).generateRequestedAt).not.toBeNull();
   });
 
   it("keeps the first approval when a later click approves again", async () => {
