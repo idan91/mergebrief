@@ -23,7 +23,7 @@ export interface SegmentedOption<T extends string> {
    */
   unavailableReason?: string | undefined;
   /** A tally the option names after its label, such as the rows it lists. */
-  count?: number | undefined;
+  count?: number;
 }
 
 export interface SegmentedControlProps<T extends string> {
