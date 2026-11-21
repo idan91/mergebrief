@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PullRequestInfo } from "github";
+import type { PullRequestFile, PullRequestInfo } from "github";
 import {
   createGenerationProjection,
   createIngestRoutines,
@@ -127,6 +127,9 @@ triggerConditions:
 
 /** One file past the hunk limit a single call takes, so the run routes. */
 const MULTI_CALL_FILES = 121;
+const PAYMENTS_PATHS_SETTINGS =
+  "version: 1\ntriggerConditions:\n  paths: ['src/payments/**']\n";
+const PAST_FILE_LIST_COUNT = 3001;
 
 function makeDocsOnlyGitHub() {
   return makeGitHub(HEAD_1, [
@@ -905,6 +908,52 @@ describe("generate task, trigger conditions", () => {
     await makeTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(countFileListReads(github)).toBe(0);
+  });
+
+  it.each<[string, PullRequestFile]>([
+    [
+      "a rename out of the watched folder",
+      {
+        path: "archive/refund.ts",
+        previousPath: "src/payments/refund.ts",
+        additions: 0,
+        deletions: 0,
+      },
+    ],
+    [
+      "a rename into the watched folder",
+      {
+        path: "src/payments/refund.ts",
+        previousPath: "lib/refund.ts",
+        additions: 0,
+        deletions: 0,
+      },
+    ],
+    [
+      "a deletion inside the watched folder",
+      { path: "src/payments/legacy.ts", additions: 0, deletions: 12 },
+    ],
+  ])("generates on %s", async (_case, file) => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1, [file]);
+    addSettings(github, PAYMENTS_PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("reads a PR past GitHub's file list as met without listing it", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
+    addSettings(github, PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).not.toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toBeUndefined();
     expect(countFileListReads(github)).toBe(0);
   });
 

@@ -735,8 +735,7 @@ export interface SpendGateInputs {
 
 export interface PrMetadataInputs {
   readonly prInfo: PullRequestInfo;
-  /** Mutable because brief-core's PrMetadata.files is. */
-  readonly files: PullRequestFile[];
+  readonly files: readonly PullRequestFile[];
   readonly prRow: PullRequestRow;
   /** The open-PR list Result; a failure logs and skips the stack. */
   readonly openPullRequests: Result<OpenPullRequest[], GitHubCallFailure>;

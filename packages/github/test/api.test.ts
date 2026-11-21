@@ -954,6 +954,36 @@ describe("fetchPullRequest / fetchDiff", () => {
       }),
     );
   });
+
+  it("carries a rename's previous filename on that file alone", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        filename: "lib/refund.ts",
+        previous_filename: "src/payments/refund.ts",
+        additions: 0,
+        deletions: 0,
+        status: "renamed",
+      },
+      { filename: "src/b.ts", additions: 10, deletions: 0, status: "added" },
+    ]);
+    const octokit = mockOctokit({ paginate });
+
+    const result = await fetchPullRequestFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
+
+    expect(result.ok && result.value).toStrictEqual([
+      {
+        path: "lib/refund.ts",
+        previousPath: "src/payments/refund.ts",
+        additions: 0,
+        deletions: 0,
+      },
+      { path: "src/b.ts", additions: 10, deletions: 0 },
+    ]);
+  });
 });
 
 describe("listOpenPullRequests", () => {

@@ -73,6 +73,8 @@ export interface PullRequestInfo {
 /** One changed file's path + churn, as the generation inputs need it. */
 export interface PullRequestFile {
   readonly path: string;
+  /** A rename's path before it, set only when GitHub sends `previous_filename`. */
+  readonly previousPath?: string;
   readonly additions: number;
   readonly deletions: number;
 }

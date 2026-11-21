@@ -18,3 +18,6 @@ export const REVIEW_BOT_ACCOUNTS: Readonly<
 
 /** Claude Code Review's check-run title when it found nothing. */
 export const CLAUDE_NO_ISSUES_TITLE = "Code review found no issues";
+
+/** GitHub's pull request file list stops at this many files. */
+export const PULL_REQUEST_FILES_LIST_MAX = 3_000;

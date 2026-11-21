@@ -33,6 +33,7 @@ const BASE_FACTS: ConditionFacts = {
   labels: [],
   pendingReviewRequests: 0,
   sizes: { "changed-lines": 120, additions: 100, deletions: 20 },
+  changedFileCount: 1,
   changedPaths: ["src/widgets/index.ts"],
   reports: NO_REPORTS,
 };
@@ -415,6 +416,24 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toEqual([]);
   });
 
+  it("reads a PR past GitHub's file list as met without matching", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      { changedFileCount: 3001, changedPaths: ["docs/guide.md"] },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("still matches a PR at exactly GitHub's file list length", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      { changedFileCount: 3000, changedPaths: ["docs/guide.md"] },
+    );
+
+    expect(unmet).toHaveLength(1);
+  });
+
   it("reads unread changed paths as met", () => {
     const unmet = evaluateTriggerConditions(
       makeEffective({ kind: "paths", value: ["src/payments/**"] }),
@@ -611,6 +630,15 @@ describe("evaluateTriggerConditions, any group of paths and more", () => {
         ],
       },
     ]);
+  });
+
+  it("passes on a PR past GitHub's file list with no path matching", () => {
+    const unmet = evaluateTriggerConditions(
+      pathsOrLabels,
+      makeFacts({ changedFileCount: 3001 }),
+    );
+
+    expect(unmet).toEqual([]);
   });
 
   it("lists unmet plain conditions first and the unmet group last", () => {
