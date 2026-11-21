@@ -60,7 +60,7 @@ export function HeldCard(props: HeldCardProps) {
           <p className={styles["lead"]}>{lead}</p>
         </div>
         <TriggerAction
-          actionLabel={t("pulls.awaitingTrigger.generate.action")}
+          actionLabel={t("pulls.held.generate.action")}
           announcement={announcement}
           pending={pending}
           pendingLabel={t("pulls.held.generate.pending")}
