@@ -181,7 +181,8 @@ const SEEN_SET_EXEMPT_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
 /**
  * The `pull_request` actions that always (re)queue a generation. `closed` is
  * handled separately (state write, NO enqueue); `edited` queues only when it
- * moved the base; a fact action below only checks a held head again.
+ * moved the base; a fact action below only rechecks a held head, or an
+ * in-flight pending or failed one.
  */
 const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.OPENED,
@@ -311,7 +312,7 @@ function findStoredPullRequest(
  * every state write: an older push that lands after it is skipped whole,
  * never applied over it.
  */
-async function recordFactAndRecheck(
+async function recordDraftFlipAndRecheck(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent,
@@ -363,7 +364,7 @@ async function handlePullRequest(
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    await recordFactAndRecheck(handle, ctx, event, log);
+    await recordDraftFlipAndRecheck(handle, ctx, event, log);
     return;
   }
   if (isGenerationTrigger(event)) {
