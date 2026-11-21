@@ -3,7 +3,7 @@ import {
   type RegenerateNoticeKeys,
 } from "../../../../../../types";
 import { RegenerateNotices } from "../../../../../../hooks/regenerate-brief/utils";
-import { HeldGenerateNotices } from "../../../../held-head/consts";
+import { HeldGenerateNotices } from "../../../../../../consts";
 import { GenerateNotices } from "../../../../trigger-offer";
 import { LatestPushStates, type LatestPushState } from "./types";
 
