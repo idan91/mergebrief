@@ -5,6 +5,10 @@
 
 import { z } from "zod/v4";
 import {
+  parseRepoTriggerConditions,
+  type TriggerConditionsBlock,
+} from "generators/trigger-conditions";
+import {
   refineTrackerSettings,
   TrackerConfigSchema,
   TrackerListSchema,
@@ -46,6 +50,20 @@ const trustedBotsSchema = z
   .max(MAX_TRUSTED_BOTS)
   .refine(hasUniqueLogins, { error: "a trusted bot is listed twice" });
 
+/** The block parses through its owner; each issue it reports becomes one here. */
+const triggerConditionsSchema = z
+  .unknown()
+  .transform((raw, ctx): TriggerConditionsBlock => {
+    const parsed = parseRepoTriggerConditions(raw);
+    if (!parsed.ok) {
+      for (const message of parsed.error.issues) {
+        ctx.addIssue({ code: "custom", message });
+      }
+      return z.NEVER;
+    }
+    return parsed.value;
+  });
+
 /**
  * `settings.yaml` v1. `.strict()` so a typo'd key is rejected, not ignored;
  * `version` must be the literal `1` (an unknown or missing version takes the
@@ -60,6 +78,7 @@ export const settingsV1Schema = z
     tracker: TrackerConfigSchema.optional(),
     trackers: TrackerListSchema.optional(),
     trustedBots: trustedBotsSchema.optional(),
+    triggerConditions: triggerConditionsSchema.optional(),
   })
   .strict()
   .superRefine(refineTrackerSettings);

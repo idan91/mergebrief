@@ -26,9 +26,9 @@ import {
 import {
   findDefaultConfigFile,
   readConfigRoot,
-  renderKey,
   resolveEnvConfigPath,
 } from "./readRoot";
+import { renderKey } from "./render-key";
 import {
   DEFAULT_SPEND_POLICY,
   validateSpendBlock,

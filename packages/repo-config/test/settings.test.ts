@@ -27,6 +27,29 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
+  it("applies a triggerConditions block parsed by its owner", () => {
+    const result = validate(
+      yaml({ version: 1, triggerConditions: { labels: ["needs-brief"] } }),
+    );
+    expect(result.settings?.triggerConditions).toEqual({
+      off: false,
+      all: [{ kind: "labels", value: ["needs-brief"] }],
+      any: [],
+      dropped: [],
+    });
+  });
+
+  it("rejects the whole file on a bad triggerConditions block", () => {
+    const result = validate(
+      yaml({ version: 1, triggerConditions: { bots: { claude: "approved" } } }),
+    );
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+    expect(result.outcomes[1]?.detail).toBe(
+      "schema validation failed (triggerConditions: custom)",
+    );
+  });
+
   it("applies the default entryCommentOnDrafts=true when omitted", () => {
     const result = validate(yaml({ version: 1 }));
     expect(result.settings).toEqual({

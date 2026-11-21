@@ -22,7 +22,8 @@ import {
   type RetentionPolicy,
 } from "./retention";
 import { validateOperatorsBlock } from "./operators";
-import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
+import { readConfigRoot, resolveEnvConfigPath } from "./readRoot";
+import { renderKey } from "./render-key";
 import {
   DEFAULT_SPEND_POLICY,
   validateSpendBlock,
@@ -39,6 +40,10 @@ import {
   validateTrackersBlock,
   type TrackerConfig,
 } from "./trackers";
+import {
+  parseInstanceTriggerConditions,
+  type TriggerConditionsBlock,
+} from "./trigger-conditions";
 
 export interface LoadedGeneratorConfig {
   generator: GeneratorConfig;
@@ -58,6 +63,8 @@ export interface LoadedGeneratorConfig {
   siblingRepos: boolean;
   /** What the generic link fetcher may read; public when the block is absent. */
   linkFetch: LinkFetchPolicy;
+  /** Conditions a push meets before it triggers a brief; a repo's block merges over these per kind. */
+  triggerConditions: TriggerConditionsBlock | undefined;
   /** How long the daily sweeps keep audit rows and closed pull requests; forever when the block is absent. */
   retention: RetentionPolicy;
   /** The file the config came from; null for zero-config defaults. */
@@ -87,6 +94,7 @@ export function loadGeneratorConfig(
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
         linkFetch: DEFAULT_LINK_FETCH,
+        triggerConditions: undefined,
         retention: DEFAULT_RETENTION_POLICY,
         source: null,
       },
@@ -125,6 +133,7 @@ export function loadGeneratorConfigFile(
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
         linkFetch: DEFAULT_LINK_FETCH,
+        triggerConditions: undefined,
         retention: DEFAULT_RETENTION_POLICY,
         source: path,
       },
@@ -141,6 +150,7 @@ export function loadGeneratorConfigFile(
       key === "allowed" ||
       key === "contextSources" ||
       key === "trackers" ||
+      key === "triggerConditions" ||
       key === "linkFetch" ||
       key === "attachments" ||
       key === "retention" ||
@@ -235,6 +245,18 @@ export function loadGeneratorConfigFile(
     ({ trackers, siblingRepos } = validated.value);
   }
 
+  // Read by the worker per job; a bad block refuses boot rather than
+  // holding or releasing pushes on conditions the operator never wrote.
+  const triggerConditionsBlock = root["triggerConditions"];
+  let triggerConditions: TriggerConditionsBlock | undefined;
+  if (triggerConditionsBlock !== undefined) {
+    const validated = parseInstanceTriggerConditions(triggerConditionsBlock);
+    if (!validated.ok) {
+      return validated;
+    }
+    triggerConditions = validated.value;
+  }
+
   // The link fetcher runs per job; a bad policy refuses boot rather than
   // leaving the fetcher open where the operator believes it is narrowed.
   const linkFetchBlock = root["linkFetch"];
@@ -286,6 +308,7 @@ export function loadGeneratorConfigFile(
         trackers,
         siblingRepos,
         linkFetch,
+        triggerConditions,
         retention,
         source: path,
       },
@@ -307,6 +330,7 @@ export function loadGeneratorConfigFile(
       trackers,
       siblingRepos,
       linkFetch,
+      triggerConditions,
       retention,
       source: path,
     },
