@@ -132,7 +132,7 @@ async function seedHeldHead(harness: SharedPglite): Promise<void> {
       headSha: HEAD,
       baselineSha: null,
     },
-    [{ kind: "ready-for-review", source: "instance" }],
+    [{ kind: "ready-for-review", setBy: "instance" }],
   );
   if (!held.ok) {
     throw new Error("expected the head held");
@@ -639,7 +639,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     expect(body).toMatchObject({
       generation: {
         status: "held",
-        unmetConditions: [{ kind: "ready-for-review", source: "instance" }],
+        unmetConditions: [{ kind: "ready-for-review", setBy: "instance" }],
       },
     });
   });

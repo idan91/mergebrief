@@ -36,15 +36,15 @@ function readStoredConditions(
 const CAP_TEST_LEASE_MS = 120_000;
 
 const UNMET: readonly UnmetCondition[] = [
-  { kind: "ready-for-review", source: "instance" },
+  { kind: "ready-for-review", setBy: "instance" },
   {
     kind: "any",
     conditions: [
-      { kind: "labels", source: "repo", labels: ["needs-brief"] },
+      { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
       {
         kind: "size",
-        source: "repo",
-        count: "changed-lines",
+        setBy: "repo",
+        measure: "changed-lines",
         side: "max",
         limit: 500,
         actual: 1284,
@@ -95,9 +95,7 @@ describe("markHeld", () => {
 
   it("rewrites the conditions of a head already held", async () => {
     const { gen, target } = await seedHeldHead();
-    const fewer: readonly UnmetCondition[] = [
-      { kind: "never", source: "repo" },
-    ];
+    const fewer: readonly UnmetCondition[] = [{ kind: "never", setBy: "repo" }];
 
     const again = await gen.markHeld(target, fewer);
 
@@ -157,7 +155,7 @@ describe("markHeld", () => {
     const unmet: readonly UnmetCondition[] = [
       {
         kind: "ci",
-        source: "repo",
+        setBy: "repo",
         failed: [longName],
         running: checks,
         missing: [],
@@ -315,9 +313,9 @@ describe("Generate on a held head", () => {
 });
 
 describe("reading stored unmet conditions", () => {
-  const ready = { kind: "ready-for-review", source: "repo" };
-  const labels = { kind: "labels", source: "repo", labels: ["needs-brief"] };
-  const unknown = { kind: "deploy-window", source: "repo", opens: "09:00" };
+  const ready = { kind: "ready-for-review", setBy: "repo" };
+  const labels = { kind: "labels", setBy: "repo", labels: ["needs-brief"] };
+  const unknown = { kind: "deploy-window", setBy: "repo", opens: "09:00" };
 
   it("keeps the readable items beside one of an unknown kind", () => {
     const stored = JSON.stringify([unknown, ready]);
