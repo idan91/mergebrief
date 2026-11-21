@@ -50,6 +50,35 @@ function makeInstanceConditions(block: unknown) {
   return parsed.value;
 }
 
+/** Fails the first PR read the run makes once it claimed the row: the generating post's head read. */
+function failFirstRunningHeadRead(github: FakeGitHub, pr: PullRequestRow) {
+  const refusing = makeGitHub(HEAD_1);
+  refusing.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+  const refusingRepo = refusing
+    .bindInstallationGitHub(ctx.installationId)
+    .forRepo(PR_REF);
+  const projection = createGenerationProjection(harness.handle, ctx);
+  let failed = false;
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async fetchPullRequest(prNumber) {
+      const row = await projection.get(makeTarget(pr, HEAD_1));
+      const running = row?.status === GenerationStatuses.RUNNING;
+      if (running && !failed) {
+        failed = true;
+        return refusingRepo.fetchPullRequest(prNumber);
+      }
+      return client.fetchPullRequest(prNumber);
+    },
+  }));
+}
+
+function listEntryWrites(github: FakeGitHub, before: number): string[] {
+  return listCommentCalls(github)
+    .slice(before)
+    .filter((call) => !call.startsWith("fetch"));
+}
+
 async function readUnmet(pr: PullRequestRow) {
   const row = await createGenerationProjection(harness.handle, ctx).get(
     makeTarget(pr, HEAD_1),
@@ -267,7 +296,7 @@ describe("generate task, trigger conditions", () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { draft: true });
-    const readyForReview = instanceConditions({ readyForReview: "on" });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
     await makeTask({ github, triggerConditions: readyForReview })(payload);
 
     const [held] = readLiveBodies(github);
@@ -291,7 +320,7 @@ describe("generate task, trigger conditions", () => {
     github.updatePullRequest(PR_REF, { draft: true });
     const closed = buildEntryCommentClosedBody(createI18n().t, HEAD_1);
     await trackEntryBody(github, pr.id, closed);
-    const readyForReview = instanceConditions({ readyForReview: "on" });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
 
     await makeTask({ github, triggerConditions: readyForReview })(payload);
 
@@ -311,7 +340,7 @@ describe("generate task, trigger conditions", () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { draft: true });
-    const readyForReview = instanceConditions({ readyForReview: "on" });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
     await makeTask({ github, triggerConditions: readyForReview })(payload);
     const before = listCommentCalls(github).length;
 
@@ -321,6 +350,49 @@ describe("generate task, trigger conditions", () => {
     const writes = listCommentCalls(github)
       .slice(before)
       .filter((call) => !call.startsWith("fetch"));
+    expect(writes[0]).toMatch(/^edit:/);
+    expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    const [ready] = readLiveBodies(github);
+    expect(ready).toContain("mergebrief-entry-kind: ready");
+  });
+
+  it("edits a held Entry a Generate click released, then pings once", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    const before = listCommentCalls(github).length;
+
+    await createIngestRoutines(harness.handle, ctx).triggerOnDemand({
+      pullRequestId: pr.id,
+      approverId: makeReviewerId(900n),
+    });
+    const stamped = await harness.raw(
+      "select generate_requested_at from generation where status = 'pending'",
+    );
+    expect(stamped[0]?.["generate_requested_at"]).not.toBeNull();
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const writes = listEntryWrites(github, before);
+    expect(writes[0]).toMatch(/^edit:/);
+    expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("edits a released hold's Entry even when its head read fails", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    const before = listCommentCalls(github).length;
+
+    github.updatePullRequest(PR_REF, { draft: false });
+    failFirstRunningHeadRead(github, pr);
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const writes = listEntryWrites(github, before);
     expect(writes[0]).toMatch(/^edit:/);
     expect(writes.filter((call) => call === "post")).toHaveLength(1);
     const [ready] = readLiveBodies(github);
