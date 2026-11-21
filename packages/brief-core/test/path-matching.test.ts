@@ -7,6 +7,20 @@ const PATH_ALPHABET = ["a", "b", "/"];
 const MAX_GLOB_LENGTH = 4;
 const MAX_PATH_LENGTH = 5;
 const FILTERED_PATH_COUNT = 5_000;
+const LISTED_PATH_COUNT = 3_000;
+const MISS_COUNT = LISTED_PATH_COUNT - 1;
+const OVERRUN_MISS_COUNT = 99;
+const SHARED_LIST_MISS_COUNT = 10;
+const PADDED_NAME_LENGTH = 195;
+const COSTLY_GLOB_LITERAL_LENGTH = 196;
+const COSTLY_GLOB = `**/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH)}*`;
+const LONG_PATH_LENGTH = 1_000;
+const OVERRUN_STEPS = 1_000_000;
+const FILTERED_SCAN_STEPS = 1_000;
+const PREFIX_FIRST_STEPS = 50_000;
+const LIST_ORDER_STEPS = 200;
+const TWO_LIST_STEPS = 5_000_000;
+const ONE_LIST_STEPS = 600_000;
 
 function listWords(alphabet: readonly string[], maxLength: number): string[] {
   const words = [""];
@@ -23,7 +37,7 @@ function listWords(alphabet: readonly string[], maxLength: number): string[] {
 function makePaddedPaths(prefix: string, count: number): string[] {
   return Array.from(
     { length: count },
-    (_, index) => `${prefix}${String(index).padStart(195, "0")}`,
+    (_, index) => `${prefix}${String(index).padStart(PADDED_NAME_LENGTH, "0")}`,
   );
 }
 
@@ -67,10 +81,14 @@ describe("matchesAnyGlob", () => {
   });
 
   it("is undefined once the scan passes its steps", () => {
-    const glob = `**/${"x".repeat(196)}*`;
-    const paths = [...makePaddedPaths("src/", 99), `a/${"x".repeat(197)}`];
+    const paths = [
+      ...makePaddedPaths("src/", OVERRUN_MISS_COUNT),
+      `a/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH + 1)}`,
+    ];
 
-    expect(matchesAnyGlob([glob], [paths], 1_000_000)).toBeUndefined();
+    expect(
+      matchesAnyGlob([COSTLY_GLOB], [paths], OVERRUN_STEPS),
+    ).toBeUndefined();
   });
 
   it("spends no steps on a path outside a glob's literal ends", () => {
@@ -82,43 +100,52 @@ describe("matchesAnyGlob", () => {
       matchesAnyGlob(
         ["src/payments/**"],
         [[...paths, "src/payments/a.ts"]],
-        1_000,
+        FILTERED_SCAN_STEPS,
       ),
     ).toBe(true);
     expect(
       matchesAnyGlob(
         ["**/*.snapshot.sql"],
         [[...paths, "db/1.snapshot.sql"]],
-        1_000,
+        FILTERED_SCAN_STEPS,
       ),
     ).toBe(true);
   });
 
   it("tries the glob with the longest literal prefix first", () => {
-    const glob = `**/${"x".repeat(196)}*`;
-    const paths = [...makePaddedPaths("src/", 2_999), "src/payments/charge.ts"];
+    const paths = [
+      ...makePaddedPaths("src/", MISS_COUNT),
+      "src/payments/charge.ts",
+    ];
 
-    expect(matchesAnyGlob([glob, "src/payments/**"], [paths], 50_000)).toBe(
-      true,
-    );
+    expect(
+      matchesAnyGlob(
+        [COSTLY_GLOB, "src/payments/**"],
+        [paths],
+        PREFIX_FIRST_STEPS,
+      ),
+    ).toBe(true);
   });
 
   it("scans every glob against one list before the next", () => {
     const matched = matchesAnyGlob(
       ["**/x/**", "**/new.ts"],
-      [["src/new.ts"], ["a".repeat(1_000)]],
-      200,
+      [["src/new.ts"], ["a".repeat(LONG_PATH_LENGTH)]],
+      LIST_ORDER_STEPS,
     );
 
     expect(matched).toBe(true);
   });
 
   it("shares one budget across the lists", () => {
-    const glob = `**/${"x".repeat(196)}*`;
-    const paths = makePaddedPaths("src/", 10);
+    const paths = makePaddedPaths("src/", SHARED_LIST_MISS_COUNT);
 
-    expect(matchesAnyGlob([glob], [paths, paths], 5_000_000)).toBe(false);
-    expect(matchesAnyGlob([glob], [paths, paths], 600_000)).toBeUndefined();
+    expect(matchesAnyGlob([COSTLY_GLOB], [paths, paths], TWO_LIST_STEPS)).toBe(
+      false,
+    );
+    expect(
+      matchesAnyGlob([COSTLY_GLOB], [paths, paths], ONE_LIST_STEPS),
+    ).toBeUndefined();
   });
 
   it("answers false for no globs or no paths", () => {

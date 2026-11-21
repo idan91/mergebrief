@@ -20,6 +20,19 @@ const BASE_FACTS: ConditionFacts = {
   changedPaths: ["src/widgets/index.ts"],
 };
 
+const LISTED_PATH_COUNT = 3_000;
+const MISS_COUNT = LISTED_PATH_COUNT - 1;
+const PADDED_NAME_LENGTH = 195;
+const COSTLY_GLOB_LITERAL_LENGTH = 196;
+const COSTLY_GLOB = `**/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH)}*`;
+
+function makePaddedMisses(prefix: string): string[] {
+  return Array.from(
+    { length: MISS_COUNT },
+    (_, index) => `${prefix}${String(index).padStart(PADDED_NAME_LENGTH, "0")}`,
+  );
+}
+
 function stubLogger(lines: Record<string, unknown>[]): Logger {
   return createLogger({
     env: {},
@@ -326,32 +339,29 @@ describe("evaluateTriggerConditions, paths", () => {
   });
 
   it("holds once the scan outruns its step budget", () => {
-    const glob = `**/${"x".repeat(196)}*`;
-    const misses = Array.from(
-      { length: 2999 },
-      (_, index) => `src/${String(index).padStart(195, "0")}`,
-    );
-    const lastMatches = `a/${"x".repeat(197)}`;
+    const misses = makePaddedMisses("src/");
+    const lastMatches = `a/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH + 1)}`;
 
     const lines: Record<string, unknown>[] = [];
 
     const unmet = evaluateTriggerConditions(
-      makeEffective({ kind: "paths", value: [glob] }),
+      makeEffective({ kind: "paths", value: [COSTLY_GLOB] }),
       makeFacts({ changedPaths: [...misses, lastMatches] }),
       stubLogger(lines),
     );
 
     expect(unmet).toHaveLength(1);
     expect(lines).toEqual([
-      expect.objectContaining({ level: "warn", globs: 1, paths: 3000 }),
+      expect.objectContaining({
+        level: "warn",
+        globs: 1,
+        paths: LISTED_PATH_COUNT,
+      }),
     ]);
   });
 
   it("skips paths outside a glob's literal prefix at no cost", () => {
-    const misses = Array.from(
-      { length: 2999 },
-      (_, index) => `other/${String(index).padStart(195, "0")}`,
-    );
+    const misses = makePaddedMisses("other/");
 
     const unmet = evaluateOne(
       { kind: "paths", value: ["src/payments/handlers/refunds/stripe/**"] },
@@ -367,10 +377,7 @@ describe("evaluateTriggerConditions, paths", () => {
   });
 
   it("skips paths outside a glob's literal suffix at no cost", () => {
-    const misses = Array.from(
-      { length: 2999 },
-      (_, index) => `src/${String(index).padStart(195, "0")}`,
-    );
+    const misses = makePaddedMisses("src/");
 
     const unmet = evaluateOne(
       { kind: "paths", value: ["**/*.generated-migration-snapshot.sql"] },
@@ -381,13 +388,10 @@ describe("evaluateTriggerConditions, paths", () => {
   });
 
   it("tries the glob with the longest literal prefix first", () => {
-    const misses = Array.from(
-      { length: 2999 },
-      (_, index) => `src/${String(index).padStart(195, "0")}`,
-    );
+    const misses = makePaddedMisses("src/");
 
     const unmet = evaluateOne(
-      { kind: "paths", value: [`**/${"x".repeat(196)}*`, "src/payments/**"] },
+      { kind: "paths", value: [COSTLY_GLOB, "src/payments/**"] },
       { changedPaths: [...misses, "src/payments/charge.ts"] },
     );
 
