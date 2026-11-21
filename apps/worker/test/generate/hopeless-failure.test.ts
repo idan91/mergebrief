@@ -29,7 +29,8 @@ setUpHarness();
 function makeReadyForReview() {
   const parsed = parseInstanceTriggerConditions({ readyForReview: "on" });
   if (!parsed.ok) {
-    throw new Error(parsed.error.issues.join("; "));
+    const messages = parsed.error.map((issue) => issue.message);
+    throw new Error(messages.join("; "));
   }
   return parsed.value;
 }
