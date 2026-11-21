@@ -6,9 +6,15 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { parseInstanceTriggerConditions } from "generators/trigger-conditions";
-import { buildEntryCommentClosedBody } from "../../src/task/entry-comment";
+import {
+  buildEntryCommentBody,
+  buildEntryCommentClosedBody,
+  buildEntryCommentGeneratingBody,
+  buildEntryCommentHeldBody,
+} from "../../src/task/entry-comment";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import { createI18n } from "i18n";
+import type { TFunction } from "i18next";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
 import {
@@ -18,9 +24,11 @@ import {
   FIRST_ATTEMPT,
   harness,
   HEAD_1,
+  HEAD_2,
   failFirstSettingsRead,
   interceptInstallationRepo,
   listCommentCalls,
+  makeEntryLink,
   makeGitHub,
   makePullRequestInfo,
   makeReviewerId,
@@ -33,6 +41,7 @@ import {
   readRowStatus,
   REPO,
   SECOND_ATTEMPT,
+  SEEDED_ENTRY_ID,
   setUpHarness,
   SMALL_DIFF,
   stubGenerator,
@@ -334,6 +343,75 @@ describe("generate task, trigger conditions", () => {
       .slice(before)
       .filter((call) => !call.startsWith("fetch"));
     expect(writes).toEqual([]);
+  });
+
+  it.each([
+    [
+      "another head's held body",
+      (t: TFunction) =>
+        buildEntryCommentHeldBody(t, {
+          next: makeEntryLink(HEAD_2),
+          previous: undefined,
+          unmet: [{ kind: "never", setBy: "repo" }],
+        }),
+    ],
+    [
+      "a held body for other conditions",
+      (t: TFunction) =>
+        buildEntryCommentHeldBody(t, {
+          next: makeEntryLink(HEAD_1),
+          previous: undefined,
+          unmet: [{ kind: "never", setBy: "repo" }],
+        }),
+    ],
+    [
+      "another head's ready body",
+      (t: TFunction) => buildEntryCommentBody(t, makeEntryLink(HEAD_2)),
+    ],
+    [
+      "another head's generating body",
+      (t: TFunction) =>
+        buildEntryCommentGeneratingBody(t, makeEntryLink(HEAD_2)),
+    ],
+  ])("edits %s in place into the held body", async (_case, buildBody) => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    await trackEntryBody(github, pr.id, buildBody(createI18n().t));
+    const before = listCommentCalls(github).length;
+
+    await makeTask({
+      github,
+      triggerConditions: makeInstanceConditions({ readyForReview: "on" }),
+    })(payload);
+
+    expect(listEntryWrites(github, before)).toEqual([
+      `edit:${SEEDED_ENTRY_ID}`,
+    ]);
+    const [held] = readLiveBodies(github);
+    expect(held).toContain("**No brief for `aaaaaaa`.**");
+  });
+
+  it("edits a held push's Entry in place when the next push is held too", async () => {
+    const first = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(
+      first.payload,
+    );
+    const [entryId] = github.readComments(REPO).keys();
+    const before = listCommentCalls(github).length;
+
+    const second = await trigger(HEAD_2);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    await makeTask({ github, triggerConditions: readyForReview })(
+      second.payload,
+    );
+
+    expect(listEntryWrites(github, before)).toEqual([`edit:${entryId}`]);
+    const [held] = readLiveBodies(github);
+    expect(held).toContain("**No brief for `bbbbbbb`.**");
   });
 
   it("leaves an unmarked Entry comment on the run and on the sync", async () => {
