@@ -48,6 +48,54 @@
       "largeEstimate": "Expect it in about {{minutes}} minutes.",
       "footer": "Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready."
     },
+    "held": {
+      "heading": "No brief for {{shortSha}}.",
+      "condition": "{{reason}} ({{owner}})",
+      "owner": {
+        "repo": "this repository's setting",
+        "instance": "this MergeBrief instance's setting"
+      },
+      "anyGroup": "Needs one of these:",
+      "generateLink": "Generate now",
+      "previousLink": "Brief for {{shortSha}}",
+      "moreChecks_one": "{{names}} and {{count}} more check",
+      "moreChecks_other": "{{names}} and {{count}} more checks",
+      "footer": "Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates.",
+      "reason": {
+        "ready-for-review": "Needs this pull request marked ready for review",
+        "never": "Generates only when someone presses Generate",
+        "review-requested": "Needs a review requested from someone",
+        "sizeMax": "{{actual}} {{measure}}, over the {{limit}} maximum",
+        "sizeMin": "{{actual}} {{measure}}, under the {{limit}} minimum",
+        "sizeCount": {
+          "changed-lines": "changed lines",
+          "additions": "added lines",
+          "deletions": "deleted lines"
+        },
+        "labels_one": "Needs the label {{labels}}",
+        "labels_other": "Needs one of the labels {{labels}}",
+        "title-keywords_one": "Needs the word {{keywords}} in the title",
+        "title-keywords_other": "Needs one of these words in the title: {{keywords}}",
+        "base-branches_one": "Targets {{base}}, not {{branches}}",
+        "base-branches_other": "Targets {{base}}, not one of {{branches}}",
+        "paths_one": "Changes no file matching {{paths}}",
+        "paths_other": "Changes no file matching one of {{paths}}",
+        "bots": {
+          "not-started": "Waiting for {{bot}} to start on this push",
+          "running": "Waiting for {{bot}} to finish",
+          "not-approved": "{{bot}} finished without approving",
+          "issues_one": "{{bot}} found {{count}} issue",
+          "issues_other": "{{bot}} found {{count}} issues",
+          "no-verdict": "{{bot}} gave no verdict on this push",
+          "permission-missing": "Can't check {{bot}} until this installation accepts MergeBrief's Checks and Commit statuses permissions"
+        },
+        "ciFailed": "CI failed: {{checks}}",
+        "ciRunning": "Waiting for CI: {{checks}} still running",
+        "ciMissing_one": "Waiting for CI: {{checks}} has not reported on this push",
+        "ciMissing_other": "Waiting for CI: {{checks}} have not reported on this push",
+        "ciPermissionMissing": "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions"
+      }
+    },
     "onDemand": {
       "heading": "A brief for this pull request is available on demand.",
       "generateLink": "Generate it in MergeBrief",

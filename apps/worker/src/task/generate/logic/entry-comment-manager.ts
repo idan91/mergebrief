@@ -195,20 +195,28 @@ export function createEntryCommentManager(
     body: string,
     isReplaceable: LiveBodyMatcher,
   ): Promise<EntryWrite> {
-    return settleEntryComment(body, isReplaceable, true);
+    return settleEntryComment(body, isReplaceable, true, refreshEntryComment);
+  }
+
+  async function editOrCreateEntryComment(
+    body: string,
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite> {
+    return settleEntryComment(body, isReplaceable, true, editEntryComment);
   }
 
   async function replaceEntryComment(
     body: string,
     isReplaceable: LiveBodyMatcher,
   ): Promise<EntryWrite> {
-    return settleEntryComment(body, isReplaceable, false);
+    return settleEntryComment(body, isReplaceable, false, refreshEntryComment);
   }
 
   async function settleEntryComment(
     body: string,
     isReplaceable: LiveBodyMatcher,
     createsComment: boolean,
+    rewrite: (body: string) => Promise<EntryWrite>,
   ): Promise<EntryWrite> {
     const live = await readLiveBody();
     if (live.kind === LiveBodyKinds.UNREAD) {
@@ -224,7 +232,7 @@ export function createEntryCommentManager(
       return EntryWrites.LEFT;
     }
     if (isReplaceable(live.body)) {
-      return refreshEntryComment(body);
+      return rewrite(body);
     }
     log.info("generate: entry comment holds another body, leaving it");
     return EntryWrites.LEFT;
@@ -434,6 +442,7 @@ export function createEntryCommentManager(
     refresh: refreshEntryComment,
     edit: editEntryComment,
     replaceOrCreate: replaceOrCreateEntryComment,
+    editOrCreate: editOrCreateEntryComment,
     replace: replaceEntryComment,
   };
 }

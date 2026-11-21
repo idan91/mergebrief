@@ -15,11 +15,13 @@ import {
   type EntryBodyKind,
   type EntryBodyToken,
   type EntryCommentCappedLink,
+  type EntryCommentHeld,
   type EntryCommentLargeRun,
   type EntryCommentLink,
   type EntryCommentPrViewLink,
   type EntryCommentRevisionLink,
 } from "./types";
+import { formatHeldConditionLines } from "./held-conditions";
 
 const SHORT_SHA_LENGTH = 7;
 
@@ -226,7 +228,7 @@ export function buildEntryCommentGeneratingBody(
 }
 
 /**
- * This head's generating, failed or capped body. Read by the marker and the
+ * This head's generating, failed, capped or held body. Read by the marker and the
  * kind token's head, so neither the copy nor a body's volatile parts (its
  * link's rev, a reset time) decide it. The ready and closed bodies are read
  * apart: neither is an in-progress body a run may replace on an unread PR.
@@ -266,8 +268,8 @@ export function isHeadOrOnDemandEntryBody(
 }
 
 /**
- * Any head's Entry body but a settled one: generating, failed, capped or
- * on-demand, none of which a closed or merged PR should keep. A ready body
+ * Any head's Entry body but a settled one: generating, failed, capped,
+ * on-demand or held, none of which a closed or merged PR should keep. A ready body
  * still links a brief, and a closed body is replaced only by a post that
  * read the PR open. A marked body with no readable token counts here too.
  */
@@ -327,6 +329,42 @@ export function buildEntryCommentOnDemandBody(
     formatEntryBodyToken(EntryBodyKinds.ON_DEMAND),
   );
   return [heading, "", body, "", footer].join("\n");
+}
+
+/**
+ * The held body: trigger conditions keep this head from generating. It names
+ * the head, every unmet condition with whose setting it is, a Generate link
+ * on the rev the head's brief takes, and the PR's newest brief when one is
+ * stored. Written by a silent edit, never a fresh ping.
+ */
+export function buildEntryCommentHeldBody(
+  t: TFunction,
+  held: EntryCommentHeld,
+): string {
+  const { next, previous, unmet } = held;
+  const shortSha = formatShortSha(next.headSha);
+  const heading = `**${t("entryComment.held.heading", { shortSha })}**`;
+  const generate = `[${t("entryComment.held.generateLink")}](${buildEntryCommentDeepLink(next)})`;
+  const links = [generate];
+  if (previous !== undefined) {
+    const label = t("entryComment.held.previousLink", {
+      shortSha: formatShortSha(previous.headSha),
+    });
+    links.push(`[${label}](${buildEntryCommentDeepLink(previous)})`);
+  }
+  const footer = formatFooter(
+    t("entryComment.held.footer"),
+    formatEntryBodyToken(EntryBodyKinds.HELD, next.headSha),
+  );
+  return [
+    heading,
+    "",
+    ...formatHeldConditionLines(t, unmet),
+    "",
+    links.join(" · "),
+    "",
+    footer,
+  ].join("\n");
 }
 
 function buildPrViewUrl(link: EntryCommentPrViewLink): string {
