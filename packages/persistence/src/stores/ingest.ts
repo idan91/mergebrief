@@ -22,6 +22,7 @@ import {
   releaseAwaitingTrigger,
   releaseHeldHead,
   stampBriefTriggered,
+  stampGenerateRequested,
   type GenerationRow,
   type ProjectedGeneration,
 } from "./generation";
@@ -974,6 +975,7 @@ export function createIngestRoutines(
           if (projected.inFlight) {
             return TriggerOnDemandOutcomes.RUNNING;
           }
+          await stampGenerateRequested(tx, scope, pullRequestId, headSha);
         }
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {

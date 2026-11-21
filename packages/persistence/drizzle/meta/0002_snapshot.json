@@ -1807,7 +1807,7 @@
         },
         "generation_held_has_conditions": {
           "name": "generation_held_has_conditions",
-          "value": "(\"generation\".\"status\" in ('held')) = (\"generation\".\"unmet_conditions\" is not null)"
+          "value": "\"generation\".\"status\" <> 'held' or \"generation\".\"unmet_conditions\" is not null"
         }
       },
       "isRLSEnabled": false

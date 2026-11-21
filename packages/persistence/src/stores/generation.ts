@@ -401,8 +401,9 @@ export interface GenerationProjection {
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `held`: a trigger condition is unmet, `unmetConditions` names
-   * every one. Moves only a `pending` or `held` row no live lease holds and no
-   * Generate click stamped, under the pull request's row lock a click also
+   * every one. Moves only a `pending`, `held` or `failed` row (a retry starts
+   * from `failed`) no live lease holds and no Generate click stamped, with a
+   * fresh claim budget, under the pull request's row lock a click also
    * takes, so a click either lands first and wins or releases the hold after
    * it. A stamped or kept row answers `status-kept`, a claimed one
    * `claim-lost`. Not a failure: `attempts` is untouched.
@@ -780,10 +781,12 @@ function keepWhileKept(column: PgColumn, reset: SQL | string | null): SQL {
   return sql`case when ${isProjectionInFlight()} or ${generation.status} = ${GenerationStatuses.HELD} then ${column} else ${reset} end`;
 }
 
+/** Every writer clears these, so a row it moves out of `held` drops its conditions. */
 const CLAIM_CLEARED = {
   runId: null,
   leaseExpiresAt: null,
   awaitsRecovery: false,
+  unmetConditions: null,
 } as const;
 
 /**
@@ -1007,6 +1010,30 @@ export async function releaseHeldHead(
     )
     .returning({ id: generation.id });
   return released.length > 0;
+}
+
+/**
+ * Stamp a head a Generate click queued, so its run skips the trigger
+ * conditions; the caller holds the pull request's row lock.
+ */
+export async function stampGenerateRequested(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<void> {
+  await executor
+    .update(generation)
+    .set({ generateRequestedAt: sql`clock_timestamp()` })
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.pullRequestId, pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, headSha),
+        isNull(generation.baselineSha),
+      ),
+    );
 }
 
 /**
@@ -1255,6 +1282,7 @@ export function createGenerationProjection(
         inArray(generation.status, [
           GenerationStatuses.PENDING,
           GenerationStatuses.HELD,
+          GenerationStatuses.FAILED,
         ]),
         isNull(generation.generateRequestedAt),
       );
@@ -1264,6 +1292,7 @@ export function createGenerationProjection(
           ...TERMINAL_CLEARED,
           status: GenerationStatuses.HELD,
           unmetConditions: document,
+          claims: 0,
         },
         { executor: tx, guard: holdable ?? sql`false` },
       );
