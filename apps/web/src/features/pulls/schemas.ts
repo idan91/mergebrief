@@ -8,6 +8,16 @@ import {
 import { ChunkLayoutBodySchema } from "brief-core/artifact";
 import { z } from "zod/v4";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
+import {
+  BotStates,
+  BotVerdicts,
+  ReviewBots,
+  SizeBoundSides,
+  SizeCounts,
+  TriggerConditionKinds,
+  TriggerConditionSources,
+  UnmetConditionKinds,
+} from "types/trigger-conditions";
 
 import type { ForkPrStack } from "@web/features/brief/model";
 import {
@@ -16,6 +26,7 @@ import {
   isPlainRecord,
 } from "@web/utils/drop-keys";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
+import { buildTolerantListSchema } from "@web/utils/tolerant-list";
 import { isRecord } from "@web/utils/typeGuards";
 
 import type {
@@ -64,6 +75,105 @@ function liftErrorParams(value: unknown): unknown {
   return lifted;
 }
 
+const triggerConditionSourceSchema = z.enum(TriggerConditionSources);
+const configuredNamesSchema = z.array(z.string()).readonly();
+
+/** One unmet condition; a kind, bot, state or count this bundle predates fails the item. */
+const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.READY_FOR_REVIEW),
+      source: triggerConditionSourceSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.NEVER),
+      source: triggerConditionSourceSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.REVIEW_REQUESTED),
+      source: triggerConditionSourceSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.SIZE),
+      source: triggerConditionSourceSchema,
+      count: z.enum(SizeCounts),
+      side: z.enum(SizeBoundSides),
+      limit: z.number(),
+      actual: z.number(),
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.LABELS),
+      source: triggerConditionSourceSchema,
+      labels: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.TITLE_KEYWORDS),
+      source: triggerConditionSourceSchema,
+      keywords: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
+      source: triggerConditionSourceSchema,
+      base: z.string(),
+      branches: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.PATHS),
+      source: triggerConditionSourceSchema,
+      paths: configuredNamesSchema,
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.BOTS),
+      source: triggerConditionSourceSchema,
+      bot: z.enum(ReviewBots),
+      verdict: z.enum(BotVerdicts),
+      state: z.enum(BotStates),
+      issues: z.number().exactOptional(),
+    })
+    .readonly(),
+  z
+    .object({
+      kind: z.literal(TriggerConditionKinds.CI),
+      source: triggerConditionSourceSchema,
+      failed: configuredNamesSchema,
+      running: configuredNamesSchema,
+      missing: configuredNamesSchema,
+      permissionMissing: z.boolean(),
+    })
+    .readonly(),
+]);
+
+/** An `any` group keeps the members this bundle reads; one with none left fails. */
+const unmetAnyGroupSchema = z
+  .object({
+    kind: z.literal(UnmetConditionKinds.ANY),
+    conditions: buildTolerantListSchema(unmetPlainConditionSchema).refine(
+      (members) => members.length > 0,
+    ),
+  })
+  .readonly();
+
+export const unmetConditionSchema = z.union([
+  unmetPlainConditionSchema,
+  unmetAnyGroupSchema,
+]);
+
 /** A failure code or wait reason this bundle predates drops; a status it predates reads `unknown`. */
 export const generationSummarySchema = z
   .preprocess(
@@ -86,8 +196,18 @@ export const generationSummarySchema = z
           .object({ done: z.number(), total: z.number() })
           .readonly()
           .exactOptional(),
+        unmetConditions:
+          buildTolerantListSchema(unmetConditionSchema).exactOptional(),
       }),
-      ["phase", "errorCode", "cappedUnits", "waitReason", "startedAt", "parts"],
+      [
+        "phase",
+        "errorCode",
+        "cappedUnits",
+        "waitReason",
+        "startedAt",
+        "parts",
+        "unmetConditions",
+      ],
     ),
   )
   .readonly();

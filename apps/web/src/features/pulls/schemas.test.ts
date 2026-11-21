@@ -17,7 +17,7 @@ import {
   type VideoAssetsResponse,
 } from "contract";
 import { describe, expect, it } from "vitest";
-import type { DraftPolicy, Equals } from "types";
+import type { DraftPolicy, Equals, UnmetCondition } from "types";
 import type { z } from "zod/v4";
 
 import { UnknownValues } from "@web/utils/open-enum/types";
@@ -41,6 +41,7 @@ import {
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
   type unavailablePreviousBriefSchema,
+  type unmetConditionSchema,
   videoAssetsSchema,
 } from "./schemas";
 import type {
@@ -1055,7 +1056,132 @@ describe("videoAssetsSchema", () => {
   });
 });
 
+const HELD_GENERATION = { ...PENDING_GENERATION, status: "held" };
+
+const READY_ITEM = { kind: "ready-for-review", source: "instance" };
+const CI_ITEM = {
+  kind: "ci",
+  source: "repo",
+  failed: [],
+  running: ["build"],
+  missing: [],
+  permissionMissing: false,
+};
+const BOT_ITEM = {
+  kind: "bots",
+  source: "repo",
+  bot: "coderabbit",
+  verdict: "approved",
+  state: "issues",
+  issues: 2,
+};
+
+function parseHeldConditions(unmetConditions: unknown) {
+  const parsed = parseWithSchema(prSummarySchema, {
+    ...ROW,
+    generation: { ...HELD_GENERATION, unmetConditions },
+  });
+  if (!parsed.ok) {
+    throw new Error("unreachable");
+  }
+  return parsed.value.generation?.unmetConditions;
+}
+
+describe("generationSummarySchema unmetConditions", () => {
+  it("reads every plain kind and an any group", () => {
+    const wire = [
+      READY_ITEM,
+      { kind: "never", source: "repo" },
+      { kind: "review-requested", source: "repo" },
+      {
+        kind: "size",
+        source: "instance",
+        count: "changed-lines",
+        side: "max",
+        limit: 800,
+        actual: 1284,
+      },
+      { kind: "labels", source: "repo", labels: ["needs-brief"] },
+      { kind: "title-keywords", source: "repo", keywords: ["brief"] },
+      {
+        kind: "base-branches",
+        source: "repo",
+        base: "dev",
+        branches: ["main"],
+      },
+      { kind: "paths", source: "repo", paths: ["src/**"] },
+      BOT_ITEM,
+      CI_ITEM,
+      { kind: "any", conditions: [READY_ITEM, CI_ITEM] },
+    ];
+
+    expect(parseHeldConditions(wire)).toStrictEqual(wire);
+  });
+
+  it("drops an item of a kind this bundle predates and keeps the rest", () => {
+    const unmet = parseHeldConditions([
+      { kind: "deploy-window", source: "repo" },
+      READY_ITEM,
+    ]);
+
+    expect(unmet).toStrictEqual([READY_ITEM]);
+  });
+
+  it.each([
+    ["bot", { ...BOT_ITEM, bot: "reviewatron" }],
+    ["bot state", { ...BOT_ITEM, state: "sleeping" }],
+    ["source", { ...READY_ITEM, source: "org" }],
+    [
+      "size count",
+      {
+        kind: "size",
+        source: "repo",
+        count: "files",
+        side: "max",
+        limit: 1,
+        actual: 2,
+      },
+    ],
+  ])("drops an item whose %s this bundle predates", (_field, item) => {
+    expect(parseHeldConditions([item, CI_ITEM])).toStrictEqual([CI_ITEM]);
+  });
+
+  it("keeps an any group's known members and drops the unknown one", () => {
+    const unmet = parseHeldConditions([
+      { kind: "any", conditions: [{ kind: "mystery" }, READY_ITEM] },
+    ]);
+
+    expect(unmet).toStrictEqual([{ kind: "any", conditions: [READY_ITEM] }]);
+  });
+
+  it("drops an any group with no member this bundle reads", () => {
+    const unmet = parseHeldConditions([
+      READY_ITEM,
+      { kind: "any", conditions: [{ kind: "mystery" }] },
+    ]);
+
+    expect(unmet).toStrictEqual([READY_ITEM]);
+  });
+
+  it("drops a list that is not a list and keeps the meta", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: { ...HELD_GENERATION, unmetConditions: "nope" },
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.value.generation?.status).toBe("held");
+    expect(parsed.ok && parsed.value.generation).not.toHaveProperty(
+      "unmetConditions",
+    );
+  });
+});
+
 const SCHEMA_PINS = {
+  UnmetCondition: true satisfies Equals<
+    z.output<typeof unmetConditionSchema>,
+    UnmetCondition
+  >,
   VideoAssetsResponse: true satisfies Equals<
     z.output<typeof videoAssetsSchema>,
     VideoAssetsResponse

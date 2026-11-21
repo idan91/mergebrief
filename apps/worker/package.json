@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "brief-core": "workspace:*",
+    "contract": "workspace:*",
     "generators": "workspace:*",
     "github": "workspace:^",
     "graphile-worker": "^0.16.6",

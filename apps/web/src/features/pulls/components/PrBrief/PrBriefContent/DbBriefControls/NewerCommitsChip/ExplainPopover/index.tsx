@@ -4,6 +4,8 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { Popover } from "@web/components/Popover";
+import { HeldConditions } from "../../../../HeldConditions";
+import { HeldConditionsLayouts } from "../../../../HeldConditions/types";
 import { ActionButton } from "../ActionButton";
 import type { NewerCommitsStatus } from "../types";
 import styles from "./ExplainPopover.module.scss";
@@ -19,7 +21,9 @@ export interface ExplainPopoverProps {
  */
 export function ExplainPopover({ status }: ExplainPopoverProps) {
   const titleId = useId();
-  const { action, runAction, failure } = status;
+  const { action, runAction, failure, heldConditions } = status;
+  const panelClass =
+    heldConditions === undefined ? styles["panel"] : styles["heldPanel"];
 
   return (
     <Popover placement="bottom-start" portal={false}>
@@ -28,7 +32,7 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
           <Icon name={IconNames.QUESTION} size={IconSizes.MD} />
         </IconButton>
       </Popover.Trigger>
-      <Popover.Content className={styles["panel"]}>
+      <Popover.Content className={panelClass}>
         <section aria-labelledby={titleId} data-testid="newer-commits-panel">
           <h2 className={styles["label"]}>
             <span aria-hidden="true" className={styles["dot"]} />
@@ -45,6 +49,12 @@ export function ExplainPopover({ status }: ExplainPopoverProps) {
               <p className={styles["failure"]}>{failure}</p>
             )}
           </div>
+          {heldConditions === undefined ? null : (
+            <HeldConditions
+              layout={HeldConditionsLayouts.POPOVER}
+              unmet={heldConditions}
+            />
+          )}
           <div className={styles["actions"]}>
             {action === undefined ? null : <ActionButton action={action} />}
             {runAction === undefined ? null : (

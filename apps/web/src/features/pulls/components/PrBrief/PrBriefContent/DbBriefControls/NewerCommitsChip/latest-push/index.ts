@@ -21,6 +21,7 @@ import { LatestPushStates, type LatestPushState } from "./types";
 const OFFER_STATUSES: ReadonlySet<string> = new Set([
   GenerationStatuses.FAILED,
   GenerationStatuses.AWAITING_TRIGGER,
+  GenerationStatuses.HELD,
 ]);
 
 /** A pending head whose job spent its attempts has nothing left to run it. */
@@ -58,6 +59,8 @@ export function readLatestPushState(
       return readInFlightState(meta);
     case GenerationStatuses.CAPPED:
       return LatestPushStates.CAPPED;
+    case GenerationStatuses.HELD:
+      return LatestPushStates.HELD;
     default:
       return undefined;
   }

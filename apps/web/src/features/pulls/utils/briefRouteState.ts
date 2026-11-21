@@ -13,6 +13,7 @@ import {
   type GenerationFailureCode,
   type GenerationUnitsParams,
 } from "types/generations";
+import type { UnmetCondition } from "types/trigger-conditions";
 import { deriveGenerationWait } from "@web/utils/generation-wait";
 import { GenerationWaits } from "@web/utils/generation-wait/types";
 import { UnknownValues } from "@web/utils/open-enum/types";
@@ -57,6 +58,11 @@ export type BriefRouteState =
   | { readonly kind: "superseded" }
   /** The PR waits for a collaborator's Trigger approval; nothing ran. */
   | { readonly kind: "awaiting-trigger" }
+  /** Trigger conditions hold the head; nothing ran. Unknown conditions are dropped. */
+  | {
+      readonly kind: "held";
+      readonly unmetConditions: readonly UnmetCondition[];
+    }
   /**
    * Skipped: the repo hit the instance's daily generation cap. `cappedAt` is
    * when the skip was recorded, and the reset time derives from it, so a row
@@ -78,6 +84,8 @@ export type BriefRouteState =
 export function hasStoredHeadBrief(meta: PrSummary): boolean {
   return meta.headBriefStored ?? meta.briefAvailable;
 }
+
+const NO_UNMET_CONDITIONS: readonly UnmetCondition[] = [];
 
 function isInFlight(status: GenerationSummary["status"] | undefined): boolean {
   return (
@@ -169,12 +177,16 @@ export function deriveBriefRouteState(
       };
     case GenerationStatuses.AWAITING_TRIGGER:
       return { kind: "awaiting-trigger" };
-    case GenerationStatuses.SUCCEEDED:
     case GenerationStatuses.HELD:
+      return {
+        kind: "held",
+        unmetConditions: generation.unmetConditions ?? NO_UNMET_CONDITIONS,
+      };
+    case GenerationStatuses.SUCCEEDED:
     case UnknownValues.UNKNOWN:
-      // Succeeded without a readable artifact, a held head (its card lands
-      // with the held display), or a status this bundle predates: not a
-      // failure and nothing known to be coming, so the empty state.
+      // Succeeded without a readable artifact, or a status this bundle
+      // predates: not a failure and nothing known to be coming, so the empty
+      // state.
       return { kind: "empty" };
   }
 }

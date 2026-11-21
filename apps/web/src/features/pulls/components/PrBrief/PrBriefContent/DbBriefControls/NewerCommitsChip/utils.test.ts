@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { omitFields } from "@web/test/fields";
 import { appI18n } from "../../../../../../../i18n/I18nProvider";
 import type { PrSummary } from "../../../../../types";
+import { UnmetFixtures } from "../../../../../test-utils";
 import { makeGenerationFields, makeMeta, makeUrlMeta } from "./test-utils";
 import {
   NewerCommitsActionKinds,
@@ -393,6 +394,62 @@ describe("deriveNewerCommitsStatus: the latest push waits on demand", () => {
     expect(status?.explanation).toContain(
       "This pull request is no longer open, so its brief will not be generated.",
     );
+  });
+});
+
+describe("deriveNewerCommitsStatus: the latest push is held", () => {
+  const unmet = [UnmetFixtures.READY_FOR_REVIEW, UnmetFixtures.CI_RUNNING];
+  const held = makeGenerationFields({
+    status: "held",
+    unmetConditions: unmet,
+  });
+
+  it("names the hold, offers a pusher Generate and carries the reasons", () => {
+    const { status, latestTrigger } = deriveWithRuns(makeMeta(held));
+
+    expect(status?.state).toBe(NewerCommitsStates.HELD);
+    expect(status?.statusLabel).toBe("New brief held");
+    expect(status?.heldConditions).toEqual(unmet);
+    expect(status?.explanation).toContain(
+      "MergeBrief holds the latest push until its trigger conditions are met.",
+    );
+    expect(status?.action?.kind).toBe(NewerCommitsActionKinds.GENERATE);
+    status?.action?.onTrigger();
+    expect(latestTrigger).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the hold for anyone else and offers nothing", () => {
+    const status = derive(makeMeta({ ...held, viewerCanPush: false }));
+
+    expect(status?.statusLabel).toBe("New brief held");
+    expect(status?.action).toBeUndefined();
+    expect(status?.heldConditions).toEqual(unmet);
+  });
+
+  it("keeps the hold and its Generate beside a newer brief", () => {
+    const status = derive(makeMeta(held), { onGoToNewest: vi.fn() });
+
+    expect(status?.statusLabel).toBe("New brief held");
+    expect(status?.action?.kind).toBe(NewerCommitsActionKinds.NAVIGATE);
+    expect(status?.runAction?.kind).toBe(NewerCommitsActionKinds.GENERATE);
+    expect(status?.heldConditions).toEqual(unmet);
+  });
+
+  it("names a held head on a new base once its old base holds a brief", () => {
+    const status = derive(
+      makeMeta({ ...held, behind: false, headBriefStored: true }),
+      { staleHead: false },
+    );
+
+    expect(status?.label).toBe("New base");
+    expect(status?.state).toBe(NewerCommitsStates.HELD);
+  });
+
+  it.each(CLOSED_STATES)("says no new brief comes on a %s PR", (state) => {
+    const status = derive(makeMeta({ ...held, state }));
+
+    expect(status?.state).toBe(NewerCommitsStates.NO_BRIEF);
+    expect(status?.heldConditions).toBeUndefined();
   });
 });
 

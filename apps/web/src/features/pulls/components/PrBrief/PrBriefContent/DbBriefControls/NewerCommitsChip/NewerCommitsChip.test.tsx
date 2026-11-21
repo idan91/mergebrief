@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../../../i18n/I18nProvider";
+import { makeAnyGroup, UnmetFixtures } from "../../../../../test-utils";
 import { NewerCommitsChip } from ".";
 import {
   NewerCommitsActionKinds,
@@ -217,6 +218,43 @@ describe("NewerCommitsChip", () => {
     ).toBeTruthy();
     fireEvent.click(within(panel).getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists a held push's reasons in groups under the panel heading", () => {
+    const generate: NewerCommitsAction = {
+      ...RETRY,
+      kind: NewerCommitsActionKinds.GENERATE,
+      label: "Generate new brief",
+    };
+    const status = stubStatus({
+      state: NewerCommitsStates.HELD,
+      statusLabel: "New brief held",
+      title: "New brief held",
+      action: generate,
+      heldConditions: [
+        UnmetFixtures.CI_RUNNING,
+        makeAnyGroup(UnmetFixtures.LABELS, UnmetFixtures.SIZE_OVER),
+      ],
+    });
+    render(makeChip(status));
+    expect(
+      screen.getByRole("group", { name: "Newer commits New brief held" }),
+    ).toBeTruthy();
+
+    const panel = openPanel();
+
+    const groupTitles = within(panel).getAllByRole("heading", { level: 3 });
+    expect(groupTitles.map((title) => title.textContent)).toEqual([
+      "Waiting on",
+      "Needs a change first",
+    ]);
+    expect(
+      within(panel).getByText("Waiting for CI: build, e2e still running"),
+    ).toBeTruthy();
+    expect(within(panel).getByText("Needs one of these:")).toBeTruthy();
+    expect(
+      within(panel).getByRole("button", { name: "Generate new brief" }),
+    ).toBeTruthy();
   });
 
   it("closes the panel on Escape and returns focus to the info button", () => {
