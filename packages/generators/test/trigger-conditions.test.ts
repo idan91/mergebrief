@@ -84,6 +84,14 @@ describe("parsing a triggerConditions block", () => {
     expect(issues).not.toEqual([]);
   });
 
+  it("reports only the parse error when the lone condition fails", () => {
+    const issues = listIssues(
+      parseRepoTriggerConditions({ bots: { claude: "approved" } }),
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues.join(" ")).not.toContain("name at least one");
+  });
+
   it("refuses approved and clean where the bot never gives them", () => {
     const blocks = [
       { bots: { claude: "approved" } },
