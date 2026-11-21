@@ -26,7 +26,7 @@ function parseInstance(block: unknown) {
   return parsed.value;
 }
 
-function issuesOf(
+function listIssues(
   result: Result<TriggerConditionsBlock, ConfigError>,
 ): readonly string[] {
   return result.ok ? [] : result.error.issues;
@@ -80,44 +80,45 @@ describe("parsing a triggerConditions block", () => {
   });
 
   it("refuses an empty block", () => {
-    expect(issuesOf(parseRepoTriggerConditions({}))).not.toEqual([]);
+    const issues = listIssues(parseRepoTriggerConditions({}));
+    expect(issues).not.toEqual([]);
   });
 
   it("refuses approved and clean where the bot never gives them", () => {
-    expect(
-      issuesOf(parseRepoTriggerConditions({ bots: { claude: "approved" } })),
-    ).not.toEqual([]);
-    expect(
-      issuesOf(parseRepoTriggerConditions({ bots: { greptile: "clean" } })),
-    ).not.toEqual([]);
-    expect(
-      issuesOf(parseRepoTriggerConditions({ bots: { copilot: "approved" } })),
-    ).not.toEqual([]);
+    const blocks = [
+      { bots: { claude: "approved" } },
+      { bots: { greptile: "clean" } },
+      { bots: { copilot: "approved" } },
+    ];
+    for (const block of blocks) {
+      const issues = listIssues(parseRepoTriggerConditions(block));
+      expect(issues).not.toEqual([]);
+    }
   });
 
   it("refuses a bot outside the supported list without echoing its name", () => {
-    const issues = issuesOf(
-      parseRepoTriggerConditions({ bots: { "ghp_secret-bot": "finished" } }),
-    );
+    const parsed = parseRepoTriggerConditions({
+      bots: { "ghp_secret-bot": "finished" },
+    });
+    const issues = listIssues(parsed);
     expect(issues).not.toEqual([]);
     expect(issues.join(" ")).not.toContain("ghp_secret");
   });
 
   it("refuses size bounds where min exceeds max or none is set", () => {
-    expect(
-      issuesOf(
-        parseRepoTriggerConditions({ size: { additions: { min: 9, max: 3 } } }),
-      ),
-    ).not.toEqual([]);
-    expect(
-      issuesOf(parseRepoTriggerConditions({ size: { additions: {} } })),
-    ).not.toEqual([]);
+    const blocks = [
+      { size: { additions: { min: 9, max: 3 } } },
+      { size: { additions: {} } },
+    ];
+    for (const block of blocks) {
+      const issues = listIssues(parseRepoTriggerConditions(block));
+      expect(issues).not.toEqual([]);
+    }
   });
 
   it("refuses paths in the instance file", () => {
-    expect(
-      issuesOf(parseInstanceTriggerConditions({ paths: ["src/**"] })),
-    ).not.toEqual([]);
+    const parsed = parseInstanceTriggerConditions({ paths: ["src/**"] });
+    expect(listIssues(parsed)).not.toEqual([]);
   });
 
   it("reads an any group of at least two kinds", () => {
@@ -134,28 +135,20 @@ describe("parsing a triggerConditions block", () => {
   });
 
   it("refuses a lone-kind any group, never inside it, or a kind set twice", () => {
-    expect(
-      issuesOf(parseRepoTriggerConditions({ any: { labels: ["a"] } })),
-    ).not.toEqual([]);
-    expect(
-      issuesOf(
-        parseRepoTriggerConditions({ any: { never: true, labels: ["a"] } }),
-      ),
-    ).not.toEqual([]);
-    expect(
-      issuesOf(
-        parseRepoTriggerConditions({
-          labels: ["b"],
-          any: { labels: ["a"], baseBranches: ["main"] },
-        }),
-      ),
-    ).not.toEqual([]);
+    const blocks = [
+      { any: { labels: ["a"] } },
+      { any: { never: true, labels: ["a"] } },
+      { labels: ["b"], any: { labels: ["a"], baseBranches: ["main"] } },
+    ];
+    for (const block of blocks) {
+      const issues = listIssues(parseRepoTriggerConditions(block));
+      expect(issues).not.toEqual([]);
+    }
   });
 
   it("refuses never beside other kinds", () => {
-    expect(
-      issuesOf(parseRepoTriggerConditions({ never: true, labels: ["a"] })),
-    ).not.toEqual([]);
+    const parsed = parseRepoTriggerConditions({ never: true, labels: ["a"] });
+    expect(listIssues(parsed)).not.toEqual([]);
   });
 });
 
