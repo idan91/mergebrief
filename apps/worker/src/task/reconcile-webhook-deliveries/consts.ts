@@ -27,3 +27,6 @@ export const MAX_REDELIVERIES_PER_TICK = 20;
  * minutes. A failure older than the last page read is never seen.
  */
 export const MAX_PAGES_PER_TICK = 100;
+
+/** The failed-only pages read past that cap, to tell what went unread. */
+export const MAX_FAILURE_PAGES_PER_TICK = 10;

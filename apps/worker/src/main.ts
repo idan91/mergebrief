@@ -13,6 +13,7 @@ import {
   createOAuthApp,
   loadConfig as loadGitHubConfig,
   resolveOperatorTokenOwner,
+  listFailedHookDeliveries,
   listHookDeliveries,
   redeliverHookDelivery,
 } from "github";
@@ -274,6 +275,8 @@ async function main(): Promise<void> {
   });
   const reconcileWebhookDeliveries = createReconcileWebhookDeliveriesTask({
     listDeliveries: (cursor) => listHookDeliveries(appClient, cursor),
+    listFailedDeliveries: (cursor) =>
+      listFailedHookDeliveries(appClient, cursor),
     redeliver: (deliveryId) => redeliverHookDelivery(appClient, deliveryId),
     log: logger,
     now: () => new Date(),
