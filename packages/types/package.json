@@ -22,6 +22,7 @@
     "./reviews": "./src/reviews.ts",
     "./runtime": "./src/runtime.ts",
     "./trackers": "./src/trackers.ts",
+    "./trigger-conditions": "./src/trigger-conditions.ts",
     "./utils": "./src/utils.ts"
   },
   "scripts": {

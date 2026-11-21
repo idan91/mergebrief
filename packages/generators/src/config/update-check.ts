@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import type { Mutable, Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
-import { renderKey } from "./readRoot";
+import { renderKey } from "./render-key";
 
 /**
  * The instance `updateCheck` block: the api's hourly fetch of the release
