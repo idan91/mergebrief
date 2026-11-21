@@ -35,19 +35,18 @@ describe("SupersededCard", () => {
     ).toBeTruthy();
   });
 
-  it.each([
-    [SupersededStops.CLOSED, "no longer open, so no brief will generate"],
-    [SupersededStops.READY_FOR_REVIEW, "marking this pull request ready"],
-  ] as const)("promises no newer brief once stopped as %s", (stop, note) => {
+  it("promises no newer brief once a closed PR stops it", () => {
     render(
       <I18nProvider>
-        <SupersededCard stop={stop} />
+        <SupersededCard stop={SupersededStops.CLOSED} />
       </I18nProvider>,
     );
 
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading.textContent).toBe("Generation stopped");
-    expect(screen.getByTestId("empty-block").textContent).toContain(note);
+    expect(screen.getByTestId("empty-block").textContent).toContain(
+      "no longer open, so no brief will generate",
+    );
     expect(screen.queryByTestId("empty-block-loader")).toBeNull();
   });
 });

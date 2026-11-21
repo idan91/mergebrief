@@ -54,12 +54,10 @@ generator:
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
-# drafts: the OTHER root block: draft-PR generation policy
-# (generate: on|off + optional draft regeneration debounceSeconds). Spend
-# knobs, enforced by the api process and validated by the worker too; see
+# drafts: the OTHER root block: the draft regeneration debounceSeconds.
+# Enforced by the api process and validated by the worker too; see
 # self-host/repo-config.md's instance-block section for semantics.
 # drafts:
-#   generate: on
 #   debounceSeconds: 900
 
 # spend: the THIRD root block: the daily generation cap, at most N

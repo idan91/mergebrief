@@ -10,7 +10,6 @@ describe("CappedCard", () => {
       <I18nProvider>
         <CappedCard
           appInstalled
-          awaitsReadyForReview={false}
           cappedAt="2026-08-03T18:30:00.000Z"
           prState="open"
         />
@@ -29,7 +28,6 @@ describe("CappedCard", () => {
       <I18nProvider>
         <CappedCard
           appInstalled
-          awaitsReadyForReview={false}
           cappedAt="2026-08-03T18:30:00.000Z"
           prState="open"
           units={{ needed: 9, left: 4, cap: 20 }}
@@ -47,7 +45,6 @@ describe("CappedCard", () => {
       <I18nProvider>
         <CappedCard
           appInstalled
-          awaitsReadyForReview={false}
           cappedAt="2026-08-03T18:30:00.000Z"
           prState="open"
           units={{ needed: 9, left: 4, cap: 9 }}

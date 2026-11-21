@@ -101,8 +101,7 @@ export interface WebhookRouteDeps extends InstanceAccessPolicy {
   readonly webhookSecret: string;
   /**
    * Instance draft-PR policy, loaded from `mergebrief.config.yaml` by the
-   * startup wiring. Omitted = the zero-config default (drafts generate, no
-   * damping), so a root that doesn't wire it is running defaults, not silently
+   * startup wiring. Omitted = the zero-config default (no damping), so a root that doesn't wire it is running defaults, not silently
    * misconfigured.
    */
   readonly draftPolicy?: DraftPolicy;
@@ -296,32 +295,22 @@ async function handlePullRequest(
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    // Draft re-entry updates lifecycle only. Enqueueing can repost Entry comments, spend on
-    // comparisons, create phantom pending state or retry a previously failed generation.
+    // Draft re-entry queues no fresh run: that could repost Entry comments,
+    // spend on comparisons or retry a failed generation.
     // It advances the guard like every state write: an older push that lands
     // after it is skipped whole, never applied over the draft flag.
-    const recorded = await createIngestRoutines(handle, ctx).recordState(
+    const ingest = createIngestRoutines(handle, ctx);
+    const recorded = await ingest.recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),
     );
     if (!recorded.applied) {
       logSkippedEvent(log, event);
+      return;
     }
+    await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
     return;
   }
   if (isGenerationTrigger(event)) {
-    if (event.draft && !policy.generate) {
-      // Drafts excluded by instance policy still need lifecycle updates. A reopened draft
-      // must clear terminal state now; no later event carries the reopen intent.
-      // The eventual ready_for_review event takes the normal first-generation path.
-      const recorded = await createIngestRoutines(handle, ctx).recordState(
-        shapePullRequestUpsert(event, { state: PrStates.OPEN }),
-        { reopen: event.action === PullRequestActions.REOPENED },
-      );
-      if (!recorded.applied) {
-        logSkippedEvent(log, event);
-      }
-      return;
-    }
     const requiresApproval = await requiresTriggerApproval(
       deps,
       ctx,
@@ -486,7 +475,6 @@ async function handlePullRequestReview(
   deps: WebhookRouteDeps,
   ctx: TenantContext,
   event: ParsedPullRequestReviewEvent,
-  policy: DraftPolicy,
   log: Logger,
 ): Promise<void> {
   const { handle } = deps;
@@ -505,12 +493,9 @@ async function handlePullRequestReview(
   // Pin to the reviewed commit, never the delivery-time head. Each checkpoint costs a delta
   // call inside one capped run, so only a trusted, non-bot reviewer gets one.
   // Write before enqueueing so the worker sees the baseline. Newest-submission wins on redelivery.
-  // Review events carry no draft flag; the STORED row supplies it. Under drafts-off the
-  // checkpoint still lands, it's reviewer-baseline state, not spend, but no job enqueues.
   // The two reads run at once: each may take half of GitHub's delivery budget.
-  const generates = !known.draft || policy.generate;
   // Ingest ignores the author's standing once a collaborator approved the PR.
-  const asksAboutAuthor = generates && known.triggerApprovedAt === null;
+  const asksAboutAuthor = known.triggerApprovedAt === null;
   const [writesCheckpoint, requiresApproval] = await Promise.all([
     isReviewerTrusted(deps, ctx, event, log),
     asksAboutAuthor ? requiresTriggerApproval(deps, ctx, event, log) : false,
@@ -523,9 +508,6 @@ async function handlePullRequestReview(
       lastSubmittedSha: event.commitId,
       submittedAt: event.submittedAt,
     });
-  }
-  if (!generates) {
-    return;
   }
   // No window override: damping exists for WIP push storms, and a submitted
   // review is deliberate human engagement, its gap-filler regeneration
@@ -856,7 +838,7 @@ async function dispatch(
       await handlePullRequest(deps, ctx, event, policy, log);
       return DISPATCHED;
     case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
-      await handlePullRequestReview(deps, ctx, event, policy, log);
+      await handlePullRequestReview(deps, ctx, event, log);
       return DISPATCHED;
     case ParsedWebhookEventKinds.INSTALLATION:
       return handleInstallation(deps, ctx, event, log);

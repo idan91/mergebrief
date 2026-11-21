@@ -17,7 +17,6 @@ export function useFailedCardFacade({
   viewerCanPush,
   appInstalled,
   prState,
-  awaitsReadyForReview,
 }: FailedCardProps) {
   const { t } = useTranslation();
   const { pending, announcement, regenerate } = useRegenerateBrief({
@@ -40,7 +39,6 @@ export function useFailedCardFacade({
       offersRegenerate,
       prState,
       appInstalled,
-      awaitsReadyForReview,
     }),
     pending,
     announcement,

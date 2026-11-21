@@ -844,6 +844,33 @@ describe("POST /api/webhooks/github", () => {
     expect(again[0]?.["draft"]).toBe(true);
   });
 
+  it("converted_to_draft queues a held head's job to check it again", async () => {
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw("delete from graphile_worker.jobs");
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "converted_to_draft", draft: true }),
+    );
+
+    expect(res.status).toBe(200);
+    const jobs = await harness.raw(
+      "select payload->>'head_sha' as head from graphile_worker.jobs",
+    );
+    expect(jobs).toEqual([{ head: HEAD_SHA }]);
+    expect(await harness.raw("select status from generation")).toEqual([
+      { status: "held" },
+    ]);
+  });
+
   it("a second event for one head keeps one attempt and the job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
@@ -1584,55 +1611,6 @@ describe("POST /api/webhooks/github", () => {
 
       expect(res.status).toBe(200);
       expect(await readStatuses()).toEqual(["pending"]);
-    });
-
-    it("keeps drafts-off ahead of the gate on a push", async () => {
-      const draftsOff = createApp({
-        logger: testLogger(),
-        handle: harness.handle,
-        webhookSecret: SECRET,
-        auth: DUMMY_AUTH,
-        ...buildFakeInstallationDeps(fake),
-        ...LISTED_OWNER_DEPS,
-        draftPolicy: { generate: false, debounceSeconds: null },
-      });
-      const res = await deliver(
-        draftsOff,
-        "pull_request",
-        pullRequestPayload({
-          action: "opened",
-          draft: true,
-          authorAssociation: "NONE",
-        }),
-      );
-      expect(res.status).toBe(200);
-      expect(await countRows(harness, "generation")).toBe(0);
-      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
-      expect(listPermissionReads()).toEqual([]);
-    });
-
-    it("keeps drafts-off ahead of the gate on a review", async () => {
-      const draftsOff = createApp({
-        logger: testLogger(),
-        handle: harness.handle,
-        webhookSecret: SECRET,
-        auth: DUMMY_AUTH,
-        ...buildFakeInstallationDeps(fake),
-        ...LISTED_OWNER_DEPS,
-        draftPolicy: { generate: false, debounceSeconds: null },
-      });
-      await deliver(
-        draftsOff,
-        "pull_request",
-        pullRequestPayload({ action: "opened", draft: true }),
-      );
-      await deliver(
-        draftsOff,
-        "pull_request_review",
-        pullRequestReviewPayload({ pullRequestAuthorAssociation: "NONE" }),
-      );
-      expect(await countRows(harness, "generation")).toBe(0);
-      expect(listPermissionReads()).toEqual([]);
     });
   });
 
@@ -2439,10 +2417,7 @@ describe("POST /api/webhooks/github", () => {
   });
 
   describe("draft generation policy", () => {
-    function appWithPolicy(policy: {
-      generate: boolean;
-      debounceSeconds: number | null;
-    }): ApiApp {
+    function appWithPolicy(policy: { debounceSeconds: number | null }): ApiApp {
       return createApp({
         logger: testLogger(),
         handle: harness.handle,
@@ -2461,7 +2436,7 @@ describe("POST /api/webhooks/github", () => {
     }
 
     it("damps draft regeneration only after success and when configured", async () => {
-      const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
+      const damped = appWithPolicy({ debounceSeconds: 900 });
       await deliver(
         damped,
         "pull_request",
@@ -2481,7 +2456,7 @@ describe("POST /api/webhooks/github", () => {
     });
 
     it("keeps a draft's first brief on the normal window despite damping", async () => {
-      const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
+      const damped = appWithPolicy({ debounceSeconds: 900 });
       const before = Date.now();
       await deliver(
         damped,
@@ -2494,7 +2469,7 @@ describe("POST /api/webhooks/github", () => {
     });
 
     it("non-draft regenerations never damp", async () => {
-      const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
+      const damped = appWithPolicy({ debounceSeconds: 900 });
       await deliver(
         damped,
         "pull_request",
@@ -2511,134 +2486,28 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(65_000);
     });
 
-    it("generate off: records draft state without generating or enqueueing", async () => {
-      const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      const res = await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "opened", draft: true }),
-      );
-      expect(res.status).toBe(200);
-      const prs = await harness.raw("select * from pull_request");
-      expect(prs).toHaveLength(1);
-      expect(prs[0]?.["draft"]).toBe(true);
-      expect(await countRows(harness, "generation")).toBe(0);
-      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
-    });
-
-    it("generate: off, ready_for_review still produces the first generation", async () => {
-      const off = appWithPolicy({ generate: false, debounceSeconds: null });
+    it("queues a draft's first brief and a review on a known draft", async () => {
+      const plain = appWithPolicy({ debounceSeconds: null });
       await deliver(
-        off,
+        plain,
         "pull_request",
         pullRequestPayload({ action: "opened", draft: true }),
       );
-      const before = Date.now();
-      const res = await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "ready_for_review", draft: false }),
-      );
-      expect(res.status).toBe(200);
       expect(await countRows(harness, "generation")).toBe(1);
-      const delta = await jobRunAtDelta(before);
-      expect(delta).toBeLessThan(15_000);
-    });
+      await harness.raw("delete from graphile_worker.jobs");
 
-    it("generate off: checkpoints known draft reviews without enqueueing", async () => {
-      const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "opened", draft: true }),
-      );
       const res = await deliver(
-        off,
+        plain,
         "pull_request_review",
         pullRequestReviewPayload(),
       );
       expect(res.status).toBe(200);
       expect(await countRows(harness, "checkpoint")).toBe(1);
-      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
-    });
-
-    it("generate off: reopens closed drafts so later events can proceed", async () => {
-      const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "opened", draft: true }),
-      );
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "closed", draft: true }),
-      );
-      const res = await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "reopened", draft: true }),
-      );
-      expect(res.status).toBe(200);
-      const prs = await harness.raw("select * from pull_request");
-      expect(prs).toHaveLength(1);
-      expect(prs[0]?.["state"]).toBe("open");
-      // Still a draft under generate: off, no generation, no job.
-      expect(await countRows(harness, "generation")).toBe(0);
-      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
-    });
-
-    it("generate off: a late draft reopen after a close is skipped and logged", async () => {
-      const capture = testLogging({ LOG_LEVEL: "debug" });
-      const earlier = "2026-09-20T10:00:00Z";
-      const later = "2026-09-20T10:05:00Z";
-      const off = createApp({
-        logger: capture.logger,
-        handle: harness.handle,
-        webhookSecret: SECRET,
-        auth: DUMMY_AUTH,
-        ...UNUSED_INSTALLATION_DEPS,
-        ...LISTED_OWNER_DEPS,
-        draftPolicy: { generate: false, debounceSeconds: null },
-      });
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({
-          action: "opened",
-          draft: true,
-          updatedAt: earlier,
-        }),
-      );
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "closed", draft: true, updatedAt: later }),
-      );
-      const res = await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({
-          action: "reopened",
-          draft: true,
-          updatedAt: earlier,
-        }),
-      );
-
-      expect(res.status).toBe(200);
-      const prs = await harness.raw("select state from pull_request");
-      expect(prs).toEqual([{ state: "closed" }]);
-      const skipped = capture
-        .lines()
-        .find(
-          (line) =>
-            line["msg"] === "webhook event older than the stored row, skipped",
-        );
-      expect(skipped?.["action"]).toBe("reopened");
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
     });
 
     it("replaces pending draft damping with one short ready_for_review job", async () => {
-      const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
+      const damped = appWithPolicy({ debounceSeconds: 900 });
       await deliver(
         damped,
         "pull_request",
@@ -2663,7 +2532,7 @@ describe("POST /api/webhooks/github", () => {
     });
 
     it("uses the normal review window even when draft pushes are damped", async () => {
-      const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
+      const damped = appWithPolicy({ debounceSeconds: 900 });
       await deliver(
         damped,
         "pull_request",
@@ -2675,23 +2544,6 @@ describe("POST /api/webhooks/github", () => {
       await deliver(damped, "pull_request_review", pullRequestReviewPayload());
       const delta = await jobRunAtDelta(before);
       expect(delta).toBeLessThan(65_000);
-    });
-
-    it("generate: off, a review on a KNOWN non-draft PR still enqueues", async () => {
-      const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(
-        off,
-        "pull_request",
-        pullRequestPayload({ action: "opened", draft: false }),
-      );
-      await harness.raw("delete from graphile_worker.jobs");
-      const res = await deliver(
-        off,
-        "pull_request_review",
-        pullRequestReviewPayload(),
-      );
-      expect(res.status).toBe(200);
-      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
     });
   });
 });

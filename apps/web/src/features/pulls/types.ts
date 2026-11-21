@@ -121,7 +121,6 @@ export interface RevisionSummary {
 }
 
 export interface DraftPolicySummary {
-  readonly generate: boolean;
   readonly debounceSeconds?: number;
 }
 
@@ -181,8 +180,6 @@ export interface PrSummary {
 export const SupersededStops = {
   /** The PR closed or merged: the worker stands its run down. */
   CLOSED: "closed",
-  /** A draft its instance does not generate: the newer push only records state. */
-  READY_FOR_REVIEW: "ready-for-review",
 } as const;
 export type SupersededStop = ValueOf<typeof SupersededStops>;
 

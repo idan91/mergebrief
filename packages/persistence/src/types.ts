@@ -146,6 +146,8 @@ export const ClaimOutcomes = {
   AWAITING_TRIGGER: "awaiting-trigger",
   /** The head's paid attempts since its last trigger are spent; the claim wrote the row's end instead, its `ClaimEnd`. */
   EXHAUSTED: "exhausted",
+  /** The row failed in a way a rerun cannot help, so only a trigger's fresh projection runs it again; nothing was written. */
+  HOPELESS: "hopeless",
 } as const;
 export type ClaimOutcome = ValueOf<typeof ClaimOutcomes>;
 

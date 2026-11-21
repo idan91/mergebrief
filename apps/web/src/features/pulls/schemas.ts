@@ -183,7 +183,6 @@ export const revisionSummarySchema = z
 
 export const draftPolicySummarySchema = dropNullKeys(
   z.object({
-    generate: z.boolean(),
     debounceSeconds: z.number().exactOptional(),
   }),
   ["debounceSeconds"],

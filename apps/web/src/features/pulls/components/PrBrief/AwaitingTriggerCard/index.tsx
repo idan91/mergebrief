@@ -18,8 +18,6 @@ export interface AwaitingTriggerCardProps {
   appInstalled: boolean;
   /** From PR meta; the route refuses a closed or merged PR. */
   prState: PrState | UnknownValue;
-  /** A draft under a drafts-off instance: only ready for review queues a run. */
-  awaitsReadyForReview: boolean;
 }
 
 export function AwaitingTriggerCard(props: AwaitingTriggerCardProps) {

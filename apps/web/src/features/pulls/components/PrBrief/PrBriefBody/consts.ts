@@ -8,5 +8,4 @@ export const SupersededStopAnnouncementKeys: Record<
   TranslationKey
 > = {
   [SupersededStops.CLOSED]: "pulls.announce.supersededNotOpen",
-  [SupersededStops.READY_FOR_REVIEW]: "pulls.announce.supersededReadyForReview",
 };

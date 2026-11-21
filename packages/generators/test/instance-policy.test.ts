@@ -31,7 +31,7 @@ afterEach(() => {
   }
 });
 
-const DEFAULT_POLICY = { generate: true, debounceSeconds: null };
+const DEFAULT_POLICY = { debounceSeconds: null };
 
 describe("loadInstancePolicy", () => {
   it("returns the default policy when MERGEBRIEF_CONFIG is unset", () => {
@@ -62,7 +62,7 @@ describe("loadInstancePolicy", () => {
     );
     writeFileSync(
       join(root, "mergebrief.config.yaml"),
-      "drafts:\n  generate: off\n",
+      "drafts:\n  debounceSeconds: 300\n",
     );
     const nested = join(root, "apps", "web");
     mkdirSync(nested, { recursive: true });
@@ -75,7 +75,7 @@ describe("loadInstancePolicy", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value.draftPolicy.generate).toBe(false);
+    expect(result.value.draftPolicy.debounceSeconds).toBe(300);
     expect(result.value.source).toBe(join(root, "mergebrief.config.yaml"));
   });
 
@@ -97,59 +97,30 @@ describe("loadInstancePolicy", () => {
     });
   });
 
-  it("parses generate: off", () => {
-    const path = configFile("drafts:\n  generate: off\n");
+  it("parses debounceSeconds", () => {
+    const path = configFile("drafts:\n  debounceSeconds: 900\n");
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.value.draftPolicy).toEqual({
-      generate: false,
-      debounceSeconds: null,
-    });
+    expect(result.value.draftPolicy).toEqual({ debounceSeconds: 900 });
   });
 
-  it("parses generate: on as a YAML 1.2 string and boolean true alike", () => {
+  it("refuses the removed generate key, naming readyForReview", () => {
     for (const doc of [
-      "drafts:\n  generate: on\n",
-      "drafts:\n  generate: true\n",
+      "drafts:\n  generate: off\n",
+      "drafts:\n  generate: on\n  debounceSeconds: 900\n",
     ]) {
       const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: configFile(doc) });
-      expect(result.ok).toBe(true);
-      if (!result.ok) {
+      expect(result.ok).toBe(false);
+      if (result.ok) {
         return;
       }
-      expect(result.value.draftPolicy.generate).toBe(true);
+      const text = result.error.issues.join("; ");
+      expect(text).toContain("drafts: generate: removed");
+      expect(text).toContain("triggerConditions.readyForReview: on");
     }
-  });
-
-  it("parses debounceSeconds", () => {
-    const path = configFile(
-      "drafts:\n  generate: on\n  debounceSeconds: 900\n",
-    );
-    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.draftPolicy).toEqual({
-      generate: true,
-      debounceSeconds: 900,
-    });
-  });
-
-  it("defaults generate to on when only debounceSeconds is set", () => {
-    const path = configFile("drafts:\n  debounceSeconds: 600\n");
-    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.draftPolicy).toEqual({
-      generate: true,
-      debounceSeconds: 600,
-    });
   });
 
   it("rejects a non-positive or non-finite debounceSeconds", () => {
@@ -166,7 +137,7 @@ describe("loadInstancePolicy", () => {
   });
 
   it("rejects an unknown key in the drafts block, echoing token-shaped keys", () => {
-    const path = configFile("drafts:\n  generate: on\n  debouceSeconds: 900\n");
+    const path = configFile("drafts:\n  debouceSeconds: 900\n");
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -193,24 +164,24 @@ describe("loadInstancePolicy", () => {
 
   it("succeeds on a file whose generator block is invalid", () => {
     const path = configFile(
-      "generator:\n  provider: no-such-provider\ndrafts:\n  generate: off\n",
+      "generator:\n  provider: no-such-provider\ndrafts:\n  debounceSeconds: 300\n",
     );
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.value.draftPolicy.generate).toBe(false);
+    expect(result.value.draftPolicy.debounceSeconds).toBe(300);
   });
 
   it("ignores unknown root keys, leaving strictness to the full loader", () => {
-    const path = configFile("mystery: 1\ndrafts:\n  generate: off\n");
+    const path = configFile("mystery: 1\ndrafts:\n  debounceSeconds: 300\n");
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.value.draftPolicy.generate).toBe(false);
+    expect(result.value.draftPolicy.debounceSeconds).toBe(300);
   });
 
   it("fails fast on an unreadable path without echoing content", () => {

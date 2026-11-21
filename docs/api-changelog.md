@@ -34,6 +34,13 @@ deprecation note here, removal only at a major.
   that trigger conditions keep from generating; the meaning of the 409 is
   unchanged. MergeBrief is pre-1.0, so the rename ships in one step instead
   of expand/contract, and the release that ships it is a breaking release.
+- **BREAKING**: `draftPolicy.generate` is gone from
+  `GET /api/repos/:repoId/pulls/:prNumber`, so a client that reads it must
+  stop. Drafts always queue now; a draft that waits for review is a `held`
+  head whose `unmetConditions` carry a `ready-for-review` item.
+  `draftPolicy` keeps `debounceSeconds`. MergeBrief is pre-1.0, so the
+  removal ships in one step instead of expand/contract, and the release that
+  ships it is a breaking release.
 
 ## dev (2026-11-18)
 

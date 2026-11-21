@@ -87,15 +87,7 @@ describe("buildCappedCardDetail", () => {
   const OPEN_INSTALLED = {
     prState: "open",
     appInstalled: true,
-    awaitsReadyForReview: false,
   } as const;
-
-  it("points a draft its instance skips at ready for review", () => {
-    const input = { ...OPEN_INSTALLED, awaitsReadyForReview: true };
-    expect(buildCappedCardDetail(t, input)).toBe(
-      `${LIMIT} Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review after the reset queues a run.`,
-    );
-  });
 
   it("names the runs a large pull request needed in place of the limit", () => {
     const units = { needed: 9, left: 4, cap: 20 };

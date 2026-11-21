@@ -454,36 +454,41 @@ describe("prSummarySchema draftPolicy on PR-meta", () => {
   it("parses a present draftPolicy", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
+      draftPolicy: { debounceSeconds: 900 },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.draftPolicy).toEqual({ debounceSeconds: 900 });
+  });
+
+  it("reads the zero-config policy's null debounceSeconds as absent", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      draftPolicy: { debounceSeconds: null },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.draftPolicy).toStrictEqual({});
+  });
+
+  it("drops the generate switch an older server still sends", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
-    expect(parsed.value.draftPolicy).toEqual({
-      generate: false,
-      debounceSeconds: 900,
-    });
-  });
-
-  it("reads the zero-config policy's null debounceSeconds as absent", () => {
-    const parsed = parseWithSchema(prSummarySchema, {
-      ...ROW,
-      draftPolicy: { generate: true, debounceSeconds: null },
-    });
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.draftPolicy).toStrictEqual({ generate: true });
+    expect(parsed.value.draftPolicy).toStrictEqual({ debounceSeconds: 900 });
   });
 
   it("rejects a malformed draftPolicy", () => {
-    for (const bad of [
-      { generate: "off", debounceSeconds: null },
-      { generate: true, debounceSeconds: "900" },
-      "off",
-    ]) {
+    for (const bad of [{ debounceSeconds: "900" }, "off"]) {
       const parsed = parseWithSchema(prSummarySchema, {
         ...ROW,
         draftPolicy: bad,
