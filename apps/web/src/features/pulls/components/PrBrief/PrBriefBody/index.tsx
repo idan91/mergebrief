@@ -227,6 +227,7 @@ function PrBriefBodyState({
             prState={meta.state}
             repoId={repoId}
             unmetConditions={state.unmetConditions}
+            unmetConditionsPartial={state.unmetConditionsPartial}
             viewerCanPush={meta.viewerCanPush}
           />
         </main>

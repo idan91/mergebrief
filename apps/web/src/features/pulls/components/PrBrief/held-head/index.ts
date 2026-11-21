@@ -5,14 +5,16 @@ import {
   ReviewBotNames,
   SizeBoundSides,
   TriggerConditionKinds,
-  type UnmetBot,
   type UnmetCi,
-  type UnmetCondition,
-  type UnmetPlainCondition,
   type UnmetSize,
 } from "types/trigger-conditions";
 
-import type { HeldConditionSplit } from "./types";
+import type {
+  HeldBot,
+  HeldCondition,
+  HeldConditionSplit,
+  HeldPlainCondition,
+} from "./types";
 
 const NAME_SEPARATOR = ", ";
 
@@ -21,7 +23,7 @@ const NAME_SEPARATOR = ", ";
  * each in the Entry's order. An `any` group waits when one member does.
  */
 export function splitUnmetConditions(
-  unmet: readonly UnmetCondition[],
+  unmet: readonly HeldCondition[],
 ): HeldConditionSplit {
   const sorted = sortUnmetConditions(unmet);
   return {
@@ -30,8 +32,18 @@ export function splitUnmetConditions(
   };
 }
 
-/** Why the held head has not generated, for the line under the heading. */
-export function readHeldLead(t: TFunction, split: HeldConditionSplit): string {
+/**
+ * Why the held head has not generated, for the line under the heading. A list
+ * this bundle read only in part may hide what holds it, so it says neither.
+ */
+export function readHeldLead(
+  t: TFunction,
+  split: HeldConditionSplit,
+  unmetConditionsPartial: boolean,
+): string {
+  if (unmetConditionsPartial) {
+    return t("pulls.held.lead.unknown");
+  }
   if (split.needs.length > 0) {
     return t("pulls.held.lead.needs");
   }
@@ -57,7 +69,7 @@ function describeSize(t: TFunction, condition: UnmetSize): string {
   return t("triggerCondition.reason.sizeMin", params);
 }
 
-function describeBot(t: TFunction, condition: UnmetBot): string {
+function describeBot(t: TFunction, condition: HeldBot): string {
   const bot = ReviewBotNames[condition.bot];
   if (condition.state === BotStates.ISSUES) {
     return t("triggerCondition.reason.bots.issues", {
@@ -94,7 +106,7 @@ function describeCi(t: TFunction, condition: UnmetCi): string[] {
 /** A condition's reasons in the Entry comment's words; CI gives one per state. */
 export function describeUnmetReasons(
   t: TFunction,
-  condition: UnmetPlainCondition,
+  condition: HeldPlainCondition,
 ): string[] {
   switch (condition.kind) {
     case TriggerConditionKinds.READY_FOR_REVIEW:
@@ -140,6 +152,6 @@ export function describeUnmetReasons(
 }
 
 /** A stable React key for one unmet item: its content, which no two items share. */
-export function readUnmetConditionKey(condition: UnmetCondition): string {
+export function readUnmetConditionKey(condition: HeldCondition): string {
   return JSON.stringify(condition);
 }

@@ -26,7 +26,6 @@ import {
   isPlainRecord,
 } from "@web/utils/drop-keys";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
-import { buildTolerantListSchema } from "@web/utils/tolerant-list";
 import { isRecord } from "@web/utils/typeGuards";
 
 import type {
@@ -142,7 +141,7 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
       kind: z.literal(TriggerConditionKinds.BOTS),
       source: triggerConditionSourceSchema,
       bot: z.enum(ReviewBots),
-      verdict: z.enum(BotVerdicts),
+      verdict: buildOpenEnumSchema(BotVerdicts),
       state: z.enum(BotStates),
       issues: z.number().exactOptional(),
     })
@@ -159,13 +158,10 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
     .readonly(),
 ]);
 
-/** An `any` group keeps the members this bundle reads; one with none left fails. */
 const unmetAnyGroupSchema = z
   .object({
     kind: z.literal(UnmetConditionKinds.ANY),
-    conditions: buildTolerantListSchema(unmetPlainConditionSchema).refine(
-      (members) => members.length > 0,
-    ),
+    conditions: z.array(unmetPlainConditionSchema).min(1).readonly(),
   })
   .readonly();
 
@@ -174,10 +170,75 @@ export const unmetConditionSchema = z.union([
   unmetAnyGroupSchema,
 ]);
 
-/** A failure code or wait reason this bundle predates drops; a status it predates reads `unknown`. */
+const unmetAnyGroupWireSchema = z.object({
+  kind: z.literal(UnmetConditionKinds.ANY),
+  conditions: z.array(z.unknown()),
+});
+
+function isReadableCondition(entry: unknown): boolean {
+  return z.safeParse(unmetPlainConditionSchema, entry).success;
+}
+
+/** One wire item as this bundle keeps it, and whether reading it left anything out. */
+function keepReadableCondition(entry: unknown) {
+  if (isReadableCondition(entry)) {
+    return { kept: entry, dropped: false };
+  }
+  const group = z.safeParse(unmetAnyGroupWireSchema, entry);
+  if (!group.success) {
+    return { kept: undefined, dropped: true };
+  }
+
+  const members = group.data.conditions.filter(isReadableCondition);
+  const dropped = members.length < group.data.conditions.length;
+  if (members.length === 0) {
+    return { kept: undefined, dropped: true };
+  }
+  return { kept: { ...group.data, conditions: members }, dropped };
+}
+
+/**
+ * Keeps the held items this bundle reads, an `any` group with the members it
+ * reads, and marks the list partial when anything was left out, so a reader
+ * never takes part of the reason for all of it. A value that is no list drops.
+ */
+function keepReadableUnmetConditions(value: unknown): unknown {
+  if (!isPlainRecord(value)) {
+    return value;
+  }
+  const {
+    unmetConditions,
+    unmetConditionsPartial: _readerOnly,
+    ...generation
+  } = value;
+  if (!Array.isArray(unmetConditions)) {
+    return generation;
+  }
+
+  const reads = unmetConditions.map(keepReadableCondition);
+  const filtered: Record<string, unknown> = {
+    ...generation,
+    unmetConditions: reads.flatMap(({ kept }) =>
+      kept === undefined ? [] : [kept],
+    ),
+  };
+  if (reads.some(({ dropped }) => dropped)) {
+    filtered["unmetConditionsPartial"] = true;
+  }
+  return filtered;
+}
+
+function readGenerationWire(value: unknown): unknown {
+  return keepReadableUnmetConditions(liftErrorParams(value));
+}
+
+/**
+ * A failure code or wait reason this bundle predates drops; a status it
+ * predates reads `unknown`; an unmet item it predates drops and marks the list partial.
+ */
 export const generationSummarySchema = z
   .preprocess(
-    liftErrorParams,
+    readGenerationWire,
     dropInvalidKeys(
       z.object({
         status: buildOpenEnumSchema(GenerationStatuses),
@@ -196,8 +257,11 @@ export const generationSummarySchema = z
           .object({ done: z.number(), total: z.number() })
           .readonly()
           .exactOptional(),
-        unmetConditions:
-          buildTolerantListSchema(unmetConditionSchema).exactOptional(),
+        unmetConditions: z
+          .array(unmetConditionSchema)
+          .readonly()
+          .exactOptional(),
+        unmetConditionsPartial: z.literal(true).exactOptional(),
       }),
       [
         "phase",

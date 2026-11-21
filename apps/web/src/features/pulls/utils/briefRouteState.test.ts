@@ -271,8 +271,26 @@ describe("deriveBriefRouteState", () => {
     expect(deriveBriefRouteState(held, undefined)).toEqual({
       kind: "held",
       unmetConditions: [ready],
+      unmetConditionsPartial: false,
     });
     expect(shouldPollMeta(held)).toBe(false);
+  });
+
+  it("a held head whose list was read in part says so", () => {
+    const ready = { kind: "ready-for-review", source: "repo" } as const;
+    const held = meta({
+      generation: generation({
+        status: "held",
+        unmetConditions: [ready],
+        unmetConditionsPartial: true,
+      }),
+    });
+
+    expect(deriveBriefRouteState(held, undefined)).toEqual({
+      kind: "held",
+      unmetConditions: [ready],
+      unmetConditionsPartial: true,
+    });
   });
 
   it("a held head the server names no conditions for still reads held", () => {
@@ -281,6 +299,7 @@ describe("deriveBriefRouteState", () => {
     expect(deriveBriefRouteState(held, undefined)).toEqual({
       kind: "held",
       unmetConditions: [],
+      unmetConditionsPartial: false,
     });
   });
 

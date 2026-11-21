@@ -17,7 +17,7 @@ import {
   type VideoAssetsResponse,
 } from "contract";
 import { describe, expect, it } from "vitest";
-import type { DraftPolicy, Equals, UnmetCondition } from "types";
+import type { DraftPolicy, Equals } from "types";
 import type { z } from "zod/v4";
 
 import { UnknownValues } from "@web/utils/open-enum/types";
@@ -50,6 +50,7 @@ import type {
   PrStackMember,
   PullStack,
 } from "@web/features/brief/model";
+import type { HeldCondition } from "./components/PrBrief/held-head/types";
 import type {
   BriefLayoutReply,
   AvailableLastReviewComparison,
@@ -1076,7 +1077,7 @@ const BOT_ITEM = {
   issues: 2,
 };
 
-function parseHeldConditions(unmetConditions: unknown) {
+function parseHeldGeneration(unmetConditions: unknown) {
   const parsed = parseWithSchema(prSummarySchema, {
     ...ROW,
     generation: { ...HELD_GENERATION, unmetConditions },
@@ -1084,7 +1085,11 @@ function parseHeldConditions(unmetConditions: unknown) {
   if (!parsed.ok) {
     throw new Error("unreachable");
   }
-  return parsed.value.generation?.unmetConditions;
+  return parsed.value.generation;
+}
+
+function parseHeldConditions(unmetConditions: unknown) {
+  return parseHeldGeneration(unmetConditions)?.unmetConditions;
 }
 
 describe("generationSummarySchema unmetConditions", () => {
@@ -1115,7 +1120,54 @@ describe("generationSummarySchema unmetConditions", () => {
       { kind: "any", conditions: [READY_ITEM, CI_ITEM] },
     ];
 
-    expect(parseHeldConditions(wire)).toStrictEqual(wire);
+    const generation = parseHeldGeneration(wire);
+
+    expect(generation?.unmetConditions).toStrictEqual(wire);
+    expect(generation).not.toHaveProperty("unmetConditionsPartial");
+  });
+
+  it("keeps a bot item whose verdict this bundle predates", () => {
+    const generation = parseHeldGeneration([
+      { ...BOT_ITEM, verdict: "merged" },
+    ]);
+
+    expect(generation?.unmetConditions).toStrictEqual([
+      { ...BOT_ITEM, verdict: UnknownValues.UNKNOWN },
+    ]);
+    expect(generation).not.toHaveProperty("unmetConditionsPartial");
+  });
+
+  it("marks the list partial when it drops an item", () => {
+    const generation = parseHeldGeneration([
+      { kind: "deploy-window", source: "repo" },
+      CI_ITEM,
+    ]);
+
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("marks the list partial when an any group drops a member", () => {
+    const generation = parseHeldGeneration([
+      { kind: "any", conditions: [{ kind: "mystery" }, CI_ITEM] },
+    ]);
+
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("ignores a partial mark the wire sends with a whole list", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        ...HELD_GENERATION,
+        unmetConditions: [CI_ITEM],
+        unmetConditionsPartial: true,
+      },
+    });
+
+    expect(parsed.ok && parsed.value.generation).not.toHaveProperty(
+      "unmetConditionsPartial",
+    );
   });
 
   it("drops an item of a kind this bundle predates and keeps the rest", () => {
@@ -1143,7 +1195,10 @@ describe("generationSummarySchema unmetConditions", () => {
       },
     ],
   ])("drops an item whose %s this bundle predates", (_field, item) => {
-    expect(parseHeldConditions([item, CI_ITEM])).toStrictEqual([CI_ITEM]);
+    const generation = parseHeldGeneration([item, CI_ITEM]);
+
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
   });
 
   it("keeps an any group's known members and drops the unknown one", () => {
@@ -1178,9 +1233,9 @@ describe("generationSummarySchema unmetConditions", () => {
 });
 
 const SCHEMA_PINS = {
-  UnmetCondition: true satisfies Equals<
+  HeldCondition: true satisfies Equals<
     z.output<typeof unmetConditionSchema>,
-    UnmetCondition
+    HeldCondition
   >,
   VideoAssetsResponse: true satisfies Equals<
     z.output<typeof videoAssetsSchema>,
@@ -1254,11 +1309,12 @@ type UnavailableLastReviewView = Extract<
 >;
 
 const CONTRACT_PINS = {
-  // `errorDetail` and `cappedUnits` are lifted out of the wire's `errorParams`.
+  // `errorDetail` and `cappedUnits` are lifted out of the wire's `errorParams`;
+  // the reader marks `unmetConditionsPartial` itself.
   GenerationSummary: true satisfies ReadsWireFields<
     Omit<
       z.output<typeof generationSummarySchema>,
-      "errorDetail" | "cappedUnits"
+      "errorDetail" | "cappedUnits" | "unmetConditionsPartial"
     >,
     GenerationSummaryView
   >,
