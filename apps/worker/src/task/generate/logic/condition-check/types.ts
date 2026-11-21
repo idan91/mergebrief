@@ -12,7 +12,8 @@ export interface ConditionFacts {
   readonly sizes: Readonly<Record<SizeMeasure, number>>;
   /**
    * Each changed file's path as GitHub lists it: a rename by its new path, a
-   * deletion by the path it had. Empty unless a `paths` condition is set.
+   * deletion by the path it had. Absent until a `paths` condition can decide
+   * the verdict.
    */
-  readonly changedPaths: readonly string[];
+  readonly changedPaths?: readonly string[] | undefined;
 }

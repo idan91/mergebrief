@@ -1,9 +1,9 @@
 import type { PullRequestFile } from "github";
+import { SizeMeasures } from "types/trigger-conditions";
 import {
   resolveEffectiveTriggerConditions,
   type EffectiveTriggerConditions,
 } from "generators/trigger-conditions";
-import { SizeMeasures, TriggerConditionKinds } from "types/trigger-conditions";
 import type { Mutable } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../types";
 import { throwOnGitHubFailure } from "../errors";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
-import { evaluateTriggerConditions } from "./evaluate";
+import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts } from "./types";
 
@@ -35,23 +35,18 @@ function isCheckable(context: RunContext): boolean {
   return checkable;
 }
 
-function isPathsConfigured(effective: EffectiveTriggerConditions): boolean {
-  const conditions = [...effective.all, ...effective.any];
-  return conditions.some(
-    (condition) => condition.setting.kind === TriggerConditionKinds.PATHS,
-  );
-}
-
 /**
- * Only a `paths` condition reads the file list this early. A failure
- * classifies as the run's own later read would: a transient one retries
- * before any hold, so no head is held on a list it never saw.
+ * Only a `paths` condition that can decide the verdict reads the file list
+ * this early. A failure classifies as the run's own later read would: a
+ * transient one retries before any hold, so no head is held on a list it
+ * never saw.
  */
 async function readCheckedFiles(
   context: RunContext,
   effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
 ): Promise<readonly PullRequestFile[] | undefined> {
-  if (!isPathsConfigured(effective)) {
+  if (!isVerdictOnPaths(effective, facts)) {
     return undefined;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
@@ -73,7 +68,7 @@ function readConditionFacts(
       [SizeMeasures.ADDITIONS]: prInfo.additions,
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
-    changedPaths: files?.map((file) => file.path) ?? [],
+    changedPaths: files?.map((file) => file.path),
   };
   if (prInfo.baseRef !== undefined) {
     facts.baseRef = prInfo.baseRef;
@@ -104,7 +99,8 @@ export async function applyConditionCheck(
     deps.triggerConditions,
     repoConfig.settings?.triggerConditions,
   );
-  const files = await readCheckedFiles(context, effective);
+  const unreadFacts = readConditionFacts(context, undefined);
+  const files = await readCheckedFiles(context, effective, unreadFacts);
   const unmet = evaluateTriggerConditions(
     effective,
     readConditionFacts(context, files),

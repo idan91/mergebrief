@@ -213,33 +213,64 @@ function checkBaseBranches({
  */
 const PATHS_MATCH_STEPS = 20_000_000;
 const GLOB_SYNTAX_START = /[*?[{\\!]/;
+const LAST_WILDCARD = /[*?](?!.*[*?])/;
 
-/** The characters before a glob's first wildcard: a path that lacks them cannot match. */
+/** A glob's literal ends: a path that lacks either cannot match. */
+interface GlobFilter {
+  readonly glob: string;
+  readonly prefix: string;
+  readonly suffix: string;
+}
+
+/** The characters before a glob's first wildcard. */
 function readLiteralPrefix(glob: string): string {
   const wildcard = glob.search(GLOB_SYNTAX_START);
   return wildcard === -1 ? glob : glob.slice(0, wildcard);
 }
 
+/** The characters after a glob's last wildcard, empty when they hold any glob syntax. */
+function readLiteralSuffix(glob: string): string {
+  const wildcard = glob.search(LAST_WILDCARD);
+  const tail = wildcard === -1 ? glob : glob.slice(wildcard + 1);
+  return GLOB_SYNTAX_START.test(tail) ? "" : tail;
+}
+
+/** The longest literal prefix first: it narrows the scan most. */
+function orderGlobFilters(globs: readonly string[]): GlobFilter[] {
+  const filters = globs.map((glob) => ({
+    glob,
+    prefix: readLiteralPrefix(glob),
+    suffix: readLiteralSuffix(glob),
+  }));
+  return filters.toSorted(
+    (left, right) => right.prefix.length - left.prefix.length,
+  );
+}
+
+function passesGlobFilter(filter: GlobFilter, path: string): boolean {
+  return path.startsWith(filter.prefix) && path.endsWith(filter.suffix);
+}
+
 /**
  * Whether one glob matches one changed path, or `undefined` once the step
- * budget runs out. A path missing the glob's literal prefix costs no steps.
+ * budget runs out. A path missing the glob's literal prefix or suffix costs
+ * no steps.
  */
 function matchPaths(
   globs: readonly string[],
   paths: readonly string[],
 ): boolean | undefined {
   let steps = PATHS_MATCH_STEPS;
-  for (const glob of globs) {
-    const prefix = readLiteralPrefix(glob);
+  for (const filter of orderGlobFilters(globs)) {
     for (const path of paths) {
-      if (!path.startsWith(prefix)) {
+      if (!passesGlobFilter(filter, path)) {
         continue;
       }
-      steps -= glob.length * (path.length + 1);
+      steps -= filter.glob.length * (path.length + 1);
       if (steps < 0) {
         return undefined;
       }
-      if (matchesGlob(glob, path)) {
+      if (matchesGlob(filter.glob, path)) {
         return true;
       }
     }
@@ -250,13 +281,18 @@ function matchPaths(
 /**
  * Git paths are case-sensitive, so a glob matches as written. A scan past
  * its budget reads as unmet: the head holds, nothing is spent, and a
- * Generate click still runs it.
+ * Generate click still runs it. Unread paths read as met: the list is read
+ * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
+ * another condition lists no `paths` item until the others pass.
  */
 function checkPaths({
   value,
   setBy,
   facts,
 }: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
+  if (facts.changedPaths === undefined) {
+    return [];
+  }
   const met = matchPaths(value, facts.changedPaths) === true;
   if (met) {
     return [];
@@ -293,6 +329,42 @@ function checkCondition(
   facts: ConditionFacts,
 ): UnmetPlainCondition[] {
   return runKindCheck(condition.setting, condition.setBy, facts);
+}
+
+function isPathsCondition(condition: EffectiveCondition): boolean {
+  return condition.setting.kind === TriggerConditionKinds.PATHS;
+}
+
+function isConditionMet(
+  condition: EffectiveCondition,
+  facts: ConditionFacts,
+): boolean {
+  return checkCondition(condition, facts).length === 0;
+}
+
+/**
+ * Whether the changed paths can decide the verdict, judged on the other
+ * conditions alone: not while another plain condition holds the head
+ * anyway, and not for an `any` group another member already meets.
+ */
+export function isVerdictOnPaths(
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): boolean {
+  const plain = effective.all.filter((item) => !isPathsCondition(item));
+  const plainMet = plain.every((item) => isConditionMet(item, facts));
+  if (!plainMet) {
+    return false;
+  }
+  if (effective.all.some(isPathsCondition)) {
+    return true;
+  }
+  if (!effective.any.some(isPathsCondition)) {
+    return false;
+  }
+
+  const others = effective.any.filter((item) => !isPathsCondition(item));
+  return !others.some((item) => isConditionMet(item, facts));
 }
 
 /**
