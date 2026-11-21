@@ -214,7 +214,9 @@ function isRetitle(event: ParsedPullRequestEvent): boolean {
   if (event.action !== PullRequestActions.EDITED) {
     return false;
   }
-  return event.titleChanged === true && event.baseChanged !== true;
+  const retitledOnly =
+    event.titleChanged === true && event.baseChanged !== true;
+  return retitledOnly;
 }
 
 /** The work an event names that a stored brief for its pair leaves undone. */

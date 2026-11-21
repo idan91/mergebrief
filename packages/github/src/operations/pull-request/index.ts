@@ -115,7 +115,8 @@ function countPendingReviewRequests(lists: ReviewRequestLists): number {
     (reviewer) => reviewer.type !== GitHubAccountTypes.BOT,
   );
   const teams = lists.requested_teams?.length ?? 0;
-  return people.length + teams;
+  const pending = people.length + teams;
+  return pending;
 }
 
 /**
