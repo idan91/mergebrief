@@ -6,6 +6,11 @@ import { DbCompareBar, type DbCompareBarProps } from "./DbCompareBar";
 import { NewerCommitsChip } from "./NewerCommitsChip";
 import type { NewerCommitsChipState } from "./NewerCommitsChip/types";
 import styles from "./DbBriefControls.module.scss";
+import {
+  HeldBehindChip,
+  findCase,
+  useHeldPrototype,
+} from "@web/features/held-prototype";
 
 export interface DbBriefControlsProps {
   /** The scope and comparison wiring. */
@@ -29,7 +34,11 @@ export function DbBriefControls({
 }: DbBriefControlsProps) {
   const { t } = useTranslation();
   const { status } = newerCommits;
-  const showRevisionRegion = readOnly === true || status !== undefined;
+  const proto = useHeldPrototype();
+  const heldBehind =
+    proto.active && proto.view === "card" && proto.caseId === "behind";
+  const showRevisionRegion =
+    readOnly === true || status !== undefined || heldBehind;
   return (
     <>
       <div className={styles["comparisonRegion"]}>
@@ -38,7 +47,10 @@ export function DbBriefControls({
       </div>
       {showRevisionRegion ? (
         <div className={styles["revisionRow"]}>
-          {status === undefined ? null : <NewerCommitsChip status={status} />}
+          {heldBehind ? <HeldBehindChip held={findCase("behind")} /> : null}
+          {status === undefined || heldBehind ? null : (
+            <NewerCommitsChip status={status} />
+          )}
           {readOnly ? (
             // Factual chip, not a verdict: the reachable REASON lives on the
             // disabled controls themselves (diff rows, submit).

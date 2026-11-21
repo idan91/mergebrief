@@ -1,0 +1,89 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    margin-block-end: var(--space-4);
+  }
+
+  .trigger,
+  .pill,
+  .segment {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: the filter trigger's 28px */
+    min-block-size: functions.to-rem(28px);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-soft);
+    font-size: var(--font-size-2);
+    cursor: pointer;
+
+    @include mixins.hover {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .name {
+    color: var(--color-text-2);
+  }
+
+  .value {
+    color: var(--color-text-1);
+    font-weight: 500;
+  }
+
+  .trigger[data-changed="true"],
+  .pill[data-changed="true"],
+  .segment[aria-pressed="true"] {
+    border-color: var(--color-accent-edge);
+    background: var(--color-accent-tint-subtle);
+    color: var(--color-accent);
+
+    .value {
+      color: var(--color-accent);
+    }
+  }
+
+  .segment {
+    border-radius: 0;
+
+    &:first-child {
+      border-start-start-radius: var(--radius-md);
+      border-end-start-radius: var(--radius-md);
+    }
+
+    &:last-child {
+      margin-inline-start: -1px;
+      border-start-end-radius: var(--radius-md);
+      border-end-end-radius: var(--radius-md);
+    }
+  }
+
+  .strip:has(.segment) {
+    gap: 0;
+  }
+
+  .tally {
+    color: var(--color-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pill {
+    border-radius: var(--radius-pill);
+  }
+
+  .hint {
+    color: var(--color-text-3);
+    font-size: var(--font-size-1);
+  }
+}

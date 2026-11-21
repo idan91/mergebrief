@@ -25,6 +25,37 @@ import { FailedCard } from "../FailedCard";
 import { PrBriefContent } from "../PrBriefContent";
 import { SupersededCard } from "../SupersededCard";
 import { WaitCard } from "../WaitCard";
+import {
+  EntryPreview,
+  HeldCard,
+  findCase,
+  useHeldPrototype,
+} from "@web/features/held-prototype";
+import type { ReactNode } from "react";
+
+/** PROTOTYPE (BRIEF-381): swaps the body for the held card or the Entry. */
+function HeldPrototypeSwap({ children }: { children: ReactNode }) {
+  const proto = useHeldPrototype();
+  if (!proto.active) {
+    return children;
+  }
+  const held = findCase(proto.caseId);
+  if (proto.view === "entry") {
+    return (
+      <main className="main" id="main-content" tabIndex={-1}>
+        <EntryPreview held={held} />
+      </main>
+    );
+  }
+  if (held.id === "behind") {
+    return children;
+  }
+  return (
+    <main className="main" id="main-content" tabIndex={-1}>
+      <HeldCard held={held} />
+    </main>
+  );
+}
 import { waitLabel } from "../waiting-head";
 import { readEmptyCopyOverride, readSupersededAnnouncementKey } from "./utils";
 
@@ -267,7 +298,9 @@ export function PrBriefBody(props: PrBriefBodyProps) {
       >
         {announcement}
       </span>
-      <PrBriefBodyState {...props} />
+      <HeldPrototypeSwap>
+        <PrBriefBodyState {...props} />
+      </HeldPrototypeSwap>
     </>
   );
 }

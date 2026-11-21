@@ -1,0 +1,70 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .signal {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2);
+    white-space: nowrap;
+  }
+
+  .signal[data-direction="a"][data-wait="false"],
+  .signal[data-direction="b"][data-wait="false"] {
+    color: var(--color-text-1);
+  }
+
+  .signal[data-direction="a"] .label {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: caps the reason so the row end never pushes the title */
+    max-inline-size: functions.to-rem(190px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .signal[data-direction="a"] .label {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+
+  .more {
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .count {
+    display: inline-grid;
+    place-items: center;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: badge box matches the 18px line */
+    min-inline-size: functions.to-rem(18px);
+    padding-inline: var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-3);
+    color: var(--color-text-1);
+    font-size: var(--font-size-1);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: badge line box */
+    line-height: functions.to-rem(18px);
+  }
+
+  .note {
+    overflow: hidden;
+    color: var(--color-text-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &::before {
+      content: "·";
+      margin-inline-end: var(--space-2);
+      color: var(--color-decorative);
+    }
+  }
+}

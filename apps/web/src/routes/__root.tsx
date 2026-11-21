@@ -1,3 +1,4 @@
+import { PrototypeBar } from "@web/features/held-prototype";
 import { useTranslation } from "react-i18next";
 import {
   createRootRouteWithContext,
@@ -145,6 +146,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           {t("shell.skipToContent")}
         </a>
         {children}
+        <PrototypeBar />
         <Scripts />
       </body>
     </html>

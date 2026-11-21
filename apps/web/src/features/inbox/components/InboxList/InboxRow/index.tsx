@@ -27,6 +27,11 @@ import { RowLead } from "./RowLead";
 import { RowMark } from "./RowMark";
 import { useRowGeneration } from "./useRowGeneration";
 import {
+  HeldRowNote,
+  PROTO_REPO_ID,
+  findCaseByNumber,
+} from "@web/features/held-prototype";
+import {
   describeRow,
   formatAgeLabel,
   readOtherAuthor,
@@ -136,6 +141,8 @@ export function InboxRow({
   }
 
   const otherAuthor = readOtherAuthor(item);
+  const heldCase =
+    item.repoId === PROTO_REPO_ID ? findCaseByNumber(item.prNumber) : undefined;
 
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- observes focus bubbling from the row's controls and its portalled menu; adds no interaction
@@ -240,10 +247,16 @@ export function InboxRow({
           {age === undefined ? null : (
             <span suppressHydrationWarning>{age}</span>
           )}
+          {heldCase === undefined ? null : <HeldRowNote held={heldCase} />}
         </span>
       </Link>
       <span className={styles["end"]}>
-        <RowEnd draft={item.draft} generation={generation} state={item.state} />
+        <RowEnd
+          draft={item.draft}
+          generation={generation}
+          heldCase={heldCase}
+          state={item.state}
+        />
         <RowActions
           archived={archived}
           archiveHeld={archiveHeld}

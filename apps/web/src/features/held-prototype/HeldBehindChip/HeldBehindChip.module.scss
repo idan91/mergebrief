@@ -1,0 +1,66 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .chip {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: chip floor as Chip's 26px */
+    min-block-size: functions.to-rem(26px);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-chip);
+    background: transparent;
+    color: var(--color-text-soft);
+    font-size: var(--font-size-2);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--motion-fast) var(--ease-out);
+
+    @include mixins.hover {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .label {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: keeps the chip on one line in the header */
+    max-inline-size: functions.to-rem(360px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: panel width */
+    inline-size: min(92vw, functions.to-rem(420px));
+    padding: var(--space-5);
+  }
+
+  .title {
+    margin: 0 0 var(--space-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+
+    code {
+      font-family: var(--font-mono);
+    }
+  }
+
+  .list {
+    list-style: none;
+
+    > li + li {
+      border-block-start: 1px solid var(--color-line);
+    }
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-block-start: var(--space-3);
+  }
+}

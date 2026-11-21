@@ -7,6 +7,8 @@ import { IconNames } from "@web/components/Icon/types";
 import { MarkLoader } from "@web/components/MarkLoader";
 import { MarkLoaderTones } from "@web/components/MarkLoader/types";
 import styles from "./RowEnd.module.scss";
+import { HeldSignal } from "@web/features/held-prototype";
+import type { HeldCase } from "@web/features/held-prototype/model";
 import { RowSignalKinds, type RowSignalKind } from "./types";
 import { readGenerationSignal, readStatusSignal } from "./utils";
 
@@ -14,6 +16,8 @@ export interface RowEndProps {
   generation: InboxGeneration | undefined;
   state: InboxItem["state"];
   draft: boolean;
+  /** PROTOTYPE (BRIEF-381). */
+  heldCase?: HeldCase | undefined;
 }
 
 const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
@@ -33,13 +37,14 @@ const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
  * one word on every row carries nothing. Hidden from assistive technology
  * and from the pointer: the row link names these states and takes the click.
  */
-export function RowEnd({ generation, state, draft }: RowEndProps) {
+export function RowEnd({ generation, state, draft, heldCase }: RowEndProps) {
   const { t } = useTranslation();
   const generationSignal = readGenerationSignal(generation, state);
   const status = readStatusSignal(state, draft);
 
   return (
     <span aria-hidden="true" className={styles["end"]}>
+      {heldCase === undefined ? null : <HeldSignal held={heldCase} />}
       {generationSignal === null ? null : (
         <span
           className={styles["generation"]}

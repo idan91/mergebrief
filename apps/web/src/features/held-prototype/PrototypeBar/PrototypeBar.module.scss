@@ -1,0 +1,86 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .bar {
+    position: fixed;
+    z-index: functions.get-z-index("toast");
+    inset-block-end: var(--space-5);
+    inset-inline-start: 50%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    max-inline-size: calc(100vw - var(--space-6));
+    padding: var(--space-2) var(--space-3);
+    border: 1px dashed var(--color-warning);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
+    color: var(--color-text-1);
+    font-size: var(--font-size-2);
+    transform: translateX(-50%);
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .long {
+      display: none;
+    }
+  }
+
+  .segments {
+    display: flex;
+  }
+
+  .segment {
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: control height */
+    min-block-size: functions.to-rem(28px);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-line-strong);
+    background: transparent;
+    color: var(--color-text-soft);
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+      border-color: var(--color-accent-edge);
+      background: var(--color-accent-tint-medium);
+      color: var(--color-accent);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .segments .segment + .segment {
+    margin-inline-start: -1px;
+  }
+
+  .segments .segment:first-child {
+    border-start-start-radius: var(--radius-md);
+    border-end-start-radius: var(--radius-md);
+  }
+
+  .segments .segment:last-child {
+    border-start-end-radius: var(--radius-md);
+    border-end-end-radius: var(--radius-md);
+  }
+
+  .bar > .segment {
+    border-radius: var(--radius-md);
+  }
+
+  .field {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--color-text-2);
+
+    select {
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- prototype: control height */
+      min-block-size: functions.to-rem(28px);
+      border: 1px solid var(--color-control-edge);
+      border-radius: var(--radius-md);
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+    }
+  }
+}

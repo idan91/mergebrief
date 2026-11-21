@@ -26,6 +26,11 @@ import { readRowKey, splitAtFold } from "../../utils";
 import { DeleteModal } from "./DeleteModal";
 import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow";
+import {
+  HeldInboxBlock,
+  buildHeldInboxItems,
+  useHeldPrototype,
+} from "@web/features/held-prototype";
 import { PurgeAttachmentsModal } from "./PurgeAttachmentsModal";
 import { SelectionHeader } from "./SelectionHeader";
 import { ArchiveScopes, type ArchiveScope } from "./types";
@@ -147,6 +152,8 @@ export function InboxList({
     [setSelected],
   );
   const now = new Date();
+  const heldProto = useHeldPrototype();
+  const heldItems = heldProto.active ? buildHeldInboxItems(now.getTime()) : [];
   const showFold = above.length > 0 && below.length > 0;
 
   // Keyed on key moves: a re-read that shifts or removes the row never
@@ -421,6 +428,34 @@ export function InboxList({
           onSelectPage={selectPage}
           onStartSelecting={startSelecting}
         />
+        {heldItems.length === 0 ? null : (
+          <HeldInboxBlock>
+            <ol className={styles["list"]}>
+              {heldItems.map((item, index) => (
+                <InboxRow
+                  archived={archived}
+                  archiveHeld={archiveHeld}
+                  cursor={false}
+                  deleteHeld={collecting}
+                  index={index}
+                  item={item}
+                  key={`held-${String(item.prNumber)}`}
+                  now={now}
+                  selected={false}
+                  selecting={selecting}
+                  sort={sort}
+                  onAnnounce={toast.show}
+                  onArchived={announceArchived}
+                  onDelete={handleDelete}
+                  onFocusRow={handleRowFocusIn}
+                  onPurgeAttachments={purge.requestPurge}
+                  onRemoved={handleRowGone}
+                  onSelectRow={handleSelect}
+                />
+              ))}
+            </ol>
+          </HeldInboxBlock>
+        )}
         {above.length === 0 ? null : (
           <ol className={styles["list"]}>
             {above.map((item, index) => (

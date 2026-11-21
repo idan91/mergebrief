@@ -16,6 +16,8 @@ import CircleDashedGlyph from "../icons/circle-dashed.svg?react";
 import CircleHalfGlyph from "../icons/circle-half.svg?react";
 import ClaudeCodeGlyph from "../icons/claude-code.svg?react";
 import ClockGlyph from "../icons/clock.svg?react";
+import HandPalmGlyph from "../icons/hand-palm.svg?react";
+import HourglassMediumGlyph from "../icons/hourglass-medium.svg?react";
 import CodeGlyph from "../icons/code.svg?react";
 import ColumnsGlyph from "../icons/columns.svg?react";
 import CopyGlyph from "../icons/copy.svg?react";
@@ -76,6 +78,8 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.CIRCLE_DASHED]: CircleDashedGlyph,
   [IconNames.CIRCLE_HALF]: CircleHalfGlyph,
   [IconNames.CLOCK]: ClockGlyph,
+  [IconNames.HAND_PALM]: HandPalmGlyph,
+  [IconNames.HOURGLASS_MEDIUM]: HourglassMediumGlyph,
   [IconNames.CODE]: CodeGlyph,
   [IconNames.COLUMNS]: ColumnsGlyph,
   [IconNames.COPY]: CopyGlyph,

@@ -9,6 +9,7 @@ import {
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { IconButton } from "@web/components/IconButton";
 import { Menu } from "@web/components/Menu";
+import { PROTO_REPO_ID } from "@web/features/held-prototype";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { isRerunHopeless } from "@web/utils/failure-class";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
@@ -112,6 +113,25 @@ export function RowActions({
           </IconButton>
         </Menu.Trigger>
         <Menu.Content>
+          {item.repoId === PROTO_REPO_ID ? (
+            <>
+              <Menu.Item
+                glyph={<Icon name={IconNames.PLAY} size={IconSizes.MD} />}
+                onSelect={() => undefined}
+              >
+                Generate now
+              </Menu.Item>
+              <Menu.Item
+                glyph={
+                  <Icon name={IconNames.ARROWS_CLOCKWISE} size={IconSizes.MD} />
+                }
+                onSelect={() => undefined}
+              >
+                Generate on every push
+              </Menu.Item>
+              <Menu.Separator />
+            </>
+          ) : null}
           {canRegenerate ? (
             <Menu.Item
               disabled={facade.regenerating}

@@ -18,6 +18,8 @@ export const IconNames = {
   CIRCLE_HALF: "circle-half",
   CLAUDE_CODE: "claude-code",
   CLOCK: "clock",
+  HAND_PALM: "hand-palm",
+  HOURGLASS_MEDIUM: "hourglass-medium",
   CODE: "code",
   COLUMNS: "columns",
   COPY: "copy",
