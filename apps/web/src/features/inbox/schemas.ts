@@ -10,10 +10,12 @@ import {
 
 import { dropInvalidKeys, dropNullKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
-import { unmetConditionSchema } from "@web/features/pulls/schemas";
+import {
+  keepReadableUnmetConditions,
+  unmetConditionSchema,
+} from "@web/features/pulls/schemas";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
-import { buildTolerantListSchema } from "@web/utils/tolerant-list";
 
 import type { InboxPage } from "./types";
 
@@ -21,15 +23,19 @@ const prStateSchema = buildOpenEnumSchema(PrStates);
 const sourceSchema = buildOpenEnumSchema(PullRequestSources);
 const generationStatusSchema = buildOpenEnumSchema(GenerationStatuses);
 
-export const inboxGenerationSchema = dropInvalidKeys(
-  z.object({
-    status: generationStatusSchema,
-    errorCode: z.enum(GenerationFailureCodes).exactOptional(),
-    updatedAt: z.string(),
-    unmetConditions:
-      buildTolerantListSchema(unmetConditionSchema).exactOptional(),
-  }),
-  ["errorCode", "unmetConditions"],
+/** An unmet item this bundle predates drops and marks the list partial. */
+export const inboxGenerationSchema = z.preprocess(
+  keepReadableUnmetConditions,
+  dropInvalidKeys(
+    z.object({
+      status: generationStatusSchema,
+      errorCode: z.enum(GenerationFailureCodes).exactOptional(),
+      updatedAt: z.string(),
+      unmetConditions: z.array(unmetConditionSchema).readonly().exactOptional(),
+      unmetConditionsPartial: z.literal(true).exactOptional(),
+    }),
+    ["errorCode", "unmetConditions"],
+  ),
 );
 
 export const inboxStackPositionSchema = z.object({

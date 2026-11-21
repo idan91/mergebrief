@@ -21,12 +21,14 @@ export interface RowSignal {
 }
 
 /**
- * Waiting only when every unmet item clears by itself; a held head whose
- * conditions this bundle could not read may need someone, so it is Held.
+ * Waiting only when every unmet item clears by itself; a list this bundle read
+ * only in part, or not at all, may hide one that needs someone, so it is Held.
  */
 function readHeldSignal(generation: InboxGeneration): RowSignal {
   const unmet = generation.unmetConditions ?? [];
-  const waitsOnly = unmet.length > 0 && unmet.every(isWaitingCondition);
+  const readWhole =
+    unmet.length > 0 && generation.unmetConditionsPartial !== true;
+  const waitsOnly = readWhole && unmet.every(isWaitingCondition);
   if (waitsOnly) {
     return {
       kind: RowSignalKinds.WAITING,
