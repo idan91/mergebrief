@@ -1,7 +1,7 @@
 // The large run's generating Entry estimate: one call alone, the rest across
 // the detail lanes, rounded to five minutes and never under five. The held
 // edit on an unread head, logged only when it lands, and the newer head's
-// sync when the edit lands after the head moved.
+// sync when a write lands after the head moved.
 import { describe, expect, it } from "vitest";
 import {
   estimateMultiCallMinutes,
@@ -35,9 +35,14 @@ function stubManager(edit: EntryWrite): EntryCommentManager {
 const OWN_HEAD = "a".repeat(40);
 const NEWER_HEAD = "b".repeat(40);
 
-/** The pre-write read finds the run's head; the next one finds `after`. */
-function stubWatchMovingTo(after: HeadRead): SupersessionWatch {
-  const reads: HeadRead[] = [{ kind: HeadReadings.CURRENT }, after];
+const UNREAD_HEAD = { kind: HeadReadings.UNREAD, error: "timeout" } as const;
+
+/** The pre-write read finds `before`; the next one finds `after`. */
+function stubWatchMovingTo(
+  after: HeadRead,
+  before: HeadRead = { kind: HeadReadings.CURRENT },
+): SupersessionWatch {
+  const reads: HeadRead[] = [before, after];
   return {
     readHead: async () => reads.shift() ?? after,
     getObserved: () => ({ headSha: NEWER_HEAD }),
@@ -48,6 +53,7 @@ function stubWatchMovingTo(after: HeadRead): SupersessionWatch {
 async function listSyncedHeads(
   after: HeadRead,
   edit: EntryWrite = EntryWrites.WRITTEN,
+  before?: HeadRead,
 ): Promise<string[]> {
   const synced: string[] = [];
   await postGeneratingEntry(
@@ -55,7 +61,7 @@ async function listSyncedHeads(
       entryCommentManager: stubManager(edit),
       headSha: OWN_HEAD,
       log: captureLogger().logger,
-      watch: stubWatchMovingTo(after),
+      watch: stubWatchMovingTo(after, before),
       queueEntrySync: async (headSha) => {
         synced.push(headSha);
       },
@@ -126,10 +132,16 @@ describe("postGeneratingEntry after its write lands", () => {
     ]);
   });
 
-  it("queues its own head's sync when the head read fails", async () => {
-    const unread = { kind: HeadReadings.UNREAD, error: "timeout" } as const;
+  it("queues the newer head's sync when a held edit on an unread head lands", async () => {
+    const moved = { kind: HeadReadings.MOVED } as const;
 
-    expect(await listSyncedHeads(unread)).toEqual([OWN_HEAD]);
+    expect(
+      await listSyncedHeads(moved, EntryWrites.WRITTEN, UNREAD_HEAD),
+    ).toEqual([NEWER_HEAD]);
+  });
+
+  it("queues no sync when the head read after the write fails", async () => {
+    expect(await listSyncedHeads(UNREAD_HEAD)).toEqual([]);
   });
 
   it("queues no sync while the head stays current or the write left", async () => {
