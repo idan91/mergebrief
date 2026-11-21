@@ -3,8 +3,7 @@
 // kind raw, so a newer server's condition still shows.
 import { formatDisplayText } from "brief-core/hidden-chars";
 import { createI18n, describeUnmetCondition, sortUnmetConditions } from "i18n";
-import { GenerationStatuses } from "types/generations";
-import { UnmetConditionKinds } from "types/trigger-conditions";
+import { GenerationStatuses, UnmetConditionKinds } from "types";
 import {
   parseHeldItems,
   type HeldCondition,

@@ -7,17 +7,19 @@ import {
 } from "contract";
 import { ChunkLayoutBodySchema } from "brief-core/artifact";
 import { z } from "zod/v4";
-import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 import {
   BotStates,
   BotVerdicts,
+  GenerationFailureCodes,
+  GenerationStatuses,
+  PrStates,
   ReviewBots,
   SizeBoundSides,
   SizeMeasures,
   TriggerConditionKinds,
   TriggerConditionSetters,
   UnmetConditionKinds,
-} from "types/trigger-conditions";
+} from "types";
 
 import type { ForkPrStack } from "@web/features/brief/model";
 import {

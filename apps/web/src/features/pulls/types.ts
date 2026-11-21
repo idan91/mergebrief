@@ -5,19 +5,17 @@ import type {
   WaitReason,
 } from "contract";
 import type {
+  BotVerdict,
   GenerationFailureCode,
   GenerationStatus,
   GenerationUnitsParams,
   PrState,
-  ValueOf,
-} from "types";
-import type { ChunkLayoutBody } from "brief-core/chunk-layout";
-import type {
-  BotVerdict,
   UnmetBot,
   UnmetConditionKinds,
   UnmetPlainCondition,
-} from "types/trigger-conditions";
+  ValueOf,
+} from "types";
+import type { ChunkLayoutBody } from "brief-core/chunk-layout";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 
 import { WriteFailureKinds } from "../../data/request/types";
