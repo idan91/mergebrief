@@ -32,6 +32,7 @@ import {
   readLiveBodies,
   readRowStatus,
   REPO,
+  SECOND_ATTEMPT,
   setUpHarness,
   SMALL_DIFF,
   stubGenerator,
@@ -70,6 +71,26 @@ function failFirstRunningHeadRead(github: FakeGitHub, pr: PullRequestRow) {
         return refusingRepo.fetchPullRequest(prNumber);
       }
       return client.fetchPullRequest(prNumber);
+    },
+  }));
+}
+
+/** The first diff read fails transiently; every later one is served. */
+function failFirstDiffRead(github: FakeGitHub) {
+  const refusing = makeGitHub(HEAD_1);
+  refusing.failOn("fetchDiff", FakeFailures.SERVER_ERROR);
+  const refusingRepo = refusing
+    .bindInstallationGitHub(ctx.installationId)
+    .forRepo(PR_REF);
+  let failed = false;
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async fetchDiff(prNumber) {
+      if (!failed) {
+        failed = true;
+        return refusingRepo.fetchDiff(prNumber);
+      }
+      return client.fetchDiff(prNumber);
     },
   }));
 }
@@ -394,6 +415,28 @@ describe("generate task, trigger conditions", () => {
     );
     expect(stamped[0]?.["generate_requested_at"]).not.toBeNull();
     await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    const writes = listEntryWrites(github, before);
+    expect(writes[0]).toMatch(/^edit:/);
+    expect(writes.filter((call) => call === "post")).toHaveLength(1);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("edits a released hold's Entry on the retry after a failed attempt", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+    const before = listCommentCalls(github).length;
+
+    github.updatePullRequest(PR_REF, { draft: false });
+    failFirstDiffRead(github);
+    const task = makeTask({ github, triggerConditions: readyForReview });
+    await expect(task(payload, { job: FIRST_ATTEMPT })).rejects.toThrow("502");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.FAILED);
+    expect(listEntryWrites(github, before)).toEqual([]);
+    await task(payload, { job: SECOND_ATTEMPT });
 
     const writes = listEntryWrites(github, before);
     expect(writes[0]).toMatch(/^edit:/);
