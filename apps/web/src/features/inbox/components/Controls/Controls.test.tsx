@@ -217,6 +217,37 @@ describe("Controls", () => {
     expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
   });
 
+  it("keeps focus on the Held view when a poll empties it", () => {
+    function renderControls(heldView: HeldViewChoice) {
+      return (
+        <Controls
+          changedCount={0}
+          heldView={heldView}
+          filters={[makeFilter("review", "Review")]}
+          layout={makeFilter("layout", "View")}
+          direction={makeFilter("direction", "Order")}
+          sort={makeFilter("sort", "Sort")}
+          searchTextOverride={NO_OVERRIDE}
+          searchText=""
+          total={0}
+          onClear={vi.fn()}
+          onDropPendingSearch={vi.fn()}
+          onSearch={vi.fn()}
+        />
+      );
+    }
+    const { rerender } = render(renderControls(HELD_VIEW));
+    const all = screen.getByRole("radio", { name: "All" });
+    act(() => {
+      all.focus();
+    });
+
+    rerender(renderControls({ ...HELD_VIEW, count: 0, offered: false }));
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(all);
+  });
+
   it("the Held view stays out of the collapsed count, as search text does", () => {
     setMediaQueryMatches("(width < 760px)", true);
     render(
