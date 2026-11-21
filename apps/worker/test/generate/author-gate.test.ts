@@ -18,8 +18,8 @@ import {
   buildEntryCommentOnDemandBody,
 } from "../../src/task/entry-comment";
 import {
+  addSettings,
   BASE,
-  buildRepoFile,
   captureLogger,
   ctx,
   ENTRY_PR_VIEW,
@@ -80,15 +80,6 @@ function makeBotGitHub(headSha: string): FakeGitHub {
     authorIsBot: true,
   });
   return github;
-}
-
-function addSettings(github: FakeGitHub, content: string, ref?: string): void {
-  const file = buildRepoFile(content, "sha-settings");
-  if (ref === undefined) {
-    github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS }, file);
-    return;
-  }
-  github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS, ref }, file);
 }
 
 async function countAttempts(): Promise<number> {

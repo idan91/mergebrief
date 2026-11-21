@@ -10,7 +10,7 @@ import { FakeFailures, type FakeGitHub } from "github/testing";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
 import {
-  buildRepoFile,
+  addSettings,
   countStartedRuns,
   ctx,
   FIRST_ATTEMPT,
@@ -40,14 +40,6 @@ function makeInstanceConditions(block: unknown) {
     throw new Error(parsed.error.issues.join("; "));
   }
   return parsed.value;
-}
-
-function addSettings(github: ReturnType<typeof makeGitHub>, content: string) {
-  github.addRepoFile(
-    REPO,
-    { path: RepoConfigPaths.SETTINGS },
-    buildRepoFile(content, "sha-settings"),
-  );
 }
 
 async function readUnmet(pr: PullRequestRow) {
