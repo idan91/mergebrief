@@ -481,6 +481,80 @@ describe("wakeHeldHead", () => {
     expect(await readRunAt()).toEqual(before);
   });
 
+  it("keeps a waiting generate-large job's task and run_at", async () => {
+    const { pullRequestId } = await seedHeldHead();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set task_identifier = 'generate-large', run_at = now() + interval '1 hour'",
+    );
+    const readJobs = () =>
+      shared.harness.raw(
+        "select id, task_identifier, run_at from graphile_worker.jobs",
+      );
+    const before = await readJobs();
+
+    const outcome = await wake(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await readJobs()).toEqual(before);
+  });
+
+  it("queues a fresh job beside a failed head's job a retry has locked", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await wake(pullRequestId);
+
+    expect(outcome).toEqual({ queued: true });
+    expect(await countQueuedJobs(shared)).toBe(2);
+  });
+
+  it("leaves a pending head with no job alone", async () => {
+    const triggered = await trigger();
+    await clearQueue();
+
+    const outcome = await wake(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("leaves a pending head's unlocked waiting job unqueued", async () => {
+    const triggered = await trigger();
+
+    const outcome = await wake(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it.each([
+    ["with no job", true],
+    ["with an unlocked waiting job", false],
+  ])("leaves a failed head %s alone", async (_case, emptyQueue) => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+    if (emptyQueue) {
+      await clearQueue();
+    }
+    const before = await countQueuedJobs(shared);
+
+    const outcome = await wake(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(before);
+  });
+
   it("queues nothing for a head a run has claimed", async () => {
     const triggered = await trigger();
     const gen = createGenerationProjection(shared.handle, GATE_CTX);
