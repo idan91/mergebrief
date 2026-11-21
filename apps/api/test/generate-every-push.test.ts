@@ -278,6 +278,30 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/generate-every-push", () => {
     expect((await readHead(harness))?.["status"]).toBe(GenerationStatuses.HELD);
   });
 
+  it("refuses a pusher on an account the instance does not list", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID, accountId: 7070n });
+    await seedHeldHead(harness);
+    const listing = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+
+    const res = await listing.request(ON_PATH, {
+      method: "POST",
+      headers: await signIn(),
+    });
+
+    expect(res.status).toBe(403);
+    expect(await readCode(res)).toBe("account-not-allowed");
+    expect(await readSwitch(harness)).toEqual({ by: null, on: false });
+    expect((await readHead(harness))?.["status"]).toBe(GenerationStatuses.HELD);
+  });
+
   it("answers 404 for a repository in no installation", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
     await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
