@@ -174,7 +174,7 @@ async function owesCheckpointDelta(
 }
 
 /** A head a fact event may re-check: held, or pending or failed with a run in flight. */
-const WAKES_FOR_CHECK: ReadonlySet<GenerationStatus> = new Set([
+const RECHECKED_STATUSES: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.HELD,
   GenerationStatuses.PENDING,
   GenerationStatuses.FAILED,
@@ -242,15 +242,15 @@ async function hasQueuedGenerateJob(
 /**
  * Whether a fact event owes the head a fresh job. A job waiting unlocked
  * re-checks when it runs, whatever its task, and an `add_job` would rewrite a
- * `generate-large` job back to `generate`. Otherwise a held head wakes, and a
- * pending or failed one only while its run is in flight.
+ * `generate-large` job back to `generate`. Otherwise a held head is owed one,
+ * and a pending or failed one only while its run is in flight.
  */
-async function isWakeOwed(
+async function isRecheckOwed(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
   status: GenerationStatus,
 ): Promise<boolean> {
-  if (!WAKES_FOR_CHECK.has(status)) {
+  if (!RECHECKED_STATUSES.has(status)) {
     return false;
   }
   const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
@@ -258,8 +258,9 @@ async function isWakeOwed(
     return false;
   }
 
-  const wakeOwed = status === GenerationStatuses.HELD || job?.locked === true;
-  return wakeOwed;
+  const recheckOwed =
+    status === GenerationStatuses.HELD || job?.locked === true;
+  return recheckOwed;
 }
 
 /**
@@ -584,7 +585,7 @@ export interface IngestRoutines {
    * under the pull request's row lock; any other status, a closed or merged
    * PR, an owner scope and a PR outside the scope queue nothing.
    */
-  wakeHeldHead(input: WakeHeldHeadInput): Promise<RequeueOutcome>;
+  recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
    * A pusher's fresh run of the PR's current head, claims reset and the job
    * queued a few seconds out over a waiting one (a locked job's key detaches,
@@ -636,7 +637,7 @@ export interface ReleaseApprovedHoldInput {
   readonly headSha: string;
 }
 
-export interface WakeHeldHeadInput {
+export interface RecheckCurrentHeadInput {
   readonly pullRequestId: PullRequestRowId;
 }
 
@@ -941,7 +942,7 @@ export function createIngestRoutines(
       });
     },
 
-    async wakeHeldHead(input) {
+    async recheckCurrentHead(input) {
       if (scope.ownerUserId !== null) {
         return { queued: false };
       }
@@ -955,7 +956,7 @@ export function createIngestRoutines(
         const head = await readCurrentBriefHead(tx, scope, pullRequestId);
         const owed =
           head !== undefined &&
-          (await isWakeOwed(tx, pullRequestId, head.row.status));
+          (await isRecheckOwed(tx, pullRequestId, head.row.status));
         if (!owed) {
           return { queued: false };
         }
