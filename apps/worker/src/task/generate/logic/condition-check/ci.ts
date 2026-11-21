@@ -82,7 +82,7 @@ function listPinnedOutcomes(
   appId: bigint,
 ): CheckOutcome[] {
   const appRuns = reports.checkRuns.filter((run) => run.appId === appId);
-  const run = findLatestRun(appRuns, name);
+  const run = findLatestRun(appRuns, (listed) => listed.name === name);
   if (run !== undefined) {
     return [readRunOutcome(run)];
   }
