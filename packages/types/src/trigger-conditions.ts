@@ -39,3 +39,11 @@ export const TriggerConditionSources = {
   INSTANCE: "instance",
 } as const;
 export type TriggerConditionSource = ValueOf<typeof TriggerConditionSources>;
+
+/** What a `size` condition bounds. */
+export const SizeMeasures = {
+  CHANGED_LINES: "changed-lines",
+  ADDITIONS: "additions",
+  DELETIONS: "deletions",
+} as const;
+export type SizeMeasure = ValueOf<typeof SizeMeasures>;

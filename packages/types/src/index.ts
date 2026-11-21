@@ -112,10 +112,12 @@ export { TicketTrackers, type TicketTracker } from "./trackers";
 export {
   BotVerdicts,
   ReviewBots,
+  SizeMeasures,
   TriggerConditionKinds,
   TriggerConditionSources,
   type BotVerdict,
   type ReviewBot,
+  type SizeMeasure,
   type TriggerConditionKind,
   type TriggerConditionSource,
 } from "./trigger-conditions";
