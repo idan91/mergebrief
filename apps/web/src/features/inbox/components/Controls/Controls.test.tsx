@@ -26,6 +26,7 @@ const NO_OVERRIDE = { count: 0, text: "" };
 const HELD_VIEW: HeldViewChoice = {
   value: "all",
   count: 2,
+  offered: true,
   onChoose: vi.fn(),
 };
 
@@ -193,6 +194,27 @@ describe("Controls", () => {
       fireEvent.click(held);
     });
     expect(onChoose).toHaveBeenCalledWith("held");
+  });
+
+  it("hides the Held view while nothing is held", () => {
+    render(
+      <Controls
+        changedCount={0}
+        heldView={{ ...HELD_VIEW, count: 0, offered: false }}
+        filters={[makeFilter("review", "Review")]}
+        layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
+        sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
+        onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
   });
 
   it("the Held view stays out of the collapsed count, as search text does", () => {

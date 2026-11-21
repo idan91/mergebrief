@@ -238,12 +238,11 @@ export function useControlsFacade(
     },
   };
 
+  const viewingHeld = choices.generation === InboxGenerationFilters.HELD;
   const heldView: HeldViewChoice = {
-    value:
-      choices.generation === InboxGenerationFilters.HELD
-        ? HeldViewOptions.HELD
-        : HeldViewOptions.ALL,
+    value: viewingHeld ? HeldViewOptions.HELD : HeldViewOptions.ALL,
     count: page.heldTotal,
+    offered: viewingHeld || page.heldTotal > 0,
     onChoose: (option) => {
       const heldOnly = option === HeldViewOptions.HELD;
       write({ generation: heldOnly ? InboxGenerationFilters.HELD : undefined });

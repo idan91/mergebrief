@@ -34,6 +34,8 @@ export interface HeldViewChoice {
   readonly value: HeldViewOption;
   /** Held rows of the view under every other filter. */
   readonly count: number;
+  /** Shown while a row is held or the Held view is open, so it can always be left. */
+  readonly offered: boolean;
   readonly onChoose: (option: HeldViewOption) => void;
 }
 
