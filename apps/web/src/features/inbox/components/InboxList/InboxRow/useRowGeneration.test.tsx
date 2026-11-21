@@ -41,6 +41,7 @@ function makeItem(
     viewerIsAuthor: false,
     viewerCanDelete: false,
     viewerCanPush: false,
+    generateEveryPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,

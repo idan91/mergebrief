@@ -409,12 +409,13 @@ export interface GenerationProjection {
   /**
    * Reflect `held`: a trigger condition is unmet, `unmetConditions` names
    * every one. Moves only a `pending`, `held` or `failed` row (a retry starts
-   * from `failed`) no live lease holds and no Generate click stamped, with a
-   * fresh claim budget, under the pull request's row lock a click also
-   * takes, so a click either lands first and wins or releases the hold after
-   * it. A stamped or kept-status row answers `status-kept`, any other refused
-   * row `claim-lost`. Not a failure: `attempts` is untouched. A list or name
-   * past the stored bounds is cut, never refused.
+   * from `failed`) no live lease holds and no Generate click stamped, of a PR
+   * not generating on every push, with a fresh claim budget, under the pull
+   * request's row lock a click and the switch also take, so either lands
+   * first and wins or releases the hold after it. A stamped or kept-status
+   * row, or one whose PR generates on every push, answers `status-kept`, any
+   * other refused row `claim-lost`. Not a failure: `attempts` is untouched.
+   * A list or name past the stored bounds is cut, never refused.
    */
   markHeld(
     target: GenerationTarget,
@@ -1301,7 +1302,10 @@ export function createGenerationProjection(
     const document = JSON.stringify(UnmetConditionsSchema.parse(stored));
     return db.transaction(async (tx) => {
       const locked = await tx
-        .select({ id: pullRequest.id })
+        .select({
+          id: pullRequest.id,
+          everyPushAt: pullRequest.generateEveryPushAt,
+        })
         .from(pullRequest)
         .where(
           and(
@@ -1313,6 +1317,12 @@ export function createGenerationProjection(
         .for("update");
       if (locked[0] === undefined) {
         return failClaimLost(target);
+      }
+      if (locked[0].everyPushAt !== null) {
+        return fail(
+          GenerationErrorCodes.STATUS_KEPT,
+          `pull request ${target.pullRequestId} generates on every push`,
+        );
       }
 
       const holdable = and(

@@ -14,6 +14,7 @@ export const wireInboxPageFixture = {
       viewerIsAuthor: false,
       viewerCanDelete: false,
       viewerCanPush: false,
+      generateEveryPush: false,
       reviewState: "new",
       behind: false,
       unreachable: false,

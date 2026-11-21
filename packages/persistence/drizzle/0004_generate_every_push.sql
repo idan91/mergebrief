@@ -1,0 +1,3 @@
+ALTER TABLE "pull_request" ADD COLUMN "generate_every_push_by" bigint;--> statement-breakpoint
+ALTER TABLE "pull_request" ADD COLUMN "generate_every_push_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "pull_request" ADD CONSTRAINT "pull_request_generate_every_push_shape" CHECK (("pull_request"."generate_every_push_by" is null) = ("pull_request"."generate_every_push_at" is null));

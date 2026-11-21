@@ -13,6 +13,8 @@ export interface MenuItemProps {
   onSelect: () => void;
   /** A row that states a choice, one of several: a radio row, and the menu stays open. */
   checked?: boolean;
+  /** With `checked`, the row turns one setting on or off instead: a checkbox row. */
+  toggles?: boolean;
   /** A mark before the label. */
   glyph?: ReactNode;
   disabled?: boolean;
@@ -24,11 +26,25 @@ export interface MenuItemProps {
   lang?: string | undefined;
 }
 
-/** One action row: `menuitem`, or `menuitemradio` when it carries `checked`. */
+function readItemRole(
+  stating: boolean,
+  toggles: boolean,
+): "menuitem" | "menuitemradio" | "menuitemcheckbox" {
+  if (!stating) {
+    return "menuitem";
+  }
+  if (toggles) {
+    return "menuitemcheckbox";
+  }
+  return "menuitemradio";
+}
+
+/** One action row: `menuitem`, or `menuitemradio` when it carries `checked`, `menuitemcheckbox` when it also `toggles`. */
 export function MenuItem({
   children,
   onSelect,
   checked,
+  toggles = false,
   glyph,
   disabled = false,
   unavailableReason,
@@ -70,7 +86,7 @@ export function MenuItem({
       }
     },
   });
-  const role = stating ? "menuitemradio" : "menuitem";
+  const role = readItemRole(stating, toggles);
   const label = (
     <span className={clsx(itemStyles["label"], styles["label"])}>
       {children}

@@ -252,6 +252,16 @@
         "stale": "This push is no longer held."
       }
     },
+    "everyPush": {
+      "label": "Generate on every push",
+      "hint": "Generates this push now, and every later push on this pull request, whatever its conditions.",
+      "turnedOn": "Every push on this pull request now generates a brief.",
+      "turnedOff": "Pushes on this pull request wait for their conditions again.",
+      "notAllowed": "Changing this needs push access to this repository and the MergeBrief App installed on it.",
+      "unauthorized": "Your session expired. Sign in again to change this.",
+      "upstream": "MergeBrief could not save this. Try again in a moment.",
+      "indeterminate": "MergeBrief could not confirm this was saved. Reload to see where it stands."
+    },
     "superseded": {
       "heading": "A newer revision is on the way",
       "copy": "This push was superseded before its brief finished; the newest push is briefed as usual.",

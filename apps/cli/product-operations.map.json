@@ -230,6 +230,18 @@
   "submit-review": {
     "command": "mergebrief submit <number>"
   },
+  "turn-off-generate-every-push": {
+    "webOnly": {
+      "reason": "A person's choice from a signed-in browser: turning it on can release a held head into a paid run, the same human-only bar as a Trigger approval, so a token never sets it; `mergebrief pr <number>` shows when it is on",
+      "owner": "maintainer"
+    }
+  },
+  "turn-on-generate-every-push": {
+    "webOnly": {
+      "reason": "A person's choice from a signed-in browser: turning it on can release a held head into a paid run, the same human-only bar as a Trigger approval, so a token never sets it; `mergebrief pr <number>` shows when it is on",
+      "owner": "maintainer"
+    }
+  },
   "unarchive-pull": {
     "webOnly": {
       "reason": "Unarchiving is a Home affordance over the archived view; the CLI has no list to restore to",

@@ -6,7 +6,7 @@
 // within the scope in the same transaction, and every READ filters on the
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { checkpoint } from "../schema/checkpoint";
@@ -192,6 +192,16 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
     input: PullRequestStackInput,
   ): Promise<PullRequestRow | undefined>;
+  /**
+   * Turn off generating on every push: later pushes face the trigger
+   * conditions again, and a head already queued, running or generated is
+   * left as it is. A row already off writes nothing, `row_version`
+   * included, and is returned as it is. `undefined` if no row in ctx's
+   * scope. Turning it on is ingest's, since it may release a held head.
+   */
+  turnOffGenerateEveryPush(
+    pullRequestId: PullRequestRowId,
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -254,6 +264,44 @@ export async function approvePullRequestTrigger(
     .returning();
   if (approved[0] !== undefined) {
     return approved[0];
+  }
+
+  const current = await executor
+    .select()
+    .from(pullRequest)
+    .where(inScope)
+    .limit(1);
+  return current[0];
+}
+
+/**
+ * Record who turned on generating on every push. The first stamp stands: a
+ * later call writes nothing, `row_version` included, and returns the row as
+ * it is. `undefined` if no row in scope. Ingest runs it inside its own
+ * transaction, under the pull request's row lock.
+ */
+export async function turnOnPullRequestEveryPush(
+  executor: Pick<ReturnType<typeof internal>, "update" | "select">,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  userId: ReviewerId,
+): Promise<PullRequestRow | undefined> {
+  const inScope = and(
+    scope.matchesPullRequest(),
+    eq(pullRequest.id, pullRequestId),
+  );
+  const turnedOn = await executor
+    .update(pullRequest)
+    .set({
+      generateEveryPushBy: userId,
+      generateEveryPushAt: sql`now()`,
+      rowVersion: buildNextRowVersion(),
+      updatedAt: new Date(),
+    })
+    .where(and(inScope, isNull(pullRequest.generateEveryPushAt)))
+    .returning();
+  if (turnedOn[0] !== undefined) {
+    return turnedOn[0];
   }
 
   const current = await executor
@@ -411,6 +459,33 @@ export function createTenantRepository(
         )
         .returning();
       return rows[0];
+    },
+
+    async turnOffGenerateEveryPush(pullRequestId) {
+      const inScope = and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.id, pullRequestId),
+      );
+      const turnedOff = await db
+        .update(pullRequest)
+        .set({
+          generateEveryPushBy: null,
+          generateEveryPushAt: null,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
+        .where(and(inScope, isNotNull(pullRequest.generateEveryPushAt)))
+        .returning();
+      if (turnedOff[0] !== undefined) {
+        return turnedOff[0];
+      }
+
+      const current = await db
+        .select()
+        .from(pullRequest)
+        .where(inScope)
+        .limit(1);
+      return current[0];
     },
   };
 

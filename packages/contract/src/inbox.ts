@@ -80,6 +80,8 @@ export interface InboxItem {
    * on a url row.
    */
   readonly viewerCanPush: boolean;
+  /** Every push of this PR generates, trigger conditions or not; false on a url row. */
+  readonly generateEveryPush: boolean;
   /** Null for the viewer's own pull requests. */
   readonly reviewState: InboxReviewState | null;
   /** GitHub reports a head the latest brief does not cover. */
