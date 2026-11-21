@@ -542,12 +542,12 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
-   * A pusher's fresh run of the PR's current head: projected `pending` with
-   * its claims reset, and the job queued a few seconds out, replacing a
-   * waiting one; a locked job gets its key detached, as on a push. A head
-   * awaiting its trigger also records the approver's Trigger approval in the
-   * same transaction, and is refused when the caller named none; a failed
-   * head records none. A closed or merged PR, an in-flight head, any other
+   * A pusher's fresh run of the PR's current head, claims reset and the job
+   * queued a few seconds out over a waiting one (a locked job's key detaches,
+   * as on a push). A held head is released to `pending` with its conditions
+   * cleared, and every queued head gets the Generate stamp. A head awaiting its
+   * trigger also records the approver's Trigger approval, and is refused when
+   * the caller named none. A closed or merged PR, an in-flight head, any other
    * status, a cannot-help failure, a failed head whose brief is stored, and a
    * PR outside an installation scope write nothing.
    */
