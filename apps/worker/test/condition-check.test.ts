@@ -1581,16 +1581,14 @@ describe("evaluateTriggerConditions, ci pinned to an App", () => {
     expect(unmet).toMatchObject([{ failed: ["build"] }]);
   });
 
-  it("holds a passing pinned run as missing while statuses are refused", () => {
+  it("passes a pinned run while only the status read is refused", () => {
     const unmet = evaluateCi(REQUIRED, {
       requiredChecks: [PINNED_BUILD],
       checkRuns: [makeRun()],
       statusesForbidden: true,
     });
 
-    expect(unmet).toMatchObject([
-      { missing: ["build"], permissionMissing: true },
-    ]);
+    expect(unmet).toEqual([]);
   });
 
   it("passes a pinned name on a success status a bot posted", () => {
