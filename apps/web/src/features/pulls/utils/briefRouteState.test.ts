@@ -263,7 +263,7 @@ describe("deriveBriefRouteState", () => {
   });
 
   it("a held head reads its own state with its unmet conditions", () => {
-    const ready = { kind: "ready-for-review", source: "repo" } as const;
+    const ready = { kind: "ready-for-review", setBy: "repo" } as const;
     const held = meta({
       generation: generation({ status: "held", unmetConditions: [ready] }),
     });
@@ -277,7 +277,7 @@ describe("deriveBriefRouteState", () => {
   });
 
   it("a held head whose list was read in part says so", () => {
-    const ready = { kind: "ready-for-review", source: "repo" } as const;
+    const ready = { kind: "ready-for-review", setBy: "repo" } as const;
     const held = meta({
       generation: generation({
         status: "held",

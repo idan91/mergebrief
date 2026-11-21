@@ -27,10 +27,10 @@ export function stubQueryClient(): QueryClient {
 
 /** One unmet condition of each shape the held display words differently. */
 export const UnmetFixtures = {
-  READY_FOR_REVIEW: { kind: "ready-for-review", source: "instance" },
+  READY_FOR_REVIEW: { kind: "ready-for-review", setBy: "instance" },
   CI_RUNNING: {
     kind: "ci",
-    source: "repo",
+    setBy: "repo",
     failed: [],
     running: ["build", "e2e"],
     missing: [],
@@ -38,7 +38,7 @@ export const UnmetFixtures = {
   },
   CI_FAILED: {
     kind: "ci",
-    source: "repo",
+    setBy: "repo",
     failed: ["test"],
     running: ["e2e"],
     missing: [],
@@ -46,27 +46,27 @@ export const UnmetFixtures = {
   },
   BOT_RUNNING: {
     kind: "bots",
-    source: "repo",
+    setBy: "repo",
     bot: "coderabbit",
     verdict: "finished",
     state: "running",
   },
   BOT_NOT_APPROVED: {
     kind: "bots",
-    source: "repo",
+    setBy: "repo",
     bot: "coderabbit",
     verdict: "approved",
     state: "not-approved",
   },
   SIZE_OVER: {
     kind: "size",
-    source: "instance",
-    count: "changed-lines",
+    setBy: "instance",
+    measure: "changed-lines",
     side: "max",
     limit: 800,
     actual: 1284,
   },
-  LABELS: { kind: "labels", source: "repo", labels: ["needs-brief"] },
+  LABELS: { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
 } as const satisfies Record<string, UnmetPlainCondition>;
 
 /** An `any` group none of whose members passed. */
