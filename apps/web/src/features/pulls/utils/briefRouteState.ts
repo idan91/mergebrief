@@ -170,10 +170,11 @@ export function deriveBriefRouteState(
     case GenerationStatuses.AWAITING_TRIGGER:
       return { kind: "awaiting-trigger" };
     case GenerationStatuses.SUCCEEDED:
+    case GenerationStatuses.HELD:
     case UnknownValues.UNKNOWN:
-      // Succeeded without a readable artifact, or a status this bundle
-      // predates: not a failure and nothing known to be coming, so the
-      // empty/activation state.
+      // Succeeded without a readable artifact, a held head (its card lands
+      // with the held display), or a status this bundle predates: not a
+      // failure and nothing known to be coming, so the empty state.
       return { kind: "empty" };
   }
 }

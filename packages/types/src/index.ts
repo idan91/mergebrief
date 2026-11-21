@@ -110,14 +110,22 @@ export {
 } from "./comparisons";
 export { TicketTrackers, type TicketTracker } from "./trackers";
 export {
+  BotStates,
   BotVerdicts,
   ReviewBots,
+  SizeBoundSides,
   SizeMeasures,
   TriggerConditionKinds,
   TriggerConditionSetters,
+  UnmetConditionKinds,
+  type BotState,
   type BotVerdict,
   type ReviewBot,
+  type SizeBoundSide,
   type SizeMeasure,
   type TriggerConditionKind,
   type TriggerConditionSetter,
+  type UnmetCondition,
+  type UnmetConditionKind,
+  type UnmetPlainCondition,
 } from "./trigger-conditions";

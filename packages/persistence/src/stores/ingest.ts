@@ -20,6 +20,7 @@ import {
   projectPendingGeneration,
   readCurrentBriefHead,
   releaseAwaitingTrigger,
+  releaseHeldHead,
   stampBriefTriggered,
   type GenerationRow,
   type ProjectedGeneration,
@@ -174,6 +175,7 @@ async function owesCheckpointDelta(
 const WAITS_FOR_JOB: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.PENDING,
   GenerationStatuses.AWAITING_TRIGGER,
+  GenerationStatuses.HELD,
 ]);
 
 /**
@@ -372,6 +374,9 @@ async function findTriggerOnDemandRefusal(
     return TriggerOnDemandOutcomes.RUNNING;
   }
   if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
+    return undefined;
+  }
+  if (head.row.status === GenerationStatuses.HELD) {
     return undefined;
   }
   const failed = head.row.status === GenerationStatuses.FAILED;
@@ -947,14 +952,26 @@ export function createIngestRoutines(
         }
 
         const { headSha } = head.row;
-        const projected = await projectPendingGeneration(tx, scope, {
-          pullRequestId,
-          kind: GenerationKinds.BRIEF,
-          headSha,
-          baselineSha: null,
-        });
-        if (projected.inFlight) {
-          return TriggerOnDemandOutcomes.RUNNING;
+        if (head.row.status === GenerationStatuses.HELD) {
+          const released = await releaseHeldHead(
+            tx,
+            scope,
+            pullRequestId,
+            headSha,
+          );
+          if (!released) {
+            return TriggerOnDemandOutcomes.RUNNING;
+          }
+        } else {
+          const projected = await projectPendingGeneration(tx, scope, {
+            pullRequestId,
+            kind: GenerationKinds.BRIEF,
+            headSha,
+            baselineSha: null,
+          });
+          if (projected.inFlight) {
+            return TriggerOnDemandOutcomes.RUNNING;
+          }
         }
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {
