@@ -1,7 +1,6 @@
 import {
   type EffectiveTriggerConditions,
   type SizeBounds,
-  type SizeSetting,
   type EffectiveCondition,
   type TriggerConditionValues,
 } from "generators/trigger-conditions";
@@ -72,21 +71,22 @@ function checkNever({
 /** Both bounds are inclusive. */
 function findMissedBounds(bounds: SizeBounds, actual: number): MissedBound[] {
   const missed: MissedBound[] = [];
-  if (bounds.min !== undefined && actual < bounds.min) {
+  const belowMin = bounds.min !== undefined && actual < bounds.min;
+  const aboveMax = bounds.max !== undefined && actual > bounds.max;
+  if (belowMin) {
     missed.push({ side: SizeBoundSides.MIN, limit: bounds.min });
   }
-  if (bounds.max !== undefined && actual > bounds.max) {
+  if (aboveMax) {
     missed.push({ side: SizeBoundSides.MAX, limit: bounds.max });
   }
   return missed;
 }
 
 function listMissedSizeBounds(
-  setting: SizeSetting,
   measure: SizeMeasure,
   input: KindCheckInput<typeof TriggerConditionKinds.SIZE>,
 ): UnmetPlainCondition[] {
-  const bounds = setting[measure];
+  const bounds = input.value[measure];
   if (bounds === undefined) {
     return [];
   }
@@ -108,7 +108,7 @@ function checkSize(
 ): UnmetPlainCondition[] {
   const measures = Object.values(SizeMeasures);
   return measures.flatMap((measure) =>
-    listMissedSizeBounds(input.value, measure, input),
+    listMissedSizeBounds(measure, input),
   );
 }
 
