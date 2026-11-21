@@ -5,6 +5,7 @@ import {
   type ReviewVerdictState,
 } from "types/conversation";
 import type { Mutable, Result } from "types/utils";
+import { safeIdSchema } from "../ids";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -23,8 +24,6 @@ export interface SubmittedReview {
   /** The head the review was submitted against. */
   readonly commitId?: string;
 }
-
-const safeIdSchema = z.number().refine(Number.isSafeInteger);
 
 const reviewEntrySchema = z.object({
   id: safeIdSchema,

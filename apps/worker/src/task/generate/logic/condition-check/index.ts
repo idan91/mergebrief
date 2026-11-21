@@ -15,9 +15,7 @@ import {
   type TriggerConditionSetting,
 } from "generators/trigger-conditions";
 import {
-  ReviewBots,
   TriggerConditionKinds,
-  type ReviewBot,
   type TriggerConditionKind,
 } from "types/trigger-conditions";
 import type { Mutable, Result } from "types/utils";
@@ -35,6 +33,7 @@ import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
 import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts, HeadReports } from "./types";
+import { isReviewBot } from "./utils";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
@@ -72,10 +71,6 @@ function isKindConfigured(
  * A bot with an App reports by check run or status. Copilot reports only by
  * review, so a `bots` condition naming it alone reads neither.
  */
-const REVIEW_BOT_NAMES: ReadonlySet<string> = new Set(
-  Object.values(ReviewBots),
-);
-
 function isAppBotConfigured(effective: EffectiveTriggerConditions): boolean {
   return listSettings(effective).some((setting) => {
     if (setting.kind !== TriggerConditionKinds.BOTS) {
@@ -84,10 +79,6 @@ function isAppBotConfigured(effective: EffectiveTriggerConditions): boolean {
     const bots = Object.keys(setting.value).filter(isReviewBot);
     return bots.some((bot) => REVIEW_BOT_ACCOUNTS[bot].appId !== undefined);
   });
-}
-
-function isReviewBot(value: string): value is ReviewBot {
-  return REVIEW_BOT_NAMES.has(value);
 }
 
 function isRulesetRead(effective: EffectiveTriggerConditions): boolean {
