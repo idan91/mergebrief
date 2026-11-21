@@ -105,8 +105,8 @@ function isRulesetRead(effective: EffectiveTriggerConditions): boolean {
  * Only a `paths` condition that can decide the verdict reads the file list
  * this early, and not in a run about to move to the large pool: unread paths
  * read as met, so that run routes and the large pool's run reads the list
- * once and decides. A failure classifies as the run's own later read would:
- * a transient one retries before any hold, so no head is held on a list it
+ * once and decides. A failure classifies as the run's own later read would: a
+ * transient one retries before any hold, so no head is held on a list it
  * never saw.
  */
 async function readCheckedFiles(
@@ -120,6 +120,13 @@ async function readCheckedFiles(
     return undefined;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
+}
+
+function listPreviousPath(file: PullRequestFile): string[] {
+  if (file.previousPath === undefined) {
+    return [];
+  }
+  return [file.previousPath];
 }
 
 const NO_REPORTS: HeadReports = {
@@ -219,6 +226,7 @@ function readConditionFacts(
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
     changedPaths: files?.map((file) => file.path),
+    previousPaths: files?.flatMap(listPreviousPath),
     reports,
   };
   if (prInfo.baseRef !== undefined) {
