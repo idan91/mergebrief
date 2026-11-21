@@ -44,6 +44,8 @@ export interface InboxGeneration {
   updatedAt: string;
   /** A held head's unmet conditions, each kind this bundle reads; absent on every other status. */
   unmetConditions?: readonly HeldCondition[];
+  /** The held list left out an item, or an `any` group member, this bundle predates. */
+  unmetConditionsPartial?: true;
 }
 
 /** The row's place in its stack, 1-based. */

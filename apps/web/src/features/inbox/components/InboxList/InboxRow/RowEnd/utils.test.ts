@@ -96,6 +96,19 @@ describe("readGenerationSignal", () => {
     });
   });
 
+  it("reads Held, never Waiting, when the list was read in part", () => {
+    const generation = {
+      status: "held",
+      updatedAt: "2026-09-20T10:00:00Z",
+      unmetConditions: [UnmetFixtures.CI_RUNNING],
+      unmetConditionsPartial: true,
+    } as const;
+
+    expect(readGenerationSignal(generation, "open")?.kind).toBe(
+      RowSignalKinds.HELD,
+    );
+  });
+
   it("reads Held, never Waiting, when no condition is known", () => {
     const generation = { status: "held", updatedAt: "2026-09-20" } as const;
 
