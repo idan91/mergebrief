@@ -2,18 +2,15 @@
 // words it, every check named. An item this build does not know prints its
 // kind raw, so a newer server's condition still shows.
 import { formatDisplayText } from "brief-core/hidden-chars";
-import {
-  createI18n,
-  describeUnmetCondition,
-  sortUnmetConditions,
-} from "i18n";
+import { createI18n, describeUnmetCondition, sortUnmetConditions } from "i18n";
 import { GenerationStatuses } from "types/generations";
+import { UnmetConditionKinds } from "types/trigger-conditions";
 import {
-  UnmetConditionKinds,
-  type UnmetCondition,
-  type UnmetPlainCondition,
-} from "types/trigger-conditions";
-import { parseHeldItems, type HeldItem } from "./held-items";
+  parseHeldItems,
+  type HeldCondition,
+  type HeldItem,
+  type HeldPlainCondition,
+} from "./held-items";
 
 const { t } = createI18n();
 
@@ -22,7 +19,7 @@ function formatNames(names: readonly string[]): string {
   return names.map(formatDisplayText).join(", ");
 }
 
-function describeConditionWithSetBy(condition: UnmetPlainCondition): string[] {
+function describeConditionWithSetBy(condition: HeldPlainCondition): string[] {
   const setBy = t(`triggerCondition.setBy.${condition.setBy}`);
   const reasons = describeUnmetCondition(condition, {
     t,
@@ -35,15 +32,17 @@ function describeConditionWithSetBy(condition: UnmetPlainCondition): string[] {
   );
 }
 
-function describeKnownItem(condition: UnmetCondition): string[] {
+function describeKnownItem(condition: HeldCondition): string[] {
   if (condition.kind !== UnmetConditionKinds.ANY) {
     return describeConditionWithSetBy(condition);
   }
-  const members = condition.conditions.flatMap(describeConditionWithSetBy);
+  const known = condition.conditions.flatMap(describeConditionWithSetBy);
+  const raw = condition.rawKinds.map(formatDisplayText);
+  const members = [...known, ...raw];
   return [`${t("triggerCondition.anyGroup")} ${members.join(" or ")}`];
 }
 
-function listKnownConditions(items: readonly HeldItem[]): UnmetCondition[] {
+function listKnownConditions(items: readonly HeldItem[]): HeldCondition[] {
   return items.flatMap((item) =>
     item.known === undefined ? [] : [item.known],
   );
