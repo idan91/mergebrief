@@ -1,5 +1,4 @@
 import { resolveEffectiveTriggerConditions } from "generators/trigger-conditions";
-import { GenerationStatuses } from "types/generations";
 import {
   acquireRepoConfig,
   type AcquiredRepoConfig,
@@ -9,7 +8,7 @@ import {
   type ConditionCheckOutcome,
   type RunContext,
 } from "../../types";
-import { throwOnRetryableSettingsRead } from "../author-gate";
+import { isGateable, retrySettingsReadWhileAttemptsLeft } from "../run-gates";
 import { evaluateTriggerConditions } from "./evaluate";
 import type { ConditionFacts } from "./types";
 
@@ -21,21 +20,12 @@ function buildProceedOutcome(
   return { kind: ConditionCheckKinds.PROCEED, repoConfig };
 }
 
-/**
- * A url-box job is the viewer's own paste, a recovery run or a stored
- * brief's run already passed, a succeeded row has nothing to hold, and a
- * Generate click stamped its head to skip the conditions.
- */
+/** A gateable run, unless a Generate click stamped its head to skip the conditions. */
 function isCheckable(context: RunContext): boolean {
-  const { payload, recovering, existingBrief, projected } = context;
+  const { projected } = context;
   const stamped =
     projected !== undefined && projected.generateRequestedAt !== null;
-  const checkable =
-    payload.grantId === undefined &&
-    !recovering &&
-    existingBrief === undefined &&
-    projected?.status !== GenerationStatuses.SUCCEEDED &&
-    !stamped;
+  const checkable = isGateable(context) && !stamped;
   return checkable;
 }
 
@@ -62,7 +52,7 @@ export async function applyConditionCheck(
 
   const { deps, source, log, projection, target } = context;
   const repoConfig = gateRepoConfig ?? (await acquireRepoConfig(source, log));
-  throwOnRetryableSettingsRead(context, repoConfig);
+  retrySettingsReadWhileAttemptsLeft(context, repoConfig);
   const effective = resolveEffectiveTriggerConditions(
     deps.triggerConditions,
     repoConfig.settings?.triggerConditions,
