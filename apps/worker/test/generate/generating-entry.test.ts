@@ -1,6 +1,7 @@
 // The large run's generating Entry estimate: one call alone, the rest across
-// the detail lanes, rounded to five minutes and never under five. And the
-// held edit on an unread head, logged only when it lands.
+// the detail lanes, rounded to five minutes and never under five. The held
+// edit on an unread head, logged only when it lands, and the newer head's
+// sync when the edit lands after the head moved.
 import { describe, expect, it } from "vitest";
 import {
   estimateMultiCallMinutes,
@@ -11,6 +12,7 @@ import {
   HeadReadings,
   type EntryCommentManager,
   type EntryWrite,
+  type HeadRead,
   type SupersessionWatch,
 } from "../../src/task/generate/types";
 import { captureLogger } from "./helpers";
@@ -25,8 +27,42 @@ function stubUnreadWatch(): SupersessionWatch {
 function stubManager(edit: EntryWrite): EntryCommentManager {
   return {
     editMatching: async () => edit,
+    editOrRefresh: async () => edit,
     replace: async () => EntryWrites.LEFT,
   } as unknown as EntryCommentManager;
+}
+
+const OWN_HEAD = "a".repeat(40);
+const NEWER_HEAD = "b".repeat(40);
+
+/** The pre-write read finds the run's head; the next one finds `after`. */
+function stubWatchMovingTo(after: HeadRead): SupersessionWatch {
+  const reads: HeadRead[] = [{ kind: HeadReadings.CURRENT }, after];
+  return {
+    readHead: async () => reads.shift() ?? after,
+    getObserved: () => ({ headSha: NEWER_HEAD }),
+    isPinned: () => false,
+  } as unknown as SupersessionWatch;
+}
+
+async function listSyncedHeads(
+  after: HeadRead,
+  edit: EntryWrite = EntryWrites.WRITTEN,
+): Promise<string[]> {
+  const synced: string[] = [];
+  await postGeneratingEntry(
+    {
+      entryCommentManager: stubManager(edit),
+      headSha: OWN_HEAD,
+      log: captureLogger().logger,
+      watch: stubWatchMovingTo(after),
+      queueEntrySync: async (headSha) => {
+        synced.push(headSha);
+      },
+    },
+    "generating",
+  );
+  return synced;
 }
 
 async function postHeldEditOnUnreadHead(edit: EntryWrite): Promise<string[]> {
@@ -34,9 +70,10 @@ async function postHeldEditOnUnreadHead(edit: EntryWrite): Promise<string[]> {
   await postGeneratingEntry(
     {
       entryCommentManager: stubManager(edit),
-      headSha: "a".repeat(40),
+      headSha: OWN_HEAD,
       log: logger,
       watch: stubUnreadWatch(),
+      queueEntrySync: async () => {},
     },
     "generating",
   );
@@ -80,4 +117,26 @@ describe("postGeneratingEntry on an unread head", () => {
       );
     },
   );
+});
+
+describe("postGeneratingEntry after its write lands", () => {
+  it("queues the newer head's sync when the head moved meanwhile", async () => {
+    expect(await listSyncedHeads({ kind: HeadReadings.MOVED })).toEqual([
+      NEWER_HEAD,
+    ]);
+  });
+
+  it("queues its own head's sync when the head read fails", async () => {
+    const unread = { kind: HeadReadings.UNREAD, error: "timeout" } as const;
+
+    expect(await listSyncedHeads(unread)).toEqual([OWN_HEAD]);
+  });
+
+  it("queues no sync while the head stays current or the write left", async () => {
+    const current = { kind: HeadReadings.CURRENT } as const;
+    const moved = { kind: HeadReadings.MOVED } as const;
+
+    expect(await listSyncedHeads(current)).toEqual([]);
+    expect(await listSyncedHeads(moved, EntryWrites.LEFT)).toEqual([]);
+  });
 });

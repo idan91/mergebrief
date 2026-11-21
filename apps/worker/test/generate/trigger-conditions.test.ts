@@ -414,6 +414,49 @@ describe("generate task, trigger conditions", () => {
     expect(held).toContain("**No brief for `bbbbbbb`.**");
   });
 
+  it("queues the newer head's sync when its held body lands under ours", async () => {
+    const first = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const earlier = buildEntryCommentGeneratingBody(
+      createI18n().t,
+      makeEntryLink(HEAD_1),
+    );
+    await trackEntryBody(github, first.pr.id, earlier);
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    let interleaved = false;
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async editComment(commentId, body) {
+        if (!interleaved) {
+          interleaved = true;
+          github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+          const second = await trigger(HEAD_2);
+          await makeTask({ github, triggerConditions: readyForReview })(
+            second.payload,
+          );
+        }
+        return client.editComment(commentId, body);
+      },
+    }));
+
+    await makeTask({ github, triggerConditions: readyForReview })(
+      first.payload,
+    );
+
+    const syncs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'sync-entry'",
+    );
+    const syncHeads = syncs.map(
+      (job) => (job["payload"] as { head_sha: string }).head_sha,
+    );
+    expect(syncHeads).toEqual([HEAD_2]);
+    expect(readLiveBodies(github)[0]).toContain("**No brief for `aaaaaaa`.**");
+    await makeSyncEntryTask({ github })(syncs[0]?.["payload"]);
+    const [held] = readLiveBodies(github);
+    expect(held).toContain("**No brief for `bbbbbbb`.**");
+  });
+
   it("leaves an unmarked Entry comment on the run and on the sync", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);

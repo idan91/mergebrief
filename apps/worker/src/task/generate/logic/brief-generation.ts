@@ -247,6 +247,7 @@ async function postFreshGeneratingEntry(
       entryCommentManager,
       headSha: prInfo.headSha,
       log,
+      queueEntrySync: inputs.queueEntrySync,
     },
     generatingBody,
   );

@@ -37,12 +37,14 @@ import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../consts";
 import {
   EntryWrites,
+  HeadReadings,
   type EntryCommentManager,
   type EntryWrite,
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type LiveBodyMatcher,
   type RunStart,
+  type SupersessionWatch,
 } from "../types";
 import {
   buildHeldEntryLinks,
@@ -83,6 +85,7 @@ interface EntrySyncFacts {
  */
 export async function queueEntrySync(
   start: Pick<RunStart, "deps" | "payload" | "log">,
+  headSha: string = start.payload.headSha,
 ): Promise<void> {
   const { deps, payload, log } = start;
   if (payload.grantId !== undefined) {
@@ -90,7 +93,7 @@ export async function queueEntrySync(
   }
 
   try {
-    await enqueueEntrySync(deps, payload);
+    await enqueueEntrySync(deps, payload, headSha);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.warn(`generate: entry sync not queued, ${message}`);
@@ -100,13 +103,44 @@ export async function queueEntrySync(
 async function enqueueEntrySync(
   deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
+  headSha: string,
 ): Promise<void> {
   const ingest = createIngestRoutines(deps.handle, payload.ctx);
   await ingest.queueEntrySync({
     pullRequestId: payload.pullRequestId,
-    headSha: payload.headSha,
+    headSha,
     delaySeconds: ENTRY_SYNC_DELAY_SECONDS,
   });
+}
+
+export interface LandedWriteCheck {
+  readonly watch: Pick<SupersessionWatch, "readHead" | "getObserved">;
+  /** The run's head, the one its own bodies name. */
+  readonly headSha: string;
+  readonly queueEntrySync: (headSha: string) => Promise<void>;
+}
+
+/**
+ * A write lands after the head read that cleared it, so a newer head's body
+ * posted in between is gone under it. A head that moved meanwhile gets its
+ * own sync, which renders that head's body from its row; a head read that
+ * fails queues this head's.
+ */
+export async function queueSyncAfterLandedWrite(
+  check: LandedWriteCheck,
+  written: EntryWrite,
+): Promise<void> {
+  if (written !== EntryWrites.WRITTEN) {
+    return;
+  }
+  const head = await check.watch.readHead();
+  if (head.kind === HeadReadings.CURRENT) {
+    return;
+  }
+
+  const movedTo = check.watch.getObserved()?.headSha;
+  const moved = head.kind === HeadReadings.MOVED && movedTo !== undefined;
+  await check.queueEntrySync(moved ? movedTo : check.headSha);
 }
 
 /**
@@ -331,7 +365,7 @@ async function queueSyncSuccessor(
   start: Pick<RunStart, "deps" | "payload" | "log">,
 ): Promise<void> {
   try {
-    await enqueueEntrySync(start.deps, start.payload);
+    await enqueueEntrySync(start.deps, start.payload, start.payload.headSha);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new TransientJobError(`entry sync: successor not queued, ${message}`);
