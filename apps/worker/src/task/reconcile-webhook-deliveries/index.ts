@@ -22,6 +22,7 @@ interface GitHubFailure {
 }
 
 const SPAM_STATUS = 422;
+const CONNECTION_FAILURE_STATUS = 0;
 
 /** GitHub stopping this App ends the tick; one delivery's refusal does not. */
 function isTickOver({ code, status }: GitHubFailure): boolean {
@@ -120,26 +121,36 @@ async function readUnreadFailures(
 }
 
 /**
- * Warns only when a delivery other than a check run or status may have gone
- * unread: those only wake a head to check it again, which its next report
- * wakes again.
+ * Stays below warn only when every unread 4xx or 5xx failure is a check run
+ * or status, which only wakes a head its next report wakes again, and the
+ * pages read hold no never-connected attempt: an older one past the cut-off
+ * would be out of sight.
  */
 async function reportUnreadTail(
   deps: ReconcileWebhookDeliveriesTaskDeps,
-  cutOffAt: Date,
+  read: Required<DeliveriesRead>,
   now: Date,
 ): Promise<void> {
-  const unread = await readUnreadFailures(deps, cutOffAt, now);
+  const unread = await readUnreadFailures(deps, read.cutOffAt, now);
   const actionable = unread?.filter((delivery) => !isRecheckOnly(delivery));
-  if (actionable === undefined || actionable.length > 0) {
+  const connectionFailures = read.deliveries.filter(
+    (delivery) => delivery.statusCode === CONNECTION_FAILURE_STATUS,
+  ).length;
+  const actionableMayBeUnread =
+    actionable === undefined || actionable.length > 0 || connectionFailures > 0;
+  if (actionableMayBeUnread) {
     deps.log.warn(
       "webhook reconcile: more deliveries than one tick reads; older failures were not checked",
-      { pages: MAX_PAGES_PER_TICK, unreadFailures: actionable?.length },
+      {
+        pages: MAX_PAGES_PER_TICK,
+        unreadFailures: actionable?.length,
+        connectionFailures,
+      },
     );
     return;
   }
   deps.log.info(
-    "webhook reconcile: more deliveries than one tick reads; only status checks went unread",
+    "webhook reconcile: more deliveries than one tick reads; no 4xx/5xx failure outside check runs and statuses went unread",
     { pages: MAX_PAGES_PER_TICK },
   );
 }
@@ -157,12 +168,13 @@ export function createReconcileWebhookDeliveriesTask(
       });
       return;
     }
-    if (read.value.cutOffAt !== undefined) {
-      await reportUnreadTail(deps, read.value.cutOffAt, now);
+    const { deliveries, cutOffAt } = read.value;
+    if (cutOffAt !== undefined) {
+      await reportUnreadTail(deps, { deliveries, cutOffAt }, now);
     }
 
     let sent = 0;
-    for (const delivery of selectRedeliveries(read.value.deliveries, now)) {
+    for (const delivery of selectRedeliveries(deliveries, now)) {
       // oxlint-disable-next-line no-await-in-loop -- one at a time: GitHub reads a burst as spam.
       const redelivered = await deps.redeliver(delivery.id);
       if (!redelivered.ok) {

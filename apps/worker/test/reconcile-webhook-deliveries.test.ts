@@ -12,6 +12,7 @@ import { captureLogger } from "./generate/helpers";
 const NOW = new Date("2026-11-04T12:00:00Z");
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
+const CONNECTION_FAILURE_STATUS = 0;
 
 function makeDelivery(
   id: number,
@@ -242,16 +243,14 @@ describe("the reconcile task", () => {
   function makeCappedTask(
     unreadFailures: readonly HookDelivery[],
     log: ReconcileWebhookDeliveriesTaskDeps["log"],
+    readDeliveries: readonly HookDelivery[] = [
+      makeDelivery(1, "a", 200, HOUR_MS, { event: "check_run" }),
+    ],
   ): () => Promise<void> {
     return createReconcileWebhookDeliveriesTask({
       listDeliveries: async () => ({
         ok: true,
-        value: {
-          deliveries: [
-            makeDelivery(1, "a", 200, HOUR_MS, { event: "check_run" }),
-          ],
-          nextCursor: "more",
-        },
+        value: { deliveries: readDeliveries, nextCursor: "more" },
       }),
       listFailedDeliveries: async () => ({
         ok: true,
@@ -404,7 +403,7 @@ describe("the reconcile task", () => {
     expect(pages).toBe(100);
   });
 
-  it("logs below warn when only status checks went unread", async () => {
+  it("logs below warn when only check run and status failures went unread", async () => {
     const capture = captureLogger();
     const task = makeCappedTask(
       [
@@ -436,6 +435,20 @@ describe("the reconcile task", () => {
     expect(capture.readLines()).toEqual([
       expect.objectContaining({ level: "warn", unreadFailures: 1 }),
     ]);
+  });
+
+  it("warns when the pages read hold a never-connected attempt", async () => {
+    const capture = captureLogger();
+    const task = makeCappedTask([], capture.logger, [
+      makeDelivery(1, "a", CONNECTION_FAILURE_STATUS, HOUR_MS, {
+        event: "check_run",
+      }),
+    ]);
+
+    await task();
+
+    const levels = capture.readLines().map((line) => line["level"]);
+    expect(levels).toEqual(["warn"]);
   });
 
   it("counts no unread failure past GitHub's redelivery window", async () => {
