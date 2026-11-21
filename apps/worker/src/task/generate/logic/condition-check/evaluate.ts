@@ -1,3 +1,4 @@
+import { matchesGlob } from "brief-core/path-matching";
 import {
   type EffectiveTriggerConditions,
   type SizeBounds,
@@ -215,12 +216,71 @@ function checkBaseBranches({
   ];
 }
 
+/**
+ * `matchesGlob` costs glob x path steps, the globs a repository writer's and
+ * the paths a PR author's: sized as the gitattributes scan is, for 3000 paths
+ * of 200 characters against a few general globs.
+ */
+const PATHS_MATCH_STEPS = 20_000_000;
+const GLOB_SYNTAX_START = /[*?[{\\!]/;
+
+/** The characters before a glob's first wildcard: a path that lacks them cannot match. */
+function readLiteralPrefix(glob: string): string {
+  const wildcard = glob.search(GLOB_SYNTAX_START);
+  return wildcard === -1 ? glob : glob.slice(0, wildcard);
+}
+
+/**
+ * Whether one glob matches one changed path, or `undefined` once the step
+ * budget runs out. A path missing the glob's literal prefix costs no steps.
+ */
+function matchPaths(
+  globs: readonly string[],
+  paths: readonly string[],
+): boolean | undefined {
+  let steps = PATHS_MATCH_STEPS;
+  for (const glob of globs) {
+    const prefix = readLiteralPrefix(glob);
+    for (const path of paths) {
+      if (!path.startsWith(prefix)) {
+        continue;
+      }
+      steps -= glob.length * (path.length + 1);
+      if (steps < 0) {
+        return undefined;
+      }
+      if (matchesGlob(glob, path)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Git paths are case-sensitive, so a glob matches as written. A scan past
+ * its budget reads as unmet: the head holds, nothing is spent, and a
+ * Generate click still runs it.
+ */
+function checkPaths({
+  value,
+  setBy,
+  facts,
+}: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
+  const met = matchPaths(value, facts.changedPaths) === true;
+  if (met) {
+    return [];
+  }
+  return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
+}
+
 /** Each kind's check; a kind without one here is met. */
 const KIND_CHECKS: KindChecks = {
   [TriggerConditionKinds.READY_FOR_REVIEW]: checkReadyForReview,
   [TriggerConditionKinds.NEVER]: checkNever,
   [TriggerConditionKinds.SIZE]: checkSize,
   [TriggerConditionKinds.REVIEW_REQUESTED]: checkReviewRequested,
+  [TriggerConditionKinds.PATHS]: checkPaths,
   [TriggerConditionKinds.LABELS]: checkLabels,
   [TriggerConditionKinds.TITLE_KEYWORDS]: checkTitleKeywords,
   [TriggerConditionKinds.BASE_BRANCHES]: checkBaseBranches,

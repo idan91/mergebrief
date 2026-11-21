@@ -13,6 +13,7 @@ const BASE_FACTS: ConditionFacts = {
   labels: [],
   pendingReviewRequests: 0,
   sizes: { "changed-lines": 120, additions: 100, deletions: 20 },
+  changedPaths: ["src/widgets/index.ts"],
 };
 
 function makeFacts(overrides: Partial<ConditionFacts> = {}): ConditionFacts {
@@ -259,6 +260,84 @@ describe("evaluateTriggerConditions, reviewRequested", () => {
   });
 });
 
+describe("evaluateTriggerConditions, paths", () => {
+  it("is met when a changed file matches one of the globs", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["docs/**", "src/widgets/*.ts"] },
+      { changedPaths: ["README.md", "src/widgets/index.ts"] },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("names every configured glob when no changed file matches", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**", "*.sql"] },
+      { changedPaths: ["src/widgets/index.ts", "db/001.sql"] },
+    );
+
+    expect(unmet).toEqual([
+      { kind: "paths", setBy: "repo", paths: ["src/payments/**", "*.sql"] },
+    ]);
+  });
+
+  it.each([
+    ["src/**", "src/a/b/c.ts", true],
+    ["src/**/*.ts", "src/c.ts", true],
+    ["**/*.sql", "db/migrations/001.sql", true],
+    ["**/*.sql", "001.sql", true],
+    ["src/*", "src/a/b.ts", false],
+    ["src/**/fixtures/**", "src/notfixtures/a.json", false],
+    ["Src/**", "src/a.ts", false],
+  ])("matches %s against %s: %s", (glob, path, met) => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: [glob] },
+      { changedPaths: [path] },
+    );
+
+    expect(unmet.length === 0).toBe(met);
+  });
+
+  it("holds a pull request that changes no file", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["**"] },
+      { changedPaths: [] },
+    );
+
+    expect(unmet).toHaveLength(1);
+  });
+
+  it("holds once the scan outruns its step budget", () => {
+    const glob = `**/${"x".repeat(197)}`;
+    const misses = Array.from(
+      { length: 2999 },
+      (_, index) => `src/${String(index).padStart(195, "0")}`,
+    );
+    const lastMatches = `a/${"x".repeat(197)}`;
+
+    const unmet = evaluateOne(
+      { kind: "paths", value: [glob] },
+      { changedPaths: [...misses, lastMatches] },
+    );
+
+    expect(unmet).toHaveLength(1);
+  });
+
+  it("skips paths outside a glob's literal prefix at no cost", () => {
+    const misses = Array.from(
+      { length: 2999 },
+      (_, index) => `other/${String(index).padStart(195, "0")}`,
+    );
+
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      { changedPaths: [...misses, "src/payments/charge.ts"] },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+});
+
 describe("evaluateTriggerConditions, any group", () => {
   it("passes when one member is met", () => {
     const effective: EffectiveTriggerConditions = {
@@ -275,5 +354,82 @@ describe("evaluateTriggerConditions, any group", () => {
     );
 
     expect(unmet).toEqual([]);
+  });
+});
+
+describe("evaluateTriggerConditions, any group of paths and more", () => {
+  const pathsOrLabels: EffectiveTriggerConditions = {
+    all: [],
+    any: [
+      {
+        setting: { kind: "paths", value: ["src/payments/**"] },
+        setBy: "repo",
+      },
+      { setting: { kind: "labels", value: ["needs-brief"] }, setBy: "repo" },
+    ],
+  };
+
+  it("passes on a matching path alone", () => {
+    const unmet = evaluateTriggerConditions(
+      pathsOrLabels,
+      makeFacts({ changedPaths: ["src/payments/refund.ts"] }),
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("passes on the label alone when no path matches", () => {
+    const unmet = evaluateTriggerConditions(
+      pathsOrLabels,
+      makeFacts({ labels: ["needs-brief"] }),
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("holds with every member's unmet item when none passes", () => {
+    const unmet = evaluateTriggerConditions(pathsOrLabels, makeFacts());
+
+    expect(unmet).toEqual([
+      {
+        kind: "any",
+        conditions: [
+          { kind: "paths", setBy: "repo", paths: ["src/payments/**"] },
+          { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+        ],
+      },
+    ]);
+  });
+
+  it("lists unmet plain conditions first and the unmet group last", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [
+        {
+          setting: { kind: "review-requested", value: true },
+          setBy: "instance",
+        },
+      ],
+      any: pathsOrLabels.any,
+    };
+
+    const unmet = evaluateTriggerConditions(effective, makeFacts());
+
+    expect(unmet.map((item) => item.kind)).toEqual(["review-requested", "any"]);
+  });
+
+  it("still holds on an unmet plain condition when the group passes", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [
+        { setting: { kind: "base-branches", value: ["main"] }, setBy: "repo" },
+      ],
+      any: pathsOrLabels.any,
+    };
+
+    const unmet = evaluateTriggerConditions(
+      effective,
+      makeFacts({ baseRef: "release", labels: ["needs-brief"] }),
+    );
+
+    expect(unmet.map((item) => item.kind)).toEqual(["base-branches"]);
   });
 });
