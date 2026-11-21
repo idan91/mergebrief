@@ -3,8 +3,7 @@ import {
   type RegenerateNoticeKeys,
 } from "../../../../../../types";
 import { RegenerateNotices } from "../../../../../../hooks/regenerate-brief/utils";
-import { HeldGenerateNotices } from "../../../../../../consts";
-import { GenerateNotices } from "../../../../trigger-offer";
+import { GenerateNotices, HeldGenerateNotices } from "../../../../../../consts";
 import { LatestPushStates, type LatestPushState } from "./types";
 
 /** The chip turns to generating once the run is queued, so its region says so. */
