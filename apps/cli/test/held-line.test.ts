@@ -45,6 +45,16 @@ describe("formatHeldLine", () => {
     );
   });
 
+  it.each([
+    ["a missing list", undefined],
+    ["an empty list", []],
+    ["a list of unreadable items", [{ source: "repo" }, 7]],
+  ])("says the conditions are unmet for %s", (_case, items) => {
+    expect(formatHeldLine("held", items)).toBe(
+      "held: trigger conditions not met\n",
+    );
+  });
+
   it("escapes control characters in third-party names", () => {
     const line = formatHeldLine("held", [
       { kind: "labels", source: "repo", labels: ["evil\u001b[31m"] },
