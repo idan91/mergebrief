@@ -450,8 +450,8 @@ function planHeldEntry(
   row: GenerationRow,
 ): EntrySyncPlan | undefined {
   const { translate, entryCommentManager, briefs } = facts;
-  const unmet = parseUnmetConditions(row.unmetConditions);
-  if (unmet === undefined) {
+  const unmet = parseUnmetConditions(row.unmetConditions)?.conditions;
+  if (unmet === undefined || unmet.length === 0) {
     return undefined;
   }
   const links = buildHeldEntryLinks(entryCommentManager, briefs);
