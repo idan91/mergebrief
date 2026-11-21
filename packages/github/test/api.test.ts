@@ -984,6 +984,28 @@ describe("fetchPullRequest / fetchDiff", () => {
       { path: "src/b.ts", additions: 10, deletions: 0 },
     ]);
   });
+  it("carries no previous filename on a copied file", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        filename: "lib/refund.ts",
+        previous_filename: "src/payments/refund.ts",
+        additions: 12,
+        deletions: 0,
+        status: "copied",
+      },
+    ]);
+    const octokit = mockOctokit({ paginate });
+
+    const result = await fetchPullRequestFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
+
+    expect(result.ok && result.value).toStrictEqual([
+      { path: "lib/refund.ts", additions: 12, deletions: 0 },
+    ]);
+  });
 });
 
 describe("listOpenPullRequests", () => {

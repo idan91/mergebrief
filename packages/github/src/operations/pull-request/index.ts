@@ -18,13 +18,15 @@ import {
   openPullRequestListSchema,
   type OpenPullRequestRow,
 } from "./schemas";
-import type {
-  CommitRef,
-  CompareDiffRef,
-  PullRequestFile,
-  PullRequestInfo,
-  PullRequestRef,
-  RepositoryRef,
+import {
+  PullRequestFileStatuses,
+  type CommitRef,
+  type CompareDiffRef,
+  type PullRequestFile,
+  type PullRequestFileStatus,
+  type PullRequestInfo,
+  type PullRequestRef,
+  type RepositoryRef,
 } from "./types";
 
 export { fetchCheckedCompareDiff } from "./checked-compare-diff";
@@ -122,6 +124,7 @@ function countPendingReviewRequests(lists: ReviewRequestLists): number {
 interface ListedPullRequestFile {
   readonly filename: string;
   readonly previous_filename?: string;
+  readonly status: PullRequestFileStatus;
   readonly additions: number;
   readonly deletions: number;
 }
@@ -132,7 +135,8 @@ function mapPullRequestFile(file: ListedPullRequestFile): PullRequestFile {
     additions: file.additions,
     deletions: file.deletions,
   };
-  if (file.previous_filename !== undefined) {
+  const renamed = file.status === PullRequestFileStatuses.RENAMED;
+  if (renamed && file.previous_filename !== undefined) {
     mapped.previousPath = file.previous_filename;
   }
   return mapped;
