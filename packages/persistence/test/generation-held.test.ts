@@ -515,6 +515,27 @@ describe("recheckCurrentHead", () => {
     expect(await countQueuedJobs(shared)).toBe(2);
   });
 
+  it.each([
+    GenerationFailureCodes.GITHUB_ACCESS,
+    GenerationFailureCodes.OUTPUT_CUT,
+    GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+  ] as const)("leaves a final %s failure's locked job alone", async (code) => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheck(pullRequestId);
+
+    expect(outcome).toEqual({ queued: false });
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
   it("leaves a pending head with no job alone", async () => {
     const triggered = await trigger();
     await clearQueue();

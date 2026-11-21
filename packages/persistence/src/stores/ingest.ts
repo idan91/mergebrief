@@ -49,6 +49,7 @@ import type { ScopeContext } from "./scope-context";
 import {
   GenerationFailureClasses,
   GenerationFailureClassByCode,
+  GenerationFailureCodes,
   GenerationStatuses,
   PrStates,
   QueueTasks,
@@ -173,7 +174,7 @@ async function owesCheckpointDelta(
   return rows.length > 0;
 }
 
-/** A head a fact event may re-check: held, or pending or failed with a run in flight. */
+/** A head a fact event may re-check: held, or pending or failed with a run in flight; `isRecheckOwed` narrows failed further. */
 const RECHECKED_STATUSES: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.HELD,
   GenerationStatuses.PENDING,
@@ -240,17 +241,39 @@ async function hasQueuedGenerateJob(
 }
 
 /**
+ * A failure a graphile retry of the same job may follow. A failure the worker
+ * never retries, or a spent claim budget, is final, and a job still locked
+ * behind it is only finishing: a fresh job would rerun it or hold it.
+ */
+function isRetriedFailure(row: GenerationRow): boolean {
+  const { errorCode } = row;
+  const exhausted = errorCode === GenerationFailureCodes.ATTEMPTS_EXHAUSTED;
+  if (errorCode === null || exhausted) {
+    return false;
+  }
+  const failureClass = GenerationFailureClassByCode[errorCode];
+  return failureClass === GenerationFailureClasses.TRANSIENT;
+}
+
+/**
  * Whether a fact event owes the head a fresh job. A job waiting unlocked
  * re-checks when it runs, whatever its task, and an `add_job` would rewrite a
  * `generate-large` job back to `generate`. Otherwise a held head is owed one,
- * and a pending or failed one only while its run is in flight.
+ * a pending one only while its run is in flight, and a failed one only while
+ * a retry of a failure that may still clear is in flight.
  */
 async function isRecheckOwed(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
-  status: GenerationStatus,
+  row: GenerationRow,
 ): Promise<boolean> {
+  const { status } = row;
   if (!RECHECKED_STATUSES.has(status)) {
+    return false;
+  }
+  const finalFailure =
+    status === GenerationStatuses.FAILED && !isRetriedFailure(row);
+  if (finalFailure) {
     return false;
   }
   const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
@@ -579,7 +602,8 @@ export interface IngestRoutines {
   /**
    * An open PR whose current head is `held`, or `pending` or `failed` with
    * its job locked by a run that may write a hold before it sees the new
-   * facts, gets that head's job queued, so the worker checks the conditions
+   * facts (a failure only when graphile may retry it: transient, with the
+   * claim budget not yet spent), gets that head's job queued, so the worker checks the conditions
    * again; a locked job's key is detached and a fresh job follows it. A job
    * waiting unlocked under the key, whatever its task, is left as it is. Read
    * under the pull request's row lock; any other status, a closed or merged
@@ -956,7 +980,7 @@ export function createIngestRoutines(
         const head = await readCurrentBriefHead(tx, scope, pullRequestId);
         const owed =
           head !== undefined &&
-          (await isRecheckOwed(tx, pullRequestId, head.row.status));
+          (await isRecheckOwed(tx, pullRequestId, head.row));
         if (!owed) {
           return { queued: false };
         }
