@@ -49,7 +49,7 @@ import {
   TRUSTED_COLLABORATOR_PERMISSIONS,
   parseWebhookEvent,
   verifyWebhookSignature,
-  type ParsedCommitReport,
+  type ParsedStatusCheck,
   type ParsedGitHubAppAuthorizationEvent,
   type ParsedInstallationEvent,
   type ParsedInstallationRepositoriesEvent,
@@ -824,10 +824,10 @@ async function handleInstallationRepositories(
  * so a held head at that SHA is checked again. A fork PR's run names no PR and
  * a status never does, so the SHA finds the PRs; nothing else is written.
  */
-async function handleCommitReport(
+async function handleStatusCheck(
   handle: AppDatabase,
   ctx: TenantContext,
-  event: ParsedCommitReport,
+  event: ParsedStatusCheck,
   log: Logger,
 ): Promise<void> {
   const ingest = createIngestRoutines(handle, ctx);
@@ -836,7 +836,7 @@ async function handleCommitReport(
     headSha: event.headSha,
   });
   if (rechecked.length > 0) {
-    log.debug("check report woke held heads", {
+    log.debug("status check woke held heads", {
       repoId: String(event.repoId),
       headSha: event.headSha,
       prIds: rechecked.map(String),
@@ -953,7 +953,7 @@ async function dispatch(
       return handleInstallationRepositories(deps, ctx, event, log);
     case ParsedWebhookEventKinds.CHECK_RUN:
     case ParsedWebhookEventKinds.STATUS:
-      await handleCommitReport(deps.handle, ctx, event, log);
+      await handleStatusCheck(deps.handle, ctx, event, log);
       return DISPATCHED;
   }
 }
@@ -965,7 +965,7 @@ interface VerifiedDelivery {
   readonly receivedAt: Date;
 }
 
-/** A push brings check reports by the dozen, so their drops log at debug. */
+/** A push brings status checks by the dozen, so their drops log at debug. */
 const QUIET_DROP_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
   ParsedWebhookEventKinds.CHECK_RUN,
   ParsedWebhookEventKinds.STATUS,

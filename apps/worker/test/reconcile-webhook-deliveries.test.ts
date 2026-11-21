@@ -209,7 +209,7 @@ describe("selectRedeliveries", () => {
     ).toEqual([4, 3]);
   });
 
-  it("resends pull request deliveries ahead of older check reports", () => {
+  it("resends pull request deliveries ahead of older status checks", () => {
     const reports = Array.from({ length: 25 }, (_, index) =>
       makeDelivery(index + 1, `s${String(index)}`, 502, 2 * HOUR_MS + index, {
         event: index % 2 === 0 ? "check_run" : "status",

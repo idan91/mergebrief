@@ -8,7 +8,7 @@
 // job, and a head a live run holds is neither reset nor re-enqueued.
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { traceStore } from "./trace-store";
-import { isHeldOnCheckReports } from "./unmet-conditions";
+import { isHeldOnStatusChecks } from "./unmet-conditions";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -76,11 +76,11 @@ const DEFAULT_DEBOUNCE_SECONDS = 60;
 /** How far out a Generate or Regenerate click queues the head's job. */
 export const TRIGGER_ON_DEMAND_DELAY_SECONDS = 10;
 /**
- * How far out a check report queues a held head's re-check. A CI run reports
+ * How far out a status check queues a held head's re-check. A CI run reports
  * by the dozen, and a waiting job keeps its first `run_at`, so a burst inside
  * this window collapses into one re-check.
  */
-export const CHECK_REPORT_RECHECK_DELAY_SECONDS = 45;
+export const STATUS_CHECK_RECHECK_DELAY_SECONDS = 45;
 
 /**
  * A head a live read stamped, cleared when this newer event reports another:
@@ -329,8 +329,8 @@ interface HeadRecheck {
   /** Only while this is the PR's current head; absent wakes whatever is. */
   readonly headSha?: string;
   readonly delaySeconds: number;
-  /** A check report's recheck: a held head no run holds wakes only while a `bots` or `ci` item holds it. */
-  readonly requiresCheckReportHold: boolean;
+  /** A status check's recheck: a held head no run holds wakes only while a `bots` or `ci` item holds it. */
+  readonly requiresStatusCheckHold: boolean;
 }
 
 /**
@@ -362,9 +362,9 @@ async function recheckLockedHead(
   }
   const inFlight = job?.locked === true;
   const reportCannotMove =
-    recheck.requiresCheckReportHold &&
+    recheck.requiresStatusCheckHold &&
     !inFlight &&
-    !isHeldOnCheckReports(head.row.unmetConditions);
+    !isHeldOnStatusChecks(head.row.unmetConditions);
   if (reportCannotMove) {
     return false;
   }
@@ -697,11 +697,11 @@ export interface IngestRoutines {
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
    * `recheckCurrentHead` for every open PR in the repository whose current
-   * head is the SHA, by the same rule, for a check report that names a commit and no
+   * head is the SHA, by the same rule, for a status check that names a commit and no
    * PR; a held head wakes only while a `bots` or `ci` item holds it, the only
    * kinds a report can move. Each PR is locked in id order and read again under its lock; a head
    * the PR has pushed past, another repository's or installation's PR and an
-   * owner scope queue nothing. The job runs `CHECK_REPORT_RECHECK_DELAY_SECONDS`
+   * owner scope queue nothing. The job runs `STATUS_CHECK_RECHECK_DELAY_SECONDS`
    * out, so a CI run's burst of reports collapses into one re-check.
    */
   recheckHeadsAtSha(
@@ -1082,7 +1082,7 @@ export function createIngestRoutines(
         const queued = await recheckLockedHead(tx, scope, {
           pullRequestId: input.pullRequestId,
           delaySeconds: TRIGGER_ON_DEMAND_DELAY_SECONDS,
-          requiresCheckReportHold: false,
+          requiresStatusCheckHold: false,
         });
         return { queued };
       });
@@ -1100,8 +1100,8 @@ export function createIngestRoutines(
           const queued = await recheckLockedHead(tx, scope, {
             pullRequestId,
             headSha: input.headSha,
-            delaySeconds: CHECK_REPORT_RECHECK_DELAY_SECONDS,
-            requiresCheckReportHold: true,
+            delaySeconds: STATUS_CHECK_RECHECK_DELAY_SECONDS,
+            requiresStatusCheckHold: true,
           });
           if (queued) {
             rechecked.push(pullRequestId);

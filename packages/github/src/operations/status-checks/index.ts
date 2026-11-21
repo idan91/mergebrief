@@ -2,6 +2,7 @@ import { RequestError, type Octokit } from "octokit";
 import type { z } from "zod/v4";
 import { HttpStatuses } from "types/http";
 import type { Mutable, Result } from "types/utils";
+import { CHECK_RUN_COMPLETED_STATUS } from "../../types";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -17,8 +18,6 @@ import type { CommitRef } from "../pull-request/types";
 import type { BranchRef, CheckRun, CommitStatus } from "./types";
 
 const PER_PAGE = 100;
-/** A check run's `status` once it has finished, whatever its conclusion. */
-export const CHECK_RUN_COMPLETED_STATUS = "completed";
 const REQUIRED_STATUS_CHECKS_RULE = "required_status_checks";
 /** GitHub Free answers a private repository's rules read with a 403 asking for an upgrade. */
 const UPGRADE_REQUIRED_PATTERN = /\bupgrade\b/i;

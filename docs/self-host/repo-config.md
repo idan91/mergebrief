@@ -210,7 +210,7 @@ only, so a pull request's own edit to it applies once merged.
 
 A `bots` condition counts only what a bot reports on the push it holds, and a
 held push is checked again when a check run finishes or a status or review lands
-on it; a check report's re-check waits 45 seconds, so a CI run's burst costs one.
+on it; a status check's re-check waits 45 seconds, so a CI run's burst costs one.
 A bot that does not review later pushes leaves every later push held until
 someone clicks Generate, so each listed bot needs its own setting for that:
 
