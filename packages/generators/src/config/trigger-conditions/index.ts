@@ -76,7 +76,8 @@ function parseAnyGroup(
   const settings: TriggerConditionSetting[] = [];
   for (const [key, value] of Object.entries(raw)) {
     if (!isConfigKey(key)) {
-      issues.push(makeIssue([ANY_KEY], `unrecognized key ${renderKey(key)}`));
+      const issue = makeIssue([ANY_KEY], `unrecognized key ${renderKey(key)}`);
+      issues.push(issue);
       continue;
     }
     const kind = CONFIG_KEYS[key];
@@ -159,7 +160,8 @@ function parseBlock(
       continue;
     }
     if (!isConfigKey(key)) {
-      issues.push(makeIssue([], `unrecognized key ${renderKey(key)}`));
+      const issue = makeIssue([], `unrecognized key ${renderKey(key)}`);
+      issues.push(issue);
       continue;
     }
     const kind = CONFIG_KEYS[key];
