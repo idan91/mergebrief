@@ -464,6 +464,33 @@ describe("isVerdictOnPaths", () => {
 
     expect(isVerdictOnPaths(effective, unread)).toBe(true);
   });
+
+  it("is false while an any group without paths holds the head", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [{ setting: paths, setBy: "repo" }],
+      any: [
+        { setting: labels, setBy: "repo" },
+        { setting: { kind: "title-keywords", value: ["wip"] }, setBy: "repo" },
+      ],
+    };
+
+    expect(isVerdictOnPaths(effective, unread)).toBe(false);
+  });
+
+  it("is true while an unmet any group has a member read from GitHub", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [{ setting: paths, setBy: "repo" }],
+      any: [
+        { setting: labels, setBy: "repo" },
+        {
+          setting: { kind: "ci", value: { mode: "required" } },
+          setBy: "repo",
+        },
+      ],
+    };
+
+    expect(isVerdictOnPaths(effective, unread)).toBe(true);
+  });
 });
 
 describe("evaluateTriggerConditions, any group", () => {
