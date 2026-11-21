@@ -243,6 +243,33 @@ function readConditionFacts(
   return facts;
 }
 
+/** A store error's class: its name and SQLSTATE, never its message, which may carry a connection string. */
+interface StoreErrorClass {
+  readonly errorName: string;
+  readonly errorCode?: string;
+}
+
+function readErrorCode(error: unknown): string | undefined {
+  const coded = typeof error === "object" && error !== null && "code" in error;
+  if (!coded) {
+    return undefined;
+  }
+  return typeof error.code === "string" ? error.code : undefined;
+}
+
+/** A driver error may arrive wrapped by the query builder, its code on the cause. */
+function classifyStoreError(error: unknown): StoreErrorClass {
+  if (!(error instanceof Error)) {
+    return { errorName: "unknown" };
+  }
+  const classified: Mutable<StoreErrorClass> = { errorName: error.name };
+  const code = readErrorCode(error) ?? readErrorCode(error.cause);
+  if (code !== undefined) {
+    classified.errorCode = code;
+  }
+  return classified;
+}
+
 /**
  * A stamp write runs before any claim, so it writes only what the row lacks
  * and never fails the run: the condition was seen met either way, and the
@@ -263,10 +290,11 @@ async function writeOwedStamps(
     if (owed.pathsDigest !== undefined) {
       await pullRequests.stampPathsMet(pullRequestId, owed.pathsDigest);
     }
-  } catch {
+  } catch (error) {
     context.log.warn("generate: condition stamp write failed", {
       reviewRequested: owed.reviewRequested,
       paths: owed.pathsDigest !== undefined,
+      ...classifyStoreError(error),
     });
   }
 }
