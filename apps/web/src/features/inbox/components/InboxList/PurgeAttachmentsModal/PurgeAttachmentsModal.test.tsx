@@ -19,6 +19,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     viewerIsAuthor: false,
     viewerCanDelete: true,
     viewerCanPush: false,
+    generateEveryPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,

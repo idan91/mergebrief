@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { useGenerateEveryPush } from "../../../hooks/generate-every-push/useGenerateEveryPush";
 import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerateBrief";
 import { isNoLongerOpen } from "../../../utils/pr-state";
 import { splitUnmetConditions } from "@web/utils/unmet-conditions";
@@ -13,15 +14,23 @@ export function useHeldCardFacade({
   prNumber,
   unmetConditions,
   unmetConditionsPartial,
+  onAnnounce,
   viewerCanPush,
   appInstalled,
   prState,
+  generateEveryPush,
 }: HeldCardProps) {
   const { t } = useTranslation();
   const { pending, announcement, regenerate } = useRegenerateBrief({
     repoId,
     prNumber,
     notices: HeldGenerateNotices,
+  });
+  const everyPush = useGenerateEveryPush({
+    repoId,
+    prNumber,
+    on: generateEveryPush,
+    announce: onAnnounce,
   });
 
   const offersGenerate = readOffersTrigger({
@@ -48,5 +57,6 @@ export function useHeldCardFacade({
     pending,
     announcement,
     onGenerate: offersGenerate ? regenerate : undefined,
+    everyPush: offersGenerate ? everyPush : undefined,
   };
 }

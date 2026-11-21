@@ -56,6 +56,8 @@ export const ProductActionIds = {
   DELETE_OWN_PULL: "delete-own-pull",
   ARCHIVE_PULL: "archive-pull",
   UNARCHIVE_PULL: "unarchive-pull",
+  TURN_ON_GENERATE_EVERY_PUSH: "turn-on-generate-every-push",
+  TURN_OFF_GENERATE_EVERY_PUSH: "turn-off-generate-every-push",
   MINT_TOKEN: "mint-token",
   REVOKE_TOKEN: "revoke-token",
   REVOKE_SESSIONS: "revoke-sessions",

@@ -530,6 +530,49 @@ describe("pr <n> over a scripted api", () => {
     expect(result.out).not.toContain("\u001B");
     expect(result.out).toContain("[U+001B][2Ja");
   });
+  it("says a PR generates on every push on a line of its own", async () => {
+    const result = await runCliOffline(["pr", "7"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
+          body: JSON.stringify({
+            baseSha: HEAD_SHA,
+            headSha: HEAD_SHA,
+            briefAvailable: true,
+            generateEveryPush: true,
+            comparisons: {},
+          }),
+        },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toMatch(/\ngenerates on every push\n$/);
+  });
+
+  it("prints no every-push line while the switch is off", async () => {
+    const result = await runCliOffline(["pr", "7"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
+          body: JSON.stringify({
+            baseSha: HEAD_SHA,
+            headSha: HEAD_SHA,
+            briefAvailable: true,
+            generateEveryPush: false,
+            comparisons: {},
+          }),
+        },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).not.toContain("every push");
+  });
 });
 
 describe("TTY renderings over a scripted api", () => {

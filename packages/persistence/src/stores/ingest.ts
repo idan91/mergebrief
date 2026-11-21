@@ -35,6 +35,7 @@ import {
 } from "./pull-request-upsert";
 import {
   approvePullRequestTrigger,
+  turnOnPullRequestEveryPush,
   type PullRequestRow,
   type PullRequestUpsertInput,
 } from "./tenant";
@@ -61,8 +62,10 @@ import {
 import {
   GenerationKinds,
   JobKeyModes,
+  GenerateEveryPushOutcomes,
   TriggerOnDemandOutcomes,
   type BriefRowId,
+  type GenerateEveryPushOutcome,
   type GrantRowId,
   type PullRequestRowId,
   type RepoId,
@@ -495,6 +498,60 @@ async function pinLateTriggerToCurrentHead(
 }
 
 /**
+ * An open PR's current head trigger conditions hold goes to `pending`,
+ * stamped as a Generate click stamps it so every run of that head skips
+ * the conditions, with its job queued. The caller holds the pull request's
+ * row lock.
+ */
+async function releaseLockedHeldHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  prRow: PullRequestRow,
+  pullRequestId: PullRequestRowId,
+): Promise<boolean> {
+  if (prRow.state !== PrStates.OPEN) {
+    return false;
+  }
+  const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+  if (head?.row.status !== GenerationStatuses.HELD) {
+    return false;
+  }
+
+  return releaseAndQueueHeldHead(tx, scope, pullRequestId, head.row.headSha);
+}
+
+/** False when a claim took the head first, so nothing was released. */
+async function releaseAndQueueHeldHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<boolean> {
+  const released = await releaseHeldHead(tx, scope, pullRequestId, headSha);
+  if (!released) {
+    return false;
+  }
+  await queueOnDemandRun(tx, scope, pullRequestId, headSha);
+  return true;
+}
+
+async function queueOnDemandRun(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<void> {
+  await stampBriefTriggered(tx, scope, pullRequestId, headSha);
+  await enqueueGenerateJob(
+    tx,
+    scope,
+    { headSha, refreshRunAt: true },
+    pullRequestId,
+    TRIGGER_ON_DEMAND_DELAY_SECONDS,
+  );
+}
+
+/**
  * Why the current head cannot take a fresh run, or `undefined` when it can:
  * a head waiting for its Trigger approval, one trigger conditions hold, or
  * one that failed in a way a rerun can help. A closed or merged PR has
@@ -717,6 +774,23 @@ export interface IngestRoutines {
    * PR outside an installation scope write nothing.
    */
   triggerOnDemand(input: TriggerOnDemandInput): Promise<TriggerOnDemandOutcome>;
+  /**
+   * Turn on generating on every push for the PR, under its row lock: while
+   * on, trigger conditions hold no push of it. An open PR's current head
+   * trigger conditions hold is released as a Generate click releases it,
+   * stamped and its job queued a few seconds out; any other head is left as
+   * it is. The first stamp stands. An owner scope and a PR outside the scope
+   * write nothing.
+   */
+  turnOnGenerateEveryPush(
+    input: GenerateEveryPushInput,
+  ): Promise<GenerateEveryPushOutcome>;
+}
+
+export interface GenerateEveryPushInput {
+  readonly pullRequestId: PullRequestRowId;
+  /** The pusher who turned it on, from a browser session. */
+  readonly userId: ReviewerId;
 }
 
 export interface TriggerOnDemandInput {
@@ -1172,40 +1246,64 @@ export function createIngestRoutines(
 
         const { headSha } = head.row;
         if (head.row.status === GenerationStatuses.HELD) {
-          const released = await releaseHeldHead(
+          const released = await releaseAndQueueHeldHead(
             tx,
             scope,
             pullRequestId,
             headSha,
           );
-          if (!released) {
-            return TriggerOnDemandOutcomes.RUNNING;
-          }
-        } else {
-          const projected = await projectPendingGeneration(tx, scope, {
-            pullRequestId,
-            kind: GenerationKinds.BRIEF,
-            headSha,
-            baselineSha: null,
-          });
-          if (projected.inFlight) {
-            return TriggerOnDemandOutcomes.RUNNING;
-          }
-          await stampGenerateRequested(tx, scope, pullRequestId, headSha);
+          return released
+            ? TriggerOnDemandOutcomes.QUEUED
+            : TriggerOnDemandOutcomes.RUNNING;
         }
+
+        const projected = await projectPendingGeneration(tx, scope, {
+          pullRequestId,
+          kind: GenerationKinds.BRIEF,
+          headSha,
+          baselineSha: null,
+        });
+        if (projected.inFlight) {
+          return TriggerOnDemandOutcomes.RUNNING;
+        }
+        await stampGenerateRequested(tx, scope, pullRequestId, headSha);
         const approves = awaitingTrigger && approverId !== undefined;
         if (approves) {
           await approvePullRequestTrigger(tx, scope, pullRequestId, approverId);
         }
-        await stampBriefTriggered(tx, scope, pullRequestId, headSha);
-        await enqueueGenerateJob(
+        await queueOnDemandRun(tx, scope, pullRequestId, headSha);
+        return TriggerOnDemandOutcomes.QUEUED;
+      });
+    },
+
+    async turnOnGenerateEveryPush(input) {
+      if (scope.ownerUserId !== null) {
+        return GenerateEveryPushOutcomes.NOT_FOUND;
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+        if (prRow === undefined) {
+          return GenerateEveryPushOutcomes.NOT_FOUND;
+        }
+        await turnOnPullRequestEveryPush(
           tx,
           scope,
-          { headSha, refreshRunAt: true },
           pullRequestId,
-          TRIGGER_ON_DEMAND_DELAY_SECONDS,
+          input.userId,
         );
-        return TriggerOnDemandOutcomes.QUEUED;
+
+        const released = await releaseLockedHeldHead(
+          tx,
+          scope,
+          prRow,
+          pullRequestId,
+        );
+        if (released) {
+          return GenerateEveryPushOutcomes.RELEASED;
+        }
+        return GenerateEveryPushOutcomes.ON;
       });
     },
 

@@ -171,7 +171,9 @@ passing condition is enough. A push that misses one is **held**: nothing
 runs and nothing is spent, it generates by itself once every condition
 passes, and anyone with push access can generate it now from the PR's page
 in MergeBrief. With no conditions set here or on the instance, every push
-generates as before.
+generates as before. Someone with push access can also switch one PR to
+generate on every push from its page. That skips the conditions for the
+PR, but a PR whose author needs a Trigger approval still waits for one.
 
 A held push edits an existing Entry comment in place, so nobody is notified
 again; a PR with no Entry comment gets one posted. The comment names each

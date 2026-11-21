@@ -67,6 +67,7 @@ export function shapeInboxItem(
     viewerIsAuthor: row.viewerIsAuthor,
     viewerCanDelete: permissions.viewerCanDelete,
     viewerCanPush: permissions.viewerCanPush,
+    generateEveryPush: pullRequest.generateEveryPushAt !== null,
     reviewState: row.reviewState,
     behind: row.behind,
     unreachable: pullRequest.githubUnreachableAt !== null,

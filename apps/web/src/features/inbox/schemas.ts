@@ -59,6 +59,7 @@ export const inboxItemSchema = dropNullKeys(
     viewerCanDelete: z.boolean(),
     // An API one release older sends no push bit: offer nothing that needs one.
     viewerCanPush: z.boolean().default(false),
+    generateEveryPush: z.boolean().default(false),
     reviewState: buildOpenEnumSchema(InboxReviewStates).exactOptional(),
     behind: z.boolean(),
     unreachable: z.boolean(),

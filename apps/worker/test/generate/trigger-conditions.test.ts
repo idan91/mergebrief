@@ -3,6 +3,7 @@ import type { PullRequestInfo } from "github";
 import {
   createGenerationProjection,
   createIngestRoutines,
+  createTenantRepository,
   parseUnmetConditions,
   type PullRequestRow,
 } from "persistence";
@@ -351,6 +352,64 @@ describe("generate task, trigger conditions", () => {
     );
     const releasedPayload = released[0]?.["payload"];
     await makeTask({ triggerConditions: never })(releasedPayload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("generates a never-held PR that generates on every push", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createIngestRoutines(harness.handle, ctx).turnOnGenerateEveryPush({
+      pullRequestId: pr.id,
+      userId: makeReviewerId(900n),
+    });
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, "version: 1\ntriggerConditions:\n  never: on\n");
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(payload);
+
+    expect(generator.calls.length).toBeGreaterThan(0);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("holds the next push again once every push is turned off", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const routines = createIngestRoutines(harness.handle, ctx);
+    await routines.turnOnGenerateEveryPush({
+      pullRequestId: pr.id,
+      userId: makeReviewerId(900n),
+    });
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.turnOffGenerateEveryPush(pr.id);
+
+    await makeTask({
+      triggerConditions: makeInstanceConditions({ never: "on" }),
+    })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+  });
+
+  it("generates a head whose PR turned on every push during the check", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PATHS_SETTINGS);
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequestFiles(prNumber) {
+        const files = await client.fetchPullRequestFiles(prNumber);
+        await createIngestRoutines(harness.handle, ctx).turnOnGenerateEveryPush(
+          {
+            pullRequestId: pr.id,
+            userId: makeReviewerId(900n),
+          },
+        );
+        return files;
+      },
+    }));
+
+    await makeTask({ github })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });

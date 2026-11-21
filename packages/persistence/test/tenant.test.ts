@@ -6,6 +6,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createDb,
+  createIngestRoutines,
   createTenantRepository,
   EntryCommentSwapErrorCodes,
   parseTenantContext,
@@ -73,6 +74,14 @@ describe("createTenantRepository row_version", () => {
       inserted.id,
       REVIEWER,
     );
+    await createIngestRoutines(handle, CTX_A).turnOnGenerateEveryPush({
+      pullRequestId: inserted.id,
+      userId: REVIEWER,
+    });
+    const everyPush = await pullRequests.getById(inserted.id);
+    const everyPushOff = await pullRequests.turnOffGenerateEveryPush(
+      inserted.id,
+    );
     const versions = [
       inserted,
       upserted,
@@ -81,10 +90,12 @@ describe("createTenantRepository row_version", () => {
       drafted,
       stacked,
       approved,
+      everyPush,
+      everyPushOff,
     ];
 
     expect(versions.map((row) => row?.rowVersion)).toEqual([
-      0, 1, 2, 3, 4, 5, 6,
+      0, 1, 2, 3, 4, 5, 6, 7, 8,
     ]);
   });
 });

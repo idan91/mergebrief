@@ -3,9 +3,25 @@
 // a DOM change, so the contract is: one text change per reason or phase
 // change, and none for a poll that returns the same state.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { WaitReasons } from "contract";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type * as ApiFetchModule from "../../../../../data/apiFetch";
+
+vi.mock("../../../../../data/apiFetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof ApiFetchModule>();
+  return { ...actual, apiFetch: vi.fn() };
+});
+
+import { apiFetch } from "../../../../../data/apiFetch";
+import { answerApiFetch, stubQueryClient } from "../../../test-utils";
 import type { BriefAddressPort } from "@web/features/brief";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
@@ -35,6 +51,7 @@ function makeMeta(
     viewerIsAuthor: false,
     viewerCanResolve: false,
     viewerCanPush: false,
+    generateEveryPush: false,
     appInstalled: true,
     behind: false,
     updatedAt: "2026-07-06T12:00:00.000Z",
@@ -85,9 +102,13 @@ function makeBody(
   return makeBodyFor(makeMeta(generation), timeline);
 }
 
-function makeBodyFor(meta: PrSummary, timeline?: DbTimelineSelection) {
+function makeBodyFor(
+  meta: PrSummary,
+  timeline?: DbTimelineSelection,
+  client: QueryClient = QUERY_CLIENT,
+) {
   return (
-    <QueryClientProvider client={QUERY_CLIENT}>
+    <QueryClientProvider client={client}>
       <I18nProvider>
         <PrBriefBody
           meta={meta}
@@ -136,7 +157,7 @@ describe("PrBriefBody wait announcements", () => {
   it("announces the wait reason in the polite live region", () => {
     render(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
 
-    const region = screen.getByRole("status");
+    const region = getPageRegion();
 
     expect(region.getAttribute("aria-live")).toBe("polite");
     expect(region.textContent).toBe(DEBOUNCING_LINE);
@@ -268,6 +289,43 @@ describe("PrBriefBody held", () => {
     expect(getPageRegion().textContent).toBe(
       "No brief generated. This pull request is no longer open.",
     );
+  });
+});
+
+describe("PrBriefBody every-push outcome", () => {
+  it("announces every push on after the held panel leaves", async () => {
+    answerApiFetch(vi.mocked(apiFetch), 204);
+    const client = stubQueryClient();
+    const held: PrSummary = {
+      ...makeMeta({
+        status: "held",
+        unmetConditions: [{ kind: "ready-for-review", setBy: "repo" }],
+      }),
+      viewerCanPush: true,
+    };
+    const released: PrSummary = {
+      ...makeMeta({ status: "pending" }),
+      viewerCanPush: true,
+      generateEveryPush: true,
+    };
+    const view = render(makeBodyFor(held, undefined, client));
+    vi.spyOn(client, "invalidateQueries").mockImplementation(async () => {
+      view.rerender(makeBodyFor(released, undefined, client));
+    });
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Generate on every push" }),
+    );
+
+    await waitFor(() => {
+      const lines = screen
+        .getAllByRole("status")
+        .map((region) => region.textContent);
+      expect(lines).toContain(
+        "Every push on this pull request now generates a brief.",
+      );
+    });
+    expect(screen.queryByTestId("brief-held-card")).toBeNull();
   });
 });
 

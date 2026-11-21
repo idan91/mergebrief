@@ -27,6 +27,7 @@ import { HeldCard, type HeldCardProps } from ".";
 const apiFetchMock = vi.mocked(apiFetch);
 const GENERATE = /^generate now$/i;
 const META_KEY = ["pr-meta", "424242", 7];
+const EVERY_PUSH = "Generate on every push";
 
 const BASE_PROPS: HeldCardProps = {
   repoId: "424242",
@@ -37,9 +38,11 @@ const BASE_PROPS: HeldCardProps = {
     makeAnyGroup(UnmetFixtures.BOT_NOT_APPROVED, UnmetFixtures.SIZE_OVER),
   ],
   unmetConditionsPartial: false,
+  onAnnounce: () => undefined,
   viewerCanPush: true,
   appInstalled: true,
   prState: "open",
+  generateEveryPush: false,
 };
 
 function makeCard(overrides: Partial<HeldCardProps>, client: QueryClient) {
@@ -57,6 +60,18 @@ function renderCard(
   client: QueryClient = stubQueryClient(),
 ) {
   return render(makeCard(overrides, client));
+}
+
+function readStatusLines(): (string | null)[] {
+  return screen.getAllByRole("status").map((region) => region.textContent);
+}
+
+function readEveryPushBox(): HTMLInputElement {
+  const box = screen.getByRole("checkbox", { name: EVERY_PUSH });
+  if (!(box instanceof HTMLInputElement)) {
+    throw new Error("expected the every-push checkbox");
+  }
+  return box;
 }
 
 function readGroup(title: string): HTMLElement {
@@ -210,8 +225,13 @@ describe("HeldCard", () => {
   it("releases the held head and refreshes the meta read", async () => {
     answerApiFetch(apiFetchMock, 202);
     const client = stubQueryClient();
-    const invalidate = vi.spyOn(client, "invalidateQueries");
-    renderCard({}, client);
+    const onAnnounce = vi.fn();
+    const view = renderCard({ onAnnounce }, client);
+    const invalidate = vi
+      .spyOn(client, "invalidateQueries")
+      .mockImplementation(async () => {
+        view.rerender(<></>);
+      });
 
     fireEvent.click(screen.getByRole("button", { name: GENERATE }));
 
@@ -231,9 +251,7 @@ describe("HeldCard", () => {
     fireEvent.click(screen.getByRole("button", { name: GENERATE }));
 
     await waitFor(() => {
-      expect(screen.getByRole("status").textContent).toBe(
-        "This push is no longer held.",
-      );
+      expect(readStatusLines()).toContain("This push is no longer held.");
     });
   });
 
@@ -255,6 +273,103 @@ describe("HeldCard", () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
     await act(async () => {
       settle(new Response(null, { status: 202 }));
+    });
+  });
+
+  it("offers generate on every push to a pusher, described by its hint", () => {
+    renderCard();
+
+    const box = readEveryPushBox();
+    expect(box.checked).toBe(false);
+    const hintId = box.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(hintId)?.textContent).toBe(
+      "Generates this push now and every later one, whatever its conditions.",
+    );
+  });
+
+  it.each([
+    ["a viewer without push access", { viewerCanPush: false }],
+    ["a PR outside an installation", { appInstalled: false }],
+    ["a closed PR", { prState: "closed" }],
+  ] as const)("offers no every-push switch to %s", (_who, overrides) => {
+    renderCard(overrides);
+
+    expect(screen.queryByRole("checkbox", { name: EVERY_PUSH })).toBeNull();
+  });
+
+  it("turns every push on, ticked while pending, then refreshes", async () => {
+    let settle: (response: Response) => void = () => undefined;
+    apiFetchMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const client = stubQueryClient();
+    const onAnnounce = vi.fn();
+    const view = renderCard({ onAnnounce }, client);
+    const invalidate = vi
+      .spyOn(client, "invalidateQueries")
+      .mockImplementation(async () => {
+        view.rerender(<></>);
+      });
+
+    fireEvent.click(readEveryPushBox());
+    fireEvent.click(readEveryPushBox());
+
+    expect(readEveryPushBox().checked).toBe(true);
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      "/api/repos/424242/pulls/7/generate-every-push/on",
+      { method: "POST" },
+    );
+    await act(async () => {
+      settle(new Response(null, { status: 204 }));
+    });
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: META_KEY });
+    });
+    await waitFor(() => {
+      expect(onAnnounce).toHaveBeenCalledWith(
+        "Every push on this pull request now generates a brief.",
+      );
+    });
+  });
+
+  it("unticks the box and says why when the write is refused", async () => {
+    answerApiFetch(apiFetchMock, 404, "not-found");
+    const onAnnounce = vi.fn();
+    renderCard({ onAnnounce });
+
+    fireEvent.click(readEveryPushBox());
+
+    const refusal =
+      "Changing this needs push access to this repository and the MergeBrief App installed on it.";
+    await waitFor(() => {
+      expect(onAnnounce).toHaveBeenCalledWith(refusal);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("held-every-push").textContent).toContain(
+        refusal,
+      );
+    });
+    expect(readEveryPushBox().checked).toBe(false);
+  });
+
+  it("turns every push off from a ticked box", async () => {
+    answerApiFetch(apiFetchMock, 204);
+    const onAnnounce = vi.fn();
+    renderCard({ generateEveryPush: true, onAnnounce });
+
+    fireEvent.click(readEveryPushBox());
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      "/api/repos/424242/pulls/7/generate-every-push/off",
+      { method: "POST" },
+    );
+    await waitFor(() => {
+      expect(onAnnounce).toHaveBeenCalledWith(
+        "Pushes on this pull request wait for their conditions again.",
+      );
     });
   });
 });

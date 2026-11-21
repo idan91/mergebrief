@@ -64,6 +64,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     viewerIsAuthor: false,
     viewerCanDelete: false,
     viewerCanPush: false,
+    generateEveryPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -1068,6 +1069,7 @@ describe("InboxList", () => {
             viewerIsAuthor: true,
             viewerCanDelete: true,
             viewerCanPush: false,
+            generateEveryPush: false,
           }),
         ]}
         sort={InboxSorts.UPDATED}

@@ -367,6 +367,20 @@ describe("prSummarySchema", () => {
     ).toBe(false);
   });
 
+  it("parses generateEveryPush and reads it off when it is absent", () => {
+    const on = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generateEveryPush: true,
+    });
+    const older = parseWithSchema(prSummarySchema, ROW);
+
+    if (!on.ok || !older.ok) {
+      throw new Error("unreachable");
+    }
+    expect(on.value.generateEveryPush).toBe(true);
+    expect(older.value.generateEveryPush).toBe(false);
+  });
+
   it("parses viewerCanPush and fails closed when it is absent", () => {
     const pusher = parseWithSchema(prSummarySchema, {
       ...ROW,
