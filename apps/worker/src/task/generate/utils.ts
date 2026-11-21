@@ -18,11 +18,13 @@ import {
 import { AnchorStates } from "types/generations";
 import { PermanentJobError } from "../failure";
 import { splitRepoSlug } from "../github-port";
+import type { EntryCommentHeldLinks } from "../entry-comment/types";
 import type { ParsedGeneratePayload } from "../payload";
 import {
   BriefRecoveryFailures,
   type AnchorColumns,
   type CompleteBriefRecovery,
+  type EntryCommentManager,
   type GenerateTaskHelpers,
   type GenerationOrigin,
   type RunStart,
@@ -177,4 +179,21 @@ export function getPrLocator(pr: PullRequestRow): PrLocator {
     throw new PermanentJobError("pull_request row has no usable repo slug");
   }
   return { owner: split.owner, repo: split.repo, number: pr.prNumber };
+}
+
+/** The held body's links: Generate on the rev the head takes, and the newest brief. */
+export function buildHeldEntryLinks(
+  entryCommentManager: EntryCommentManager,
+  briefs: readonly BriefSpanRow[],
+): EntryCommentHeldLinks {
+  const next = entryCommentManager.buildDeepLink(deriveNextHeadIndex(briefs));
+  const newest = briefs.at(-1);
+  if (newest === undefined) {
+    return { next, previous: undefined };
+  }
+  const previous = {
+    ...entryCommentManager.buildDeepLink(newest.headIndex),
+    headSha: newest.headSha,
+  };
+  return { next, previous };
 }

@@ -7,6 +7,7 @@ import {
 } from "../../types";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
 import { evaluateTriggerConditions } from "./evaluate";
+import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts } from "./types";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
@@ -37,7 +38,7 @@ function readConditionFacts(context: RunContext): ConditionFacts {
  * instance's alone. An unmet condition holds the row and ends the run:
  * no claim, no attempt, no model. A hold the store refuses (a Generate
  * click, a live claim, a kept status) stands the run down the same way;
- * the click's own job runs the head.
+ * the click's own job runs the head. A held head gets the held Entry.
  */
 export async function applyConditionCheck(
   context: RunContext,
@@ -70,5 +71,6 @@ export async function applyConditionCheck(
     evt: "generation.hold",
     kinds: unmet.map((item) => item.kind),
   });
+  await postHeldEntry(context, repoConfig, unmet);
   return HELD;
 }

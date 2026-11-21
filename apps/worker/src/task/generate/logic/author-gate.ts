@@ -2,10 +2,10 @@ import { createIngestRoutines } from "persistence";
 import { isTrustedBot } from "repo-config";
 import { GenerationStatuses } from "types/generations";
 import { buildEntryCommentOnDemandBody } from "../../entry-comment";
+import { EntryBodyKinds } from "../../entry-comment/types";
 import type { AcquiredRepoConfig } from "../../repo-config";
 import {
   AuthorGateKinds,
-  HeadReadings,
   type AuthorGateOutcome,
   type RunContext,
 } from "../types";
@@ -14,12 +14,12 @@ import {
   resolveEntryCommentAllowed,
   resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
-import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
 import {
   acquireGateRepoConfig,
   isGateable,
   retrySettingsReadWhileAttemptsLeft,
 } from "./run-gates";
+import { postStatusEntry } from "./status-entry";
 
 const PROCEED_WITHOUT_CONFIG: AuthorGateOutcome = {
   kind: AuthorGateKinds.PROCEED,
@@ -119,17 +119,14 @@ async function holdBotRun(
 
 /**
  * A click may approve the PR while this run reads GitHub, and the run it
- * queues posts its own generating body, so the row is read again right
- * before the post and a head no longer `awaiting-trigger` is left to it, as
- * is a thread a newer head's run now owns. A post that fails, or stands down
- * on an unread head, queues the head's sync.
+ * queues posts its own generating body, so a head no longer
+ * `awaiting-trigger` is left to it (`postStatusEntry`).
  */
 async function postOnDemandEntry(
   context: RunContext,
   entryCommentAllowed: boolean,
 ): Promise<void> {
-  const { deps, priorBriefs, projection, target, entryCommentManager, log } =
-    context;
+  const { deps, priorBriefs, entryCommentManager } = context;
   if (!entryCommentAllowed) {
     return;
   }
@@ -138,27 +135,10 @@ async function postOnDemandEntry(
     deriveNextHeadIndex(priorBriefs),
   );
   const body = buildEntryCommentOnDemandBody(deps.translate, nextHeadLink);
-  if (await entryCommentManager.matches(body)) {
-    log.info("generate: on-demand entry already live, no re-ping");
-    return;
-  }
-  const current = await projection.get(target);
-  if (current?.status !== GenerationStatuses.AWAITING_TRIGGER) {
-    log.info("generate: head left awaiting-trigger, on-demand entry skipped");
-    return;
-  }
-  const head = await context.watch.readHead();
-  if (head.kind === HeadReadings.MOVED) {
-    log.info("generate: head moved, leaving the Entry comment to it");
-    return;
-  }
-  if (head.kind === HeadReadings.UNREAD) {
-    log.warn("generate: head unread, the on-demand Entry stands down", {
-      error: head.error,
-    });
-    await queueEntrySync(context);
-    return;
-  }
-  const write = await entryCommentManager.refresh(body);
-  await queueEntrySyncOnLostWrite(context, write);
+  await postStatusEntry(context, {
+    body,
+    status: GenerationStatuses.AWAITING_TRIGGER,
+    label: EntryBodyKinds.ON_DEMAND,
+    write: (onDemand) => entryCommentManager.refresh(onDemand),
+  });
 }

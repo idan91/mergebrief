@@ -6,6 +6,7 @@ import {
   createGenerationProjection,
   createIngestRoutines,
   createTenantRepository,
+  parseUnmetConditions,
   ScopeViolationError,
   utcDayBounds,
   type BriefSpanRow,
@@ -18,6 +19,7 @@ import {
   buildEntryCommentCappedBody,
   buildEntryCommentClosedBody,
   buildEntryCommentFailedBody,
+  buildEntryCommentHeldBody,
   buildEntryCommentOnDemandBody,
   isEntryCommentBody,
   isHeadClosedEntryBody,
@@ -34,15 +36,21 @@ import type {
 import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../consts";
 import {
+  EntryWriteModes,
   EntryWrites,
+  HeadReadings,
   type EntryCommentManager,
   type EntryWrite,
+  type EntryWriteMode,
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type LiveBodyMatcher,
+  type RunContext,
   type RunStart,
+  type SupersessionWatch,
 } from "../types";
 import {
+  buildHeldEntryLinks,
   deriveNextHeadIndex,
   getBriefTarget,
   isLastJobAttempt,
@@ -50,12 +58,11 @@ import {
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
 
-/** The body the head's row names, and the live bodies it may replace. */
+/** The body the head's row names, the live bodies it may replace, and how it lands. */
 interface EntrySyncPlan {
   readonly body: string;
   readonly isReplaceable: LiveBodyMatcher;
-  /** Post the body when no comment is live; the closed body never does. */
-  readonly createsComment: boolean;
+  readonly writeMode: EntryWriteMode;
 }
 
 interface EntrySyncFacts {
@@ -78,6 +85,7 @@ interface EntrySyncFacts {
  */
 export async function queueEntrySync(
   start: Pick<RunStart, "deps" | "payload" | "log">,
+  headSha: string = start.payload.headSha,
 ): Promise<void> {
   const { deps, payload, log } = start;
   if (payload.grantId !== undefined) {
@@ -85,7 +93,7 @@ export async function queueEntrySync(
   }
 
   try {
-    await enqueueEntrySync(deps, payload);
+    await enqueueEntrySync(deps, payload, headSha);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.warn(`generate: entry sync not queued, ${message}`);
@@ -95,13 +103,54 @@ export async function queueEntrySync(
 async function enqueueEntrySync(
   deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
+  headSha: string,
 ): Promise<void> {
   const ingest = createIngestRoutines(deps.handle, payload.ctx);
   await ingest.queueEntrySync({
     pullRequestId: payload.pullRequestId,
-    headSha: payload.headSha,
+    headSha,
     delaySeconds: ENTRY_SYNC_DELAY_SECONDS,
   });
+}
+
+export interface LandedWriteCheck {
+  readonly watch: Pick<SupersessionWatch, "readHead" | "getObserved">;
+  readonly queueEntrySync: (headSha: string) => Promise<void>;
+}
+
+/** The landed-write check of a run's own Entry write. */
+export function buildLandedWriteCheck(
+  context: Pick<RunContext, "deps" | "payload" | "log" | "watch">,
+): LandedWriteCheck {
+  return {
+    watch: context.watch,
+    queueEntrySync: (headSha) => queueEntrySync(context, headSha),
+  };
+}
+
+/**
+ * A write lands after the head read that cleared it, so a newer head's body
+ * posted in between is gone under it. A head that moved meanwhile gets its
+ * own sync, which renders that head's body from its row. A failed read
+ * queues nothing, since this head's sync stands down on a moved head: the
+ * thread keeps this body until the newer head's next Entry write.
+ */
+export async function queueSyncAfterLandedWrite(
+  check: LandedWriteCheck,
+  written: EntryWrite,
+): Promise<void> {
+  if (written !== EntryWrites.WRITTEN) {
+    return;
+  }
+  const head = await check.watch.readHead();
+  if (head.kind !== HeadReadings.MOVED) {
+    return;
+  }
+
+  const movedTo = check.watch.getObserved()?.headSha;
+  if (movedTo !== undefined) {
+    await check.queueEntrySync(movedTo);
+  }
 }
 
 /**
@@ -291,10 +340,7 @@ async function writeEntrySync(
     return;
   }
 
-  const { body, isReplaceable } = plan;
-  const write = plan.createsComment
-    ? await entryCommentManager.replaceOrCreate(body, isReplaceable)
-    : await entryCommentManager.replace(body, isReplaceable);
+  const write = await writePlannedEntry(entryCommentManager, plan);
   if (write === EntryWrites.REFUSED) {
     log.warn("entry sync: GitHub refused the Entry comment write for good");
     return;
@@ -308,11 +354,25 @@ async function writeEntrySync(
   }
 }
 
+function writePlannedEntry(
+  entryCommentManager: EntryCommentManager,
+  plan: EntrySyncPlan,
+): Promise<EntryWrite> {
+  const { body, isReplaceable } = plan;
+  if (plan.writeMode === EntryWriteModes.EDIT_OR_CREATE) {
+    return entryCommentManager.editOrCreate(body, isReplaceable);
+  }
+  if (plan.writeMode === EntryWriteModes.REPLACE) {
+    return entryCommentManager.replace(body, isReplaceable);
+  }
+  return entryCommentManager.replaceOrCreate(body, isReplaceable);
+}
+
 async function queueSyncSuccessor(
   start: Pick<RunStart, "deps" | "payload" | "log">,
 ): Promise<void> {
   try {
-    await enqueueEntrySync(start.deps, start.payload);
+    await enqueueEntrySync(start.deps, start.payload, start.payload.headSha);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new TransientJobError(`entry sync: successor not queued, ${message}`);
@@ -322,7 +382,7 @@ async function queueSyncSuccessor(
 /**
  * A stored brief for the head wins whatever the row says; then a closed or
  * merged PR, whose thread must stop promising a brief; then the failed,
- * on-demand or capped body. A pending, running or superseded row leaves the
+ * on-demand, capped or held body. A pending, running or superseded row leaves the
  * thread to its run, and only an open PR gets a comment created. On an open PR
  * read at this head, the ready, on-demand and capped bodies replace any marked
  * body, as the run's own posts do; the failed body keeps an older head's ready
@@ -349,14 +409,16 @@ function planEntrySync(facts: EntrySyncFacts): EntrySyncPlan | undefined {
     return {
       body: buildEntryCommentBody(translate, briefLink),
       isReplaceable: open ? isEntryCommentBody : isClosedReplaceable,
-      createsComment: open,
+      writeMode: open
+        ? EntryWriteModes.REPLACE_OR_CREATE
+        : EntryWriteModes.REPLACE,
     };
   }
   if (!open) {
     return {
       body: buildEntryCommentClosedBody(translate, headSha),
       isReplaceable: isOwnBody,
-      createsComment: false,
+      writeMode: EntryWriteModes.REPLACE,
     };
   }
   return planRowEntry(facts, isOwnBody);
@@ -409,20 +471,41 @@ function planRowEntry(
     return {
       body: buildEntryCommentFailedBody(translate, nextLink, failureCode),
       isReplaceable: isOwnBody,
-      createsComment: true,
+      writeMode: EntryWriteModes.REPLACE_OR_CREATE,
     };
   }
   if (row?.status === GenerationStatuses.AWAITING_TRIGGER) {
     return {
       body: buildEntryCommentOnDemandBody(translate, nextLink),
       isReplaceable: isEntryCommentBody,
-      createsComment: true,
+      writeMode: EntryWriteModes.REPLACE_OR_CREATE,
     };
   }
   if (row?.status === GenerationStatuses.CAPPED) {
     return planCappedEntry(facts, row);
   }
+  if (row?.status === GenerationStatuses.HELD) {
+    return planHeldEntry(facts, row);
+  }
   return undefined;
+}
+
+/** The held body, rewritten in place over any marked body so a hold pings nobody. */
+function planHeldEntry(
+  facts: EntrySyncFacts,
+  row: GenerationRow,
+): EntrySyncPlan | undefined {
+  const { translate, entryCommentManager, briefs } = facts;
+  const unmet = parseUnmetConditions(row.unmetConditions)?.conditions;
+  if (unmet === undefined || unmet.length === 0) {
+    return undefined;
+  }
+  const links = buildHeldEntryLinks(entryCommentManager, briefs);
+  return {
+    body: buildEntryCommentHeldBody(translate, { ...links, unmet }),
+    isReplaceable: isEntryCommentBody,
+    writeMode: EntryWriteModes.EDIT_OR_CREATE,
+  };
 }
 
 /** The capped post only updates a comment, so the sync recreates one only where the row still tracks it. */
@@ -441,9 +524,12 @@ function planCappedEntry(
     resetsAt: utcDayBounds(row.updatedAt).to,
     units,
   });
+  const tracked = prRow.entryCommentId !== null;
   return {
     body,
     isReplaceable: isEntryCommentBody,
-    createsComment: prRow.entryCommentId !== null,
+    writeMode: tracked
+      ? EntryWriteModes.REPLACE_OR_CREATE
+      : EntryWriteModes.REPLACE,
   };
 }

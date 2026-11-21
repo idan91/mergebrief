@@ -47,6 +47,7 @@ import {
   REPO,
   SECOND_ATTEMPT,
   openPerTestHarness,
+  SEEDED_ENTRY_ID,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -681,6 +682,42 @@ describe("generate task, Entry sync", () => {
     const bodies = readLiveBodies(github);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain(CLOSED_HEADING);
+  });
+
+  it("the sync edits a held head's Entry in place", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+    await trackCappedEntry(github, pr.id);
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
+    expect(bodies[0]).toContain(
+      "- Generates only when someone presses Generate (this repository's setting)",
+    );
+    const writes = listCommentCalls(github).filter(
+      (call) => !call.startsWith("fetch"),
+    );
+    expect(writes).toEqual([`edit:${String(SEEDED_ENTRY_ID)}`]);
+  });
+
+  it("the sync posts a held head's Entry where none is live", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
   });
 
   it("the sync names the runs a refused large run needed", async () => {
