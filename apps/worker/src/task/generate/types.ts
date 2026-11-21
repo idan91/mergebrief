@@ -458,6 +458,8 @@ export interface EntryCommentManager {
   ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
   replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `replace`, except a replaceable live body is rewritten in place, which notifies nobody. */
+  editMatching(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
   /** As `edit` over a live body `isEditable` accepts; otherwise as `refresh`. */
   editOrRefresh(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
 }
@@ -766,8 +768,9 @@ export interface BriefGenerationInputs {
   readonly entryCommentManager: EntryCommentManager;
   readonly entryCommentAllowed: boolean;
   /**
-   * The run released a held head, by its conditions passing or a Generate
-   * click: the generating body edits the held one in place, no ping.
+   * The run may be releasing a hold (`mayReleaseHold`): the generating body
+   * edits this head's live held body in place, with no ping. Any other live
+   * body is reposted as usual.
    */
   readonly generatingEntryIsSilent: boolean;
   readonly translate: TFunction;
