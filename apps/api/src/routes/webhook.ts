@@ -349,7 +349,8 @@ async function handlePullRequest(
     await syncTrackedEntry(ingest, recorded);
     return;
   }
-  const rechecksOnly = RECHECK_ONLY_ACTIONS.has(event.action) || isRetitle(event);
+  const rechecksOnly =
+    RECHECK_ONLY_ACTIONS.has(event.action) || isRetitle(event);
   if (rechecksOnly) {
     // A row written here could invent an open row for a closed PR, or skip a
     // late `opened` or push behind the guard, so only a stored PR's head is
