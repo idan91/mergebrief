@@ -4,9 +4,10 @@
 // slice as the PR meta reports it.
 import { PrStackSchema } from "brief-core/pr-stack";
 import type { InboxItem, InboxStackView } from "contract";
-import type { GenerationRow, InboxRow, RepoId } from "persistence";
+import type { GenerationRow, InboxRow } from "persistence";
 import { PrStates, PullRequestSources } from "types/pull-requests";
 import { buildGenerationSummary } from "../../pr-view";
+import type { InboxPageInput } from "../types";
 
 /** A linear chain has a position; a fork has none worth a number. */
 export function shapeStack(snapshot: unknown): InboxStackView | null {
@@ -17,21 +18,34 @@ export function shapeStack(snapshot: unknown): InboxStackView | null {
   return { index: parsed.data.index, size: parsed.data.members.length };
 }
 
-/** A url row is the viewer's own; an installation row needs the admin bit. */
-export function resolveViewerCanDelete(
+/** What the viewer may do to one row, as GitHub's walk answered. */
+export interface RowPermissions {
+  readonly viewerCanDelete: boolean;
+  readonly viewerCanPush: boolean;
+}
+
+/**
+ * A url row is the viewer's own to delete and never pushable: a held head is
+ * an installation's. An installation row reads the walk's admin and push bits.
+ */
+export function resolveRowPermissions(
   row: InboxRow,
-  adminRepoIds: ReadonlySet<RepoId>,
-): boolean {
+  granted: Pick<InboxPageInput, "adminRepoIds" | "pushRepoIds">,
+): RowPermissions {
   if (row.pullRequest.source === PullRequestSources.URL) {
-    return true;
+    return { viewerCanDelete: true, viewerCanPush: false };
   }
-  return adminRepoIds.has(row.pullRequest.repoId);
+  const repoId = row.pullRequest.repoId;
+  return {
+    viewerCanDelete: granted.adminRepoIds.has(repoId),
+    viewerCanPush: granted.pushRepoIds.has(repoId),
+  };
 }
 
 export function shapeInboxItem(
   row: InboxRow,
   latestGeneration: GenerationRow | undefined,
-  viewerCanDelete: boolean,
+  permissions: RowPermissions,
   liveStack?: InboxStackView | null,
 ): InboxItem {
   const { pullRequest, latestBrief } = row;
@@ -51,7 +65,8 @@ export function shapeInboxItem(
         : String(pullRequest.installationId),
     authorLogin: pullRequest.authorLogin,
     viewerIsAuthor: row.viewerIsAuthor,
-    viewerCanDelete,
+    viewerCanDelete: permissions.viewerCanDelete,
+    viewerCanPush: permissions.viewerCanPush,
     reviewState: row.reviewState,
     behind: row.behind,
     unreachable: pullRequest.githubUnreachableAt !== null,

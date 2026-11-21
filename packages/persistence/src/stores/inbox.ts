@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm";
 import { buildSearchTextPredicate } from "./inbox-search-text";
 import { traceStore } from "./trace-store";
+import { GenerationStatuses } from "types/generations";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
@@ -28,6 +29,7 @@ import {
   InboxStatuses,
   type InboxArchivedFilter,
   type InboxAuthorFilter,
+  type InboxGenerationFilter,
   type InboxReviewState,
   type InboxSort,
   type InboxSortDirection,
@@ -38,12 +40,19 @@ import {
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
+import { generation } from "../schema/generation";
 import { inboxArchive } from "../schema/inbox-archive";
 import { pullRequest } from "../schema/pull-request";
 import { reviewSession } from "../schema/review-session";
 import { reviewSubmittedReview } from "../schema/review-submitted-review";
 import type { PullRequestRow } from "./tenant";
-import type { BriefRowId, InstallationId, RepoId, ReviewerId } from "../types";
+import {
+  GenerationKinds,
+  type BriefRowId,
+  type InstallationId,
+  type RepoId,
+  type ReviewerId,
+} from "../types";
 import { PrStates, PullRequestSources } from "types/pull-requests";
 
 /** The Repository filter's vocabulary stops here; the URL may carry no more values anyway. */
@@ -61,6 +70,8 @@ export interface InboxFilters {
   readonly archived: InboxArchivedFilter;
   /** The words the reviewer typed; absent or blank narrows nothing. */
   readonly searchText?: string;
+  /** Only the rows whose newest head carries this generation status; absent narrows nothing. */
+  readonly generation?: InboxGenerationFilter;
 }
 
 /** `page` and `pageSize` are whole numbers of at least 1; the route parses, the store asserts. */
@@ -133,6 +144,8 @@ export interface InboxPage {
   readonly searchMatchTotal: number;
   /** The rows of `searchMatchTotal` the viewer archived. */
   readonly archivedSearchMatchTotal: number;
+  /** The rows of the requested view whose newest head is held, under every filter but the generation one. */
+  readonly heldTotal: number;
   /** The four review-state totals over the open, non-draft, unarchived viewable rows, whatever the filters or the view. */
   readonly counts: InboxCounts;
   /** The repositories the rows in view name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
@@ -160,6 +173,8 @@ interface ViewableGroup {
   readonly searchMatches: number;
   /** Matching the search text and archived by the viewer. */
   readonly archivedSearchMatches: number;
+  /** In the requested view, matching every filter but the generation one, and held. */
+  readonly heldMatching: number;
 }
 
 /** The four totals summed over the open, non-draft, unarchived rows of each group; the viewer's own rows carry none. */
@@ -289,6 +304,8 @@ interface RowFacts {
   readonly behind: SQL<boolean>;
   /** The viewer archived the row at its latest brief's head. */
   readonly archived: SQL<boolean>;
+  /** Trigger conditions hold the row's newest head. */
+  readonly held: SQL<boolean>;
 }
 
 function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
@@ -331,7 +348,25 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
     viewerIsAuthor,
     behind,
     archived,
+    held: buildHeld(),
   };
+}
+
+/**
+ * The newest brief-kind projection row of the pull request, ordered as the
+ * page's generation read orders it, in the row's own world. It stops at the
+ * first entry of `generation_pull_request_kind_triggered_at_idx`.
+ */
+function buildHeld(): SQL<boolean> {
+  const newestStatus = sql`(
+    select g.status from ${generation} g
+    where g.pull_request_id = ${pullRequest.id}
+      and g.installation_id is not distinct from ${pullRequest.installationId}
+      and g.kind = ${GenerationKinds.BRIEF}
+    order by g.triggered_at desc, g.id desc
+    limit 1
+  )`;
+  return sql<boolean>`coalesce(${newestStatus} = ${GenerationStatuses.HELD}, false)`;
 }
 
 function canReachInstallations(input: InboxListInput): boolean {
@@ -447,6 +482,13 @@ function buildStateFilter(input: InboxListInput, state: SQLWrapper): SQL {
   return sql`${state} in (${literals})`;
 }
 
+function buildGenerationFilter(input: InboxListInput, held: SQLWrapper): SQL {
+  if (input.filters.generation === undefined) {
+    return sql`true`;
+  }
+  return sql`${held}`;
+}
+
 function buildArchivedPredicate(
   archived: SQLWrapper,
   view: InboxArchivedFilter,
@@ -498,6 +540,7 @@ function buildViewable(
       viewerIsAuthor: facts.viewerIsAuthor.as("viewer_is_author"),
       behind: facts.behind.as("behind"),
       archived: facts.archived.as("archived"),
+      held: facts.held.as("held"),
       matchesRows: sql<boolean>`${matchesRows}`.as("matches_rows"),
     })
     .from(pullRequest)
@@ -538,7 +581,12 @@ function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
   return db
     .select()
     .from(page)
-    .where(buildStateFilter(input, page.reviewState))
+    .where(
+      and(
+        buildStateFilter(input, page.reviewState),
+        buildGenerationFilter(input, page.held),
+      ),
+    )
     .orderBy(...foldFirst, ...buildSortOrder(input, page))
     .limit(input.pageSize)
     .offset(offset);
@@ -555,6 +603,7 @@ function shapeRow(row: SelectedRow): InboxRow {
     viewerIsAuthor,
     behind,
     archived: _archived,
+    held: _held,
     matchesRows: _matchesRows,
     ...pullRequestRow
   } = row;
@@ -604,7 +653,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
       const listQuery = buildListQuery(db, input, page);
 
       // One pass over every viewable row of both views answers the four
-      // state counts, the filtered total, the archived total and the
+      // state counts, the filtered, archived and held totals and the
       // repository vocabulary together, whatever page was asked for.
       const viewable = buildViewable(db, input, facts, rowFilters, {
         filtered: false,
@@ -614,11 +663,16 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         viewable.archived,
         input.filters.archived,
       );
-      const matches = and(
+      const matchesBesideGeneration = and(
         viewable.matchesRows,
         buildStateFilter(input, viewable.reviewState),
         inView,
       );
+      const matches = and(
+        matchesBesideGeneration,
+        buildGenerationFilter(input, viewable.held),
+      );
+      const heldMatching = and(matchesBesideGeneration, viewable.held);
       const open = sql`${buildOpenPredicate(viewable.state, viewable.draft)} and not ${viewable.archived}`;
       const searchPredicate = buildSearchTextPredicate(
         input.filters.searchText,
@@ -639,6 +693,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
           archived: sql<number>`count(*) filter (where ${viewable.archived})::int`,
           searchMatches: sql<number>`count(*) filter (where ${matchesSearch})::int`,
           archivedSearchMatches: sql<number>`count(*) filter (where ${matchesSearch} and ${viewable.archived})::int`,
+          heldMatching: sql<number>`count(*) filter (where ${heldMatching})::int`,
         })
         .from(viewable)
         .groupBy(viewable.reviewState, viewable.repoId);
@@ -657,6 +712,10 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         (sum, group) => sum + group.archivedSearchMatches,
         0,
       );
+      const heldTotal = grouped.reduce(
+        (sum, group) => sum + group.heldMatching,
+        0,
+      );
 
       return {
         items: rows.map((row) => shapeRow(row)),
@@ -666,6 +725,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         archivedTotal,
         searchMatchTotal,
         archivedSearchMatchTotal,
+        heldTotal,
         counts: shapeCounts(grouped),
         repositories: shapeRepositories(grouped),
       };

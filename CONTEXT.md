@@ -249,7 +249,7 @@ _Avoid_: gate, rule (alone)
 
 **Held**:
 A **Generation** a **Trigger condition** keeps from computing. It generates by itself once every condition passes, or now on a Generate click; nothing ran and no attempt was spent. Distinct from **Awaiting trigger**, which never computes without a click.
-_Avoid_: waiting (collides with the pending job's wait reasons), blocked, paused
+_Avoid_: waiting (collides with the pending job's wait reasons), blocked, paused. The Inbox's row label "Waiting" is copy for a held row whose every unmet item clears by itself (a bot or CI still working); the state stays **Held**.
 
 **Any group**:
 The one `any:` group under `triggerConditions:`, where one passing condition is enough. One level, any kind but never, at least two kinds per file.

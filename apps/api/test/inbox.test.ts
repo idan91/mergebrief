@@ -11,6 +11,8 @@ import {
 } from "github/testing";
 import {
   createArtifactStore,
+  createGenerationProjection,
+  createIngestRoutines,
   createTenantRepository,
   isInstallationId,
   isRepoId,
@@ -92,6 +94,8 @@ interface InboxGitHub {
   readonly openList?: readonly OpenListEntry[];
   /** Repositories the walk reports the viewer administers. */
   readonly adminRepoIds?: readonly number[];
+  /** Repositories the walk reports the viewer may push to. */
+  readonly pushRepoIds?: readonly number[];
 }
 
 /**
@@ -100,12 +104,18 @@ interface InboxGitHub {
  */
 function arrangeGitHub(fake: FakeGitHub, options: InboxGitHub = {}): void {
   const viewerIsAdmin = options.adminRepoIds?.includes(REPO_A) ?? false;
+  const viewerCanPush = options.pushRepoIds?.includes(REPO_A) ?? false;
   fake.addInstallation(
     {
       installationId: brand(isInstallationId, INSTALLATION_ID),
       accountLogin: `org-${INSTALLATION_ID}`,
     },
-    new Map([[brand(isRepoId, REPO_A), { fullName: "o/r", viewerIsAdmin }]]),
+    new Map([
+      [
+        brand(isRepoId, REPO_A),
+        { fullName: "o/r", viewerIsAdmin, viewerCanPush },
+      ],
+    ]),
   );
   for (const entry of options.openList ?? []) {
     const info = {
@@ -201,6 +211,40 @@ async function seedBrief(
   });
 }
 
+const HELD_CONDITIONS = [
+  { kind: "ready-for-review", source: "instance" },
+] as const;
+
+/** The row's head, held by the worker on an unmet trigger condition. */
+async function seedHeldHead(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  prNumber: number,
+): Promise<void> {
+  const triggered = await createIngestRoutines(handle, ctx).triggerGeneration({
+    pullRequest: {
+      repoId: brand(isRepoId, REPO_A),
+      prNumber,
+      repoSlug: "o/r",
+      state: PrStates.OPEN,
+    },
+    headSha: HEAD,
+    debounceSeconds: 0,
+  });
+  const held = await createGenerationProjection(handle, ctx).markHeld(
+    {
+      pullRequestId: triggered.pullRequest.id,
+      kind: "brief",
+      headSha: HEAD,
+      baselineSha: null,
+    },
+    HELD_CONDITIONS,
+  );
+  if (!held.ok) {
+    throw new Error("expected the head held");
+  }
+}
+
 async function recordStack(
   handle: AppDatabase,
   ctx: ScopeContext,
@@ -225,6 +269,7 @@ interface InboxBody {
   total: number;
   searchMatchTotal: number;
   archivedSearchMatchTotal: number;
+  heldTotal: number;
   counts: Record<string, number>;
   viewer: Record<string, unknown>;
   reachableInstallations: Array<Record<string, unknown>>;
@@ -429,6 +474,7 @@ describe("GET /api/inbox", () => {
       authorLogin: "someone",
       viewerIsAuthor: false,
       viewerCanDelete: false,
+      viewerCanPush: false,
       behind: false,
       unreachable: false,
       generation: null,
@@ -486,6 +532,62 @@ describe("GET /api/inbox", () => {
       source: "installation",
       viewerCanDelete: true,
     });
+  });
+
+  it("a row's push bit is the walk's, and a url row never has one", async () => {
+    arrangeGitHub(fake, { pushRepoIds: [REPO_A] });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
+    await seedPr(harness.handle, {
+      ctx: OWNER,
+      repoId: REPO_URL,
+      prNumber: URL_PR_NUMBER,
+      fresh: true,
+    });
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    const body = await readBody(res);
+    const pushBySource = Object.fromEntries(
+      body.items.map((item) => [item["source"], item["viewerCanPush"]]),
+    );
+    expect(pushBySource).toEqual({ installation: true, url: false });
+  });
+
+  it("the held view lists only held rows, and every view counts them", async () => {
+    arrangeGitHub(fake);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 1,
+      fresh: true,
+    });
+    await seedHeldHead(harness.handle, TENANT, 1);
+    await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 2,
+      fresh: true,
+    });
+
+    const inbox = await readBody(await get("/api/inbox", cookie));
+    const view = await readBody(
+      await get("/api/inbox?generation=held", cookie),
+    );
+    const unknown = await get("/api/inbox?generation=failed", cookie);
+
+    expect(inbox.total).toBe(2);
+    expect(inbox.heldTotal).toBe(1);
+    expect(view.items.map((item) => item["prNumber"])).toEqual([1]);
+    expect(view.items[0]?.["generation"]).toMatchObject({
+      status: "held",
+      unmetConditions: HELD_CONDITIONS,
+    });
+    expect(view.total).toBe(1);
+    expect(view.heldTotal).toBe(1);
+    expect(unknown.status).toBe(400);
   });
 
   it("an app composed without a slug serves no install link", async () => {

@@ -237,7 +237,14 @@ export const REVIEWER_ACCOUNT_CASES: readonly ContractCase<ReviewerGitHub>[] = [
     call: (client: ReviewerGitHub) =>
       client.listInstallationRepositories(requireInstallationId(99n)),
     expected: new Map([
-      [requireRepoId(4242n), { fullName: "acme/widgets", viewerIsAdmin: true }],
+      [
+        requireRepoId(4242n),
+        {
+          fullName: "acme/widgets",
+          viewerIsAdmin: true,
+          viewerCanPush: false,
+        },
+      ],
     ]),
   }),
 ];
