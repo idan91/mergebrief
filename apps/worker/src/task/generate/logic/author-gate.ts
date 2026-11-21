@@ -2,7 +2,7 @@ import { createIngestRoutines } from "persistence";
 import { isTrustedBot } from "repo-config";
 import { GenerationStatuses } from "types/generations";
 import { buildEntryCommentOnDemandBody } from "../../entry-comment";
-import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
+import type { AcquiredRepoConfig } from "../../repo-config";
 import {
   AuthorGateKinds,
   HeadReadings,
@@ -15,7 +15,11 @@ import {
   resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
-import { isGateable, retrySettingsReadWhileAttemptsLeft } from "./run-gates";
+import {
+  acquireGateRepoConfig,
+  isGateable,
+  retrySettingsReadWhileAttemptsLeft,
+} from "./run-gates";
 
 const PROCEED_WITHOUT_CONFIG: AuthorGateOutcome = {
   kind: AuthorGateKinds.PROCEED,
@@ -50,13 +54,13 @@ export async function applyAuthorGate(
     return AWAITING_TRIGGER;
   }
 
-  const { prInfo, prRow, source, log } = context;
+  const { prInfo, prRow } = context;
   const owesBotApproval =
     prInfo.authorIsBot && prRow.triggerApprovedAt === null;
   if (!owesBotApproval) {
     return PROCEED_WITHOUT_CONFIG;
   }
-  const repoConfig = await acquireRepoConfig(source, log);
+  const repoConfig = await acquireGateRepoConfig(context);
   const login = prInfo.authorLogin;
   const listed = login !== null && isTrustedBot(repoConfig.settings, login);
   if (listed) {

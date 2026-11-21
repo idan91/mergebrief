@@ -34,6 +34,7 @@ import {
   type Generator,
 } from "generators";
 import { createI18n } from "i18n";
+import { RepoConfigPaths } from "repo-config";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
 import {
@@ -62,6 +63,7 @@ import {
 import { buildEntryCommentCappedBody } from "../../src/task/entry-comment";
 import type { EntryCommentLink } from "../../src/task/entry-comment/types";
 import { RunPools, type GenerateTask } from "../../src/task/generate/types";
+import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
 import {
   openPerTestPglite,
   registerSharedPglite,
@@ -801,6 +803,44 @@ export function interceptInstallationRepo(
   };
 }
 
+export interface ReadCount {
+  count: number;
+}
+
+/** The first `settings.yaml` read answers as `failing` does; later reads as `github`. */
+export function failFirstSettingsRead(
+  github: FakeGitHub,
+  failing: FakeGitHub,
+): ReadCount {
+  const reads: ReadCount = { count: 0 };
+  const bind = github.bindInstallationGitHub.bind(github);
+  github.bindInstallationGitHub = (installationId) => {
+    const bound = bind(installationId);
+    const failingBound = failing.bindInstallationGitHub(installationId);
+    return {
+      ...bound,
+      forRepo: (repo) => {
+        const client = bound.forRepo(repo);
+        const failingClient = failingBound.forRepo(repo);
+        return {
+          ...client,
+          fetchRepoFile(input) {
+            if (input.path !== RepoConfigPaths.SETTINGS) {
+              return client.fetchRepoFile(input);
+            }
+            reads.count += 1;
+            if (reads.count === 1) {
+              return failingClient.fetchRepoFile(input);
+            }
+            return client.fetchRepoFile(input);
+          },
+        };
+      },
+    };
+  };
+  return reads;
+}
+
 /** As `interceptInstallationRepo`, for the viewer's binding on a url-box job. */
 export function interceptReviewerRepo(
   github: FakeGitHub,
@@ -1169,6 +1209,8 @@ export interface TaskOverrides extends Omit<
   readonly operatorToken?: OwnedOperatorToken;
 }
 
+const NO_SETTINGS_READ_PAUSES = SETTINGS_READ_RETRY_DELAYS_MS.map(() => 0);
+
 function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
   const { github = makeGitHub(HEAD_1), operatorToken, ...rest } = overrides;
   return {
@@ -1177,6 +1219,7 @@ function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
     translate: createI18n().t,
     generator: stubGenerator(),
     contextProviders: createBuiltInContextProviders(DEFAULT_LINK_FETCH),
+    settingsReadRetryDelaysMs: NO_SETTINGS_READ_PAUSES,
     ...rest,
     github: openTestPort(github, operatorToken),
   };
