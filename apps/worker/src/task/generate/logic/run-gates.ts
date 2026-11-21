@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { isPermanentGitHubError } from "github";
+import { isPermanentGitHubError, type GitHubCallFailure } from "github";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { TransientJobError } from "../../failure";
 import { acquireRepoConfig, type AcquiredRepoConfig } from "../../repo-config";
@@ -25,9 +25,14 @@ export function isGateable(context: RunContext): boolean {
   return gateable;
 }
 
-function isRetryableSettingsRead(repoConfig: AcquiredRepoConfig): boolean {
+function readRetryableSettingsFailure(
+  repoConfig: AcquiredRepoConfig,
+): GitHubCallFailure | undefined {
   const failure = repoConfig.settingsFetchFailure;
-  return failure !== undefined && !isPermanentGitHubError(failure);
+  if (failure === undefined || isPermanentGitHubError(failure)) {
+    return undefined;
+  }
+  return failure;
 }
 
 /**
@@ -44,7 +49,7 @@ export async function acquireGateRepoConfig(
     deps.settingsReadRetryDelaysMs ?? SETTINGS_READ_RETRY_DELAYS_MS;
   let repoConfig = await acquireRepoConfig(source, log);
   for (const delayMs of delays) {
-    if (!isRetryableSettingsRead(repoConfig)) {
+    if (readRetryableSettingsFailure(repoConfig) === undefined) {
       return repoConfig;
     }
     // oxlint-disable-next-line no-await-in-loop -- each try waits on the last.
@@ -64,11 +69,10 @@ export function retrySettingsReadWhileAttemptsLeft(
   context: RunContext,
   repoConfig: AcquiredRepoConfig,
 ): void {
-  const failure = repoConfig.settingsFetchFailure;
-  const retryable = failure !== undefined && !isPermanentGitHubError(failure);
+  const failure = readRetryableSettingsFailure(repoConfig);
   const { job } = context;
   const attemptsLeft = job !== undefined && job.attempts < job.max_attempts;
-  const retriesRead = retryable && attemptsLeft;
+  const retriesRead = failure !== undefined && attemptsLeft;
   if (!retriesRead) {
     return;
   }
