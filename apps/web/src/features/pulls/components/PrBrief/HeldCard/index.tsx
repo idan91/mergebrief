@@ -18,7 +18,7 @@ export interface HeldCardProps {
   repoId: string;
   prNumber: number;
   unmetConditions: readonly HeldCondition[];
-  /** The list left out an item this bundle predates. */
+  /** The list left out an item the server or this bundle could not read. */
   unmetConditionsPartial: boolean;
   /** Push alone, from PR meta: the regenerate route's collaborator bar. */
   viewerCanPush: boolean;

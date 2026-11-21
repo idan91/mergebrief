@@ -257,7 +257,7 @@ describe("NewerCommitsChip", () => {
     ).toBeTruthy();
   });
 
-  it("ends a held push's popover list with the unreadable line", () => {
+  it("ends a held push's popover list with the partial line", () => {
     const status = stubStatus({
       state: NewerCommitsStates.HELD,
       statusLabel: "New brief held",
@@ -269,8 +269,8 @@ describe("NewerCommitsChip", () => {
 
     const panel = openPanel();
 
-    expect(within(panel).getByTestId("held-unreadable").textContent).toBe(
-      "Conditions this server could not read",
+    expect(within(panel).getByTestId("held-partial").textContent).toBe(
+      "Some conditions could not be shown",
     );
   });
 

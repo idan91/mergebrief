@@ -239,6 +239,7 @@
         "waiting": "Waiting on",
         "needs": "Needs a change first"
       },
+      "partial": "Some conditions could not be shown",
       "setBy": {
         "repo": "Repository",
         "instance": "Instance"
