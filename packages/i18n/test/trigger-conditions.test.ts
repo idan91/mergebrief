@@ -6,10 +6,14 @@ import {
   SizeMeasures,
   TriggerConditionKinds,
   TriggerConditionSetters,
+  UnmetConditionKinds,
+  type BotState,
 } from "types/trigger-conditions";
 import {
   createI18n,
   describeUnmetCondition,
+  isWaitingCondition,
+  sortUnmetConditions,
   type UnmetConditionFormat,
 } from "../src/index";
 
@@ -115,5 +119,73 @@ describe("describeUnmetCondition", () => {
     expect(describeUnmetCondition(condition, FORMAT)).toEqual([
       "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions",
     ]);
+  });
+});
+
+function makeBot(state: BotState) {
+  return { kind: TriggerConditionKinds.BOTS, state };
+}
+
+function makeCi(failed: readonly string[], permissionMissing = false) {
+  return { kind: TriggerConditionKinds.CI, failed, permissionMissing };
+}
+
+const LABELS = { kind: TriggerConditionKinds.LABELS };
+
+describe("isWaitingCondition", () => {
+  it.each([BotStates.NOT_STARTED, BotStates.RUNNING])(
+    "waits on a bot that is %s",
+    (state) => {
+      expect(isWaitingCondition(makeBot(state))).toBe(true);
+    },
+  );
+
+  it.each([
+    BotStates.NOT_APPROVED,
+    BotStates.ISSUES,
+    BotStates.NO_VERDICT,
+    BotStates.PERMISSION_MISSING,
+  ])("needs a change on a bot that is %s", (state) => {
+    expect(isWaitingCondition(makeBot(state))).toBe(false);
+  });
+
+  it("waits on CI with nothing failed, and needs a change otherwise", () => {
+    expect(isWaitingCondition(makeCi([]))).toBe(true);
+    expect(isWaitingCondition(makeCi(["build"]))).toBe(false);
+    expect(isWaitingCondition(makeCi([], true))).toBe(false);
+  });
+
+  it("never waits on a kind its state does not decide", () => {
+    expect(isWaitingCondition(LABELS)).toBe(false);
+  });
+
+  it("waits on an any group when one member waits", () => {
+    const waiting = {
+      kind: UnmetConditionKinds.ANY,
+      conditions: [LABELS, makeBot(BotStates.RUNNING)],
+    };
+    const blocked = { kind: UnmetConditionKinds.ANY, conditions: [LABELS] };
+
+    expect(isWaitingCondition(waiting)).toBe(true);
+    expect(isWaitingCondition(blocked)).toBe(false);
+  });
+});
+
+describe("sortUnmetConditions", () => {
+  it("puts waits first, then blockers, then any groups, each in order", () => {
+    const group = { kind: UnmetConditionKinds.ANY, conditions: [LABELS] };
+    const failedCi = makeCi(["build"]);
+    const runningBot = makeBot(BotStates.RUNNING);
+    const runningCi = makeCi([]);
+
+    const sorted = sortUnmetConditions([
+      group,
+      failedCi,
+      runningBot,
+      LABELS,
+      runningCi,
+    ]);
+
+    expect(sorted).toEqual([runningBot, runningCi, failedCi, LABELS, group]);
   });
 });
