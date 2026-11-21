@@ -159,6 +159,7 @@ describe("bindReviewerGitHub creates", () => {
       {
         method: "POST",
         path: "/repos/acme/widgets/pulls/7/comments",
+        search: "",
         authorization: formatTokenAuthorization(OLD_TOKEN),
       },
     ]);

@@ -114,6 +114,8 @@ function listEntryWrites(github: FakeGitHub, before: number): string[] {
     .filter((call) => !call.startsWith("fetch"));
 }
 
+const CODERABBIT_APP_ID = 347_564n;
+
 const PATHS_SETTINGS = "version: 1\ntriggerConditions:\n  paths: ['**/*.ts']\n";
 const PATHS_OR_LABELS_SETTINGS = `version: 1
 triggerConditions:
@@ -871,5 +873,171 @@ describe("generate task, trigger conditions", () => {
     expect(await readUnmet(pr)).toBeUndefined();
     expect(generator.calls).toEqual([]);
     expect(await countStartedRuns()).toBe(0);
+  });
+
+  it("holds on a bot still running, then generates once its run completes", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const botsCondition = instanceConditions({
+      bots: { coderabbit: "finished" },
+    });
+    github.addCheckRun(REPO, HEAD_1, {
+      checkRunId: 1n,
+      name: "CodeRabbit",
+      appId: CODERABBIT_APP_ID,
+      completed: false,
+    });
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator, triggerConditions: botsCondition })(
+      payload,
+    );
+
+    expect(generator.calls).toEqual([]);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      {
+        kind: "bots",
+        setBy: "instance",
+        bot: "coderabbit",
+        verdict: "finished",
+        state: "running",
+      },
+    ]);
+
+    github.addCheckRun(REPO, HEAD_1, {
+      checkRunId: 2n,
+      name: "CodeRabbit",
+      appId: CODERABBIT_APP_ID,
+      completed: true,
+      conclusion: "success",
+    });
+    await makeTask({ github, triggerConditions: botsCondition })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("holds on a failed required check from the base's rulesets", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, "version: 1\ntriggerConditions:\n  ci: required\n");
+    github.setRequiredStatusChecks(REPO, "main", ["build", "lint"]);
+    github.addCheckRun(REPO, HEAD_1, {
+      checkRunId: 1n,
+      name: "build",
+      completed: true,
+      conclusion: "failure",
+    });
+    github.addCommitStatus(REPO, HEAD_1, { context: "lint", state: "success" });
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: ["build"],
+        running: [],
+        missing: [],
+        permissionMissing: false,
+      },
+    ]);
+    expect(github.listCalls("listRequiredStatusChecks")).toHaveLength(1);
+  });
+
+  it("holds on a missing permission when the check-run read is refused", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.failOn("listCheckRuns", FakeFailures.FORBIDDEN);
+    const generator = stubGenerator();
+
+    await makeTask({
+      github,
+      generator,
+      triggerConditions: instanceConditions({
+        bots: { claude: "clean" },
+        ci: { checks: ["build"] },
+      }),
+    })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      {
+        kind: "bots",
+        setBy: "instance",
+        bot: "claude",
+        verdict: "clean",
+        state: "permission-missing",
+      },
+      {
+        kind: "ci",
+        setBy: "instance",
+        failed: [],
+        running: [],
+        missing: ["build"],
+        permissionMissing: true,
+      },
+    ]);
+  });
+
+  it("reads no check runs, statuses or reviews without bots or ci", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+
+    await makeTask({
+      github,
+      triggerConditions: instanceConditions({ readyForReview: "on" }),
+    })(payload);
+
+    const reads = [
+      ...github.listCalls("listCheckRuns"),
+      ...github.listCalls("listCommitStatuses"),
+      ...github.listCalls("listSubmittedReviews"),
+      ...github.listCalls("listRequiredStatusChecks"),
+    ];
+    expect(reads).toEqual([]);
+  });
+
+  it("reads only reviews for a bots condition naming Copilot alone", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+
+    await makeTask({
+      github,
+      triggerConditions: instanceConditions({ bots: { copilot: "finished" } }),
+    })(payload);
+
+    const reports = [
+      ...github.listCalls("listCheckRuns"),
+      ...github.listCalls("listCommitStatuses"),
+    ];
+    expect(reports).toEqual([]);
+    expect(github.listCalls("listSubmittedReviews")).toHaveLength(1);
+  });
+
+  it("retries a bots check whose status read fails transiently", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.failOn("listCommitStatuses", FakeFailures.SERVER_ERROR);
+    const generator = stubGenerator();
+
+    await expect(
+      makeTask({
+        github,
+        generator,
+        triggerConditions: instanceConditions({
+          bots: { unblocked: "finished" },
+        }),
+      })(payload, { job: FIRST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.errorCode).toBe(GenerationFailureCodes.GITHUB_UNAVAILABLE);
+    expect(await readUnmet(pr)).toBeUndefined();
+    expect(generator.calls).toEqual([]);
   });
 });

@@ -37,6 +37,7 @@ import type {
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review-pending";
+import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
 import type { RepositoryVisibility } from "../types";
 
 /** Every method a binding exposes, named as the interfaces name it. */
@@ -130,6 +131,8 @@ export interface FakeReview {
   readonly body: string;
   readonly authorId?: bigint;
   readonly submittedAt?: Date;
+  /** The head the review was submitted against. */
+  readonly commitId?: string;
   /** Threads attached while pending. */
   readonly commentCount?: number;
 }
@@ -164,6 +167,18 @@ export interface FakeFileRef {
 export interface FakeGitHubArrange {
   addRepository(info: RepositoryInfo): void;
   addPullRequest(ref: PullRequestRef, pull: FakePullRequest): void;
+  /** A review lands on an arranged pull request, listed after the earlier ones. */
+  addReview(ref: PullRequestRef, review: FakeReview): void;
+  /** A check run on the commit `ref`, listed after the earlier ones. */
+  addCheckRun(repo: RepositoryRef, ref: string, run: CheckRun): void;
+  /** A status on the commit `ref`; the newest lists first, as on GitHub. */
+  addCommitStatus(repo: RepositoryRef, ref: string, status: CommitStatus): void;
+  /** The check names the branch's rulesets require. */
+  setRequiredStatusChecks(
+    repo: RepositoryRef,
+    branch: string,
+    contexts: readonly string[],
+  ): void;
   /** Change an arranged pull request's facts, as a push or a draft toggle does. */
   updatePullRequest(ref: PullRequestRef, info: Partial<PullRequestInfo>): void;
   addCompare(

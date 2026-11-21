@@ -20,6 +20,7 @@ import {
   type ValueOf,
 } from "types";
 import type { PendingReview } from "./review";
+import { readReviewList } from "./review-list";
 
 export interface PullRequestReviewRef {
   readonly owner: string;
@@ -38,31 +39,11 @@ export const PullRequestReviewStates = {
 } as const;
 export type PullRequestReviewState = ValueOf<typeof PullRequestReviewStates>;
 
-const REVIEWS_PER_PAGE = 100;
-
 const reviewListEntrySchema = z.object({
   id: z.number(),
   node_id: z.string(),
   state: z.string(),
 });
-
-async function readReviewList(
-  octokit: Octokit,
-  ref: PullRequestReviewRef,
-  context: string,
-): Promise<Result<unknown[], GitHubApiError>> {
-  try {
-    const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
-      owner: ref.owner,
-      repo: ref.repo,
-      pull_number: ref.prNumber,
-      per_page: REVIEWS_PER_PAGE,
-    });
-    return { ok: true, value: reviews };
-  } catch (error) {
-    return { ok: false, error: mapRequestError(error, context) };
-  }
-}
 
 /**
  * The viewer's pending review on a PR, `undefined` when there is none. Only

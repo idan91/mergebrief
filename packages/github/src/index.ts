@@ -293,6 +293,20 @@ export {
   TRUSTED_COLLABORATOR_PERMISSIONS,
 } from "./operations/collaborator-permission/types";
 export type { CollaboratorPermission } from "./operations/collaborator-permission/types";
+
+// What reports on a commit, and which checks a branch requires: the
+// trigger-condition check's bots and ci reads, on the installation binding.
+export {
+  CheckRunConclusions,
+  CommitStatusStates,
+} from "./operations/status-checks/types";
+export type {
+  CheckRun,
+  CheckRunConclusion,
+  CommitStatus,
+  CommitStatusState,
+} from "./operations/status-checks/types";
+export type { SubmittedReview } from "./operations/review-list";
 export type {
   ListRepoCollaboratorsInput,
   RepoCollaborator,

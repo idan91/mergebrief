@@ -19,6 +19,7 @@ What the layout can't show:
 - `auth/app.ts` asks for every installation token once, under `MINT_TIMEOUT_MS`, through the App Octokit's `request.fetch` and a `before` hook: auth-app shares one pending mint per installation until its POST settles, so a hung or retried mint would hold every later call on that installation.
 - `operations/partial-data.ts` reads the data octokit's throw still carries for an aliased query; a NOT_FOUND alias is an answer, not a failure.
 - `operations/issue.ts` reads with `redirect: "manual"`: the 301 a transferred issue or a renamed repository's old name answers reads `not-found` unfollowed on every binding, so no caller's repository bound is checked against one repo while the body comes from another.
+- `operations/status-checks/` reads a commit's check runs (`filter: all`, reruns included) and statuses, and a branch's ruleset-required checks (`GET /rules/branches/{branch}`; classic branch protection is not read). GitHub Free's 403 on a private repository's rules read, told by its message, reads as nothing required.
 - `operations/repo-visibility.ts` reads a repository's visibility by name for every binding's `fetchRepositoryVisibility`; an answer without `visibility` reads it from `private`.
 - `client/operator-owner.ts` resolves the operator PAT's owner once at boot (`GET /user`) and serves that id only. A 401, a non-rate-limit 403 or a 404 refuses it for the process lifetime; any other failure serves nobody while an unref'd timer retries (30 s doubling to 15 min).
 

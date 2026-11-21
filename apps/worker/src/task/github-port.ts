@@ -10,6 +10,8 @@ import {
   GitHubApiErrorCodes,
   RenewalFailureCodes,
   type AppClient,
+  type CheckRun,
+  type CommitStatus,
   type GitHubApiError,
   type GitHubCall,
   type GitHubCallFailure,
@@ -27,6 +29,7 @@ import {
   type ReviewerBindingOptions,
   type ReviewerCredential,
   type ReviewerGitHub,
+  type SubmittedReview,
 } from "github";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Logger } from "logging";
@@ -54,6 +57,19 @@ export type EntryComments = Pick<
   | "fetchComment"
   | "listIssueComments"
 >;
+
+/**
+ * What the trigger-condition check reads about the push; only an installation
+ * job has them, and only an installation job is checked.
+ */
+export interface ConditionReads {
+  /** Needs Checks: read; an installation without it answers forbidden. */
+  listCheckRuns(ref: string): GitHubCall<CheckRun[]>;
+  /** Needs Commit statuses: read; an installation without it answers forbidden. */
+  listCommitStatuses(ref: string): GitHubCall<CommitStatus[]>;
+  listSubmittedReviews(): GitHubCall<SubmittedReview[]>;
+  listRequiredStatusChecks(branch: string): GitHubCall<string[]>;
+}
 
 /** The GitHub calls a generate job performs, bound to one (credential, repo, PR). */
 export interface PullRequestSource {
@@ -108,6 +124,8 @@ export interface PullRequestSource {
   fetchMergeBase(base: string, head: string): GitHubCall<string>;
   /** Absent on a url-box job: the viewer's token never writes. */
   readonly entryComments?: EntryComments;
+  /** Absent on a url-box job, which no trigger condition holds. */
+  readonly conditionReads?: ConditionReads;
 }
 
 /** One url-box job's credential reference and the PR it reads. */
@@ -188,7 +206,7 @@ function splitRepoSlugOrThrow(repoSlug: string, prNumber: number): RepoParts {
 
 type PullRequestReads = Omit<
   PullRequestSource,
-  "listOpenPullRequests" | "entryComments"
+  "listOpenPullRequests" | "entryComments" | "conditionReads"
 >;
 
 /** One binding's reads, bound to one repository's PR. */
@@ -332,6 +350,13 @@ function openInstallationSource(
     ...bindPullRequestReads(github, client, prNumber),
     listOpenPullRequests: () => client.listOpenPullRequests(),
     entryComments: client,
+    conditionReads: {
+      listCheckRuns: (ref) => client.listCheckRuns(ref),
+      listCommitStatuses: (ref) => client.listCommitStatuses(ref),
+      listSubmittedReviews: () => client.listSubmittedReviews(prNumber),
+      listRequiredStatusChecks: (branch) =>
+        client.listRequiredStatusChecks(branch),
+    },
   };
 }
 

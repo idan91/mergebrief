@@ -1,9 +1,35 @@
-import type { SizeMeasure } from "types/trigger-conditions";
+import type { CheckRun, CommitStatus, SubmittedReview } from "github";
+import type { TriggerConditionValues } from "generators/trigger-conditions";
+import type { Logger } from "logging";
+import type {
+  SizeMeasure,
+  TriggerConditionKind,
+  TriggerConditionSetter,
+  UnmetPlainCondition,
+} from "types/trigger-conditions";
+import type { ValueOf } from "types/utils";
+
+/**
+ * What reported on the head, read only when a `bots` or `ci` condition is
+ * set; every list is empty otherwise.
+ */
+export interface HeadReports {
+  readonly checkRuns: readonly CheckRun[];
+  /** Newest first, as GitHub lists them. */
+  readonly statuses: readonly CommitStatus[];
+  /** GitHub refused the check-run or status read: the installation lacks Checks or Commit statuses read. */
+  readonly statusChecksForbidden: boolean;
+  /** Oldest first, on any commit; a check keeps those on the head. */
+  readonly reviews: readonly SubmittedReview[];
+  /** The base branch's ruleset-required check names; read only for `ci: required`. */
+  readonly requiredChecks: readonly string[];
+}
 
 /** What the check knows about the push, read fresh from GitHub this run. */
 export interface ConditionFacts {
   readonly draft: boolean;
   readonly title: string;
+  readonly headSha: string;
   /** The branch the pull request targets directly; absent when GitHub named none. */
   readonly baseRef?: string;
   readonly labels: readonly string[];
@@ -16,4 +42,32 @@ export interface ConditionFacts {
    * the verdict.
    */
   readonly changedPaths?: readonly string[] | undefined;
+  readonly reports: HeadReports;
+}
+
+export interface KindCheckInput<Kind extends TriggerConditionKind> {
+  readonly value: TriggerConditionValues[Kind];
+  readonly setBy: TriggerConditionSetter;
+  readonly facts: ConditionFacts;
+  readonly log?: Logger | undefined;
+}
+
+/** A kind's check: the unmet items it leaves, none when the push meets it. */
+export type KindCheck<Kind extends TriggerConditionKind> = (
+  input: KindCheckInput<Kind>,
+) => UnmetPlainCondition[];
+
+/** Where one named check stands on the head under GitHub's merge rule. */
+export const CheckOutcomes = {
+  PASSED: "passed",
+  FAILED: "failed",
+  RUNNING: "running",
+  MISSING: "missing",
+} as const;
+export type CheckOutcome = ValueOf<typeof CheckOutcomes>;
+
+/** A review bot's own GitHub accounts; a bot without an App reports only through reviews. */
+export interface ReviewBotAccount {
+  readonly appId?: bigint;
+  readonly userId: bigint;
 }
