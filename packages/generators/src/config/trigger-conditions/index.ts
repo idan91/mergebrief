@@ -89,13 +89,12 @@ function parseAnyGroup(
 }
 
 function findBlockIssues(
+  raw: Record<string, unknown>,
   all: readonly TriggerConditionSetting[],
   any: readonly TriggerConditionSetting[],
-  dropped: readonly TriggerConditionKind[],
 ): string[] {
   const issues: string[] = [];
-  const namesNothing = all.length + any.length + dropped.length === 0;
-  if (namesNothing) {
+  if (Object.keys(raw).length === 0) {
     issues.push(`${BLOCK}: name at least one condition, or write off`);
   }
 
@@ -162,7 +161,7 @@ function parseBlock(
     issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
   }
 
-  issues.push(...findBlockIssues(all, any, dropped));
+  issues.push(...findBlockIssues(raw, all, any));
   if (issues.length > 0) {
     return configError(issues);
   }
