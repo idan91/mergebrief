@@ -27,7 +27,7 @@ export function RowReason({ generation, state, className }: RowReasonProps) {
       className={clsx(className, styles["reason"])}
       data-testid="inbox-row-reason"
     >
-      <span className={styles["text"]}>{reason.text}</span>
+      <span className={styles["text"]}>{reason.text}</span>{" "}
       {reason.more > 0 ? (
         <span className={styles["more"]}>
           {t("home.inbox.held.more", { count: reason.more })}
