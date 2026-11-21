@@ -15,7 +15,8 @@ export function findLatestRun(
   isCounted: (run: CheckRun) => boolean,
 ): CheckRun | undefined {
   return runs.filter(isCounted).reduce<CheckRun | undefined>((latest, run) => {
-    if (latest === undefined || run.checkRunId > latest.checkRunId) {
+    const isNewer = latest === undefined || run.checkRunId > latest.checkRunId;
+    if (isNewer) {
       return run;
     }
     return latest;

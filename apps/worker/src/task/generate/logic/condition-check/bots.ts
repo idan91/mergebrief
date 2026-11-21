@@ -69,12 +69,14 @@ function hasFinished(reports: BotReports): boolean {
   const statusEnded = reports.statuses.some(
     (status) => status.state !== CommitStatusStates.PENDING,
   );
-  return ranToEnd || statusEnded || reports.reviews.length > 0;
+  const reviewed = reports.reviews.length > 0;
+  return ranToEnd || statusEnded || reviewed;
 }
 
 function hasStarted(reports: BotReports): boolean {
   const runStarted = reports.runs.some((run) => !run.completed);
-  return runStarted || reports.statuses.length > 0;
+  const statusReported = reports.statuses.length > 0;
+  return runStarted || statusReported;
 }
 
 /**
@@ -192,7 +194,8 @@ export function checkBots({
 }: KindCheckInput<typeof TriggerConditionKinds.BOTS>): UnmetPlainCondition[] {
   const unmet: UnmetPlainCondition[] = [];
   for (const [bot, verdict] of Object.entries(value)) {
-    if (!isReviewBot(bot) || verdict === undefined) {
+    const configuredBot = isReviewBot(bot) && verdict !== undefined;
+    if (!configuredBot) {
       continue;
     }
     const hold = readBotHold(bot, verdict, facts);
