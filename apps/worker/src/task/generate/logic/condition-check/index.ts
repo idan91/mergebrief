@@ -272,7 +272,7 @@ export async function applyConditionCheck(
   const held = await projection.markHeld(target, unmet);
   if (!held.ok) {
     if (await isEveryPushSince(context)) {
-      return proceed(repoConfig, files);
+      return buildProceedOutcome(repoConfig, files);
     }
     log.info("generate: condition hold stood down", { code: held.error.code });
     return HELD;

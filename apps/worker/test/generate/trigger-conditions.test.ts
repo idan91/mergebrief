@@ -384,9 +384,9 @@ describe("generate task, trigger conditions", () => {
       ctx,
     ).pullRequests.turnOffGenerateEveryPush(pr.id);
 
-    await makeTask({ triggerConditions: instanceConditions({ never: "on" }) })(
-      payload,
-    );
+    await makeTask({
+      triggerConditions: makeInstanceConditions({ never: "on" }),
+    })(payload);
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
   });

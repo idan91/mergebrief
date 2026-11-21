@@ -407,15 +407,14 @@ export interface GenerationProjection {
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Reflect `held`: a trigger condition is unmet, `unmetConditions` names
-   * every one. Moves only a `pending`, `held` or `failed` row (a retry starts
-   * from `failed`) no live lease holds and no Generate click stamped, of a PR
-   * not generating on every push, with a fresh claim budget, under the pull
-   * request's row lock a click and the switch also take, so either lands
-   * first and wins or releases the hold after it. A stamped or kept-status
-   * row, or one whose PR generates on every push, answers `status-kept`, any
-   * other refused row `claim-lost`. Not a failure: `attempts` is untouched.
-   * A list or name past the stored bounds is cut, never refused.
+   * Reflect `held` with every unmet condition. Moves only a `pending`,
+   * `held` or `failed` row (a retry starts from `failed`) no live lease holds,
+   * no Generate click stamped and whose PR is not generating on every push,
+   * with a fresh claim budget, under the pull request's row lock a click and
+   * the switch also take, so either lands first and wins or releases the hold
+   * after it. A stamped or kept-status row, or one whose PR generates on every
+   * push, answers `status-kept`, any other refused row `claim-lost`.
+   * `attempts` is untouched; overlong names are cut, not refused.
    */
   markHeld(
     target: GenerationTarget,
