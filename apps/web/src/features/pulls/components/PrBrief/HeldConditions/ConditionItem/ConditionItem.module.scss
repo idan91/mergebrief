@@ -1,0 +1,40 @@
+@use "mixins";
+
+@layer components {
+  .item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding-block: var(--space-3);
+    color: var(--color-text-soft);
+    font-size: var(--font-size-2);
+    line-height: var(--line-height-body);
+  }
+
+  .reasons {
+    display: grid;
+    gap: var(--space-1);
+    min-inline-size: 0;
+  }
+
+  .reason {
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+  }
+
+  .owner {
+    justify-self: end;
+  }
+
+  @include mixins.for-breakpoint("small-mobile", "<") {
+    .item {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-1);
+    }
+
+    .owner {
+      justify-self: start;
+    }
+  }
+}

@@ -16,6 +16,8 @@ const prMetaSliceSchema = z.object({
     .object({
       status: z.string(),
       errorCode: z.string().nullable().optional(),
+      unmetConditions: z.unknown().optional(),
+      unmetConditionsPartial: z.boolean().optional(),
     })
     .nullable()
     .optional(),

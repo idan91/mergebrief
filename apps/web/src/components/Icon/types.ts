@@ -31,6 +31,8 @@ export const IconNames = {
   GITHUB_LOGO: "github-logo",
   GIT_MERGE: "git-merge",
   GIT_PULL_REQUEST: "git-pull-request",
+  HAND_PALM: "hand-palm",
+  HOURGLASS_MEDIUM: "hourglass-medium",
   IMAGE: "image",
   KEYBOARD: "keyboard",
   LINK: "link",

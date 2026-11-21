@@ -350,7 +350,7 @@ export function buildEntryCommentHeldBody(
   t: TFunction,
   held: EntryCommentHeld,
 ): string {
-  const { next, previous, unmet } = held;
+  const { next, previous, unmet, unmetConditionsPartial } = held;
   const shortSha = formatShortSha(next.headSha);
   const heading = `**${t("entryComment.held.heading", { shortSha })}**`;
   const generate = `[${t("entryComment.held.generateLink")}](${buildEntryCommentDeepLink(next)})`;
@@ -368,7 +368,7 @@ export function buildEntryCommentHeldBody(
   return [
     heading,
     "",
-    ...formatHeldConditionLines(t, unmet),
+    ...formatHeldConditionLines(t, unmet, unmetConditionsPartial),
     "",
     links.join(" · "),
     "",
