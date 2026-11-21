@@ -21,6 +21,7 @@ import { CappedCard } from "../CappedCard";
 import { buildCappedLabel } from "../capped-head";
 import { EmptyCard } from "../EmptyCard";
 import { FailedCard } from "../FailedCard";
+import { HeldCard } from "../HeldCard";
 import { PrBriefContent } from "../PrBriefContent";
 import { SupersededCard } from "../SupersededCard";
 import { WaitCard } from "../WaitCard";
@@ -79,6 +80,10 @@ export function stateAnnouncement(
       return isNoLongerOpen(meta.state)
         ? t("pulls.announce.awaitingTriggerNotOpen")
         : t("pulls.announce.awaitingTrigger");
+    case "held":
+      return isNoLongerOpen(meta.state)
+        ? t("pulls.announce.awaitingTriggerNotOpen")
+        : t("pulls.announce.held");
     case "superseded":
       return t(readSupersededAnnouncementKey(meta));
     case "capped":
@@ -209,6 +214,19 @@ function PrBriefBodyState({
             prNumber={prNumber}
             prState={meta.state}
             repoId={repoId}
+            viewerCanPush={meta.viewerCanPush}
+          />
+        </main>
+      );
+    case "held":
+      return (
+        <main className="main" id="main-content" tabIndex={-1}>
+          <HeldCard
+            appInstalled={meta.appInstalled}
+            prNumber={prNumber}
+            prState={meta.state}
+            repoId={repoId}
+            unmetConditions={state.unmetConditions}
             viewerCanPush={meta.viewerCanPush}
           />
         </main>

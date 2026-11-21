@@ -8,6 +8,12 @@ export const DEMO_PR = {
   installationAccount: "idan91",
 } as const;
 
+/** A pull request whose newest push trigger conditions hold: no brief yet, so the held panel shows. */
+export const DEMO_HELD_PR_NUMBER = 626;
+
+/** A pull request with a stored brief whose newest push is held: the newer-commits chip shows it. Reached by its address only. */
+export const DEMO_HELD_BEHIND_PR_NUMBER = 627;
+
 /** The brief's address inside the demo, and where the demo opens. */
 export const DEMO_PR_PATH = `/repos/${DEMO_PR.repoId}/pulls/${String(DEMO_PR.prNumber)}`;
 

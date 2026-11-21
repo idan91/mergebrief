@@ -9,6 +9,7 @@ import { z } from "zod/v4";
 import { dropInvalidKeys } from "@web/utils/drop-keys";
 import { httpsUrlSchema } from "@web/utils/https-url";
 import { buildOpenEnumSchema } from "@web/utils/open-enum";
+import { buildTolerantListSchema } from "@web/utils/tolerant-list";
 
 import type { ConversationThread } from "./types";
 
@@ -113,24 +114,6 @@ export const prConversationSchema = z
     hasMorePrComments: z.boolean(),
   })
   .readonly();
-
-/** Each item its schema rejects is dropped, so one bad row never fails the list. */
-function buildTolerantListSchema<ItemSchema extends z.ZodType>(
-  itemSchema: ItemSchema,
-) {
-  return z
-    .array(z.unknown())
-    .transform((entries) =>
-      entries.flatMap((entry) => {
-        const parsed = z.safeParse(itemSchema, entry);
-        if (!parsed.success) {
-          return [];
-        }
-        return [parsed.data];
-      }),
-    )
-    .readonly();
-}
 
 const TEAM_HANDLE_PATTERN = new RegExp(
   `^(${MentionPatterns.LOGIN})/(${MentionPatterns.TEAM_SLUG})$`,

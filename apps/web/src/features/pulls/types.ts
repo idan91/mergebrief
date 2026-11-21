@@ -9,6 +9,7 @@ import type {
   GenerationStatus,
   GenerationUnitsParams,
   PrState,
+  UnmetCondition,
   ValueOf,
 } from "types";
 import type { ChunkLayoutBody } from "brief-core/chunk-layout";
@@ -46,6 +47,8 @@ export interface GenerationSummary {
   readonly startedAt?: string;
   /** PR meta only, once a multi-call run planned its detail calls. */
   readonly parts?: GenerationPartsView;
+  /** PR meta only, while held: the conditions this bundle reads, unknown ones dropped. */
+  readonly unmetConditions?: readonly UnmetCondition[];
 }
 
 /** The wire discriminates by the unavailable key; parsing adds kind for consumers. */
