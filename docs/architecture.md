@@ -140,7 +140,7 @@ webhook events (`packages/github/src/webhook/events.ts`):
   be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
 - `check_run` (`completed`, or `created` already finished) and `status`
   (every state): queue the job of each open pull request in the repository
-  whose current head at that commit is held, or pending or failed with a run in flight, 45 seconds out, so the worker checks its `bots` and `ci` conditions again once per burst of reports. A fork
+  whose current head at that commit is held on a `bots` or `ci` condition, or pending or failed with a run in flight, 45 seconds out, so the worker checks its `bots` and `ci` conditions again once per burst of reports. A fork
   pull request's run names no pull request and a status never does, so the
   commit SHA finds them. Nothing else is written.
 - `installation` (`deleted`) purges every row of that Installation;

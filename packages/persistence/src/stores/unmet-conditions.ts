@@ -209,6 +209,34 @@ function readStoredItem(item: unknown): StoredItemRead {
   };
 }
 
+/** The kinds a check run or status can move: only they read the head's reports. */
+const CHECK_REPORT_KINDS: ReadonlySet<string> = new Set([
+  TriggerConditionKinds.BOTS,
+  TriggerConditionKinds.CI,
+]);
+
+function isCheckReportKind(condition: UnmetPlainCondition): boolean {
+  return CHECK_REPORT_KINDS.has(condition.kind);
+}
+
+/**
+ * Whether a check run or status can move a held head: a `bots` or `ci` item
+ * holds it, alone or in an `any` group. A document with no readable item
+ * answers true, so the head is checked again rather than left.
+ */
+export function isHeldOnCheckReports(stored: string | null): boolean {
+  const conditions = parseUnmetConditions(stored);
+  if (conditions === undefined) {
+    return true;
+  }
+  return conditions.some((condition) => {
+    if (condition.kind !== UnmetConditionKinds.ANY) {
+      return isCheckReportKind(condition);
+    }
+    return condition.conditions.some(isCheckReportKind);
+  });
+}
+
 /**
  * The stored document, read back item by item: an item this schema refuses,
  * such as a kind a newer release wrote, is dropped and the rest kept, and an

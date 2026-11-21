@@ -714,10 +714,22 @@ describe("recheckHeadsAtSha", () => {
   const OTHER_REPO_ID = brandWith(isRepoId, 201n);
   const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
 
+  const UNMET_CI: readonly UnmetCondition[] = [
+    {
+      kind: "ci",
+      setBy: "repo",
+      failed: [],
+      running: ["build"],
+      missing: [],
+      permissionMissing: false,
+    },
+  ];
+
   interface HeldSeed {
     readonly ctx?: ScopeContext;
     readonly repoId?: RepoId;
     readonly prNumber?: number;
+    readonly unmet?: readonly UnmetCondition[];
   }
 
   async function seedHeldAt(seed: HeldSeed = {}) {
@@ -737,7 +749,7 @@ describe("recheckHeadsAtSha", () => {
     const pullRequestId = triggered.pullRequest.id;
     const held = await createGenerationProjection(shared.handle, ctx).markHeld(
       makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
-      UNMET,
+      seed.unmet ?? UNMET_CI,
     );
     expect(held.ok).toBe(true);
     return pullRequestId;
@@ -779,6 +791,28 @@ describe("recheckHeadsAtSha", () => {
       "select extract(epoch from run_at - now())::int as delay from graphile_worker.jobs",
     );
     expect(Number(rows[0]?.["delay"])).toBe(CHECK_REPORT_WAKE_DELAY_SECONDS);
+  });
+
+  it("leaves a head held on no bots or ci item asleep", async () => {
+    await seedHeldAt({ unmet: UNMET });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("wakes a head whose any group holds a ci member", async () => {
+    const [ci] = UNMET_CI;
+    if (ci === undefined || ci.kind === "any") {
+      throw new Error("expected a plain ci item");
+    }
+    const unmet: readonly UnmetCondition[] = [
+      { kind: "any", conditions: [ci, { kind: "never", setBy: "repo" }] },
+    ];
+    const pullRequestId = await seedHeldAt({ unmet });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([pullRequestId]);
   });
 
   it("never wakes another installation's PR at the same SHA", async () => {

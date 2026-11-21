@@ -8,6 +8,7 @@
 // job, and a head a live run holds is neither reset nor re-enqueued.
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { traceStore } from "./trace-store";
+import { isHeldOnCheckReports } from "./unmet-conditions";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -330,6 +331,8 @@ interface HeadRecheck {
   /** Only while this is the PR's current head; absent wakes whatever is. */
   readonly headSha?: string;
   readonly delaySeconds: number;
+  /** A check report's recheck: a held head wakes only while a `bots` or `ci` item holds it. */
+  readonly requiresCheckReportHold: boolean;
 }
 
 /**
@@ -357,6 +360,14 @@ async function recheckLockedHead(
   }
   const owed = await isRecheckOwed(tx, pullRequestId, head.row);
   if (!owed) {
+    return false;
+  }
+  const held = head.row.status === GenerationStatuses.HELD;
+  const reportCannotMove =
+    recheck.requiresCheckReportHold &&
+    held &&
+    !isHeldOnCheckReports(head.row.unmetConditions);
+  if (reportCannotMove) {
     return false;
   }
 
@@ -689,7 +700,8 @@ export interface IngestRoutines {
   /**
    * `recheckCurrentHead` for every open PR in the repository whose current head is
    * the SHA, by the same rule, for a check report that names a commit and no
-   * PR. Each PR is locked in id order and read again under its lock; a head
+   * PR; a held head wakes only while a `bots` or `ci` item holds it, the only
+   * kinds a report can move. Each PR is locked in id order and read again under its lock; a head
    * the PR has pushed past, another repository's or installation's PR and an
    * owner scope queue nothing. The job runs `CHECK_REPORT_WAKE_DELAY_SECONDS`
    * out, so a CI run's burst of reports collapses into one re-check.
@@ -1072,6 +1084,7 @@ export function createIngestRoutines(
         const queued = await recheckLockedHead(tx, scope, {
           pullRequestId: input.pullRequestId,
           delaySeconds: TRIGGER_ON_DEMAND_DELAY_SECONDS,
+          requiresCheckReportHold: false,
         });
         return { queued };
       });
@@ -1090,6 +1103,7 @@ export function createIngestRoutines(
             pullRequestId,
             headSha: input.headSha,
             delaySeconds: CHECK_REPORT_WAKE_DELAY_SECONDS,
+            requiresCheckReportHold: true,
           });
           if (queued) {
             rechecked.push(pullRequestId);
