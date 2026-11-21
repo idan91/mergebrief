@@ -74,10 +74,15 @@ export const generation = pgTable(
      * artifact, not here.
      */
     repoConfig: jsonDocument("repo_config"),
-    /** A `held` head's unmet trigger conditions, rewritten on every check; null on every other status. */
+    /**
+     * A `held` head's unmet trigger conditions, rewritten on every check.
+     * Every writer that moves a row out of `held` clears them; the CHECK binds
+     * one way only, so an older release that does not clear them still writes.
+     */
     unmetConditions: jsonDocument("unmet_conditions"),
     /**
-     * A Generate click on a held head: its run skips the trigger conditions.
+     * A Generate click queued this head, held, failed or awaiting its trigger:
+     * its run skips the trigger conditions.
      * The audit row records who clicked.
      */
     generateRequestedAt: timestamp("generate_requested_at", {
@@ -120,7 +125,7 @@ export const generation = pgTable(
     ]);
     const notFailed = differsFrom(table.status, GenerationStatuses.FAILED);
     const running = isOneOf(table.status, [GenerationStatuses.RUNNING]);
-    const held = isOneOf(table.status, [GenerationStatuses.HELD]);
+    const notHeld = differsFrom(table.status, GenerationStatuses.HELD);
 
     return [
       unique("generation_natural_key")
@@ -172,7 +177,7 @@ export const generation = pgTable(
       ),
       check(
         "generation_held_has_conditions",
-        sql`(${held}) = (${table.unmetConditions} is not null)`,
+        sql`${notHeld} or ${table.unmetConditions} is not null`,
       ),
     ];
   },
