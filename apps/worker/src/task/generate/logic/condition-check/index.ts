@@ -177,11 +177,12 @@ async function readHeadReports(
 
   const permittedRuns = readPermittedList(runs);
   const permittedStatuses = readPermittedList(statuses);
+  const statusChecksForbidden =
+    permittedRuns.forbidden || permittedStatuses.forbidden;
   return {
     checkRuns: permittedRuns.items,
     statuses: permittedStatuses.items,
-    statusChecksForbidden:
-      permittedRuns.forbidden || permittedStatuses.forbidden,
+    statusChecksForbidden,
     reviews: throwOnGitHubFailure(reviews),
     requiredChecks: throwOnGitHubFailure(required),
   };

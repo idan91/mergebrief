@@ -70,13 +70,15 @@ function hasFinished(reports: BotReports): boolean {
     (status) => status.state !== CommitStatusStates.PENDING,
   );
   const reviewed = reports.reviews.length > 0;
-  return ranToEnd || statusEnded || reviewed;
+  const finished = ranToEnd || statusEnded || reviewed;
+  return finished;
 }
 
 function hasStarted(reports: BotReports): boolean {
   const runStarted = reports.runs.some((run) => !run.completed);
   const statusReported = reports.statuses.length > 0;
-  return runStarted || statusReported;
+  const started = runStarted || statusReported;
+  return started;
 }
 
 /**
