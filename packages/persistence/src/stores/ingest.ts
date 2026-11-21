@@ -354,7 +354,8 @@ function isRerunHopeless(row: GenerationRow): boolean {
  * Why the current head cannot take a fresh run, or `undefined` when it can:
  * a head waiting for its Trigger approval, or one that failed in a way a
  * rerun can help. A closed or merged PR has nothing left to generate for.
- * Only a live claim holds the head, as on a push: a dead worker's job stays
+ * Only a head the projection keeps in flight (a live claim, or the previous
+ * release's running row) is refused, as on a push: a dead worker's job stays
  * locked for hours, and a live one that has not claimed yet meets the reset
  * row's fence. A failed head whose brief is stored failed after it, and a
  * fresh run there would claim nothing.
@@ -541,9 +542,9 @@ export interface IngestRoutines {
    * waiting one; a locked job gets its key detached, as on a push. A head
    * awaiting its trigger also records the approver's Trigger approval in the
    * same transaction, and is refused when the caller named none; a failed
-   * head records none. A closed or merged PR, a head under a live claim, any
-   * other status, a failure whose class is cannot-help, a failed head whose
-   * brief is stored, and a PR outside an installation scope write nothing.
+   * head records none. A closed or merged PR, an in-flight head, any other
+   * status, a cannot-help failure, a failed head whose brief is stored, and a
+   * PR outside an installation scope write nothing.
    */
   triggerOnDemand(input: TriggerOnDemandInput): Promise<TriggerOnDemandOutcome>;
 }

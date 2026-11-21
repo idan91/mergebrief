@@ -157,7 +157,7 @@ export const ClaimEnds = {
   KEPT_FAILED: "kept-failed",
   /** The pair's brief is stored, so the row is `succeeded`. */
   SETTLED: "settled",
-  /** Over a stored brief, the row was written after the run's pickup or the projection keeps it in flight (a live claim, or the previous release's running row); it is left to that writer. */
+  /** Over a stored brief, the row was written after the run's pickup or is the previous release's running row; it is left to that writer. */
   LEFT: "left",
 } as const;
 export type ClaimEnd = ValueOf<typeof ClaimEnds>;
@@ -175,7 +175,7 @@ export type JobKeyMode = ValueOf<typeof JobKeyModes>;
 export const TriggerOnDemandOutcomes = {
   /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
   QUEUED: "queued",
-  /** A live claim holds the head; nothing was written. */
+  /** The projection keeps the head in flight (a live claim, or the previous release's running row); nothing was written. */
   RUNNING: "running",
   /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",
