@@ -172,10 +172,11 @@ async function owesCheckpointDelta(
   return rows.length > 0;
 }
 
-/** A head a fact event re-checks: held, or pending with its check maybe mid-run. */
+/** A head a fact event may re-check: held, or pending or failed with a run in flight. */
 const WAKES_FOR_CHECK: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.HELD,
   GenerationStatuses.PENDING,
+  GenerationStatuses.FAILED,
 ]);
 
 /** A row a queued job still has work for; any other row is finished. */
@@ -232,6 +233,30 @@ async function hasQueuedGenerateJob(
   }
   const waitsForWorker = !job.locked && job.hasAttemptsLeft;
   return waitsForWorker;
+}
+
+/**
+ * Whether a fact event owes the head a fresh job. A job waiting unlocked
+ * re-checks when it runs, whatever its task, and an `add_job` would rewrite a
+ * `generate-large` job back to `generate`. Otherwise a held head wakes, and a
+ * pending or failed one only while its run is in flight.
+ */
+async function isWakeOwed(
+  tx: IngestTransaction,
+  pullRequestId: PullRequestRowId,
+  status: GenerationStatus,
+): Promise<boolean> {
+  if (!WAKES_FOR_CHECK.has(status)) {
+    return false;
+  }
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  const waitsForWorker =
+    job !== undefined && !job.locked && job.hasAttemptsLeft;
+  if (waitsForWorker) {
+    return false;
+  }
+
+  return status === GenerationStatuses.HELD || job?.locked === true;
 }
 
 /**
@@ -549,13 +574,13 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
-   * An open PR whose current head is `held` or `pending` gets that head's job
-   * queued, so the worker checks the conditions on the new facts. A pending
-   * head's job may be locked mid-check, before its hold is written: the
-   * locked job's key is detached and a fresh job follows it, while an
-   * unlocked waiting job keeps its `run_at`. Read under the pull request's
-   * row lock; any other status, a closed or merged PR, an owner scope and a
-   * PR outside the scope queue nothing.
+   * An open PR whose current head is `held`, or `pending` or `failed` with
+   * its job locked by a run that may write a hold before it sees the new
+   * facts, gets that head's job queued, so the worker checks the conditions
+   * again; a locked job's key is detached and a fresh job follows it. A job
+   * waiting unlocked under the key, whatever its task, is left as it is. Read
+   * under the pull request's row lock; any other status, a closed or merged
+   * PR, an owner scope and a PR outside the scope queue nothing.
    */
   wakeHeldHead(input: WakeHeldHeadInput): Promise<RequeueOutcome>;
   /**
@@ -927,7 +952,10 @@ export function createIngestRoutines(
           return { queued: false };
         }
         const head = await readCurrentBriefHead(tx, scope, pullRequestId);
-        if (head === undefined || !WAKES_FOR_CHECK.has(head.row.status)) {
+        const owed =
+          head !== undefined &&
+          (await isWakeOwed(tx, pullRequestId, head.row.status));
+        if (!owed) {
           return { queued: false };
         }
 
