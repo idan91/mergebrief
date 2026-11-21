@@ -1,6 +1,25 @@
 // The `held:` line `pr <n>` prints under a held head.
 import { describe, expect, it } from "vitest";
+import type { z } from "zod/v4";
+import type { DescribableCondition } from "i18n";
+import type { UnmetPlainCondition } from "types/trigger-conditions";
+import type { heldPlainConditionSchema } from "../src/commands/read/held-items";
 import { formatHeldLine } from "../src/commands/read/held-line";
+
+type IsAssignable<From, To> = [From] extends [To] ? true : false;
+
+/** The CLI reads every condition the server stores, and the describer takes what it reads. */
+const HELD_CONDITION_PINS = {
+  readsEveryStoredCondition: true satisfies IsAssignable<
+    UnmetPlainCondition,
+    z.input<typeof heldPlainConditionSchema>
+  >,
+  describesWhatItReads: true satisfies IsAssignable<
+    z.output<typeof heldPlainConditionSchema>,
+    DescribableCondition
+  >,
+};
+void HELD_CONDITION_PINS;
 
 describe("formatHeldLine", () => {
   it("prints nothing for a head that is not held", () => {
@@ -13,13 +32,13 @@ describe("formatHeldLine", () => {
       {
         kind: "any",
         conditions: [
-          { kind: "labels", source: "repo", labels: ["needs-brief"] },
+          { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
         ],
       },
-      { kind: "ready-for-review", source: "instance" },
+      { kind: "ready-for-review", setBy: "instance" },
       {
         kind: "ci",
-        source: "repo",
+        setBy: "repo",
         failed: [],
         running: ["build", "lint", "test", "e2e"],
         missing: [],
@@ -36,8 +55,8 @@ describe("formatHeldLine", () => {
 
   it("prints an unknown kind raw beside the ones it knows", () => {
     const line = formatHeldLine("held", [
-      { kind: "moon-phase", source: "repo" },
-      { kind: "never", source: "repo" },
+      { kind: "moon-phase", setBy: "repo" },
+      { kind: "never", setBy: "repo" },
     ]);
 
     expect(line).toBe(
@@ -48,16 +67,48 @@ describe("formatHeldLine", () => {
   it.each([
     ["a missing list", undefined],
     ["an empty list", []],
-    ["a list of unreadable items", [{ source: "repo" }, 7]],
+    ["a list of unreadable items", [{ setBy: "repo" }, 7]],
   ])("says the conditions are unmet for %s", (_case, items) => {
     expect(formatHeldLine("held", items)).toBe(
       "held: trigger conditions not met\n",
     );
   });
 
+  it("prints an any group's unknown member raw inside the group", () => {
+    const line = formatHeldLine("held", [
+      {
+        kind: "any",
+        conditions: [
+          { kind: "moon-phase", setBy: "repo" },
+          { kind: "never", setBy: "repo" },
+        ],
+      },
+    ]);
+
+    expect(line).toBe(
+      "held: Needs one of these: Generates only when someone presses Generate (this repository's setting) or moon-phase\n",
+    );
+  });
+
+  it("names a bot whose verdict this build predates", () => {
+    const line = formatHeldLine("held", [
+      {
+        kind: "bots",
+        setBy: "repo",
+        bot: "coderabbit",
+        verdict: "merged-with-notes",
+        state: "running",
+      },
+    ]);
+
+    expect(line).toBe(
+      "held: Waiting for CodeRabbit to finish (this repository's setting)\n",
+    );
+  });
+
   it("escapes control characters in third-party names", () => {
     const line = formatHeldLine("held", [
-      { kind: "labels", source: "repo", labels: ["evil\u001b[31m"] },
+      { kind: "labels", setBy: "repo", labels: ["evil\u001b[31m"] },
     ]);
 
     expect(line).not.toContain("\u001b");
