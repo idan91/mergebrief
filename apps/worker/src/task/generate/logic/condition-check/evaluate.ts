@@ -259,6 +259,19 @@ function isPathsStampCurrent(
   return stamped !== undefined && stamped === digestPathGlobs(globs);
 }
 
+/** Every changed file's own path first, then each rename's old one. */
+function matchChangedPaths(
+  globs: readonly string[],
+  changedPaths: readonly string[],
+  facts: ConditionFacts,
+): boolean | undefined {
+  return matchesAnyGlob(
+    globs,
+    [changedPaths, facts.previousPaths ?? []],
+    PATHS_MATCH_STEPS,
+  );
+}
+
 /**
  * Git paths are case-sensitive, so a glob matches as written. A stamp under
  * the same globs meets it before any path is read. A scan past its budget
@@ -281,11 +294,7 @@ function checkPaths({
   if (facts.changedPaths === undefined) {
     return [];
   }
-  const matched = matchesAnyGlob(
-    value,
-    [facts.changedPaths, facts.previousPaths ?? []],
-    PATHS_MATCH_STEPS,
-  );
+  const matched = matchChangedPaths(value, facts.changedPaths, facts);
   if (matched === true) {
     return [];
   }
@@ -409,11 +418,7 @@ function findMatchedPathsDigest(
   if (unseen || isPathsStampCurrent(setting.value, facts)) {
     return undefined;
   }
-  const matched = matchesAnyGlob(
-    setting.value,
-    [changedPaths],
-    PATHS_MATCH_STEPS,
-  );
+  const matched = matchChangedPaths(setting.value, changedPaths, facts);
   if (matched !== true) {
     return undefined;
   }
