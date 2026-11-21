@@ -2,6 +2,7 @@ import { InboxQueryBounds } from "contract";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxGenerationFilters,
   InboxSortDirections,
   InboxSorts,
   InboxStatuses,
@@ -83,6 +84,21 @@ describe("parseInboxSearch", () => {
     expect(countChangedFilters({ archived: InboxArchivedFilters.ONLY })).toBe(
       1,
     );
+  });
+
+  it("reads the held view and drops a value it does not know", () => {
+    const HELD = InboxGenerationFilters.HELD;
+
+    expect(parseInboxSearch({ generation: "held" })).toEqual({
+      generation: HELD,
+    });
+    expect(parseInboxSearch({ generation: "failed" })).toEqual({});
+    expect(readInboxParams({ generation: HELD })).toEqual({ generation: HELD });
+    expect(readInboxChoices({ generation: HELD }).generation).toBe(HELD);
+    expect(countChangedFilters({ generation: HELD })).toBe(1);
+    expect(clearInboxFilters({ generation: HELD, sort: "created" })).toEqual({
+      sort: "created",
+    });
   });
 
   it("a repeated-key address reads like the comma form", () => {
@@ -385,6 +401,17 @@ describe("widenInboxFilters", () => {
       archived: InboxArchivedFilters.ONLY,
       q: "anchor",
     });
+  });
+
+  it("leaves the held view, which narrows like any filter", () => {
+    const held = { ...narrowed, generation: InboxGenerationFilters.HELD };
+
+    const widened = writeInboxSearch(
+      held,
+      widenInboxFilters(InboxArchivedFilters.HIDE),
+    );
+
+    expect(widened.generation).toBeUndefined();
   });
 
   it("leaves the archived view for the Inbox when asked for that", () => {

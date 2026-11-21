@@ -6,12 +6,14 @@ import {
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
+  InboxGenerationFilters,
   InboxReviewStates,
   InboxSortDirections,
   InboxSorts,
   InboxStatuses,
   type InboxArchivedFilter,
   type InboxAuthorFilter,
+  type InboxGenerationFilter,
   type InboxReviewState,
   type InboxSort,
   type InboxSortDirection,
@@ -154,6 +156,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   const author = readOne(search["author"], InboxAuthorFilters);
   const installations = readIds(search["installation"]);
   const archived = readOne(search["archived"], InboxArchivedFilters);
+  const generation = readOne(search["generation"], InboxGenerationFilters);
   const searchText = readSearchText(search["q"]);
   const error = readOne(search[SIGN_IN_FAILURE_PARAM], SignInFailures);
 
@@ -186,6 +189,9 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   }
   if (archived !== undefined && archived !== InboxArchivedFilters.HIDE) {
     parsed.archived = archived;
+  }
+  if (generation !== undefined) {
+    parsed.generation = generation;
   }
   if (searchText !== undefined) {
     parsed.q = BARE_NUMBER_PATTERN.test(searchText)
@@ -245,6 +251,9 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
   if (search.archived !== undefined) {
     params.archived = search.archived;
   }
+  if (search.generation !== undefined) {
+    params.generation = search.generation;
+  }
   if (search.q !== undefined) {
     params.q = String(search.q);
   }
@@ -263,6 +272,8 @@ export interface InboxChoices {
   readonly author: InboxAuthorFilter;
   readonly installations: readonly string[];
   readonly archived: InboxArchivedFilter;
+  /** Held while the held view is on; absent lists every row. */
+  readonly generation?: InboxGenerationFilter | undefined;
   /** Empty when the reviewer is not searching. */
   readonly searchText: string;
 }
@@ -280,6 +291,7 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
     author: params.author ?? InboxAuthorFilters.ALL,
     installations: params.installation ?? [],
     archived: params.archived ?? InboxArchivedFilters.HIDE,
+    generation: params.generation,
     searchText: params.q ?? "",
   };
 }
@@ -304,6 +316,7 @@ const FILTER_KEYS = [
   "author",
   "installation",
   "archived",
+  "generation",
 ] as const satisfies readonly (keyof InboxSearch)[];
 
 /** How many filters sit off their default; the sort and the page are not filters. */

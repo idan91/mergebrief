@@ -20,12 +20,8 @@ vi.mock("../../../../../data/apiFetch", async (importOriginal) => {
 
 import { apiFetch } from "../../../../../data/apiFetch";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
-import {
-  answerApiFetch,
-  makeAnyGroup,
-  stubQueryClient,
-  UnmetFixtures,
-} from "../../../test-utils";
+import { makeAnyGroup, UnmetFixtures } from "@web/test/unmet-conditions";
+import { answerApiFetch, stubQueryClient } from "../../../test-utils";
 import { HeldCard, type HeldCardProps } from ".";
 
 const apiFetchMock = vi.mocked(apiFetch);

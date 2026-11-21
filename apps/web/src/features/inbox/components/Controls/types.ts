@@ -22,6 +22,21 @@ export interface FilterAllRow {
   readonly onChoose: () => void;
 }
 
+/** The Held view's two choices: every row of the view, or only the held ones. */
+export const HeldViewOptions = {
+  ALL: "all",
+  HELD: "held",
+} as const;
+export type HeldViewOption = ValueOf<typeof HeldViewOptions>;
+
+/** The Held view as the controls draw it: the choice, the held rows' count and the write. */
+export interface HeldViewChoice {
+  readonly value: HeldViewOption;
+  /** Held rows of the view under every other filter. */
+  readonly count: number;
+  readonly onChoose: (option: HeldViewOption) => void;
+}
+
 /** One filter as the controls draw it: its name, its options and what is chosen. */
 export interface FilterView<Value extends string = string> {
   readonly id: string;

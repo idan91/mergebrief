@@ -317,6 +317,7 @@ export const inboxAnswer: InboxResponse = {
       authorLogin: DEMO_PR.authorLogin,
       viewerIsAuthor: false,
       viewerCanDelete: false,
+      viewerCanPush: false,
       reviewState: InboxReviewStates.NEW,
       behind: false,
       unreachable: false,
@@ -338,6 +339,7 @@ export const inboxAnswer: InboxResponse = {
       authorLogin: DEMO_PR.authorLogin,
       viewerIsAuthor: false,
       viewerCanDelete: false,
+      viewerCanPush: false,
       reviewState: InboxReviewStates.NEW,
       behind: false,
       unreachable: false,
@@ -354,6 +356,7 @@ export const inboxAnswer: InboxResponse = {
   archivedTotal: 0,
   searchMatchTotal: 0,
   archivedSearchMatchTotal: 0,
+  heldTotal: 1,
   counts: { new: 2, inProgress: 0, reviewed: 0, updated: 0 },
   viewer,
   reachableInstallations: [
@@ -364,6 +367,16 @@ export const inboxAnswer: InboxResponse = {
   ],
   repositories: [{ repoId: DEMO_PR.repoId, repoSlug: DEMO_PR.repoSlug }],
   installUrl: null,
+};
+
+/** The held view: the inbox narrowed to the rows whose newest head is held. */
+const heldItems = inboxAnswer.items.filter(
+  (item) => item.generation?.status === GenerationStatuses.HELD,
+);
+export const heldInboxAnswer: InboxResponse = {
+  ...inboxAnswer,
+  items: heldItems,
+  total: heldItems.length,
 };
 
 const reviewer = { login: DEMO_REVIEWER_LOGIN, isBot: false };

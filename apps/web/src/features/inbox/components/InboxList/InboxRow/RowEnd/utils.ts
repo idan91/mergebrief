@@ -1,3 +1,5 @@
+import { isWaitingCondition } from "contract";
+
 import { isNoLongerOpen } from "@web/features/pulls/utils";
 import { GenerationStatuses, PrStates } from "types";
 import type { InboxGeneration, InboxItem } from "../../../../types";
@@ -11,15 +13,34 @@ export interface RowSignal {
     | "home.inbox.generation.failed"
     | "home.inbox.generation.capped"
     | "home.inbox.generation.awaitingTrigger"
+    | "home.inbox.generation.held"
+    | "home.inbox.generation.waiting"
     | "home.inbox.status.draft"
     | "home.inbox.status.merged"
     | "home.inbox.status.closed";
 }
 
 /**
+ * Waiting only when every unmet item clears by itself; a held head whose
+ * conditions this bundle could not read may need someone, so it is Held.
+ */
+function readHeldSignal(generation: InboxGeneration): RowSignal {
+  const unmet = generation.unmetConditions ?? [];
+  const waitsOnly = unmet.length > 0 && unmet.every(isWaitingCondition);
+  if (waitsOnly) {
+    return {
+      kind: RowSignalKinds.WAITING,
+      label: "home.inbox.generation.waiting",
+    };
+  }
+  return { kind: RowSignalKinds.HELD, label: "home.inbox.generation.held" };
+}
+
+/**
  * The generation state worth printing: a brief on its way, one that stopped,
- * or one waiting for a click while the PR is open. A closed or merged PR's
- * waiting head never gets one, so its status signal says it all.
+ * or one waiting for a click or for its trigger conditions while the PR is
+ * open. A closed or merged PR's waiting head never gets one, so its status
+ * signal says it all.
  */
 export function readGenerationSignal(
   generation: InboxGeneration | undefined,
@@ -54,6 +75,12 @@ export function readGenerationSignal(
         kind: RowSignalKinds.AWAITING_TRIGGER,
         label: "home.inbox.generation.awaitingTrigger",
       };
+    }
+    case GenerationStatuses.HELD: {
+      if (isNoLongerOpen(state)) {
+        return null;
+      }
+      return readHeldSignal(generation);
     }
     default:
       return null;

@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerateBrief";
 import { isNoLongerOpen } from "../../../utils/pr-state";
-import { readHeldLead, splitUnmetConditions } from "../held-head";
+import { splitUnmetConditions } from "@web/utils/unmet-conditions";
+import { readHeldLead } from "../held-head";
 import { HeldGenerateNotices } from "../held-head/consts";
 import { readOffersTrigger } from "../trigger-offer";
 import type { HeldCardProps } from ".";

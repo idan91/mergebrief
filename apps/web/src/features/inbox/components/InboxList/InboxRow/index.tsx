@@ -25,6 +25,7 @@ import { RowActions } from "./RowActions";
 import { RowEnd } from "./RowEnd";
 import { RowLead } from "./RowLead";
 import { RowMark } from "./RowMark";
+import { RowReason } from "./RowReason";
 import { useRowGeneration } from "./useRowGeneration";
 import {
   describeRow,
@@ -72,12 +73,13 @@ export interface InboxRowProps {
 
 /**
  * Two lines, 56px: the title with its chips, then the source, repository,
- * number and age. The lead slot holds the review mark, and the selection
- * checkbox takes its place on hover, keyboard focus and while rows are being
- * selected; the checkbox stays in the tab order and accessibility tree. The
- * right edge carries the generation state, a status other than Open and the
- * actions. The whole row is one link to the brief; the lead slot sits above
- * it, so the pointer meets the slot and its state callout over the mark.
+ * number, age and a held head's first reason. The lead slot holds the
+ * review mark, and the selection checkbox takes its place on hover,
+ * keyboard focus and while rows are being selected; the checkbox stays in
+ * the tab order and accessibility tree. The right edge carries the
+ * generation state, a status other than Open and the actions. The whole row
+ * is one link to the brief; the lead slot sits above it, so the pointer
+ * meets the slot and its state callout over the mark.
  */
 export function InboxRow({
   item,
@@ -240,6 +242,11 @@ export function InboxRow({
           {age === undefined ? null : (
             <span suppressHydrationWarning>{age}</span>
           )}
+          <RowReason
+            className={styles["reason"]}
+            generation={generation}
+            state={item.state}
+          />
         </span>
       </Link>
       <span className={styles["end"]}>

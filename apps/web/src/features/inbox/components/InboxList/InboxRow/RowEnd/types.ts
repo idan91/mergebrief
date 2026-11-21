@@ -7,6 +7,10 @@ export const RowSignalKinds = {
   FAILED: "failed",
   CAPPED: "capped",
   AWAITING_TRIGGER: "awaiting-trigger",
+  /** Trigger conditions hold the head, and one needs someone to act. */
+  HELD: "held",
+  /** Trigger conditions hold the head, and each clears by itself. */
+  WAITING: "waiting",
   DRAFT: "draft",
   MERGED: "merged",
   CLOSED: "closed",

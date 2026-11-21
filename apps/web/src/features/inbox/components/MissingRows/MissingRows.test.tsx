@@ -25,6 +25,7 @@ const EMPTY_PAGE: InboxPage = {
   archivedTotal: 0,
   searchMatchTotal: 0,
   archivedSearchMatchTotal: 0,
+  heldTotal: 0,
   counts: { new: 0, inProgress: 0, reviewed: 0, updated: 0 },
   viewer: { avatarUrl: "https://a/1" },
   reachableInstallations: [],

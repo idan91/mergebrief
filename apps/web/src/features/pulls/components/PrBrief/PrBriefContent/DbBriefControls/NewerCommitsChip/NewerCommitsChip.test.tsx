@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../../../i18n/I18nProvider";
-import { makeAnyGroup, UnmetFixtures } from "../../../../../test-utils";
+import { makeAnyGroup, UnmetFixtures } from "@web/test/unmet-conditions";
 import { NewerCommitsChip } from ".";
 import {
   NewerCommitsActionKinds,

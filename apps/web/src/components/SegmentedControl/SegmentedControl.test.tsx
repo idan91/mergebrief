@@ -43,6 +43,12 @@ describe("SegmentedControl", () => {
     expect((radios[1] as HTMLInputElement).checked).toBe(false);
   });
 
+  it("names an option with its count beside its label", () => {
+    renderControl([OPTIONS[0]!, { value: "changes", label: "Held", count: 3 }]);
+
+    expect(screen.getByRole("radio", { name: "Held 3" })).toBeTruthy();
+  });
+
   it("reports the chosen value once", () => {
     const { onChange } = renderControl();
     fireEvent.click(screen.getByRole("radio", { name: "Changes Only" }));
