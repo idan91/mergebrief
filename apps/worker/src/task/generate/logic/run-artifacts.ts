@@ -41,6 +41,7 @@ import {
 import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
 import { readDefaultBranchGitAttributes } from "./git-attributes";
 import { createRevisionSpanReader, readSpanBaseRefs } from "./revision-span";
+import { queueEntrySync } from "./entry-sync";
 import { dropStaleMarks } from "./span-marks";
 import { createSpendCharge } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
@@ -130,6 +131,7 @@ async function generateFreshBrief(
     stops: listRunStops(context),
     generator,
     coreMessageLog: inputs.coreMessageLog,
+    queueEntrySync: (headSha) => queueEntrySync(context, headSha),
     log: context.log,
   });
 

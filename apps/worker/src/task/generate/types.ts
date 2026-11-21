@@ -448,8 +448,20 @@ export interface EntryCommentManager {
     body: string,
     isReplaceable: LiveBodyMatcher,
   ): Promise<EntryWrite>;
+  /**
+   * As `replaceOrCreate`, except a replaceable live body is rewritten in
+   * place, which notifies nobody.
+   */
+  editOrCreate(
+    body: string,
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
   replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `replace`, except a replaceable live body is rewritten in place, which notifies nobody. */
+  editMatching(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `edit` over a live body `isEditable` accepts; otherwise as `refresh`. */
+  editOrRefresh(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
 }
 
 /**
@@ -771,6 +783,7 @@ export interface BriefGenerationInputs {
   /** The signal-bound generator: the model call must honour the watch's abort. */
   readonly generator: Generator;
   readonly coreMessageLog: CoreMessageLog;
+  readonly queueEntrySync: (headSha: string) => Promise<void>;
   /** What a multi-call run of this brief needs from the worker. */
   readonly multiCall: MultiCallRunInputs;
   readonly log: Logger;

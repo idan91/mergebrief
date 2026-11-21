@@ -24,6 +24,11 @@ import {
   type EntryBodyKind,
 } from "../../src/task/entry-comment/types";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../../src/task/generate/consts";
+import { writePlannedEntry } from "../../src/task/generate/logic/entry-sync";
+import {
+  EntryWrites,
+  type EntryCommentManager,
+} from "../../src/task/generate/types";
 import {
   captureLogger,
   ctx,
@@ -47,6 +52,7 @@ import {
   REPO,
   SECOND_ATTEMPT,
   openPerTestHarness,
+  SEEDED_ENTRY_ID,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -681,6 +687,28 @@ describe("generate task, Entry sync", () => {
     const bodies = readLiveBodies(github);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain(CLOSED_HEADING);
+  });
+
+  it("the sync edits a held head's Entry in place", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+    await trackCappedEntry(github, pr.id);
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
+    expect(bodies[0]).toContain(
+      "- Generates only when someone presses Generate (this repository's setting)",
+    );
+    const writes = listCommentCalls(github).filter(
+      (call) => !call.startsWith("fetch"),
+    );
+    expect(writes).toEqual([`edit:${String(SEEDED_ENTRY_ID)}`]);
   });
 
   it("the sync names the runs a refused large run needed", async () => {
@@ -1355,5 +1383,50 @@ describe("generate task, Entry sync over a body with no kind token", () => {
     await makeSyncEntryTask({ github })(payload);
 
     expect(readLiveBodies(github)).toEqual([tokenless]);
+  });
+});
+
+describe("writePlannedEntry", () => {
+  /** Records which manager write a plan took; every write leaves the thread. */
+  function stubWriteRecorder(calls: string[]): EntryCommentManager {
+    const record = (name: string) => async () => {
+      calls.push(name);
+      return EntryWrites.LEFT;
+    };
+    const writes = {
+      editOrCreate: record("editOrCreate"),
+      editMatching: record("editMatching"),
+      replaceOrCreate: record("replaceOrCreate"),
+      replace: record("replace"),
+    };
+    return writes as unknown as EntryCommentManager;
+  }
+
+  it("edits an in-place plan, or posts it where no comment is live", async () => {
+    const calls: string[] = [];
+    const plan = {
+      body: "held",
+      isReplaceable: () => true,
+      createsComment: true,
+      inPlace: true,
+    };
+
+    await writePlannedEntry(stubWriteRecorder(calls), plan);
+
+    expect(calls).toEqual(["editOrCreate"]);
+  });
+
+  it("edits an in-place plan that creates no comment only over a match", async () => {
+    const calls: string[] = [];
+    const plan = {
+      body: "held",
+      isReplaceable: () => true,
+      createsComment: false,
+      inPlace: true,
+    };
+
+    await writePlannedEntry(stubWriteRecorder(calls), plan);
+
+    expect(calls).toEqual(["editMatching"]);
   });
 });

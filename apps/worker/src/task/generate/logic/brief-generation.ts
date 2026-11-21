@@ -242,7 +242,13 @@ async function postFreshGeneratingEntry(
     entryCommentManager.buildDeepLink(headIndex),
   );
   await postGeneratingEntry(
-    { watch, entryCommentManager, headSha: prInfo.headSha, log },
+    {
+      watch,
+      entryCommentManager,
+      headSha: prInfo.headSha,
+      log,
+      queueEntrySync: inputs.queueEntrySync,
+    },
     generatingBody,
   );
 }

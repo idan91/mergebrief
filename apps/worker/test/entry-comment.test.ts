@@ -10,6 +10,7 @@ import {
   buildEntryCommentClosedBody,
   buildEntryCommentFailedBody,
   buildEntryCommentGeneratingBody,
+  buildEntryCommentHeldBody,
   buildEntryCommentOnDemandBody,
   formatEntryBodyToken,
   isEntryCommentBody,
@@ -20,6 +21,7 @@ import {
   isOpenHeadEntryBody,
   isUnsettledEntryBody,
 } from "../src/task/entry-comment";
+import { formatInlineCode } from "../src/task/entry-comment/held-conditions";
 import {
   EntryBodyKinds,
   type EntryBodyKind,
@@ -412,5 +414,117 @@ describe("entry body kind token", () => {
     expect(isHeadClosedEntryBody(body, LINK.headSha)).toBe(false);
     expect(isHeadOrOnDemandEntryBody(body, LINK.headSha)).toBe(false);
     expect(isOpenHeadEntryBody(body, LINK.headSha)).toBe(false);
+  });
+});
+
+const PREVIOUS_LINK: EntryCommentLink = {
+  ...LINK,
+  headIndex: 1,
+  headSha: "0123456789abcdef",
+};
+
+describe("held entry body", () => {
+  it("lists each unmet condition with its owner, the group last", () => {
+    const body = buildEntryCommentHeldBody(t, {
+      next: LINK,
+      previous: PREVIOUS_LINK,
+      unmet: [
+        {
+          kind: "any",
+          conditions: [
+            { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+            {
+              kind: "size",
+              setBy: "repo",
+              measure: "changed-lines",
+              side: "max",
+              limit: 500,
+              actual: 1284,
+            },
+          ],
+        },
+        { kind: "ready-for-review", setBy: "instance" },
+        {
+          kind: "ci",
+          setBy: "repo",
+          failed: [],
+          running: ["build", "lint", "test", "e2e"],
+          missing: [],
+          permissionMissing: false,
+        },
+      ],
+    });
+
+    expect(body).toBe(
+      [
+        "**No brief for `abcdef1`.**",
+        "",
+        "- Waiting for CI: `build`, `lint`, `test` and 1 more check still running (this repository's setting)",
+        "- Needs this pull request marked ready for review (this MergeBrief instance's setting)",
+        "- Needs one of these:",
+        "  - Needs the label `needs-brief` (this repository's setting)",
+        "  - 1284 changed lines, over the 500 maximum (this repository's setting)",
+        "",
+        "[Generate now](https://mb.example/repos/123/pulls/7?rev=2) · [Brief for `0123456`](https://mb.example/repos/123/pulls/7?rev=1)",
+        "",
+        "<sub>Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates.</sub>",
+        ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.HELD, LINK.headSha),
+      ].join("\n"),
+    );
+  });
+
+  it("links only Generate when the pull request has no brief yet", () => {
+    const body = buildEntryCommentHeldBody(t, {
+      next: LINK,
+      previous: undefined,
+      unmet: [{ kind: "never", setBy: "repo" }],
+    });
+
+    expect(body).toContain(
+      "- Generates only when someone presses Generate (this repository's setting)",
+    );
+    expect(body).toContain(
+      "[Generate now](https://mb.example/repos/123/pulls/7?rev=2)\n",
+    );
+    expect(body).not.toContain("Brief for");
+  });
+
+  it("reads the held body as this head's and unsettled", () => {
+    const body = buildEntryCommentHeldBody(t, {
+      next: LINK,
+      previous: undefined,
+      unmet: [{ kind: "never", setBy: "instance" }],
+    });
+
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
+    expect(isUnsettledEntryBody(body)).toBe(true);
+    expect(isHeadReadyEntryBody(body, LINK.headSha)).toBe(false);
+  });
+
+  it("reads its own token, not one a label carries", () => {
+    const otherHead = "f".repeat(40);
+    const fakeToken = formatEntryBodyToken(EntryBodyKinds.READY, otherHead);
+    const body = buildEntryCommentHeldBody(t, {
+      next: LINK,
+      previous: undefined,
+      unmet: [{ kind: "labels", setBy: "repo", labels: [fakeToken] }],
+    });
+
+    expect(body).toContain(fakeToken);
+    expect(isHeadReadyEntryBody(body, otherHead)).toBe(false);
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
+    expect(isUnsettledEntryBody(body)).toBe(true);
+  });
+});
+
+describe("formatInlineCode", () => {
+  it.each([
+    ["plain text", "needs-brief", "`needs-brief`"],
+    ["a backtick", "a`b", "`` a`b ``"],
+    ["a backtick run", "x``y", "``` x``y ```"],
+    ["a line break", "one\ntwo", "`one two`"],
+  ])("fences %s so nothing inside closes it", (_case, text, expected) => {
+    expect(formatInlineCode(text)).toBe(expected);
   });
 });
