@@ -173,6 +173,12 @@ passes, and anyone with push access can generate it now from the PR's page
 in MergeBrief. With no conditions set here or on the instance, every push
 generates as before.
 
+A held push edits the Entry comment in place, so nobody is notified: it
+names each unmet condition and whose setting it is, with a Generate link and
+a link to the last brief. When the push generates, the comment turns to the
+generating line the same quiet way, and the ready brief is the one
+notification.
+
 | Key | Value | Met when |
 | --- | --- | --- |
 | `readyForReview` | `on` | The pull request is not a draft. |

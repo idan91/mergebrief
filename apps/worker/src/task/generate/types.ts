@@ -448,6 +448,14 @@ export interface EntryCommentManager {
     body: string,
     isReplaceable: LiveBodyMatcher,
   ): Promise<EntryWrite>;
+  /**
+   * As `replaceOrCreate`, except a replaceable live body is rewritten in
+   * place, which notifies nobody.
+   */
+  editOrCreate(
+    body: string,
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
   replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
 }
@@ -755,6 +763,11 @@ export interface BriefGenerationInputs {
   readonly watch: SupersessionWatch;
   readonly entryCommentManager: EntryCommentManager;
   readonly entryCommentAllowed: boolean;
+  /**
+   * The run released a held head, by its conditions passing or a Generate
+   * click: the generating body edits the held one in place, no ping.
+   */
+  readonly generatingEntryIsSilent: boolean;
   readonly translate: TFunction;
   readonly priorBriefs: readonly BriefSpanRow[];
   readonly prevBrief: BriefSpanRow | undefined;

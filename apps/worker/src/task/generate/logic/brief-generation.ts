@@ -237,12 +237,13 @@ async function postFreshGeneratingEntry(
   headIndex: number,
 ): Promise<void> {
   const { watch, translate, entryCommentManager, prInfo, log } = inputs;
+  const silent = inputs.generatingEntryIsSilent;
   const generatingBody = buildEntryCommentGeneratingBody(
     translate,
     entryCommentManager.buildDeepLink(headIndex),
   );
   await postGeneratingEntry(
-    { watch, entryCommentManager, headSha: prInfo.headSha, log },
+    { watch, entryCommentManager, headSha: prInfo.headSha, log, silent },
     generatingBody,
   );
 }
