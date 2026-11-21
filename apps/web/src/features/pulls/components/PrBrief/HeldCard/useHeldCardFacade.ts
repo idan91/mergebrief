@@ -11,6 +11,7 @@ export function useHeldCardFacade({
   repoId,
   prNumber,
   unmetConditions,
+  unmetConditionsPartial,
   viewerCanPush,
   appInstalled,
   prState,
@@ -30,7 +31,11 @@ export function useHeldCardFacade({
   const noLongerOpen = isNoLongerOpen(prState);
   const lead = noLongerOpen
     ? t("pulls.awaitingTrigger.notOpenCopy")
-    : readHeldLead(t, splitUnmetConditions(unmetConditions));
+    : readHeldLead(
+        t,
+        splitUnmetConditions(unmetConditions),
+        unmetConditionsPartial,
+      );
 
   return {
     lead,

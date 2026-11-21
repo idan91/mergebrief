@@ -1,8 +1,8 @@
 import type { TranslationKey } from "i18n";
-import type { UnmetCondition } from "types/trigger-conditions";
 import type { ValueOf } from "types/utils";
 
 import type { PrSummary } from "../../../../../types";
+import type { HeldCondition } from "../../../held-head/types";
 
 /** What the new brief is doing, first match winning in this order. */
 export const NewerCommitsStates = {
@@ -67,7 +67,7 @@ export interface NewerCommitsStatus {
   /** The latest push's run, offered in the popover while the chip's action moves to a newer stored brief. */
   readonly runAction?: NewerCommitsAction;
   /** A held latest push's unmet conditions, grouped in the popover. */
-  readonly heldConditions?: readonly UnmetCondition[];
+  readonly heldConditions?: readonly HeldCondition[];
 }
 
 /** A run the chip can start, and whether its request is in flight. */
