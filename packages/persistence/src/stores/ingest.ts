@@ -360,12 +360,12 @@ async function recheckLockedHead(
   if (!isRecheckOwed(job, head.row)) {
     return false;
   }
-  const inFlight = job?.locked === true;
-  const reportCannotMove =
+  const jobLocked = job?.locked === true;
+  const statusCheckCannotMove =
     recheck.requiresStatusCheckHold &&
-    !inFlight &&
+    !jobLocked &&
     !isHeldOnStatusChecks(head.row.unmetConditions);
-  if (reportCannotMove) {
+  if (statusCheckCannotMove) {
     return false;
   }
 
