@@ -1139,16 +1139,21 @@ export interface TriggerOptions {
   readonly requiresTriggerApproval?: boolean;
   /** A push carries this; a trigger without it can't move the PR to a head it left. */
   readonly githubUpdatedAt?: Date;
+  readonly prNumber?: number;
 }
 
 /** Enqueue via the REAL ingest boundary and return {pr row, job payload}. */
 export async function trigger(
   headSha: string,
-  { githubUpdatedAt, ...options }: TriggerOptions = {},
+  {
+    githubUpdatedAt,
+    prNumber = PR_REF.prNumber,
+    ...options
+  }: TriggerOptions = {},
 ): Promise<TriggeredJob> {
   const pullRequest: Mutable<PullRequestUpsertInput> = {
     repoId: makeRepoId(7n),
-    prNumber: 7,
+    prNumber,
     repoSlug: "acme/widget",
     state: PrStates.OPEN,
   };

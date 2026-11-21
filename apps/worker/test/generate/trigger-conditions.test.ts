@@ -19,6 +19,7 @@ import {
   failFirstSettingsRead,
   interceptInstallationRepo,
   makeGitHub,
+  makePullRequestInfo,
   makeReviewerId,
   makeTarget,
   makeTask,
@@ -27,6 +28,7 @@ import {
   readRowStatus,
   REPO,
   setUpHarness,
+  SMALL_DIFF,
   stubGenerator,
   trigger,
 } from "./helpers";
@@ -50,6 +52,7 @@ async function readUnmet(pr: PullRequestRow) {
 }
 
 const SETTINGS_READS_PER_RUN = SETTINGS_READ_RETRY_DELAYS_MS.length + 1;
+const BURST_PR_NUMBER = 8;
 
 /** Counts the run's `settings.yaml` reads, calling `onRead` before each. */
 function countSettingsReads(
@@ -150,6 +153,52 @@ describe("generate task, trigger conditions", () => {
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
     expect(await readUnmet(pr)).toBeUndefined();
+  });
+
+  it("caps a burst of released held heads past the day's cap", async () => {
+    const github = makeGitHub(HEAD_1);
+    const prNumbers = [PR_REF.prNumber, BURST_PR_NUMBER, BURST_PR_NUMBER + 1];
+    for (const prNumber of prNumbers.slice(1)) {
+      github.addPullRequest(
+        { ...PR_REF, prNumber },
+        { info: makePullRequestInfo(HEAD_1), files: [], diff: SMALL_DIFF },
+      );
+    }
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+    const jobs = [];
+    for (const prNumber of prNumbers) {
+      github.updatePullRequest({ ...PR_REF, prNumber }, { draft: true });
+      const job = await trigger(HEAD_1, { prNumber });
+      await makeTask({ github, triggerConditions: readyForReview })(
+        job.payload,
+      );
+      expect(await readRowStatus(job.pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+      jobs.push(job);
+    }
+
+    const generator = stubGenerator();
+    const spend = { maxGenerationsPerDay: 1 };
+    for (const prNumber of prNumbers) {
+      github.updatePullRequest({ ...PR_REF, prNumber }, { draft: false });
+    }
+    for (const { payload } of jobs) {
+      await makeTask({
+        github,
+        generator,
+        spend,
+        triggerConditions: readyForReview,
+      })(payload);
+    }
+
+    const statuses = await Promise.all(
+      jobs.map(({ pr }) => readRowStatus(pr, HEAD_1)),
+    );
+    expect(statuses).toEqual([
+      GenerationStatuses.SUCCEEDED,
+      GenerationStatuses.CAPPED,
+      GenerationStatuses.CAPPED,
+    ]);
+    expect(await countStartedRuns()).toBe(1);
   });
 
   it("generates a ready pull request under readyForReview", async () => {
