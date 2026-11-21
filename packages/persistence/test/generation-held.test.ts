@@ -452,8 +452,42 @@ describe("wakeHeldHead", () => {
     expect((await gen.get(target))?.status).toBe(GenerationStatuses.HELD);
   });
 
-  it("queues nothing for a head no condition holds", async () => {
+  it("queues a fresh job beside a pending head's job a check has locked", async () => {
     const triggered = await trigger();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await wake(triggered.pullRequest.id);
+
+    expect(outcome).toEqual({ queued: true });
+    const keys = await shared.harness.raw(
+      "select key from graphile_worker.jobs order by id",
+    );
+    expect(keys.map((job) => job["key"])).toEqual([
+      null,
+      `generate:${triggered.pullRequest.id}`,
+    ]);
+  });
+
+  it("keeps a pending head's waiting job as it is", async () => {
+    const triggered = await trigger();
+    const readRunAt = () =>
+      shared.harness.raw("select id, run_at from graphile_worker.jobs");
+    const before = await readRunAt();
+
+    await wake(triggered.pullRequest.id);
+
+    expect(await readRunAt()).toEqual(before);
+  });
+
+  it("queues nothing for a head a run has claimed", async () => {
+    const triggered = await trigger();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await claimTestRun(
+      gen,
+      makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA),
+    );
     await clearQueue();
 
     const outcome = await wake(triggered.pullRequest.id);

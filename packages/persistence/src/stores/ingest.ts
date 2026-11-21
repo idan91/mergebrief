@@ -172,6 +172,12 @@ async function owesCheckpointDelta(
   return rows.length > 0;
 }
 
+/** A head a fact event re-checks: held, or pending with its check maybe mid-run. */
+const WAKES_FOR_CHECK: ReadonlySet<GenerationStatus> = new Set([
+  GenerationStatuses.HELD,
+  GenerationStatuses.PENDING,
+]);
+
 /** A row a queued job still has work for; any other row is finished. */
 const WAITS_FOR_JOB: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.PENDING,
@@ -542,12 +548,13 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
-   * An open PR whose current head trigger conditions hold gets that head's
-   * job queued, so the worker checks the conditions again: it releases the
-   * head when they pass and rewrites the unmet list when they do not. The
-   * row is read under the pull request's row lock; any other status, a
-   * closed or merged PR, an owner scope and a PR outside the scope queue
-   * nothing.
+   * An open PR whose current head is `held` or `pending` gets that head's job
+   * queued, so the worker checks the conditions on the new facts. A pending
+   * head's job may be locked mid-check, before its hold is written: the
+   * locked job's key is detached and a fresh job follows it, while an
+   * unlocked waiting job keeps its `run_at`. Read under the pull request's
+   * row lock; any other status, a closed or merged PR, an owner scope and a
+   * PR outside the scope queue nothing.
    */
   wakeHeldHead(input: WakeHeldHeadInput): Promise<RequeueOutcome>;
   /**
@@ -918,7 +925,7 @@ export function createIngestRoutines(
           return { queued: false };
         }
         const head = await readCurrentBriefHead(tx, scope, pullRequestId);
-        if (head?.row.status !== GenerationStatuses.HELD) {
+        if (head === undefined || !WAKES_FOR_CHECK.has(head.row.status)) {
           return { queued: false };
         }
 
