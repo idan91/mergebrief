@@ -111,8 +111,8 @@ per-profile `headers` in the CLI config are the escape hatch:
    | Scope | In the form | Allows |
    | --- | --- | --- |
    | `read` | Read only | every read command |
-   | `private-write` | Read and review in MergeBrief | review state kept in MergeBrief: `draft create` and `update`, `chunk-read`, `reclassify`, `outcome`, `generate` |
-   | `external-write` | Read, review, and post to GitHub | anything that writes to GitHub: `submit`, `reply`, `thread resolve` and `thread unresolve`, `ready`, `draft attach` |
+   | `private-write` | Read and review in MergeBrief | review state kept in MergeBrief: `draft create` and `update`, `chunk-read`, `reclassify`, `outcome`, `generate <url>` |
+   | `external-write` | Read, review, and post to GitHub | anything that writes to GitHub: `submit`, `reply`, `thread resolve` and `thread unresolve`, `ready`, `draft attach`, `generate <number>` |
 
    A command above its token's scope answers `403 scope-exceeded`. Pick the
    least a token needs. No scope reaches `draft reanchor`, `draft delete` or

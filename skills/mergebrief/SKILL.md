@@ -92,10 +92,13 @@ Never suggest a bare `auth login`: it writes over the default profile.
    - `pending` or `running`: poll `mergebrief pr <n>` with backoff.
    - `awaiting-trigger`: a collaborator must click Generate in MergeBrief.
      Tell the user and stop.
+   - `held`: trigger conditions keep the head from generating;
+     `generation.unmetConditions` names each one. Report them and stop.
    - `failed` or `capped`: report the code and stop.
 
-   Run `mergebrief generate <url>` only when the user asked for an on-demand
-   run, since it spends model tokens.
+   Run `mergebrief generate <url>`, or `mergebrief generate <n>` for an
+   awaiting-trigger, held or failed head, only when the user asked for an
+   on-demand run, since it spends model tokens.
 
 ## The loop
 

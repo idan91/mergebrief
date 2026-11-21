@@ -139,8 +139,9 @@ from their next push. A later event whose read fails leaves a head that already
 triggered as it is.
 
 A bot author is decided separately, by the repository's `trustedBots` list in
-`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A push that an unmet trigger
-condition holds waits for that condition before any of this applies.
+`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A push that passes this check can
+still be held by an unmet trigger condition; anyone with push access can generate it now from the
+PR's page in MergeBrief or with `mergebrief generate <number>`.
 
 ## Identity / secrets (all env, never the DB or repo)
 
