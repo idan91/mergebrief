@@ -292,11 +292,38 @@ describe("evaluateTriggerConditions, reviewRequested", () => {
 
   it.each<[string, SubmittedReview, boolean]>([
     [
-      "a person's",
+      "a collaborator's",
       makeAuthoredReview({ authorLogin: "bob", authorType: "User" }),
       true,
     ],
-    ["a deleted account's", makeAuthoredReview({}), true],
+    [
+      "an owner's",
+      makeAuthoredReview({ authorLogin: "bob", authorAssociation: "OWNER" }),
+      true,
+    ],
+    [
+      "a member's",
+      makeAuthoredReview({ authorLogin: "bob", authorAssociation: "MEMBER" }),
+      true,
+    ],
+    [
+      "an outsider's",
+      makeAuthoredReview({ authorLogin: "eve", authorAssociation: "NONE" }),
+      false,
+    ],
+    [
+      "a past contributor's",
+      makeAuthoredReview({
+        authorLogin: "eve",
+        authorAssociation: "CONTRIBUTOR",
+      }),
+      false,
+    ],
+    [
+      "an unknown association's",
+      { reviewId: 1n, state: "COMMENTED", authorLogin: "eve" },
+      false,
+    ],
     [
       "a bot's",
       makeAuthoredReview({ authorLogin: "copilot", authorType: "Bot" }),
@@ -314,7 +341,12 @@ describe("evaluateTriggerConditions, reviewRequested", () => {
 });
 
 function makeAuthoredReview(author: Partial<SubmittedReview>): SubmittedReview {
-  return { reviewId: 1n, state: "COMMENTED", ...author };
+  return {
+    reviewId: 1n,
+    state: "COMMENTED",
+    authorAssociation: "COLLABORATOR",
+    ...author,
+  };
 }
 
 describe("deriveOwedStamps", () => {

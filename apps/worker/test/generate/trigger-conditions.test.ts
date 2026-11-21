@@ -1271,12 +1271,16 @@ describe("generate task, trigger conditions", () => {
     expect(countReviewReads(github)).toBe(0);
   });
 
-  it("meets reviewRequested on a person's review with no stamp", async () => {
+  it("meets reviewRequested on a collaborator's review with no stamp", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.addReview(
       PR_REF,
-      makeReview({ authorLogin: "bob", authorType: "User" }),
+      makeReview({
+        authorLogin: "bob",
+        authorType: "User",
+        authorAssociation: "COLLABORATOR",
+      }),
     );
     addSettings(github, REVIEW_REQUESTED_SETTINGS);
 
@@ -1287,6 +1291,30 @@ describe("generate task, trigger conditions", () => {
       Date,
     );
   });
+
+  it.each(["NONE", "CONTRIBUTOR"] as const)(
+    "holds reviewRequested on a review by a %s account",
+    async (authorAssociation) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.addReview(
+        PR_REF,
+        makeReview({
+          authorLogin: "eve",
+          authorType: "User",
+          authorAssociation,
+        }),
+      );
+      addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+      await makeTask({ github })(payload);
+
+      expect(await readUnmet(pr)).toEqual([
+        { kind: "review-requested", setBy: "repo" },
+      ]);
+      expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeNull();
+    },
+  );
 
   it("holds reviewRequested when only a bot reviewed", async () => {
     const { pr, payload } = await trigger(HEAD_1);

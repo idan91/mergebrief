@@ -201,9 +201,16 @@ describe("listSubmittedReviews", () => {
           state: "APPROVED",
           user: { id: 175728472, login: "copilot", type: "Bot" },
           commit_id: HEAD,
+          author_association: "COLLABORATOR",
         },
         { id: 4, state: "COMMENTED", user: { id: 9, type: "Mannequin" } },
-        { id: 3, state: "DISMISSED", user: null, commit_id: null },
+        {
+          id: 3,
+          state: "DISMISSED",
+          user: null,
+          commit_id: null,
+          author_association: "SOMETHING_NEW",
+        },
       ],
     }));
 
@@ -218,6 +225,7 @@ describe("listSubmittedReviews", () => {
           authorId: 175728472n,
           authorLogin: "copilot",
           authorType: "Bot",
+          authorAssociation: "COLLABORATOR",
           commitId: HEAD,
         },
         { reviewId: 4n, state: "COMMENTED", authorId: 9n },

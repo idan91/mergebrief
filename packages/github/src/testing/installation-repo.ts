@@ -65,6 +65,9 @@ function listSubmittedReviews(
     if (review.authorType !== undefined) {
       listed.authorType = review.authorType;
     }
+    if (review.authorAssociation !== undefined) {
+      listed.authorAssociation = review.authorAssociation;
+    }
     if (review.commitId !== undefined) {
       listed.commitId = review.commitId;
     }

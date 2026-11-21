@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { GitHubAccountTypes, type SubmittedReview } from "github";
+import {
+  GitHubAccountTypes,
+  TRUSTED_AUTHOR_ASSOCIATIONS,
+  type SubmittedReview,
+} from "github";
 import { matchesAnyGlob } from "brief-core/path-matching";
 import type { Logger } from "logging";
 import {
@@ -122,12 +126,20 @@ function checkSize(
   );
 }
 
-/** A bot's review is a tool's, and the author's own is no reviewer's. */
-function isPersonReview(
-  review: SubmittedReview,
-  facts: ConditionFacts,
-): boolean {
+/**
+ * A bot's review is a tool's, the author's own is no reviewer's, and on a
+ * public repository anyone may review, so only the team's review counts.
+ * The api's permission read for an untrusted association is not made here.
+ */
+function isTeamReview(review: SubmittedReview, facts: ConditionFacts): boolean {
   if (review.authorType === GitHubAccountTypes.BOT) {
+    return false;
+  }
+  const association = review.authorAssociation;
+  if (association === undefined) {
+    return false;
+  }
+  if (!TRUSTED_AUTHOR_ASSOCIATIONS.has(association)) {
     return false;
   }
   const byAuthor =
@@ -136,12 +148,12 @@ function isPersonReview(
   return !byAuthor;
 }
 
-/** A pending request, or a person's review after GitHub dropped theirs. */
+/** A pending request, or a team member's review after GitHub dropped theirs. */
 function isReviewRequestSeen(facts: ConditionFacts): boolean {
   if (facts.pendingReviewRequests > 0) {
     return true;
   }
-  return facts.reports.reviews.some((review) => isPersonReview(review, facts));
+  return facts.reports.reviews.some((review) => isTeamReview(review, facts));
 }
 
 function checkReviewRequested({
