@@ -501,6 +501,21 @@ describe("held entry body", () => {
     expect(isUnsettledEntryBody(body)).toBe(true);
     expect(isHeadReadyEntryBody(body, LINK.headSha)).toBe(false);
   });
+
+  it("reads its own token, not one a label carries", () => {
+    const otherHead = "f".repeat(40);
+    const fakeToken = formatEntryBodyToken(EntryBodyKinds.READY, otherHead);
+    const body = buildEntryCommentHeldBody(t, {
+      next: LINK,
+      previous: undefined,
+      unmet: [{ kind: "labels", setBy: "repo", labels: [fakeToken] }],
+    });
+
+    expect(body).toContain(fakeToken);
+    expect(isHeadReadyEntryBody(body, otherHead)).toBe(false);
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
+    expect(isUnsettledEntryBody(body)).toBe(true);
+  });
 });
 
 describe("formatInlineCode", () => {
