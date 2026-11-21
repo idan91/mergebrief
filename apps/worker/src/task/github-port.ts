@@ -26,6 +26,7 @@ import {
   type RepoFileResult,
   type RepoReader,
   type RepositoryVisibility,
+  type RequiredStatusCheck,
   type ReviewerBindingOptions,
   type ReviewerCredential,
   type ReviewerGitHub,
@@ -68,7 +69,7 @@ export interface ConditionReads {
   /** Needs Commit statuses: read; an installation without it answers forbidden. */
   listCommitStatuses(ref: string): GitHubCall<CommitStatus[]>;
   listSubmittedReviews(): GitHubCall<SubmittedReview[]>;
-  listRequiredStatusChecks(branch: string): GitHubCall<string[]>;
+  listRequiredStatusChecks(branch: string): GitHubCall<RequiredStatusCheck[]>;
 }
 
 /** The GitHub calls a generate job performs, bound to one (credential, repo, PR). */

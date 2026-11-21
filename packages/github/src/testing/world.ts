@@ -20,7 +20,11 @@ import type {
 } from "../operations/repo";
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
-import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
+import type {
+  CheckRun,
+  CommitStatus,
+  RequiredStatusCheck,
+} from "../operations/status-checks/types";
 import { RepositoryVisibilities, type RepositoryVisibility } from "../types";
 import { FIRST_IDS } from "./consts";
 import type {
@@ -67,7 +71,7 @@ export interface RepoState {
   /** Keyed by the commit ref, oldest first; GitHub lists them newest first. */
   readonly commitStatuses: Map<string, CommitStatus[]>;
   /** Keyed by branch name; a branch with none arranged requires nothing. */
-  readonly requiredStatusChecks: Map<string, readonly string[]>;
+  readonly requiredStatusChecks: Map<string, readonly RequiredStatusCheck[]>;
 }
 
 export interface InstallationState {
@@ -229,8 +233,8 @@ function buildArrange(state: WorldState): WorldArrange {
       const statuses = ensureRepo(state, repo).commitStatuses;
       statuses.set(ref, [...(statuses.get(ref) ?? []), status]);
     },
-    setRequiredStatusChecks(repo, branch, contexts) {
-      ensureRepo(state, repo).requiredStatusChecks.set(branch, contexts);
+    setRequiredStatusChecks(repo, branch, checks) {
+      ensureRepo(state, repo).requiredStatusChecks.set(branch, checks);
     },
     updatePullRequest(ref, info) {
       const pull = state.repos

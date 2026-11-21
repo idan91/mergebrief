@@ -1184,7 +1184,10 @@ describe("generate task, trigger conditions", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     addSettings(github, "version: 1\ntriggerConditions:\n  ci: required\n");
-    github.setRequiredStatusChecks(REPO, "main", ["build", "lint"]);
+    github.setRequiredStatusChecks(REPO, "main", [
+      { context: "build" },
+      { context: "lint" },
+    ]);
     github.addCheckRun(REPO, HEAD_1, {
       checkRunId: 1n,
       name: "build",

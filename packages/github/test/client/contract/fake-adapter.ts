@@ -239,7 +239,9 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     state: "success",
     creatorId: 98133410n,
   });
-  github.setRequiredStatusChecks(REPO, "main", ["build"]);
+  github.setRequiredStatusChecks(REPO, "main", [
+    { context: "build", appId: 15368n },
+  ]);
 }
 
 function arrangeAccount(github: FakeGitHub): void {

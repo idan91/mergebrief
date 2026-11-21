@@ -1,8 +1,11 @@
 import {
   CheckRunConclusions,
   CommitStatusStates,
+  GitHubAccountTypes,
   type CheckRun,
+  type CommitStatus,
   type CommitStatusState,
+  type RequiredStatusCheck,
 } from "github";
 import { CiModes } from "generators/trigger-conditions";
 import {
@@ -59,12 +62,50 @@ function listLatestOutcomes(
   return outcomes;
 }
 
+function isBotStatus(status: CommitStatus, name: string): boolean {
+  return (
+    status.context === name && status.creatorType === GitHubAccountTypes.BOT
+  );
+}
+
 /**
- * GitHub's merge rule per name: the latest run and the latest status count,
- * neutral and skipped pass. A name both kinds report passes only when both do.
+ * A pin names the App that must provide the check, by a run or a status. A
+ * run is told by its App, and once the App has one under the name, it alone
+ * counts, as GitHub counts it, so no refused status read can change it.
  */
-function readCheckOutcome(reports: HeadReports, name: string): CheckOutcome {
-  const outcomes = listLatestOutcomes(reports, name);
+function findPinnedRun(
+  reports: HeadReports,
+  check: RequiredStatusCheck,
+): CheckRun | undefined {
+  if (check.appId === undefined) {
+    return undefined;
+  }
+  const appRuns = reports.checkRuns.filter((run) => run.appId === check.appId);
+  return findLatestRun(appRuns, (listed) => listed.name === check.context);
+}
+
+/**
+ * A status shows only that an App's bot posted it, so with no pinned run the
+ * latest bot status counts, and another App's bot posting the name passes
+ * too. A user's status never counts.
+ */
+function listPinnedStatusOutcomes(
+  reports: HeadReports,
+  name: string,
+): CheckOutcome[] {
+  const status = reports.statuses.find((listed) => isBotStatus(listed, name));
+  if (status === undefined) {
+    return [];
+  }
+  return [STATUS_OUTCOMES[status.state]];
+}
+
+/** Any check, pinned or not, may report through either source. */
+function isReadRefused(reports: HeadReports): boolean {
+  return reports.checkRunsForbidden || reports.statusesForbidden;
+}
+
+function combineOutcomes(outcomes: readonly CheckOutcome[]): CheckOutcome {
   if (outcomes.length === 0) {
     return CheckOutcomes.MISSING;
   }
@@ -77,6 +118,68 @@ function readCheckOutcome(reports: HeadReports, name: string): CheckOutcome {
   return CheckOutcomes.PASSED;
 }
 
+/**
+ * GitHub's merge rule per name: the latest run and the latest status count,
+ * neutral and skipped pass. A name both kinds report passes only when both
+ * do, so a pass read while one source was refused is unknown: missing,
+ * unless the pinned App's run decided it.
+ */
+function readCheckOutcome(
+  reports: HeadReports,
+  check: RequiredStatusCheck,
+): CheckOutcome {
+  const pinnedRun = findPinnedRun(reports, check);
+  if (pinnedRun !== undefined) {
+    return readRunOutcome(pinnedRun);
+  }
+
+  const outcomes =
+    check.appId === undefined
+      ? listLatestOutcomes(reports, check.context)
+      : listPinnedStatusOutcomes(reports, check.context);
+  const outcome = combineOutcomes(outcomes);
+  const passedWhileRefused =
+    outcome === CheckOutcomes.PASSED && isReadRefused(reports);
+  if (passedWhileRefused) {
+    return CheckOutcomes.MISSING;
+  }
+  return outcome;
+}
+
+function listNamedChecks(names: readonly string[]): RequiredStatusCheck[] {
+  return names.map((context) => ({ context }));
+}
+
+/** A missing check needs someone to start it; a running one only time. */
+const OUTCOME_SEVERITY: Readonly<Record<CheckOutcome, number>> = {
+  [CheckOutcomes.PASSED]: 0,
+  [CheckOutcomes.RUNNING]: 1,
+  [CheckOutcomes.MISSING]: 2,
+  [CheckOutcomes.FAILED]: 3,
+};
+
+/**
+ * Each name's worst outcome, in first-listed order: two rulesets may pin one
+ * name to different Apps, and the name must pass under both.
+ */
+function readNameOutcomes(
+  reports: HeadReports,
+  checks: readonly RequiredStatusCheck[],
+): Map<string, CheckOutcome> {
+  const outcomes = new Map<string, CheckOutcome>();
+  for (const check of checks) {
+    const outcome = readCheckOutcome(reports, check);
+    const known = outcomes.get(check.context);
+    const isWorse =
+      known === undefined ||
+      OUTCOME_SEVERITY[outcome] > OUTCOME_SEVERITY[known];
+    if (isWorse) {
+      outcomes.set(check.context, outcome);
+    }
+  }
+  return outcomes;
+}
+
 /** `required` reads the base branch's rulesets; an empty set passes. */
 export function checkCi({
   value,
@@ -84,8 +187,10 @@ export function checkCi({
   facts,
 }: KindCheckInput<typeof TriggerConditionKinds.CI>): UnmetPlainCondition[] {
   const { reports } = facts;
-  const names =
-    value.mode === CiModes.REQUIRED ? reports.requiredChecks : value.checks;
+  const checks =
+    value.mode === CiModes.REQUIRED
+      ? reports.requiredChecks
+      : listNamedChecks(value.checks);
   const failed: string[] = [];
   const running: string[] = [];
   const missing: string[] = [];
@@ -95,8 +200,8 @@ export function checkCi({
     [CheckOutcomes.RUNNING]: running,
     [CheckOutcomes.MISSING]: missing,
   };
-  for (const name of names) {
-    lists[readCheckOutcome(reports, name)]?.push(name);
+  for (const [name, outcome] of readNameOutcomes(reports, checks)) {
+    lists[outcome]?.push(name);
   }
 
   const unmetCount = failed.length + running.length + missing.length;
@@ -110,7 +215,7 @@ export function checkCi({
       failed,
       running,
       missing,
-      permissionMissing: reports.statusChecksForbidden,
+      permissionMissing: isReadRefused(reports),
     },
   ];
 }
