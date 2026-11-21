@@ -58,7 +58,9 @@ function isCheckable(context: RunContext): boolean {
 }
 
 /** The switch went on after pickup read the row; the store refused the hold under its lock. */
-async function isEveryPushSince(context: RunContext): Promise<boolean> {
+async function isEveryPushTurnedOnSincePickup(
+  context: RunContext,
+): Promise<boolean> {
   const row = await context.repo.pullRequests.getById(context.prRow.id);
   return row !== undefined && row.generateEveryPushAt !== null;
 }
@@ -263,7 +265,7 @@ export async function applyConditionCheck(
 
   const held = await projection.markHeld(target, unmet);
   if (!held.ok) {
-    if (await isEveryPushSince(context)) {
+    if (await isEveryPushTurnedOnSincePickup(context)) {
       return buildProceedOutcome(repoConfig, files);
     }
     log.info("generate: condition hold stood down", { code: held.error.code });
