@@ -1,5 +1,5 @@
 import { MAX_BRIEFED_CHANGED_FILES } from "brief-core/types";
-import { isNotAcceptable } from "github";
+import { isNotAcceptable, type PullRequestFile } from "github";
 
 import {
   acquireRepoConfig,
@@ -10,6 +10,7 @@ import {
   RunDecisionKinds,
   type CoreMessageLog,
   type GeneratingRun,
+  type PreClaimReads,
   type RunContext,
   type RunInputs,
 } from "../types";
@@ -29,12 +30,12 @@ import { createTicketContextLoader } from "./ticket-context";
 export async function prepareRunInputs(
   context: RunContext,
   decision: GeneratingRun,
-  gateRepoConfig?: AcquiredRepoConfig,
+  reads: PreClaimReads,
 ): Promise<RunInputs> {
   const { deps, payload, source, prInfo, prRow, repo, prevBrief, log } =
     context;
   context.watch.startPolling();
-  const files = throwOnGitHubFailure(await source.fetchPullRequestFiles());
+  const files = await readPullRequestFiles(context, reads.files);
   const diff = await readPullRequestDiff(context);
   const openPullRequests = await source.listOpenPullRequests();
 
@@ -50,7 +51,7 @@ export async function prepareRunInputs(
   const repoConfig = await acquireRunRepoConfig(
     context,
     decision,
-    gateRepoConfig,
+    reads.repoConfig,
   );
   const loadContext = createTicketContextLoader(payload, {
     deps,
@@ -80,6 +81,16 @@ export async function prepareRunInputs(
     entryCommentAllowed,
     coreMessageLog,
   };
+}
+
+async function readPullRequestFiles(
+  context: RunContext,
+  checkedFiles: readonly PullRequestFile[] | undefined,
+): Promise<PullRequestFile[]> {
+  if (checkedFiles !== undefined) {
+    return [...checkedFiles];
+  }
+  return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
 }
 
 /**

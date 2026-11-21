@@ -1,3 +1,5 @@
+import { matchesAnyGlob } from "brief-core/path-matching";
+import type { Logger } from "logging";
 import {
   type EffectiveTriggerConditions,
   type SizeBounds,
@@ -23,6 +25,7 @@ interface KindCheckInput<Kind extends TriggerConditionKind> {
   readonly value: TriggerConditionValues[Kind];
   readonly setBy: TriggerConditionSetter;
   readonly facts: ConditionFacts;
+  readonly log?: Logger | undefined;
 }
 
 /** A kind's check: the unmet items it leaves, none when the push meets it. */
@@ -205,12 +208,54 @@ function checkBaseBranches({
   ];
 }
 
+/**
+ * One scan's steps, glob tokens x path length, the globs a repository
+ * writer's and the paths a PR author's: sized for 3000 paths of 200
+ * characters against a few general globs.
+ */
+const PATHS_MATCH_STEPS = 20_000_000;
+
+/**
+ * Git paths are case-sensitive, so a glob matches as written. A scan past
+ * its budget reads as unmet and warns: the head holds, nothing is spent, and
+ * a Generate click still runs it. Unread paths read as met: the list is read
+ * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
+ * another condition lists no `paths` item, nor an `any` group holding one,
+ * until the others pass.
+ */
+function checkPaths({
+  value,
+  setBy,
+  facts,
+  log,
+}: KindCheckInput<typeof TriggerConditionKinds.PATHS>): UnmetPlainCondition[] {
+  if (facts.changedPaths === undefined) {
+    return [];
+  }
+  const matched = matchesAnyGlob(
+    value,
+    [facts.changedPaths],
+    PATHS_MATCH_STEPS,
+  );
+  if (matched === true) {
+    return [];
+  }
+  if (matched === undefined) {
+    log?.warn("generate: paths match budget spent, held as no match", {
+      globs: value.length,
+      paths: facts.changedPaths.length,
+    });
+  }
+  return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
+}
+
 /** Each kind's check; a kind without one here is met. */
 const KIND_CHECKS: KindChecks = {
   [TriggerConditionKinds.READY_FOR_REVIEW]: checkReadyForReview,
   [TriggerConditionKinds.NEVER]: checkNever,
   [TriggerConditionKinds.SIZE]: checkSize,
   [TriggerConditionKinds.REVIEW_REQUESTED]: checkReviewRequested,
+  [TriggerConditionKinds.PATHS]: checkPaths,
   [TriggerConditionKinds.LABELS]: checkLabels,
   [TriggerConditionKinds.TITLE_KEYWORDS]: checkTitleKeywords,
   [TriggerConditionKinds.BASE_BRANCHES]: checkBaseBranches,
@@ -220,19 +265,87 @@ function runKindCheck<Kind extends TriggerConditionKind>(
   setting: KindSetting<Kind>,
   setBy: TriggerConditionSetter,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetPlainCondition[] {
   const check: KindCheck<Kind> | undefined = KIND_CHECKS[setting.kind];
   if (check === undefined) {
     return [];
   }
-  return check({ value: setting.value, setBy, facts });
+  return check({ value: setting.value, setBy, facts, log });
 }
 
 function checkCondition(
   condition: EffectiveCondition,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetPlainCondition[] {
-  return runKindCheck(condition.setting, condition.setBy, facts);
+  return runKindCheck(condition.setting, condition.setBy, facts, log);
+}
+
+function isPathsCondition(condition: EffectiveCondition): boolean {
+  return condition.setting.kind === TriggerConditionKinds.PATHS;
+}
+
+function isConditionMet(
+  condition: EffectiveCondition,
+  facts: ConditionFacts,
+): boolean {
+  return checkCondition(condition, facts).length === 0;
+}
+
+/** Kinds decided from a GitHub read of the head, so never settled ahead of it. */
+const HEAD_READ_KINDS: ReadonlySet<TriggerConditionKind> = new Set([
+  TriggerConditionKinds.BOTS,
+  TriggerConditionKinds.CI,
+]);
+
+function isSettledUnmet(
+  condition: EffectiveCondition,
+  facts: ConditionFacts,
+): boolean {
+  if (HEAD_READ_KINDS.has(condition.setting.kind)) {
+    return false;
+  }
+  return !isConditionMet(condition, facts);
+}
+
+/** An `any` group with no `paths` member and every member settled unmet. */
+function isAnyGroupHolding(
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): boolean {
+  const { any } = effective;
+  if (any.length === 0 || any.some(isPathsCondition)) {
+    return false;
+  }
+  return any.every((item) => isSettledUnmet(item, facts));
+}
+
+/**
+ * Whether the changed paths can decide the verdict, judged on the other
+ * conditions alone: not while another plain condition holds the head
+ * anyway, nor while an `any` group without `paths` holds it (a `bots` or
+ * `ci` member counts as undecided there), and not for an `any` group
+ * another member already meets.
+ */
+export function isVerdictOnPaths(
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): boolean {
+  const plain = effective.all.filter((item) => !isPathsCondition(item));
+  const plainMet = plain.every((item) => isConditionMet(item, facts));
+  if (!plainMet) {
+    return false;
+  }
+  if (effective.all.some(isPathsCondition)) {
+    return !isAnyGroupHolding(effective, facts);
+  }
+  if (!effective.any.some(isPathsCondition)) {
+    return false;
+  }
+
+  const others = effective.any.filter((item) => !isPathsCondition(item));
+  return !others.some((item) => isConditionMet(item, facts));
 }
 
 /**
@@ -242,16 +355,17 @@ function checkCondition(
 export function evaluateTriggerConditions(
   effective: EffectiveTriggerConditions,
   facts: ConditionFacts,
+  log?: Logger,
 ): UnmetCondition[] {
   const unmet: UnmetCondition[] = effective.all.flatMap((condition) =>
-    checkCondition(condition, facts),
+    checkCondition(condition, facts, log),
   );
   if (effective.any.length === 0) {
     return unmet;
   }
 
   const members = effective.any.map((condition) =>
-    checkCondition(condition, facts),
+    checkCondition(condition, facts, log),
   );
   const groupMet = members.some((items) => items.length === 0);
   if (!groupMet) {
