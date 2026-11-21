@@ -627,7 +627,7 @@ export interface GeneratorCallOptions {
 }
 
 export const JobFailureOutcomes = {
-  /** The fenced write found the row held by another run or gone. */
+  /** The fenced write found the row claimed by another run or gone. */
   CLAIM_LOST: "claim-lost",
   PERMANENT: "permanent",
   RETRYING: "retrying",

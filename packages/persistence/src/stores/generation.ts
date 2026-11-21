@@ -433,7 +433,7 @@ export interface GenerationProjection {
    * Claim the row in one transaction that reads it `FOR UPDATE`; with `cap`
    * set, under the instance advisory lock, so the cap is exact across slots
    * and processes (a ceiling, not fair share). `finished` on a succeeded row,
-   * `held` under a live lease; `exhausted` after `MAX_GENERATION_ATTEMPTS`
+   * `running` under a live lease; `exhausted` after `MAX_GENERATION_ATTEMPTS`
    * claims since a trigger and `capped` at the cap write the row's end under
    * the same lock, so a trigger lands wholly before or after it (`ClaimEnds`);
    * otherwise a run id, a lease of `leaseMs`, `running`, one more claim, one
@@ -564,7 +564,7 @@ export interface GenerationProjection {
    * Covers the pre-drain replace: push B inside the debounce window swaps
    * the job's payload, so no run ever carries head A and its pending row
    * would sit non-terminal forever. Same abort semantics as `markSuperseded`.
-   * Only rows last written at or before `pickedUpAt` and held by no live
+   * Only rows last written at or before `pickedUpAt` and claimed by no live
    * lease are taken: a head triggered after pickup may be one the run never
    * saw. Returns the number of rows swept.
    */
@@ -784,9 +784,9 @@ const TERMINAL_CLEARED = {
 /**
  * A trigger's reset of a row already on the key: `status` with `attempts` as
  * given, clearing `phase`, the error columns, `repo_config` and the claim. A
- * held row keeps every column, so a live run is never clobbered and a dropped
- * trigger is not a paid attempt; a `running` row whose lease lapsed (a dead
- * worker) is projected afresh.
+ * row a live claim names keeps every column, so a live run is never
+ * clobbered and a dropped trigger is not a paid attempt; a `running` row
+ * whose lease lapsed (a dead worker) is projected afresh.
  */
 function buildTriggerReset(
   status: GenerationStatus,
