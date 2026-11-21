@@ -131,6 +131,13 @@ function makeDocsOnlyGitHub() {
   ]);
 }
 
+async function listJobTasks(): Promise<unknown[]> {
+  const jobs = await harness.raw(
+    "select task_identifier from graphile_worker.jobs order by id",
+  );
+  return jobs.map((job) => job["task_identifier"]);
+}
+
 function countFileListReads(github: ReturnType<typeof makeGitHub>): number {
   return github.listCalls("fetchPullRequestFiles").length;
 }
@@ -770,6 +777,27 @@ describe("generate task, trigger conditions", () => {
 
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
     expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("holds a multi-call head in the large pool when no file matches", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    github.updatePullRequest(PR_REF, { changedFiles: MULTI_CALL_FILES });
+    addSettings(github, PATHS_SETTINGS);
+    const generator = stubGenerator();
+    await harness.raw("update graphile_worker.jobs set locked_at = now()");
+
+    await makeTask({ github, generator })(payload);
+    expect(await listJobTasks()).toEqual(["generate", "generate-large"]);
+    expect(countFileListReads(github)).toBe(0);
+    await makeLargePoolTask({ github, generator })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "paths", setBy: "repo", paths: ["**/*.ts"] },
+    ]);
+    expect(generator.calls).toEqual([]);
+    expect(await countStartedRuns()).toBe(0);
   });
 
   it("reads no file list to hold a head without a paths condition", async () => {
