@@ -21,6 +21,7 @@ import type {
   ConditionFacts,
   HeadReports,
 } from "../src/task/generate/logic/condition-check/types";
+import { isWaitingCondition } from "i18n";
 import { createLogger, type Logger } from "logging";
 
 const HEAD = "a".repeat(40);
@@ -1537,7 +1538,24 @@ describe("evaluateTriggerConditions, ci", () => {
     );
 
     expect(unmet).toMatchObject([
-      { failed: ["build"], missing: [], permissionMissing: true },
+      { failed: ["build"], missing: [], permissionMissing: false },
+    ]);
+  });
+
+  it("names no missing permission when a refusal decided no name", () => {
+    const unmet = evaluateCi(
+      { mode: "named", checks: ["build", "lint"] },
+      {
+        checkRuns: [
+          makeRun({ name: "build", conclusion: "failure" }),
+          makeRun({ name: "lint", completed: false }),
+        ],
+        statusesForbidden: true,
+      },
+    );
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], running: ["lint"], permissionMissing: false },
     ]);
   });
 });
@@ -1551,6 +1569,38 @@ describe("evaluateTriggerConditions, ci pinned to an App", () => {
     });
 
     expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
+  it("waits on a running pinned run while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ completed: false })],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: [],
+        running: ["build"],
+        missing: [],
+        permissionMissing: false,
+      },
+    ]);
+    expect(unmet.every(isWaitingCondition)).toBe(true);
+  });
+
+  it("fails on a failed pinned run while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ conclusion: "failure" })],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], missing: [], permissionMissing: false },
+    ]);
   });
 
   it("passes on the pinned run beside a failing status of the name", () => {

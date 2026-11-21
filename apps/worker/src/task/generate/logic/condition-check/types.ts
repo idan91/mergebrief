@@ -89,6 +89,12 @@ export const CheckOutcomes = {
 } as const;
 export type CheckOutcome = ValueOf<typeof CheckOutcomes>;
 
+/** One check's outcome, and whether a refused read decided it. */
+export interface CheckReading {
+  readonly outcome: CheckOutcome;
+  readonly decidedByRefusal: boolean;
+}
+
 /** A review bot's own GitHub accounts; a bot without an App reports only through reviews. */
 export interface ReviewBotAccount {
   readonly appId?: bigint;

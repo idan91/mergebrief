@@ -16,6 +16,7 @@ import {
 import {
   CheckOutcomes,
   type CheckOutcome,
+  type CheckReading,
   type HeadReports,
   type KindCheckInput,
 } from "./types";
@@ -118,19 +119,25 @@ function combineOutcomes(outcomes: readonly CheckOutcome[]): CheckOutcome {
   return CheckOutcomes.PASSED;
 }
 
+/** A failed or running outcome holds whatever a refused read would add. */
+const OUTCOMES_A_REFUSAL_DECIDES: ReadonlySet<CheckOutcome> = new Set([
+  CheckOutcomes.PASSED,
+  CheckOutcomes.MISSING,
+]);
+
 /**
  * GitHub's merge rule per name: the latest run and the latest status count,
  * neutral and skipped pass. A name both kinds report passes only when both
- * do, so a pass read while one source was refused is unknown: missing,
- * unless the pinned App's run decided it.
+ * do, so a pass or nothing read while one source was refused is decided by
+ * the refusal: missing, unless the pinned App's run decided it.
  */
 function readCheckOutcome(
   reports: HeadReports,
   check: RequiredStatusCheck,
-): CheckOutcome {
+): CheckReading {
   const pinnedRun = findPinnedRun(reports, check);
   if (pinnedRun !== undefined) {
-    return readRunOutcome(pinnedRun);
+    return { outcome: readRunOutcome(pinnedRun), decidedByRefusal: false };
   }
 
   const outcomes =
@@ -138,12 +145,12 @@ function readCheckOutcome(
       ? listLatestOutcomes(reports, check.context)
       : listPinnedStatusOutcomes(reports, check.context);
   const outcome = combineOutcomes(outcomes);
-  const passedWhileRefused =
-    outcome === CheckOutcomes.PASSED && isReadRefused(reports);
-  if (passedWhileRefused) {
-    return CheckOutcomes.MISSING;
+  const decidedByRefusal =
+    isReadRefused(reports) && OUTCOMES_A_REFUSAL_DECIDES.has(outcome);
+  if (decidedByRefusal) {
+    return { outcome: CheckOutcomes.MISSING, decidedByRefusal };
   }
-  return outcome;
+  return { outcome, decidedByRefusal };
 }
 
 function listNamedChecks(names: readonly string[]): RequiredStatusCheck[] {
@@ -159,25 +166,25 @@ const OUTCOME_SEVERITY: Readonly<Record<CheckOutcome, number>> = {
 };
 
 /**
- * Each name's worst outcome, in first-listed order: two rulesets may pin one
+ * Each name's worst reading, in first-listed order: two rulesets may pin one
  * name to different Apps, and the name must pass under both.
  */
 function readNameOutcomes(
   reports: HeadReports,
   checks: readonly RequiredStatusCheck[],
-): Map<string, CheckOutcome> {
-  const outcomes = new Map<string, CheckOutcome>();
+): Map<string, CheckReading> {
+  const readings = new Map<string, CheckReading>();
   for (const check of checks) {
-    const outcome = readCheckOutcome(reports, check);
-    const known = outcomes.get(check.context);
+    const reading = readCheckOutcome(reports, check);
+    const known = readings.get(check.context);
     const isWorse =
       known === undefined ||
-      OUTCOME_SEVERITY[outcome] > OUTCOME_SEVERITY[known];
+      OUTCOME_SEVERITY[reading.outcome] > OUTCOME_SEVERITY[known.outcome];
     if (isWorse) {
-      outcomes.set(check.context, outcome);
+      readings.set(check.context, reading);
     }
   }
-  return outcomes;
+  return readings;
 }
 
 /** `required` reads the base branch's rulesets; an empty set passes. */
@@ -200,8 +207,10 @@ export function checkCi({
     [CheckOutcomes.RUNNING]: running,
     [CheckOutcomes.MISSING]: missing,
   };
-  for (const [name, outcome] of readNameOutcomes(reports, checks)) {
-    lists[outcome]?.push(name);
+  let permissionMissing = false;
+  for (const [name, reading] of readNameOutcomes(reports, checks)) {
+    lists[reading.outcome]?.push(name);
+    permissionMissing ||= reading.decidedByRefusal;
   }
 
   const unmetCount = failed.length + running.length + missing.length;
@@ -215,7 +224,7 @@ export function checkCi({
       failed,
       running,
       missing,
-      permissionMissing: isReadRefused(reports),
+      permissionMissing,
     },
   ];
 }
