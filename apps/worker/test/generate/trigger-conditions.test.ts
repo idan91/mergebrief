@@ -6,12 +6,14 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { parseInstanceTriggerConditions } from "generators/trigger-conditions";
+import { FakeFailures } from "github/testing";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationStatuses } from "types";
 import {
   buildRepoFile,
   countStartedRuns,
   ctx,
+  FIRST_ATTEMPT,
   harness,
   HEAD_1,
   makeGitHub,
@@ -21,6 +23,7 @@ import {
   PR_REF,
   readRowStatus,
   REPO,
+  SECOND_ATTEMPT,
   setUpHarness,
   stubGenerator,
   trigger,
@@ -70,6 +73,38 @@ describe("generate task, trigger conditions", () => {
       { kind: "ready-for-review", source: "instance" },
     ]);
     expect(await countStartedRuns()).toBe(0);
+  });
+
+  it("holds on the retry after a settings read failed transiently", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const failing = makeGitHub(HEAD_1);
+    failing.updatePullRequest(PR_REF, { draft: true });
+    failing.failRepoFile(
+      REPO,
+      { path: RepoConfigPaths.SETTINGS },
+      FakeFailures.SERVER_ERROR,
+    );
+    const readyForReview = instanceConditions({ readyForReview: "on" });
+
+    await expect(
+      makeTask({ github: failing, triggerConditions: readyForReview })(
+        payload,
+        { job: FIRST_ATTEMPT },
+      ),
+    ).rejects.toThrow("settings read failed");
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.FAILED);
+
+    const retried = makeGitHub(HEAD_1);
+    retried.updatePullRequest(PR_REF, { draft: true });
+    await makeTask({ github: retried, triggerConditions: readyForReview })(
+      payload,
+      { job: SECOND_ATTEMPT },
+    );
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "ready-for-review", source: "instance" },
+    ]);
   });
 
   it("generates a ready pull request under readyForReview", async () => {
