@@ -175,6 +175,17 @@ describe("parsing a triggerConditions block", () => {
     const parsed = parseRepoTriggerConditions({ never: true, labels: ["a"] });
     expect(listIssues(parsed)).not.toEqual([]);
   });
+
+  it("names a list entry's index in the issue path", () => {
+    const tooLong = "a".repeat(201);
+    const issues = listIssues(
+      parseRepoTriggerConditions({ labels: [tooLong] }),
+    );
+    const described = issues.join(" ");
+
+    expect(described).toContain("triggerConditions.labels.0");
+    expect(described).not.toContain("(redacted)");
+  });
 });
 
 describe("merging the instance and repo blocks", () => {

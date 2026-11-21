@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import type { ConfigError } from "../contract/errors";
 import { ENV_VAR_NAME } from "./consts";
-import { renderKey } from "./render-key";
+import { renderKey, renderPathSegment } from "./render-key";
 
 /**
  * The instance-config `contextSources:` block: the providers that need a
@@ -133,14 +133,7 @@ const SOURCE_TYPE_TOKEN = /^[a-z][a-z-]{0,19}$/;
 type ZodIssue = z.ZodError["issues"][number];
 
 function describeIssue(issue: ZodIssue): string {
-  const path = issue.path
-    .map((segment) => {
-      if (typeof segment === "string") {
-        return renderKey(segment);
-      }
-      return String(segment);
-    })
-    .join(".");
+  const path = issue.path.map(renderPathSegment).join(".");
   const prefix = path.length > 0 ? `contextSources.${path}` : "contextSources";
 
   if (issue.code === "unrecognized_keys") {
