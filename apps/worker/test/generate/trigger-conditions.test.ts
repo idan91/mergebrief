@@ -314,6 +314,26 @@ describe("generate task, trigger conditions", () => {
     expect(writes).toEqual([]);
   });
 
+  it("leaves an unmarked Entry comment on the run and on the sync", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { draft: true });
+    const unmarked = "A comment someone rewrote without the marker.";
+    await trackEntryBody(github, pr.id, unmarked);
+    const readyForReview = makeInstanceConditions({ readyForReview: "on" });
+
+    await makeTask({ github, triggerConditions: readyForReview })(payload);
+
+    expect(readLiveBodies(github)).toEqual([unmarked]);
+    const syncs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'sync-entry'",
+    );
+    await makeSyncEntryTask({ github })(syncs[0]?.["payload"]);
+
+    expect(syncs).toHaveLength(1);
+    expect(readLiveBodies(github)).toEqual([unmarked]);
+  });
+
   it("leaves a closed body to the Entry sync, which reads the PR fresh", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);

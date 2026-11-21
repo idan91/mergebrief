@@ -25,7 +25,7 @@ import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 export interface GeneratingEntryPost extends UnreadHeadPost {
   readonly watch: SupersessionWatch;
   /** This head's live held body, if any, is edited in place, so the ready post is the one ping. */
-  readonly silent: boolean;
+  readonly editsHeldEntry: boolean;
 }
 
 /** A large run's detail calls: every one the grouping planned, and those no stored part answers. */
@@ -39,21 +39,29 @@ function buildHeldBodyMatcher(headSha: string): LiveBodyMatcher {
 }
 
 /**
- * On an unread head a silent post still edits this head's held body in
- * place, so a released hold pings once; any other body it replaces only when
- * the body names this head, and it never creates the comment.
+ * On an unread head a post that edits the held Entry still edits this head's
+ * held body in place, so a released hold pings once; any other body it
+ * replaces only when the body names this head, and it never creates the
+ * comment. An edit that does not land leaves the thread as it is.
  */
 async function writeOnUnreadHead(
   post: GeneratingEntryPost,
   body: string,
   head: UnreadHeadRead,
 ): Promise<void> {
-  if (post.silent) {
+  if (post.editsHeldEntry) {
     const editable = buildHeldBodyMatcher(post.headSha);
     const edited = await post.entryCommentManager.editMatching(body, editable);
-    if (edited !== EntryWrites.LEFT) {
+    if (edited === EntryWrites.WRITTEN) {
       post.log.warn("generate: head unread, the held Entry edited in place", {
         error: head.error,
+      });
+      return;
+    }
+    if (edited !== EntryWrites.LEFT) {
+      post.log.warn("generate: head unread, the held Entry edit did not land", {
+        error: head.error,
+        write: edited,
       });
       return;
     }
@@ -90,7 +98,7 @@ export async function postGeneratingEntry(
   if (await settleOffHeadPost(post, body)) {
     return;
   }
-  if (post.silent) {
+  if (post.editsHeldEntry) {
     const editable = buildHeldBodyMatcher(post.headSha);
     await post.entryCommentManager.editOrRefresh(body, editable);
     return;

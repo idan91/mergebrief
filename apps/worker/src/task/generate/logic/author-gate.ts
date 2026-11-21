@@ -2,6 +2,7 @@ import { createIngestRoutines } from "persistence";
 import { isTrustedBot } from "repo-config";
 import { GenerationStatuses } from "types/generations";
 import { buildEntryCommentOnDemandBody } from "../../entry-comment";
+import { EntryBodyKinds } from "../../entry-comment/types";
 import type { AcquiredRepoConfig } from "../../repo-config";
 import {
   AuthorGateKinds,
@@ -137,7 +138,7 @@ async function postOnDemandEntry(
   await postStatusEntry(context, {
     body,
     status: GenerationStatuses.AWAITING_TRIGGER,
-    label: "on-demand",
+    label: EntryBodyKinds.ON_DEMAND,
     write: (onDemand) => entryCommentManager.refresh(onDemand),
   });
 }

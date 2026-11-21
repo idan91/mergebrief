@@ -1,4 +1,5 @@
 import type { GenerationStatus } from "types/generations";
+import type { EntryBodyKind } from "../../entry-comment/types";
 import { HeadReadings, type EntryWrite, type RunContext } from "../types";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
 
@@ -7,8 +8,8 @@ export interface StatusEntryPost {
   readonly body: string;
   /** The status the row must still hold; a Generate click moves it on. */
   readonly status: GenerationStatus;
-  /** The body's name in the log lines. */
-  readonly label: string;
+  /** The body's kind, named in the log lines. */
+  readonly label: EntryBodyKind;
   /** Writes the body once the row and the head are both read current. */
   readonly write: (body: string) => Promise<EntryWrite>;
 }
