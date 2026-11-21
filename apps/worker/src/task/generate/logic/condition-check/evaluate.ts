@@ -18,14 +18,12 @@ type KindCheck = (
   facts: ConditionFacts,
 ) => UnmetPlainCondition[];
 
-const NOTHING_UNMET: UnmetPlainCondition[] = [];
-
 function checkReadyForReview(
   condition: SourcedCondition,
   facts: ConditionFacts,
 ): UnmetPlainCondition[] {
   if (!facts.draft) {
-    return NOTHING_UNMET;
+    return [];
   }
   return [
     { kind: TriggerConditionKinds.READY_FOR_REVIEW, source: condition.source },
@@ -47,7 +45,7 @@ function checkCondition(
   facts: ConditionFacts,
 ): UnmetPlainCondition[] {
   const check = KIND_CHECKS[condition.setting.kind];
-  return check === undefined ? NOTHING_UNMET : check(condition, facts);
+  return check === undefined ? [] : check(condition, facts);
 }
 
 /**
