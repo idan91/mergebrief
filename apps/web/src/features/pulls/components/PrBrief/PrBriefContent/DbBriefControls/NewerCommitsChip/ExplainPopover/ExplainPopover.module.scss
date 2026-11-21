@@ -10,16 +10,15 @@
   }
 
   // Rendered in-tree: it stacks inside the header's stacking context, over its progress bar.
-  .panel,
-  .heldPanel {
+  .panel {
     z-index: functions.get-z-index("bar-panel");
     inline-size: min(functions.to-rem(320px), calc(100vw - 16px));
     padding: var(--space-4) var(--space-4-5);
     text-align: start;
-  }
 
-  .heldPanel {
-    inline-size: min(functions.to-rem(400px), calc(100vw - 16px));
+    &[data-variant="held"] {
+      inline-size: min(functions.to-rem(400px), calc(100vw - 16px));
+    }
   }
 
   .label {
