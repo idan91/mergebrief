@@ -9,8 +9,8 @@ import {
   deriveViewerIsAuthor,
 } from "../src/routes/pr-view";
 
-const READY = { kind: "ready-for-review", source: "repo" };
-const UNKNOWN_KIND = { kind: "deploy-window", source: "repo" };
+const READY = { kind: "ready-for-review", setBy: "repo" };
+const UNKNOWN_KIND = { kind: "deploy-window", setBy: "repo" };
 
 function makeHeldRow(unmetConditions: readonly unknown[]): GenerationRow {
   return {
