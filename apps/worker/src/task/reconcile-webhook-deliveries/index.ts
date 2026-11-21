@@ -50,6 +50,11 @@ interface DeliveriesRead {
   readonly cutOffAt?: Date;
 }
 
+/** The failed-only read; not listed when a page failed or the page cap ran out. */
+type UnreadFailuresRead =
+  | { readonly listed: true; readonly deliveries: readonly HookDelivery[] }
+  | { readonly listed: false };
+
 function readOldestTime(deliveries: readonly HookDelivery[], now: Date): Date {
   const times = deliveries.map((delivery) => delivery.deliveredAt.getTime());
   const oldestMs = Math.min(now.getTime(), ...times);
@@ -85,15 +90,12 @@ async function readRecentDeliveries(
   return { ok: true, value: { deliveries, cutOffAt } };
 }
 
-/**
- * The failures the capped read never reached that GitHub would still resend,
- * or `undefined` when they could not all be listed.
- */
+/** The failures the capped read never reached that GitHub would still resend. */
 async function readUnreadFailures(
   deps: ReconcileWebhookDeliveriesTaskDeps,
   cutOffAt: Date,
   now: Date,
-): Promise<readonly HookDelivery[] | undefined> {
+): Promise<UnreadFailuresRead> {
   const windowStart = now.getTime() - REDELIVERY_WINDOW_MS;
   const unread: HookDelivery[] = [];
   let cursor: string | undefined;
@@ -101,7 +103,7 @@ async function readUnreadFailures(
     // oxlint-disable-next-line no-await-in-loop -- each page names the next.
     const listed = await deps.listFailedDeliveries(cursor);
     if (!listed.ok) {
-      return undefined;
+      return { listed: false };
     }
     const inWindow = listed.value.deliveries.filter(
       (delivery) => delivery.deliveredAt.getTime() >= windowStart,
@@ -114,10 +116,22 @@ async function readUnreadFailures(
     const readAll =
       inWindow.length < listed.value.deliveries.length || cursor === undefined;
     if (readAll) {
-      return unread;
+      return { listed: true, deliveries: unread };
     }
   }
-  return undefined;
+  return { listed: false };
+}
+
+interface UnreadTailCounts {
+  readonly unreadFailures?: number;
+  readonly connectionFailures: number;
+}
+
+function warnUnreadTail(log: Logger, counts: UnreadTailCounts): void {
+  log.warn(
+    "webhook reconcile: more deliveries than one tick reads; older failures were not checked",
+    { pages: MAX_PAGES_PER_TICK, ...counts },
+  );
 }
 
 /**
@@ -132,21 +146,23 @@ async function reportUnreadTail(
   now: Date,
 ): Promise<void> {
   const unread = await readUnreadFailures(deps, read.cutOffAt, now);
-  const actionable = unread?.filter((delivery) => !isRecheckOnly(delivery));
   const connectionFailures = read.deliveries.filter(
     (delivery) => delivery.statusCode === CONNECTION_FAILURE_STATUS,
   ).length;
-  const actionableMayBeUnread =
-    actionable === undefined || actionable.length > 0 || connectionFailures > 0;
+  if (!unread.listed) {
+    warnUnreadTail(deps.log, { connectionFailures });
+    return;
+  }
+
+  const actionable = unread.deliveries.filter(
+    (delivery) => !isRecheckOnly(delivery),
+  );
+  const actionableMayBeUnread = actionable.length > 0 || connectionFailures > 0;
   if (actionableMayBeUnread) {
-    deps.log.warn(
-      "webhook reconcile: more deliveries than one tick reads; older failures were not checked",
-      {
-        pages: MAX_PAGES_PER_TICK,
-        unreadFailures: actionable?.length,
-        connectionFailures,
-      },
-    );
+    warnUnreadTail(deps.log, {
+      unreadFailures: actionable.length,
+      connectionFailures,
+    });
     return;
   }
   deps.log.info(

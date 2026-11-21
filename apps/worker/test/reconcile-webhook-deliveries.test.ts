@@ -7,6 +7,7 @@ import {
   createReconcileWebhookDeliveriesTask,
   type ReconcileWebhookDeliveriesTaskDeps,
 } from "../src/task/reconcile-webhook-deliveries";
+import { MAX_FAILURE_PAGES_PER_TICK } from "../src/task/reconcile-webhook-deliveries/consts";
 import { captureLogger } from "./generate/helpers";
 
 const NOW = new Date("2026-11-04T12:00:00Z");
@@ -484,5 +485,36 @@ describe("the reconcile task", () => {
 
     const levels = capture.readLines().map((line) => line["level"]);
     expect(levels).toEqual(["warn"]);
+  });
+
+  it("warns when the failed-only pages run out before the cut-off", async () => {
+    const capture = captureLogger();
+    let failurePages = 0;
+    const task = createReconcileWebhookDeliveriesTask({
+      listDeliveries: async () => ({
+        ok: true,
+        value: { deliveries: [], nextCursor: "more" },
+      }),
+      listFailedDeliveries: async () => {
+        failurePages += 1;
+        return {
+          ok: true,
+          value: {
+            deliveries: [makeDelivery(2, "b", 502, HOUR_MS)],
+            nextCursor: "more",
+          },
+        };
+      },
+      redeliver: makeRedeliverSpy().redeliver,
+      log: capture.logger,
+      now: () => NOW,
+    });
+
+    await task();
+
+    expect(failurePages).toBe(MAX_FAILURE_PAGES_PER_TICK);
+    expect(capture.readLines()).toEqual([
+      expect.objectContaining({ level: "warn", connectionFailures: 0 }),
+    ]);
   });
 });
