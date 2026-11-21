@@ -133,11 +133,11 @@ async function readCheckedFiles(
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
 }
 
-function listFilePaths(file: PullRequestFile): string[] {
+function listPreviousPath(file: PullRequestFile): string[] {
   if (file.previousPath === undefined) {
-    return [file.path];
+    return [];
   }
-  return [file.path, file.previousPath];
+  return [file.previousPath];
 }
 
 const NO_REPORTS: HeadReports = {
@@ -237,7 +237,8 @@ function readConditionFacts(
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
     changedFileCount: prInfo.changedFiles,
-    changedPaths: files?.flatMap(listFilePaths),
+    changedPaths: files?.map((file) => file.path),
+    previousPaths: files?.flatMap(listPreviousPath),
     reports,
   };
   if (prInfo.baseRef !== undefined) {

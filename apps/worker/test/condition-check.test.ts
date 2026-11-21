@@ -416,6 +416,43 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toEqual([]);
   });
 
+  it("matches a mass rename's last new path within the step budget", () => {
+    const renamedTo = Array.from(
+      { length: 2999 },
+      (_, index) => `apps/${String(index).padStart(195, "0")}`,
+    );
+    const renamedFrom = Array.from(
+      { length: 2999 },
+      (_, index) => `libs/${String(index).padStart(195, "0")}`,
+    );
+
+    const unmet = evaluateOne(
+      {
+        kind: "paths",
+        value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
+      },
+      {
+        changedFileCount: 3000,
+        changedPaths: [...renamedTo, "services/ledger/post.ts"],
+        previousPaths: renamedFrom,
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("matches a rename by its old path once every new path misses", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      {
+        changedPaths: ["archive/refund.ts"],
+        previousPaths: ["src/payments/refund.ts"],
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
   it("reads a PR past GitHub's file list as met without matching", () => {
     const unmet = evaluateOne(
       { kind: "paths", value: ["src/payments/**"] },
