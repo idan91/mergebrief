@@ -201,7 +201,7 @@ function describeHeld(
 ): StateCopy {
   const { meta } = input;
   if (isNoLongerOpen(meta.state)) {
-    return describeNoBriefLine(t, t("pulls.awaitingTrigger.notOpenCopy"));
+    return describeNoBriefLine(t, t("pulls.held.lead.notOpen"));
   }
   const copy = describeLabelled(
     NewerCommitsStates.HELD,
