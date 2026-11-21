@@ -24,6 +24,11 @@ import {
   type EntryBodyKind,
 } from "../../src/task/entry-comment/types";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../../src/task/generate/consts";
+import { writePlannedEntry } from "../../src/task/generate/logic/entry-sync";
+import {
+  EntryWrites,
+  type EntryCommentManager,
+} from "../../src/task/generate/types";
 import {
   captureLogger,
   ctx,
@@ -1378,5 +1383,50 @@ describe("generate task, Entry sync over a body with no kind token", () => {
     await makeSyncEntryTask({ github })(payload);
 
     expect(readLiveBodies(github)).toEqual([tokenless]);
+  });
+});
+
+describe("writePlannedEntry", () => {
+  /** Records which manager write a plan took; every write leaves the thread. */
+  function stubWriteRecorder(calls: string[]): EntryCommentManager {
+    const record = (name: string) => async () => {
+      calls.push(name);
+      return EntryWrites.LEFT;
+    };
+    const writes = {
+      editOrCreate: record("editOrCreate"),
+      editMatching: record("editMatching"),
+      replaceOrCreate: record("replaceOrCreate"),
+      replace: record("replace"),
+    };
+    return writes as unknown as EntryCommentManager;
+  }
+
+  it("edits an in-place plan, or posts it where no comment is live", async () => {
+    const calls: string[] = [];
+    const plan = {
+      body: "held",
+      isReplaceable: () => true,
+      createsComment: true,
+      inPlace: true,
+    };
+
+    await writePlannedEntry(stubWriteRecorder(calls), plan);
+
+    expect(calls).toEqual(["editOrCreate"]);
+  });
+
+  it("edits an in-place plan that creates no comment only over a match", async () => {
+    const calls: string[] = [];
+    const plan = {
+      body: "held",
+      isReplaceable: () => true,
+      createsComment: false,
+      inPlace: true,
+    };
+
+    await writePlannedEntry(stubWriteRecorder(calls), plan);
+
+    expect(calls).toEqual(["editMatching"]);
   });
 });

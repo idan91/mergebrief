@@ -54,7 +54,7 @@ import { createEntryCommentManager } from "./entry-comment-manager";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
 
 /** The body the head's row names, and the live bodies it may replace. */
-interface EntrySyncPlan {
+export interface EntrySyncPlan {
   readonly body: string;
   readonly isReplaceable: LiveBodyMatcher;
   /** Post the body when no comment is live; the closed body never does. */
@@ -310,13 +310,16 @@ async function writeEntrySync(
   }
 }
 
-function writePlannedEntry(
+export function writePlannedEntry(
   entryCommentManager: EntryCommentManager,
   plan: EntrySyncPlan,
 ): Promise<EntryWrite> {
   const { body, isReplaceable } = plan;
-  if (plan.inPlace === true) {
+  if (plan.inPlace === true && plan.createsComment) {
     return entryCommentManager.editOrCreate(body, isReplaceable);
+  }
+  if (plan.inPlace === true) {
+    return entryCommentManager.editMatching(body, isReplaceable);
   }
   if (plan.createsComment) {
     return entryCommentManager.replaceOrCreate(body, isReplaceable);
