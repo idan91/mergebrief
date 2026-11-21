@@ -205,10 +205,10 @@ function checkBaseBranches({
 
 /**
  * One scan's steps, glob tokens x path length, the globs a repository
- * writer's and the paths a PR author's: sized for 3000 paths of 200
- * characters against a few general globs.
+ * writer's and the paths a PR author's: sized for 6000 paths of 200
+ * characters, 3000 files each renamed, against a few general globs.
  */
-const PATHS_MATCH_STEPS = 20_000_000;
+const PATHS_MATCH_STEPS = 40_000_000;
 
 /** GitHub lists none of the files past its cap, so no glob can be ruled out. */
 export function isPastFilesList(facts: ConditionFacts): boolean {
@@ -234,7 +234,7 @@ function checkPaths({
   }
   const matched = matchesAnyGlob(
     value,
-    [facts.changedPaths],
+    [facts.changedPaths, facts.previousPaths ?? []],
     PATHS_MATCH_STEPS,
   );
   if (matched === true) {

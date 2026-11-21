@@ -39,11 +39,13 @@ export interface ConditionFacts {
   /** GitHub's `changed_files` for the whole pull request. */
   readonly changedFileCount: number;
   /**
-   * Each changed file's path as GitHub lists it, a rename by both its new and
-   * its old path, a deletion by the path it had. Absent until a `paths`
-   * condition can decide the verdict.
+   * Each changed file's path as GitHub lists it, a rename by its new path, a
+   * deletion by the path it had. Absent until a `paths` condition can decide
+   * the verdict.
    */
   readonly changedPaths?: readonly string[] | undefined;
+  /** Each renamed file's old path, read with `changedPaths`. */
+  readonly previousPaths?: readonly string[] | undefined;
   readonly reports: HeadReports;
 }
 
