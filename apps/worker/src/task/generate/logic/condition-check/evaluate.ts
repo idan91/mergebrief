@@ -1,6 +1,6 @@
 import type {
+  EffectiveCondition,
   EffectiveTriggerConditions,
-  SourcedCondition,
 } from "generators/trigger-conditions";
 import {
   TriggerConditionKinds,
@@ -14,24 +14,24 @@ import type { ConditionFacts } from "./types";
 
 /** A kind's check: the unmet items it leaves, none when the push meets it. */
 type KindCheck = (
-  condition: SourcedCondition,
+  condition: EffectiveCondition,
   facts: ConditionFacts,
 ) => UnmetPlainCondition[];
 
 function checkReadyForReview(
-  condition: SourcedCondition,
+  condition: EffectiveCondition,
   facts: ConditionFacts,
 ): UnmetPlainCondition[] {
   if (!facts.draft) {
     return [];
   }
   return [
-    { kind: TriggerConditionKinds.READY_FOR_REVIEW, source: condition.source },
+    { kind: TriggerConditionKinds.READY_FOR_REVIEW, setBy: condition.setBy },
   ];
 }
 
-function checkNever(condition: SourcedCondition): UnmetPlainCondition[] {
-  return [{ kind: TriggerConditionKinds.NEVER, source: condition.source }];
+function checkNever(condition: EffectiveCondition): UnmetPlainCondition[] {
+  return [{ kind: TriggerConditionKinds.NEVER, setBy: condition.setBy }];
 }
 
 /** Each kind's check; a kind without one here is met. */
@@ -41,7 +41,7 @@ const KIND_CHECKS: Partial<Record<TriggerConditionKind, KindCheck>> = {
 };
 
 function checkCondition(
-  condition: SourcedCondition,
+  condition: EffectiveCondition,
   facts: ConditionFacts,
 ): UnmetPlainCondition[] {
   const check = KIND_CHECKS[condition.setting.kind];
