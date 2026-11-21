@@ -73,6 +73,12 @@ import {
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 /** How far out a Generate or Regenerate click queues the head's job. */
 export const TRIGGER_ON_DEMAND_DELAY_SECONDS = 10;
+/**
+ * How far out a check report queues a held head's re-check. A CI run reports
+ * by the dozen, and a waiting job keeps its first `run_at`, so a burst inside
+ * this window collapses into one re-check.
+ */
+export const CHECK_REPORT_WAKE_DELAY_SECONDS = 45;
 
 /**
  * A head a live read stamped, cleared when this newer event reports another:
@@ -316,6 +322,14 @@ async function lockPullRequestRow(
   return rows[0];
 }
 
+/** Which head a wake re-checks and how far out its job runs. */
+interface HeadRecheck {
+  readonly pullRequestId: PullRequestRowId;
+  /** Only while this is the PR's current head; absent wakes whatever is. */
+  readonly headSha?: string;
+  readonly delaySeconds: number;
+}
+
 /**
  * Queues the job of an open PR whose current head the wake rule names, read
  * under the PR's row lock; with `headSha`, only while that is the current
@@ -324,9 +338,9 @@ async function lockPullRequestRow(
 async function recheckLockedHead(
   tx: IngestTransaction,
   scope: RowScope,
-  pullRequestId: PullRequestRowId,
-  headSha?: string,
+  recheck: HeadRecheck,
 ): Promise<boolean> {
+  const { pullRequestId, headSha } = recheck;
   const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
   if (prRow?.state !== PrStates.OPEN) {
     return false;
@@ -349,7 +363,7 @@ async function recheckLockedHead(
     scope,
     { headSha: head.row.headSha },
     pullRequestId,
-    TRIGGER_ON_DEMAND_DELAY_SECONDS,
+    recheck.delaySeconds,
   );
   return true;
 }
@@ -676,7 +690,8 @@ export interface IngestRoutines {
    * the SHA, by the same rule, for a check report that names a commit and no
    * PR. Each PR is locked in id order and read again under its lock; a head
    * the PR has pushed past, another repository's or installation's PR and an
-   * owner scope queue nothing.
+   * owner scope queue nothing. The job runs `CHECK_REPORT_WAKE_DELAY_SECONDS`
+   * out, so a CI run's burst of reports collapses into one re-check.
    */
   recheckHeadsAtSha(
     input: RecheckHeadsAtShaInput,
@@ -1054,7 +1069,10 @@ export function createIngestRoutines(
       }
 
       return db.transaction(async (tx) => {
-        const queued = await recheckLockedHead(tx, scope, input.pullRequestId);
+        const queued = await recheckLockedHead(tx, scope, {
+          pullRequestId: input.pullRequestId,
+          delaySeconds: TRIGGER_ON_DEMAND_DELAY_SECONDS,
+        });
         return { queued };
       });
     },
@@ -1068,12 +1086,11 @@ export function createIngestRoutines(
         const candidates = await listHeldHeadCandidates(tx, scope, input);
         const rechecked: PullRequestRowId[] = [];
         for (const pullRequestId of candidates) {
-          const queued = await recheckLockedHead(
-            tx,
-            scope,
+          const queued = await recheckLockedHead(tx, scope, {
             pullRequestId,
-            input.headSha,
-          );
+            headSha: input.headSha,
+            delaySeconds: CHECK_REPORT_WAKE_DELAY_SECONDS,
+          });
           if (queued) {
             rechecked.push(pullRequestId);
           }

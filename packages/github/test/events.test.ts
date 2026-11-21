@@ -1005,7 +1005,7 @@ describe("parseWebhookEvent, check_run", () => {
     });
   });
 
-  it("parses created, a run that started or arrived finished", () => {
+  it("parses created when the run arrived finished", () => {
     const fixture = jsonFixture("check_run.completed.json");
     const payload = isRecord(fixture) ? { ...fixture, action: "created" } : {};
     const event = parseCheckRunEvent(payload);
@@ -1013,6 +1013,21 @@ describe("parseWebhookEvent, check_run", () => {
       event.kind === ParsedWebhookEventKinds.CHECK_RUN && event.action,
     ).toBe(CheckRunActions.CREATED);
   });
+
+  it.each(["queued", "in_progress"])(
+    "ignores created while the run is %s, which meets nothing",
+    (status) => {
+      const patched = makeCheckRunFixture((checkRun) => {
+        checkRun["status"] = status;
+      });
+      const payload = isRecord(patched)
+        ? { ...patched, action: "created" }
+        : {};
+      expect(parseCheckRunEvent(payload).kind).toBe(
+        ParsedWebhookEventKinds.IGNORED,
+      );
+    },
+  );
 
   it("parses a fork PR's run, which names no pull request", () => {
     const payload = makeCheckRunFixture((checkRun) => {

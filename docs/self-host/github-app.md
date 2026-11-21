@@ -68,8 +68,8 @@ On the registration "what events would you like to subscribe to?" screen, check 
   anyone else, such as a private organization member that GitHub reports as a contributor,
   counts only with write access, which one read of their repository permission (covered by
   Metadata) settles. A read, triage or failed answer sets no Checkpoint.
-- **Check run**: a check run created or completed on a commit checks a push held at that
-  commit again, for the `bots` and `ci` conditions. A fork pull request's run names no pull
+- **Check run**: a check run that finishes on a commit checks a push held at that commit
+  again, for the `bots` and `ci` conditions; a run that starts unfinished changes nothing. A fork pull request's run names no pull
   request, so MergeBrief finds the open pull requests whose held push is that commit. A run on
   any other push changes nothing. The checkbox appears once **Checks** is set.
 - **Status**: a commit status in any state does the same. The checkbox appears once

@@ -17,6 +17,7 @@ import {
   type ScopeContext,
 } from "../src/index";
 import { claimTestRun, failTestRun, succeedTestRun } from "../src/testing";
+import { CHECK_REPORT_WAKE_DELAY_SECONDS } from "../src/stores/ingest";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -745,6 +746,18 @@ describe("recheckHeadsAtSha", () => {
       makeBriefTarget(first, GATE_HEAD_SHA),
     );
     expect(row?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues a check report's wake a CI burst's debounce out", async () => {
+    await seedHeldAt();
+    await clearQueue();
+
+    await recheckAtSha();
+
+    const rows = await shared.harness.raw(
+      "select extract(epoch from run_at - now())::int as delay from graphile_worker.jobs",
+    );
+    expect(Number(rows[0]?.["delay"])).toBe(CHECK_REPORT_WAKE_DELAY_SECONDS);
   });
 
   it("never wakes another installation's PR at the same SHA", async () => {
