@@ -622,7 +622,6 @@ async function handlePullRequestReview(
   );
 }
 
-/** The pull request's row id, written or found. */
 async function triggerGeneration(
   handle: AppDatabase,
   ctx: TenantContext,

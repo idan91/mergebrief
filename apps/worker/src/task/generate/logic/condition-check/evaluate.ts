@@ -276,7 +276,6 @@ function isPathsStampCurrent(
   return stamped !== undefined && stamped === digestPathGlobs(globs);
 }
 
-/** Every changed file's own path first, then each rename's old one. */
 function matchChangedPaths(
   globs: readonly string[],
   changedPaths: readonly string[],
@@ -454,7 +453,6 @@ export function addPathsMatch(
   return { ...facts, pathsMatched };
 }
 
-/** The globs' digest when a changed path matched them this run. */
 function findMatchedPathsDigest(
   setting: PathsSetting,
   facts: ConditionFacts,
