@@ -2,10 +2,10 @@ import type { z } from "zod/v4";
 import {
   TriggerConditionKinds,
   TriggerConditionSources,
+  type Result,
   type TriggerConditionKind,
   type TriggerConditionSource,
-} from "types/trigger-conditions";
-import type { Result } from "types/utils";
+} from "types";
 
 import { configError, type ConfigError } from "../../contract/errors";
 import { renderKey } from "../render-key";
@@ -29,7 +29,7 @@ function isPlainMap(value: unknown): value is Record<string, unknown> {
 }
 
 function describeIssue(where: string, issue: z.core.$ZodIssue): string {
-  const path = issue.path.map((segment) => renderKey(String(segment)));
+  const path = issue.path.map(String).map(renderKey);
   const at = path.length > 0 ? `.${path.join(".")}` : "";
   return `${where}${at}: ${issue.code === "unrecognized_keys" ? "unrecognized key" : issue.message}`;
 }
@@ -42,9 +42,10 @@ function parseSetting(
 ): TriggerConditionSetting | undefined {
   const parsed = SETTING_SCHEMAS[kind].safeParse(raw);
   if (!parsed.success) {
-    issues.push(
-      ...parsed.error.issues.map((issue) => describeIssue(where, issue)),
+    const described = parsed.error.issues.map((issue) =>
+      describeIssue(where, issue),
     );
+    issues.push(...described);
     return undefined;
   }
   return parsed.data;
@@ -93,7 +94,8 @@ function findBlockIssues(
   dropped: readonly TriggerConditionKind[],
 ): string[] {
   const issues: string[] = [];
-  if (all.length + any.length + dropped.length === 0) {
+  const namesNothing = all.length + any.length + dropped.length === 0;
+  if (namesNothing) {
     issues.push(`${BLOCK}: name at least one condition, or write off`);
   }
 
@@ -107,7 +109,8 @@ function findBlockIssues(
   }
 
   const holdsNever = topKinds.has(TriggerConditionKinds.NEVER);
-  if (holdsNever && all.length + any.length > 1) {
+  const neverHasCompany = holdsNever && all.length + any.length > 1;
+  if (neverHasCompany) {
     issues.push(
       `${BLOCK}.never: never stands alone; remove the other conditions`,
     );
@@ -153,7 +156,9 @@ function parseBlock(
   const usesPaths = [...all, ...any].some(
     (setting) => setting.kind === TriggerConditionKinds.PATHS,
   );
-  if (scope === TriggerConditionSources.INSTANCE && usesPaths) {
+  const instanceSetsPaths =
+    scope === TriggerConditionSources.INSTANCE && usesPaths;
+  if (instanceSetsPaths) {
     issues.push(`${BLOCK}.paths: set paths in a repository's settings.yaml`);
   }
 
