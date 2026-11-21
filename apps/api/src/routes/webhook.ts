@@ -296,10 +296,7 @@ async function handlePullRequest(
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
     // Draft re-entry queues no fresh run: that could repost Entry comments,
-    // spend on comparisons or retry a failed generation. The exception is a
-    // held head, or a pending one with a run in flight, or a failed one whose
-    // graphile retry is in flight (`isRecheckOwed`), its conditions checked
-    // again against the draft flag.
+    // spend on comparisons or retry a failed generation.
     // It advances the guard like every state write: an older push that lands
     // after it is skipped whole, never applied over the draft flag.
     const ingest = createIngestRoutines(handle, ctx);
