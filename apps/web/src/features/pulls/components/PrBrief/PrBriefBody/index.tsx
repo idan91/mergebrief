@@ -13,7 +13,6 @@ import type {
   DbTimelinePoint,
   DbTimelineSelection,
 } from "../../../utils/dbTimeline";
-import { awaitsReadyForReview } from "../../../utils/draft-policy";
 import { isNoLongerOpen, readSupersededStop } from "../../../utils/pr-state";
 import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
@@ -143,7 +142,6 @@ function PrBriefBodyState({
 }: PrBriefBodyProps) {
   const { t } = useTranslation();
   const policyNotice = metaPolicyNotice(t, meta);
-  const heldForReady = awaitsReadyForReview(meta);
   const supersededStop = readSupersededStop(meta);
   switch (state.kind) {
     case "render":
@@ -182,7 +180,6 @@ function PrBriefBodyState({
             rerun={{
               prState: meta.state,
               appInstalled: meta.appInstalled,
-              awaitsReadyForReview: heldForReady,
             }}
             span={state.span}
             startedAt={state.startedAt}
@@ -197,7 +194,6 @@ function PrBriefBodyState({
           <FailedCard
             attempts={state.attempts}
             appInstalled={meta.appInstalled}
-            awaitsReadyForReview={heldForReady}
             errorCode={state.errorCode}
             errorDetail={state.errorDetail}
             prNumber={prNumber}
@@ -212,7 +208,6 @@ function PrBriefBodyState({
         <main className="main" id="main-content" tabIndex={-1}>
           <AwaitingTriggerCard
             appInstalled={meta.appInstalled}
-            awaitsReadyForReview={heldForReady}
             prNumber={prNumber}
             prState={meta.state}
             repoId={repoId}
@@ -231,7 +226,6 @@ function PrBriefBodyState({
         <main className="main" id="main-content" tabIndex={-1}>
           <CappedCard
             appInstalled={meta.appInstalled}
-            awaitsReadyForReview={heldForReady}
             cappedAt={state.cappedAt}
             prState={meta.state}
             units={state.units}

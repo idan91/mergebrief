@@ -28,7 +28,6 @@ const CANNOT_HELP_CODES = [
   "provider-refusal",
 ] as const;
 const CLOSED_STATES = ["closed", "merged"] as const;
-const DRAFTS_OFF = { draft: true, draftPolicy: { generate: false } } as const;
 
 interface DeriveOptions {
   readonly staleHead?: boolean;
@@ -317,7 +316,7 @@ describe("deriveNewerCommitsStatus: the latest push generates", () => {
       ...makeGenerationFields({ status: "pending" }),
       draft: true,
       viewerIsAuthor: true,
-      draftPolicy: { generate: true, debounceSeconds: 900 },
+      draftPolicy: { debounceSeconds: 900 },
     });
 
     expect(derive(meta)?.explanation.join(" ")).toContain("15 minutes");
@@ -385,17 +384,6 @@ describe("deriveNewerCommitsStatus: the latest push waits on demand", () => {
     );
   });
 
-  it("promises a drafts-off draft briefs only once it is ready", () => {
-    const status = derive(makeMeta({ ...awaiting, ...DRAFTS_OFF }));
-
-    expect(status?.explanation.join(" ")).toMatch(
-      /pushes are briefed once it is marked ready for review/,
-    );
-    expect(status?.explanation.join(" ")).not.toMatch(
-      /its pushes are briefed as usual/,
-    );
-  });
-
   it.each(CLOSED_STATES)("says no new brief comes on a %s PR", (state) => {
     const status = derive(makeMeta({ ...awaiting, state }));
 
@@ -457,14 +445,6 @@ describe("deriveNewerCommitsStatus: the latest push failed", () => {
     expect(status?.action).toBeUndefined();
     expect(status?.explanation.join(" ")).toContain(
       "This pull request is no longer open, so no brief will generate.",
-    );
-  });
-
-  it("points a drafts-off draft at ready for review", () => {
-    const status = derive(makeMeta({ ...DRAFTS_OFF, viewerCanPush: false }));
-
-    expect(status?.explanation.join(" ")).toMatch(
-      /marking this pull request ready for review queues a new run/,
     );
   });
 
@@ -584,13 +564,6 @@ describe("deriveNewerCommitsStatus: the latest push was skipped", () => {
     expect(status?.explanation.join(" ")).toContain("no longer open");
   });
 
-  it("points a drafts-off draft at ready for review", () => {
-    const status = derive(makeMeta({ ...capped, ...DRAFTS_OFF }));
-
-    expect(status?.explanation.join(" ")).toMatch(/ready for review/);
-    expect(status?.explanation.join(" ")).not.toMatch(/next push/);
-  });
-
   it("tells a url row to generate after the reset while it has not passed", () => {
     vi.useFakeTimers({ now: new Date("2026-10-24T12:00:00.000Z") });
     const status = derive(makeUrlMeta(capped));
@@ -688,17 +661,6 @@ describe("deriveNewerCommitsStatus: no run covers the newer commits", () => {
 
     expect(status?.explanation).toContain(
       "This pull request is no longer open, so no brief will generate.",
-    );
-  });
-
-  it("names ready for review on a drafts-off draft, whoever reads it", () => {
-    const status = derive(
-      makeMeta({ ...covered, ...DRAFTS_OFF, viewerIsAuthor: false }),
-    );
-
-    expect(status?.statusLabel).toBe("No new brief");
-    expect(status?.explanation).toContain(
-      "Brief generation for draft pull requests is off on this instance, so nothing is generated until this pull request is marked ready for review.",
     );
   });
 
@@ -800,12 +762,5 @@ describe("deriveNewerCommitsStatus: a newer push took over", () => {
     expect(status?.explanation).toContain(
       "This pull request is no longer open, so no brief will generate.",
     );
-  });
-
-  it("waits for ready for review on a drafts-off draft", () => {
-    const status = derive(makeMeta({ ...superseded, ...DRAFTS_OFF }));
-
-    expect(status?.state).toBe(NewerCommitsStates.NO_BRIEF);
-    expect(status?.explanation.join(" ")).toMatch(/ready for review/);
   });
 });

@@ -155,7 +155,7 @@ export const pullMetaAnswer: PullMetaView = {
   behind: false,
   comparisons: latestRevision.comparisons,
   appInstalled: true,
-  draftPolicy: { generate: true, debounceSeconds: null },
+  draftPolicy: { debounceSeconds: null },
   revisions: [firstRevision, latestRevision],
 };
 

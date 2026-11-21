@@ -68,8 +68,6 @@ export interface CappedPushDetailInput {
   readonly cappedAt: string;
   readonly prState: PrSummary["state"];
   readonly appInstalled: boolean;
-  /** A draft under a drafts-off instance: its next push queues nothing. */
-  readonly awaitsReadyForReview: boolean;
   /** A large run's refusal: the runs it needed lead the detail. */
   readonly units?: GenerationUnitsParams | undefined;
 }
@@ -91,18 +89,11 @@ export function readCapResumeLine(
 /**
  * When the next brief comes. The cap resets at 00:00 UTC after the skip and
  * a capped head never reruns: a url row reruns on a paste whatever its
- * state, an installation row on its next push while the PR is open, or on
- * ready for review when it is a draft its instance does not generate.
+ * state, an installation row on its next push while the PR is open.
  */
 export function buildCappedPushDetail(
   t: TFunction,
-  {
-    cappedAt,
-    prState,
-    appInstalled,
-    awaitsReadyForReview: heldForReady,
-    units,
-  }: CappedPushDetailInput,
+  { cappedAt, prState, appInstalled, units }: CappedPushDetailInput,
   now: Date = new Date(),
 ): string {
   if (units !== undefined && isPastDailyCap(units)) {
@@ -121,9 +112,6 @@ export function buildCappedPushDetail(
   }
   if (isNoLongerOpen(prState)) {
     return t("pulls.failed.notOpenNote");
-  }
-  if (heldForReady) {
-    return `${resume} ${t("pulls.capped.readyForReviewNote")}`;
   }
   return `${resume} ${t("pulls.latestPush.capped.nextPush")}`;
 }
@@ -145,7 +133,6 @@ export interface FailedPushDetailInput {
   readonly offersRegenerate: boolean;
   readonly prState: PrSummary["state"];
   readonly appInstalled: boolean;
-  readonly awaitsReadyForReview: boolean;
 }
 
 /** The failed card's reason and note, as one line of the chip's explanation. */
@@ -156,7 +143,6 @@ export function buildFailedPushDetail(
     offersRegenerate,
     prState,
     appInstalled,
-    awaitsReadyForReview: heldForReady,
   }: FailedPushDetailInput,
 ): string {
   const { errorCode, errorDetail, attempts } = generation;
@@ -167,7 +153,6 @@ export function buildFailedPushDetail(
     offersRegenerate,
     prState,
     appInstalled,
-    awaitsReadyForReview: heldForReady,
   });
   if (note === undefined) {
     return reason;

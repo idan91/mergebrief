@@ -49,7 +49,6 @@ function renderWaitCard(span: Span | undefined): void {
           rerun={{
             prState: PrStates.OPEN,
             appInstalled: true,
-            awaitsReadyForReview: false,
           }}
           span={span}
           status="pending"

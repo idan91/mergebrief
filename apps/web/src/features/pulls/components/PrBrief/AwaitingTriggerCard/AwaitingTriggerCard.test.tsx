@@ -33,7 +33,6 @@ const BASE_PROPS: AwaitingTriggerCardProps = {
   viewerCanPush: true,
   appInstalled: true,
   prState: "open",
-  awaitsReadyForReview: false,
 };
 
 function makeCard(
@@ -76,18 +75,6 @@ describe("AwaitingTriggerCard", () => {
         "A collaborator with push access can generate this pull request's brief. After that, its pushes are briefed as usual.",
       ),
     ).toBeTruthy();
-  });
-
-  it("promises a skipped draft's pushes only once it is ready for review", () => {
-    renderCard({ awaitsReadyForReview: true });
-
-    expect(screen.getByRole("button", { name: GENERATE })).toBeTruthy();
-    expect(
-      screen.getByText(
-        /after that, pushes are briefed once it is marked ready/,
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByText(/its pushes are briefed as usual/)).toBeNull();
   });
 
   it("leads the card with the ghost mark", () => {
