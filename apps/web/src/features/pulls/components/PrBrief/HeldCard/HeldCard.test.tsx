@@ -131,6 +131,31 @@ describe("HeldCard", () => {
     ).toBeTruthy();
   });
 
+  it("ends the list with a line for conditions the server could not read", () => {
+    renderCard({ unmetConditionsPartial: true });
+
+    const unreadable = screen.getByTestId("held-unreadable");
+    expect(unreadable.textContent).toBe(
+      "Conditions this server could not read",
+    );
+    const rows = screen.getByTestId("held-conditions").children;
+    expect(rows[rows.length - 1]).toBe(unreadable);
+  });
+
+  it("says why it waits when no condition was readable", () => {
+    renderCard({ unmetConditions: [], unmetConditionsPartial: true });
+
+    expect(screen.getByTestId("held-unreadable").textContent).toBe(
+      "Conditions this server could not read",
+    );
+  });
+
+  it("shows no unreadable line for a whole list", () => {
+    renderCard();
+
+    expect(screen.queryByTestId("held-unreadable")).toBeNull();
+  });
+
   it("says the head generates by itself when everything waits", () => {
     renderCard({ unmetConditions: [UnmetFixtures.CI_RUNNING] });
 

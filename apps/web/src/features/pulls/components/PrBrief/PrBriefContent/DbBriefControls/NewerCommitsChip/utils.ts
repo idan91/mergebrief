@@ -209,6 +209,7 @@ function describeHeld(
     [t("pulls.newerCommits.explain.held")],
   );
   copy.heldConditions = generation.unmetConditions ?? [];
+  copy.heldConditionsPartial = generation.unmetConditionsPartial === true;
   const offersGenerate = readOffersTrigger({
     prState: meta.state,
     viewerCanPush: meta.viewerCanPush,

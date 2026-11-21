@@ -257,6 +257,23 @@ describe("NewerCommitsChip", () => {
     ).toBeTruthy();
   });
 
+  it("ends a held push's popover list with the unreadable line", () => {
+    const status = stubStatus({
+      state: NewerCommitsStates.HELD,
+      statusLabel: "New brief held",
+      title: "New brief held",
+      heldConditions: [UnmetFixtures.CI_RUNNING],
+      heldConditionsPartial: true,
+    });
+    render(makeChip(status));
+
+    const panel = openPanel();
+
+    expect(within(panel).getByTestId("held-unreadable").textContent).toBe(
+      "Conditions this server could not read",
+    );
+  });
+
   it("closes the panel on Escape and returns focus to the info button", () => {
     const status = stubStatus();
     render(makeChip(status));

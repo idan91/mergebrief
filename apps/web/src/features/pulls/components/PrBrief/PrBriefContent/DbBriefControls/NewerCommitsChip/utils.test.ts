@@ -418,6 +418,19 @@ describe("deriveNewerCommitsStatus: the latest push is held", () => {
     expect(latestTrigger).toHaveBeenCalledTimes(1);
   });
 
+  it("carries a list the server read only in part", () => {
+    const partial = makeGenerationFields({
+      status: "held",
+      unmetConditions: unmet,
+      unmetConditionsPartial: true,
+    });
+
+    const status = derive(makeMeta(partial));
+
+    expect(status?.heldConditions).toEqual(unmet);
+    expect(status?.heldConditionsPartial).toBe(true);
+  });
+
   it("names the hold for anyone else and offers nothing", () => {
     const status = derive(makeMeta({ ...held, viewerCanPush: false }));
 
