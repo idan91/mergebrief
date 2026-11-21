@@ -1,6 +1,7 @@
-// The path matcher two owners share: the server shapes repo context with it,
-// apps/web presents the same repo configuration. Pure and browser-safe: no
-// Node globals, no runtime imports.
+// The path matcher three owners share: brief-core shapes repo context with
+// it, apps/web presents the same repo configuration, and the worker's `paths`
+// trigger condition matches the changed files. Pure and browser-safe: no Node
+// globals, no runtime imports.
 
 import type { ValueOf } from "types/utils";
 
