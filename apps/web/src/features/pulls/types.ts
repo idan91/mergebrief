@@ -148,8 +148,9 @@ export interface PrSummary {
   readonly authorLogin?: string;
   readonly viewerIsAuthor: boolean;
   /**
-   * Read this affordance from PR meta only: list rows omit the push-permission check.
-   * GitHub still enforces push permission or authorship at mutation time.
+   * Read this affordance from PR meta only: a list row's push bit is the
+   * listing's, without this fresh push-permission check. GitHub still
+   * enforces push permission or authorship at mutation time.
    */
   readonly viewerCanResolve: boolean;
   /**
