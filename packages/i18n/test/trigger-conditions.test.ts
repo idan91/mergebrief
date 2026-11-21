@@ -76,6 +76,18 @@ describe("describeUnmetCondition", () => {
     ]);
   });
 
+  it("words a base GitHub named none without naming one", () => {
+    const condition = {
+      kind: TriggerConditionKinds.BASE_BRANCHES,
+      setBy: REPO,
+      branches: ["main"],
+    };
+
+    expect(describeUnmetCondition(condition, FORMAT)).toEqual([
+      'Needs "main" as the base branch, and GitHub named none',
+    ]);
+  });
+
   it("counts a bot's issues without reading its verdict", () => {
     const condition = {
       kind: TriggerConditionKinds.BOTS,

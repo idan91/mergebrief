@@ -40,6 +40,8 @@ export type Catalog = typeof en & {
       "title-keywords_other": "Needs one of these words in the title: {{keywords}}";
       "base-branches_one": "Targets {{base}}, not {{branches}}";
       "base-branches_other": "Targets {{base}}, not one of {{branches}}";
+      baseUnnamed_one: "Needs {{branches}} as the base branch, and GitHub named none";
+      baseUnnamed_other: "Needs one of {{branches}} as the base branch, and GitHub named none";
       paths_one: "Changes no file matching {{paths}}";
       paths_other: "Changes no file matching one of {{paths}}";
       bots: (typeof en)["triggerCondition"]["reason"]["bots"] & {

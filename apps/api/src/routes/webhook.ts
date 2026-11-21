@@ -74,6 +74,7 @@ import {
   type RepoId,
   type UncoveredWork,
   type PullRequestLifecycle,
+  type PullRequestRow,
   type PullRequestUpsertInput,
   type TenantContext,
   type TriggerGenerationInput,
@@ -180,7 +181,7 @@ const SEEN_SET_EXEMPT_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
 /**
  * The `pull_request` actions that always (re)queue a generation. `closed` is
  * handled separately (state write, NO enqueue); `edited` queues only when it
- * moved the base; anything else the parser normalizes is a no-op here.
+ * moved the base; a fact action below only checks a held head again.
  */
 const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.OPENED,
@@ -190,11 +191,29 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.REVIEW_REQUESTED,
 ]);
 
+/**
+ * Actions that change only what the worker reads from GitHub, so they write
+ * no row; a retitle joins them. `review_requested` and a base move are
+ * generation triggers, whose queued job checks a held head already.
+ */
+const RECHECK_ONLY_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
+  PullRequestActions.LABELED,
+  PullRequestActions.UNLABELED,
+  PullRequestActions.REVIEW_REQUEST_REMOVED,
+]);
+
 function isGenerationTrigger(event: ParsedPullRequestEvent): boolean {
   if (event.action === PullRequestActions.EDITED) {
     return event.baseChanged === true;
   }
   return GENERATION_TRIGGER_ACTIONS.has(event.action);
+}
+
+function isRetitle(event: ParsedPullRequestEvent): boolean {
+  if (event.action !== PullRequestActions.EDITED) {
+    return false;
+  }
+  return event.titleChanged === true && event.baseChanged !== true;
 }
 
 /** The work an event names that a stored brief for its pair leaves undone. */
@@ -275,6 +294,41 @@ function logSkippedEvent(
   });
 }
 
+function findStoredPullRequest(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedPullRequestEvent,
+): Promise<PullRequestRow | undefined> {
+  return createTenantRepository(handle, ctx).pullRequests.getByNumber(
+    event.repoId,
+    event.prNumber,
+  );
+}
+
+/**
+ * A draft flip queues no fresh run: that could repost Entry comments, spend
+ * on comparisons or retry a failed generation. It advances the guard like
+ * every state write: an older push that lands after it is skipped whole,
+ * never applied over it.
+ */
+async function recordFactAndRecheck(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  event: ParsedPullRequestEvent,
+  log: Logger,
+): Promise<void> {
+  const ingest = createIngestRoutines(handle, ctx);
+  const recorded = await ingest.recordState(
+    shapePullRequestUpsert(event, { state: PrStates.OPEN }),
+  );
+  if (!recorded.applied) {
+    logSkippedEvent(log, event);
+    return;
+  }
+
+  await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
+}
+
 async function handlePullRequest(
   deps: WebhookRouteDeps,
   ctx: TenantContext,
@@ -294,20 +348,22 @@ async function handlePullRequest(
     await syncTrackedEntry(ingest, recorded);
     return;
   }
-  if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    // Draft re-entry queues no fresh run: that could repost Entry comments,
-    // spend on comparisons or retry a failed generation.
-    // It advances the guard like every state write: an older push that lands
-    // after it is skipped whole, never applied over the draft flag.
-    const ingest = createIngestRoutines(handle, ctx);
-    const recorded = await ingest.recordState(
-      shapePullRequestUpsert(event, { state: PrStates.OPEN }),
-    );
-    if (!recorded.applied) {
-      logSkippedEvent(log, event);
-      return;
+  const rechecksOnly =
+    RECHECK_ONLY_ACTIONS.has(event.action) || isRetitle(event);
+  if (rechecksOnly) {
+    // A row written here could invent an open row for a closed PR, or skip a
+    // late `opened` or push behind the guard, so only a stored PR's head is
+    // rechecked.
+    const known = await findStoredPullRequest(handle, ctx, event);
+    if (known !== undefined) {
+      await createIngestRoutines(handle, ctx).recheckCurrentHead({
+        pullRequestId: known.id,
+      });
     }
-    await ingest.recheckCurrentHead({ pullRequestId: recorded.pullRequest.id });
+    return;
+  }
+  if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
+    await recordFactAndRecheck(handle, ctx, event, log);
     return;
   }
   if (isGenerationTrigger(event)) {

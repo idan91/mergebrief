@@ -706,6 +706,9 @@ describe("fetchPullRequest / fetchDiff", () => {
         changed_files: 12,
         additions: 300,
         deletions: 40,
+        labels: [{ name: "needs-brief" }, { name: "Backend" }],
+        requested_reviewers: [{ login: "hubot" }],
+        requested_teams: [{ slug: "platform" }],
         user: { login: "octocat" },
         closed_at: null,
         updated_at: "2026-09-20T10:00:00Z",
@@ -739,6 +742,8 @@ describe("fetchPullRequest / fetchDiff", () => {
       changedFiles: 12,
       additions: 300,
       deletions: 40,
+      labels: ["needs-brief", "Backend"],
+      pendingReviewRequests: 2,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,
@@ -767,6 +772,7 @@ describe("fetchPullRequest / fetchDiff", () => {
           body: "does a thing",
           html_url: "https://github.com/o/r/pull/3",
           commits: 4,
+          labels: [],
           user: { login: "octocat" },
           closed_at: null,
           updated_at: "2026-09-20T10:00:00Z",
@@ -802,6 +808,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         body: "",
         html_url: "https://github.com/o/r/pull/3",
         commits: 1,
+        labels: [],
         user,
         closed_at: null,
         updated_at: "2026-09-20T10:00:00Z",
@@ -819,6 +826,73 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.value.authorIsBot).toBe(expected);
   });
 
+  it("counts no review request a bot reviewer holds", async () => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
+        state: "open",
+        draft: false,
+        merged: false,
+        title: "A PR",
+        body: "",
+        html_url: "https://github.com/o/r/pull/5",
+        commits: 1,
+        labels: [],
+        requested_reviewers: [
+          { login: "copilot-pull-request-reviewer[bot]", type: "Bot" },
+          { login: "octocat", type: "User" },
+        ],
+        requested_teams: [],
+        user: { login: "octocat" },
+        closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 5,
+    });
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.pendingReviewRequests).toBe(1);
+  });
+
+  it("counts no pending review request when GitHub sends none", async () => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
+        state: "open",
+        draft: false,
+        merged: false,
+        title: "A PR",
+        body: "",
+        html_url: "https://github.com/o/r/pull/5",
+        commits: 1,
+        labels: [],
+        requested_reviewers: null,
+        user: { login: "octocat" },
+        closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 5,
+    });
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.pendingReviewRequests).toBe(0);
+    expect(result.value.labels).toEqual([]);
+  });
+
   it("captures merged on a merged and closed PR", async () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
@@ -831,6 +905,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         body: "",
         html_url: "https://github.com/o/r/pull/4",
         commits: 2,
+        labels: [],
         user: { login: "octocat" },
         closed_at: "2026-08-01T00:00:00Z",
         updated_at: "2026-09-20T10:00:00Z",

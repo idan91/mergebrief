@@ -251,5 +251,6 @@ export type {
   SizeSetting,
   TriggerConditionSetting,
   TriggerConditionsBlock,
+  TriggerConditionValues,
 } from "./types";
 export { CiModes } from "./types";
