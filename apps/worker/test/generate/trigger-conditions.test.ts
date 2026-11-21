@@ -1346,6 +1346,48 @@ describe("generate task, trigger conditions", () => {
     },
   );
 
+  it("meets reviewRequested on a contributor's review in a private repo", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { repoPrivate: true });
+    github.addReview(
+      PR_REF,
+      makeReview({
+        authorLogin: "eve",
+        authorType: "User",
+        authorAssociation: "CONTRIBUTOR",
+      }),
+    );
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeInstanceOf(
+      Date,
+    );
+  });
+
+  it.each([
+    ["the author's own", { authorLogin: "octocat", authorType: "User" }],
+    ["a bot's", { authorLogin: "copilot", authorType: "Bot" }],
+  ] as const)(
+    "holds reviewRequested on %s review in a private repo",
+    async (_case, author) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.updatePullRequest(PR_REF, { repoPrivate: true });
+      github.addReview(PR_REF, makeReview(author));
+      addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+      await makeTask({ github })(payload);
+
+      expect(await readUnmet(pr)).toEqual([
+        { kind: "review-requested", setBy: "repo" },
+      ]);
+    },
+  );
+
   it("holds reviewRequested when only a bot reviewed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);

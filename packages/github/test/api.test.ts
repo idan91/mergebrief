@@ -728,6 +728,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.value).toEqual({
       repoId: 424242n,
       repoFullName: "o/r",
+      repoPrivate: false,
       headSha: "head-sha",
       headRef: "feature/thing",
       baseRef: "main",
@@ -825,6 +826,47 @@ describe("fetchPullRequest / fetchDiff", () => {
     }
     expect(result.value.authorIsBot).toBe(expected);
   });
+
+  it.each([
+    ["a private", true, { private: true, visibility: "private" }],
+    ["an internal", false, { private: true, visibility: "internal" }],
+    ["a public", false, { private: false, visibility: "public" }],
+    ["an unlabelled", false, { private: true }],
+  ])(
+    "reads %s base repository as repoPrivate %s",
+    async (_label, expected, fields) => {
+      const pullsGet = vi.fn().mockResolvedValue({
+        data: {
+          head: { sha: "head-sha", ref: "feature/thing" },
+          base: {
+            sha: "base-sha",
+            repo: { id: 424242, full_name: "o/r", ...fields },
+          },
+          state: "open",
+          draft: false,
+          merged: false,
+          title: "A PR",
+          body: "",
+          html_url: "https://github.com/o/r/pull/3",
+          commits: 1,
+          labels: [],
+          user: null,
+          closed_at: null,
+          updated_at: "2026-09-20T10:00:00Z",
+        },
+      });
+      const octokit = mockOctokit({ pullsGet });
+      const result = await fetchPullRequest(octokit, {
+        owner: "o",
+        repo: "r",
+        prNumber: 3,
+      });
+      if (!result.ok) {
+        throw new Error("unreachable");
+      }
+      expect(result.value.repoPrivate).toBe(expected);
+    },
+  );
 
   it("counts no review request a bot reviewer holds", async () => {
     const pullsGet = vi.fn().mockResolvedValue({

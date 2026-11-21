@@ -52,6 +52,7 @@ function arrangeSources(
       info: {
         repoId,
         repoFullName: "octo/hello",
+        repoPrivate: false,
         headSha: "h".repeat(40),
         headRef: "feature",
         baseSha: "b".repeat(40),
