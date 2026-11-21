@@ -42,7 +42,10 @@ import {
 } from "./queue";
 import { sanitizeErrorDetail } from "logging";
 import { traceStore } from "./trace-store";
-import { UnmetConditionsSchema } from "./unmet-conditions";
+import {
+  truncateUnmetConditions,
+  UnmetConditionsSchema,
+} from "./unmet-conditions";
 import {
   ChargeOutcomes,
   ClaimEnds,
@@ -403,7 +406,8 @@ export interface GenerationProjection {
    * fresh claim budget, under the pull request's row lock a click also
    * takes, so a click either lands first and wins or releases the hold after
    * it. A stamped or kept row answers `status-kept`, a claimed one
-   * `claim-lost`. Not a failure: `attempts` is untouched.
+   * `claim-lost`. Not a failure: `attempts` is untouched. A name list or
+   * name past the stored bounds is cut, never refused.
    */
   markHeld(
     target: GenerationTarget,
@@ -774,7 +778,10 @@ function isProjectionInFlight(): SQL {
  * `held` one, which the worker checks again on the queued job instead of a
  * reset.
  */
-function keepWhileKept(column: PgColumn, reset: SQL | string | null): SQL {
+function keepWhileInFlightOrHeld(
+  column: PgColumn,
+  reset: SQL | string | null,
+): SQL {
   return sql`case when ${isProjectionInFlight()} or ${generation.status} = ${GenerationStatuses.HELD} then ${column} else ${reset} end`;
 }
 
@@ -817,17 +824,20 @@ function buildTriggerReset(
   attempts: SQL,
 ): GenerationSet {
   return {
-    status: keepWhileKept(generation.status, status),
-    attempts: keepWhileKept(generation.attempts, attempts),
-    phase: keepWhileKept(generation.phase, null),
-    errorCode: keepWhileKept(generation.errorCode, null),
-    errorParams: keepWhileKept(generation.errorParams, null),
-    repoConfig: keepWhileKept(generation.repoConfig, null),
-    runId: keepWhileKept(generation.runId, null),
-    leaseExpiresAt: keepWhileKept(generation.leaseExpiresAt, null),
-    claims: keepWhileKept(generation.claims, sql`0`),
-    awaitsRecovery: keepWhileKept(generation.awaitsRecovery, sql`false`),
-    unmetConditions: keepWhileKept(generation.unmetConditions, null),
+    status: keepWhileInFlightOrHeld(generation.status, status),
+    attempts: keepWhileInFlightOrHeld(generation.attempts, attempts),
+    phase: keepWhileInFlightOrHeld(generation.phase, null),
+    errorCode: keepWhileInFlightOrHeld(generation.errorCode, null),
+    errorParams: keepWhileInFlightOrHeld(generation.errorParams, null),
+    repoConfig: keepWhileInFlightOrHeld(generation.repoConfig, null),
+    runId: keepWhileInFlightOrHeld(generation.runId, null),
+    leaseExpiresAt: keepWhileInFlightOrHeld(generation.leaseExpiresAt, null),
+    claims: keepWhileInFlightOrHeld(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileInFlightOrHeld(
+      generation.awaitsRecovery,
+      sql`false`,
+    ),
+    unmetConditions: keepWhileInFlightOrHeld(generation.unmetConditions, null),
     updatedAt: stampWriteTime(),
   };
 }
@@ -1254,9 +1264,8 @@ export function createGenerationProjection(
     target: GenerationTarget,
     unmetConditions: readonly UnmetCondition[],
   ): Promise<Result<GenerationRow, GenerationError>> {
-    const document = JSON.stringify(
-      UnmetConditionsSchema.parse(unmetConditions),
-    );
+    const stored = truncateUnmetConditions(unmetConditions);
+    const document = JSON.stringify(UnmetConditionsSchema.parse(stored));
     return db.transaction(async (tx) => {
       const locked = await tx
         .select({ id: pullRequest.id })
