@@ -33,7 +33,13 @@ import {
   type GenerationPhase,
   type GenerationStatus,
 } from "types/generations";
-import { differsFrom, isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
+import {
+  differsFrom,
+  isJsonArray,
+  isJsonObject,
+  isNullOrOneOf,
+  isOneOf,
+} from "./checks";
 import { jsonDocument, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -68,6 +74,15 @@ export const generation = pgTable(
      * artifact, not here.
      */
     repoConfig: jsonDocument("repo_config"),
+    /** A `held` head's unmet trigger conditions, rewritten on every check; null on every other status. */
+    unmetConditions: jsonDocument("unmet_conditions"),
+    /**
+     * A Generate click on a held head: its run skips the trigger conditions.
+     * The audit row records who clicked.
+     */
+    generateRequestedAt: timestamp("generate_requested_at", {
+      withTimezone: true,
+    }),
     attempts: integer("attempts").notNull().default(0),
     /** Runs that claimed the row since a trigger last projected it pending. */
     claims: integer("claims").notNull().default(0),
@@ -105,6 +120,7 @@ export const generation = pgTable(
     ]);
     const notFailed = differsFrom(table.status, GenerationStatuses.FAILED);
     const running = isOneOf(table.status, [GenerationStatuses.RUNNING]);
+    const held = isOneOf(table.status, [GenerationStatuses.HELD]);
 
     return [
       unique("generation_natural_key")
@@ -149,6 +165,14 @@ export const generation = pgTable(
       check(
         "generation_claim_is_running",
         sql`${table.runId} is null or ${running}`,
+      ),
+      check(
+        "generation_unmet_conditions_check",
+        isJsonArray(table.unmetConditions),
+      ),
+      check(
+        "generation_held_has_conditions",
+        sql`(${held}) = (${table.unmetConditions} is not null)`,
       ),
     ];
   },

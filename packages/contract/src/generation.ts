@@ -5,6 +5,7 @@ import type {
   GenerationPhase,
   GenerationStatus,
   TakeoverJobStates,
+  UnmetCondition,
   ValueOf,
 } from "types";
 
@@ -49,6 +50,13 @@ export interface GenerationSummaryView {
    */
   readonly startedAt?: string;
   readonly parts?: GenerationPartsView;
+  /**
+   * Present only while the status is `held`: every trigger condition the
+   * head has not met, each naming whose setting it is. `kind` is a closed
+   * vocabulary a reader takes as open: an item of a kind it does not know is
+   * dropped, never a failure of the response.
+   */
+  readonly unmetConditions?: readonly UnmetCondition[];
 }
 
 export interface ScheduledTakeoverView {

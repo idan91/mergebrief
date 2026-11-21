@@ -109,6 +109,36 @@ async function seedAwaitingHead(
   });
 }
 
+/** A head the worker held on an unmet trigger condition. */
+async function seedHeldHead(harness: SharedPglite): Promise<void> {
+  const triggered = await createIngestRoutines(
+    harness.handle,
+    TENANT,
+  ).triggerGeneration({
+    pullRequest: {
+      repoId: BRANDED_REPO_ID,
+      prNumber: PR_NUMBER,
+      repoSlug: REPO_SLUG,
+      state: PrStates.OPEN,
+    },
+    headSha: HEAD,
+    debounceSeconds: 0,
+  });
+  const gen = createGenerationProjection(harness.handle, TENANT);
+  const held = await gen.markHeld(
+    {
+      pullRequestId: triggered.pullRequest.id,
+      kind: "brief",
+      headSha: HEAD,
+      baselineSha: null,
+    },
+    [{ kind: "ready-for-review", source: "instance" }],
+  );
+  if (!held.ok) {
+    throw new Error("expected the head held");
+  }
+}
+
 /** The queued run takes the head's claim, as a worker does on pickup. */
 async function claimSeededHead(harness: SharedPglite): Promise<void> {
   const pr = await createTenantRepository(
@@ -582,6 +612,36 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
         "select key, run_at from graphile_worker.jobs order by id",
       ),
     ).toEqual(jobsBefore);
+  });
+
+  it("lets an API token generate a held head and queues its job", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedHeldHead(harness);
+
+    const res = await postAsToken();
+
+    expect(res.status).toBe(202);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.PENDING);
+    expect(await readGenerateJobs(harness)).toHaveLength(1);
+  });
+
+  it("carries a held head's unmet conditions on the PR read", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedHeldHead(harness);
+    const token = await seedApiToken(harness.handle, kp, AccessLevels.READ);
+
+    const read = await app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(read.status).toBe(200);
+    const body: unknown = await read.json();
+    expect(body).toMatchObject({
+      generation: {
+        status: "held",
+        unmetConditions: [{ kind: "ready-for-review", source: "instance" }],
+      },
+    });
   });
 
   it("refuses an API token on an awaiting head without reading GitHub", async () => {

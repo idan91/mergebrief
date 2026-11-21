@@ -213,6 +213,10 @@ describe("JSON document columns", () => {
         definition: "CHECK ((repo_config IS JSON OBJECT))",
       },
       {
+        name: "generation_unmet_conditions_check",
+        definition: "CHECK ((unmet_conditions IS JSON ARRAY))",
+      },
+      {
         name: "hunk_span_spans_check",
         definition: "CHECK ((spans IS JSON ARRAY))",
       },

@@ -12,7 +12,13 @@ import type {
   PullMetaView,
   WaitReason,
 } from "contract";
-import type { BriefSpanRow, GenerationRow, PullRequestRow } from "persistence";
+import {
+  parseUnmetConditions,
+  type BriefSpanRow,
+  type GenerationRow,
+  type PullRequestRow,
+} from "persistence";
+import { GenerationStatuses } from "types/generations";
 import type { Mutable } from "types/utils";
 
 /** What the PR meta says about the run holding the row. */
@@ -61,6 +67,14 @@ export function buildGenerationSummary(
     updatedAt: latestGeneration.updatedAt.toISOString(),
   };
 
+  if (latestGeneration.status === GenerationStatuses.HELD) {
+    const unmetConditions = parseUnmetConditions(
+      latestGeneration.unmetConditions,
+    );
+    if (unmetConditions !== undefined) {
+      summary.unmetConditions = unmetConditions;
+    }
+  }
   if (waitReason !== undefined) {
     summary.waitReason = waitReason;
   }
