@@ -914,7 +914,7 @@ describe("generate task, trigger conditions", () => {
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("reads a PR past GitHub's file list as met without listing it", async () => {
+  it("holds a PR past GitHub's file list when no listed file matches", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeDocsOnlyGitHub();
     github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
@@ -922,9 +922,45 @@ describe("generate task, trigger conditions", () => {
 
     await makeTask({ github })(payload);
 
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "paths", setBy: "repo", paths: ["**/*.ts"] },
+    ]);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("passes a PR past GitHub's file list on a listed match", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
+    addSettings(github, PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
     expect(await readRowStatus(pr, HEAD_1)).not.toBe(GenerationStatuses.HELD);
     expect(await readUnmet(pr)).toBeUndefined();
-    expect(countFileListReads(github)).toBe(0);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("holds an any group past GitHub's file list with no listed match", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeDocsOnlyGitHub();
+    github.updatePullRequest(PR_REF, { changedFiles: PAST_FILE_LIST_COUNT });
+    addSettings(github, PATHS_OR_LABELS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(await readUnmet(pr)).toEqual([
+      {
+        kind: "any",
+        conditions: [
+          { kind: "paths", setBy: "repo", paths: ["src/payments/**"] },
+          { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+        ],
+      },
+    ]);
+    expect(countFileListReads(github)).toBe(1);
   });
 
   it("holds an any group of paths and labels until a label lands", async () => {
