@@ -280,9 +280,8 @@ const SCHEMA_PINS = {
 void SCHEMA_PINS;
 
 const CONTRACT_PINS = {
-  // The reader marks `unmetConditionsPartial` itself.
   InboxGeneration: true satisfies ReadsWireFields<
-    Omit<z.output<typeof inboxGenerationSchema>, "unmetConditionsPartial">,
+    z.output<typeof inboxGenerationSchema>,
     GenerationSummaryView
   >,
   InboxStackPosition: true satisfies ReadsWireFields<
