@@ -34,7 +34,7 @@ export function isEntryCommentBody(body: string): boolean {
 }
 
 const ENTRY_BODY_TOKEN_PATTERN =
-  /<!-- mergebrief-entry-kind: ([a-z-]+)(?: head: (\S+))? -->/;
+  /<!-- mergebrief-entry-kind: ([a-z-]+)(?: head: (\S+))? -->/g;
 const ENTRY_BODY_KIND_VALUES = new Set<string>(Object.values(EntryBodyKinds));
 
 /**
@@ -49,9 +49,13 @@ export function formatEntryBodyToken(
   return `<!-- mergebrief-entry-kind: ${kind}${head} -->`;
 }
 
-/** The body's token; absent, malformed or naming an unknown kind is `undefined`. */
+/**
+ * The body's token, its last one: the held body quotes third-party text
+ * above its footer. Absent, malformed or naming an unknown kind is `undefined`.
+ */
 function readEntryBodyToken(body: string): EntryBodyToken | undefined {
-  const match = ENTRY_BODY_TOKEN_PATTERN.exec(body);
+  const matches = [...body.matchAll(ENTRY_BODY_TOKEN_PATTERN)];
+  const match = matches.at(-1);
   const kind = match?.[1];
   if (kind === undefined || !isEntryBodyKind(kind)) {
     return undefined;
