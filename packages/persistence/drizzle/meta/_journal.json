@@ -15,6 +15,13 @@
       "when": 1795040435471,
       "tag": "0001_github_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795222268451,
+      "tag": "0002_held_trigger_conditions",
+      "breakpoints": true
     }
   ]
 }
