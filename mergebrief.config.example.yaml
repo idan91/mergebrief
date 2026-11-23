@@ -97,6 +97,14 @@ operators: # example; no default
 #   #   inactivityMs: 180000 # default
 #   #   killGraceMs: 5000 # default
 
+# --- Trigger conditions (which pushes get a brief) ---------------------------
+# Every condition must pass before a push generates. A push that misses one
+# is held and spends nothing until it passes. A repo's own
+# `.mergebrief/settings.yaml` block merges over this one per kind.
+# docs/self-host/configuration.md#triggerconditions
+# triggerConditions:
+#   readyForReview: on # example; no default
+
 # --- Daily generation cap ----------------------------------------------------
 # The most runs per UTC day across every repo. `unlimited` lifts the cap.
 # docs/self-host/generators.md#daily-generation-cap
