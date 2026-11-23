@@ -15,7 +15,7 @@ The defaults suit one person on a loopback-only machine. Before you point a doma
 7. **List only the people and accounts who may sign in** under `operators` and `allowed` ([compose.md](./compose.md#list-who-may-sign-in)). See [Who can sign in](#who-can-sign-in) for what each entry admits.
 8. **Decide what the worker may fetch.** By default it fetches any public link in a pull request description. Set `linkFetch.mode` to `allowlist` or `off`, and restrict the worker's egress at the network if it can reach internal services on routable addresses ([configuration.md](./configuration.md#linkfetch)).
 9. **Make the URL fallback token on your own account,** if you set `MERGEBRIEF_URL_FALLBACK_TOKEN` at all. It serves only the account that owns it ([The URL fallback token](#the-url-fallback-token)).
-10. **Back up `.env` with the database.** It holds the session key that seals every stored GitHub token ([operations.md](./operations.md)).
+10. **Back up `.env` with the database.** It holds the session key that seals every stored GitHub token ([backup-restore.md](./backup-restore.md#what-to-back-up)).
 11. **Stop tunnels** when you are not testing. A tunnel puts the instance on the internet ([compose.md](./compose.md#4-a-tunnel-is-production-exposure)).
 12. **Optionally, put sign-in behind your identity provider** ([below](#put-it-behind-an-identity-aware-proxy)).
 
@@ -95,7 +95,7 @@ A reviewer's own GitHub access decides every read. [How MergeBrief works](../arc
 
 Owning the URL fallback token does not make anyone an operator; only the `operators` list does. Every signed-in user sees the version notice.
 
-Whoever controls the host sits outside this model. `.env` holds every credential, and anyone who can write to the database can insert a session that acts as another user. The audit log has no screen and no API route: you read it from the database ([operations.md](./operations.md)).
+Whoever controls the host sits outside this model. `.env` holds every credential, and anyone who can write to the database can insert a session that acts as another user. The audit log has no screen and no API route: you read it from the database ([Query the audit log](./data-and-scaling.md#query-the-audit-log)).
 
 ## Trust boundaries
 
@@ -126,7 +126,7 @@ Apart from the per-reviewer [attachment upload quota](./attachments.md#upload-qu
 - **Same-origin writes.** A cookie request that changes state must prove it came from this instance: it carries `Sec-Fetch-Site: same-origin`, or an `Origin` equal to `PUBLIC_BASE_URL`'s origin. Anything else answers 403.
 - **API tokens.** An API token starts with `mergebrief_`, is stored as a SHA-256 hash, and carries the scope chosen when it was created. The `/api/auth/*` routes ignore it, so a stolen token cannot create another token or sign its owner out ([cli.md](./cli.md#create-a-token)).
 - **The CLI's copy.** The CLI stores its token in plain text in `~/.config/mergebrief/config.json` (under `$XDG_CONFIG_HOME` when set), a file only its owner can read (mode `0600`).
-- **GitHub tokens.** Each user's access and refresh token pair is the one secret MergeBrief stores, encrypted under the session key ([operations.md](./operations.md)). A user who revokes the App on github.com loses every session, API token and stored GitHub token here ([github-app.md](./github-app.md#reviewer-sign-in)).
+- **GitHub tokens.** Each user's access and refresh token pair is the one secret MergeBrief stores, encrypted under the session key ([How GitHub tokens are stored](./secrets.md#how-github-tokens-are-stored)). A user who revokes the App on github.com loses every session, API token and stored GitHub token here ([github-app.md](./github-app.md#reviewer-sign-in)).
 
 ### If an account or token leaks
 
