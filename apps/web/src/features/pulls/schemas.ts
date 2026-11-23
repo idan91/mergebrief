@@ -205,7 +205,7 @@ function keepReadableCondition(entry: unknown) {
  * server says it dropped an item, so a reader never takes part of the reason
  * for all of it. A value that is no list drops.
  */
-function keepReadableUnmetConditions(value: unknown): unknown {
+export function keepReadableUnmetConditions(value: unknown): unknown {
   if (!isPlainRecord(value)) {
     return value;
   }

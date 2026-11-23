@@ -141,6 +141,12 @@ export const generation = pgTable(
         table.pullRequestId,
         table.createdAt,
       ),
+      index("generation_pull_request_kind_triggered_at_idx").on(
+        table.pullRequestId,
+        table.kind,
+        table.triggeredAt.desc().nullsFirst(),
+        table.id.desc().nullsFirst(),
+      ),
       check("generation_kind_check", isOneOf(table.kind, GENERATION_KINDS)),
       check("generation_repo_config_check", isJsonObject(table.repoConfig)),
       check(

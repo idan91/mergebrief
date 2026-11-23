@@ -66,6 +66,50 @@ describe("RowEnd", () => {
     expect(loader?.getAttribute("data-tone")).toBe(MarkLoaderTones.MUTED);
   });
 
+  it("draws held and waiting heads with their own glyph and a word", () => {
+    const view = render(
+      <I18nProvider>
+        <RowEnd
+          draft={false}
+          generation={{
+            status: "held",
+            updatedAt: AT,
+            unmetConditions: [{ kind: "labels", setBy: "repo", labels: ["x"] }],
+          }}
+          state="open"
+        />
+        <RowEnd
+          draft={false}
+          generation={{
+            status: "held",
+            updatedAt: AT,
+            unmetConditions: [
+              {
+                kind: "bots",
+                setBy: "repo",
+                bot: "coderabbit",
+                verdict: "finished",
+                state: "running",
+              },
+            ],
+          }}
+          state="open"
+        />
+      </I18nProvider>,
+    );
+
+    const held = view.container.querySelector('[data-generation="held"]');
+    const waiting = view.container.querySelector('[data-generation="waiting"]');
+    expect(held?.textContent).toBe("Held");
+    expect(held?.querySelector("[data-icon]")?.getAttribute("data-icon")).toBe(
+      "hand-palm",
+    );
+    expect(waiting?.textContent).toBe("Waiting");
+    expect(
+      waiting?.querySelector("[data-icon]")?.getAttribute("data-icon"),
+    ).toBe("hourglass-medium");
+  });
+
   it("gives no other row signal the awaiting head's glyph", () => {
     const others = (["pending", "failed", "capped"] as const).map((status) =>
       readGlyph(status),

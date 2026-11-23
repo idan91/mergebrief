@@ -245,7 +245,12 @@ function arrangeTwoInstallations(
         installationId: brandInstallationId(BigInt(installationId)),
         accountLogin: `org-${installationId}`,
       },
-      new Map([[brandedRepoId, { fullName, viewerIsAdmin: false }]]),
+      new Map([
+        [
+          brandedRepoId,
+          { fullName, viewerIsAdmin: false, viewerCanPush: false },
+        ],
+      ]),
     );
   }
   stubTokenRefresh();

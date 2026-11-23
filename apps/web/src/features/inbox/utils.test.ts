@@ -3,6 +3,7 @@ import {
   InboxSortDirections,
   InboxSorts,
   InboxArchivedFilters,
+  InboxGenerationFilters,
 } from "types/inbox";
 import { describe, expect, it } from "vitest";
 
@@ -34,6 +35,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     installationId: "10",
     viewerIsAuthor: false,
     viewerCanDelete: false,
+    viewerCanPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -66,6 +68,12 @@ describe("buildInboxSearch", () => {
     });
 
     expect(search).toBe("?sort=created&direction=asc");
+  });
+
+  it("sends the held view as generation", () => {
+    expect(buildInboxSearch({ generation: InboxGenerationFilters.HELD })).toBe(
+      "?generation=held",
+    );
   });
 
   it("sends the search text as q", () => {
@@ -247,6 +255,31 @@ describe("readInboxEmptiness", () => {
     expect(
       readInboxEmptiness({ total: 0, repositories, archivedTotal: 2 }, 2, ONLY),
     ).toBe(InboxEmptinesses.FILTERED);
+  });
+});
+
+describe("readInboxEmptiness in the held view", () => {
+  const HIDE = InboxArchivedFilters.HIDE;
+  const HELD = InboxGenerationFilters.HELD;
+  const repositories = [{ repoId: "1", repoSlug: "a/b" }];
+  const empty = { total: 0, repositories, archivedTotal: 0 };
+
+  it("says nothing is held when the view is the only filter set", () => {
+    expect(readInboxEmptiness(empty, 1, HIDE, HELD)).toBe(
+      InboxEmptinesses.HELD_ONLY,
+    );
+  });
+
+  it("says the filters match nothing when another filter is set too", () => {
+    expect(readInboxEmptiness(empty, 2, HIDE, HELD)).toBe(
+      InboxEmptinesses.FILTERED,
+    );
+  });
+
+  it("shows rows when the held view has some", () => {
+    expect(readInboxEmptiness({ ...empty, total: 1 }, 1, HIDE, HELD)).toBe(
+      InboxEmptinesses.ROWS,
+    );
   });
 });
 

@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerateBrief";
 import { isNoLongerOpen } from "../../../utils/pr-state";
-import { GenerateNotices, readOffersTrigger } from "../trigger-offer";
+import { GenerateNotices } from "../../../consts";
+import { readOffersTrigger } from "../trigger-offer";
 import type { AwaitingTriggerCardProps } from ".";
 
 export function useAwaitingTriggerCardFacade({

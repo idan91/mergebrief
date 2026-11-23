@@ -42,6 +42,7 @@ describe("describeRow", () => {
       source: "installation",
       viewerIsAuthor: true,
       viewerCanDelete: false,
+      viewerCanPush: false,
       behind: false,
       unreachable: false,
     };
@@ -60,6 +61,7 @@ describe("describeRow", () => {
       source: "installation",
       viewerIsAuthor: true,
       viewerCanDelete: false,
+      viewerCanPush: false,
       behind: false,
       unreachable: false,
     };

@@ -85,6 +85,8 @@ export interface InstallationRepository {
   readonly fullName: string;
   /** The viewer's `permissions.admin` on this repository; absent is `false`. */
   readonly viewerIsAdmin: boolean;
+  /** The viewer's `permissions.push` on this repository; absent is `false`. */
+  readonly viewerCanPush: boolean;
 }
 
 /**
@@ -122,6 +124,7 @@ export async function listInstallationRepositoriesForUser(
       repos.set(repo.id, {
         fullName: repo.full_name,
         viewerIsAdmin: repo.permissions?.admin ?? false,
+        viewerCanPush: repo.permissions?.push ?? false,
       });
     }
     return { ok: true, value: repos };

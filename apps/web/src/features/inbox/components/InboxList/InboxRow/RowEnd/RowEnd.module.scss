@@ -42,7 +42,8 @@ $on-demand-label-min-width: 640px;
     color: var(--color-negative);
   }
 
-  .generation[data-generation="running"] {
+  .generation[data-generation="running"],
+  .generation[data-generation="held"] {
     color: var(--color-text-1);
   }
 
@@ -52,7 +53,12 @@ $on-demand-label-min-width: 640px;
     }
 
     .status .label,
-    .generation:not([data-generation="awaiting-trigger"]) .label {
+    .generation:not(
+        [data-generation="awaiting-trigger"],
+        [data-generation="held"],
+        [data-generation="waiting"]
+      )
+      .label {
       @include visually-hidden;
     }
   }

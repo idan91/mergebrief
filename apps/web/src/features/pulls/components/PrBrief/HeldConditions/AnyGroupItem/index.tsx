@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { readUnmetConditionKey } from "../../held-head";
-import type { HeldAnyGroup } from "../../../../types";
+import { readUnmetConditionKey } from "@web/utils/unmet-conditions";
+import type { HeldAnyGroup } from "@web/utils/unmet-conditions/types";
 import { ConditionItem } from "../ConditionItem";
 import styles from "./AnyGroupItem.module.scss";
 

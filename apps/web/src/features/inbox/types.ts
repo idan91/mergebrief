@@ -3,6 +3,7 @@ import type {
   GenerationStatus,
   InboxArchivedFilter,
   InboxAuthorFilter,
+  InboxGenerationFilter,
   InboxLayout,
   InboxReviewState,
   InboxSort,
@@ -17,6 +18,7 @@ import type { SignInFailure } from "contract";
 import type { ApiErrorCode } from "../../data/apiFetch";
 import { WriteFailureKinds } from "../../data/request/types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
+import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 
 /**
  * What the Inbox query answers: a 401 is the signed-out Home and any other
@@ -40,6 +42,10 @@ export interface InboxGeneration {
   /** A failed generation's code; absent otherwise, or for a code this bundle predates. */
   errorCode?: GenerationFailureCode;
   updatedAt: string;
+  /** A held head's unmet conditions, each kind this bundle reads; absent on every other status. */
+  unmetConditions?: readonly HeldCondition[];
+  /** The held list left out an item, or an `any` group member, this bundle predates. */
+  unmetConditionsPartial?: true;
 }
 
 /** The row's place in its stack, 1-based. */
@@ -61,6 +67,8 @@ export interface InboxItem {
   authorLogin?: string;
   viewerIsAuthor: boolean;
   viewerCanDelete: boolean;
+  /** GitHub says the viewer may push to an installation row's repository; false on a url row. */
+  viewerCanPush: boolean;
   reviewState?: InboxReviewState | UnknownValue;
   behind: boolean;
   unreachable: boolean;
@@ -104,6 +112,8 @@ export interface InboxPage {
   searchMatchTotal: number;
   /** The rows of `searchMatchTotal` the viewer archived. */
   archivedSearchMatchTotal: number;
+  /** Held rows of the view on screen under every filter but the generation one. */
+  heldTotal: number;
   counts: InboxCounts;
   viewer: InboxViewer;
   reachableInstallations: ReachableInstallation[];
@@ -137,6 +147,8 @@ export const InboxEmptinesses = {
   HIDDEN_BY_DEFAULT: "hidden-by-default",
   /** The archived view, and nothing is archived. */
   ARCHIVED_ONLY: "archived-only",
+  /** The held view, and no row of the view is held. */
+  HELD_ONLY: "held-only",
   /** No unarchived row in any status; the viewer archived every one. */
   ALL_ARCHIVED: "all-archived",
 } as const;
@@ -178,6 +190,7 @@ export interface InboxQueryParams {
   readonly author?: InboxAuthorFilter;
   readonly installation?: readonly string[];
   readonly archived?: InboxArchivedFilter;
+  readonly generation?: InboxGenerationFilter;
   /** The search text, trimmed and within the wire's bound. */
   readonly q?: string;
 }
@@ -198,6 +211,8 @@ export interface InboxSearch {
   readonly author?: InboxAuthorFilter;
   readonly installation?: string;
   readonly archived?: InboxArchivedFilter;
+  /** Only the rows whose newest head is held; absent lists every row. */
+  readonly generation?: InboxGenerationFilter;
   /** The search text; whole digits ride as a number so the router prints them bare. */
   readonly q?: string | number;
   /** Why the last sign-in failed; only a signed-out Home carries it. */

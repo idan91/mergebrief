@@ -50,13 +50,13 @@ import type {
   PrStackMember,
   PullStack,
 } from "@web/features/brief/model";
+import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 import type {
   BriefLayoutReply,
   AvailableLastReviewComparison,
   AvailablePreviousBriefComparison,
   DraftPolicySummary,
   GenerationSummary,
-  HeldCondition,
   LastReviewComparison,
   PrComparisons,
   PreviousBriefComparison,

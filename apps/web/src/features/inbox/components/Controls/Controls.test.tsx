@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { Controls } from ".";
-import type { FilterView } from "./types";
+import type { FilterView, HeldViewChoice } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -23,6 +23,12 @@ beforeEach(() => {
 });
 
 const NO_OVERRIDE = { count: 0, text: "" };
+const HELD_VIEW: HeldViewChoice = {
+  value: "all",
+  count: 2,
+  offered: true,
+  onChoose: vi.fn(),
+};
 
 function makeFilter(id: string, name: string): FilterView {
   return {
@@ -51,6 +57,7 @@ describe("Controls", () => {
     render(
       <Controls
         changedCount={0}
+        heldView={HELD_VIEW}
         filters={[makeFilter("review", "Review")]}
         layout={makeFilter("layout", "View")}
         direction={makeFilter("direction", "Order")}
@@ -83,6 +90,7 @@ describe("Controls", () => {
     render(
       <Controls
         changedCount={0}
+        heldView={HELD_VIEW}
         filters={[
           makeFilter("review", "Review"),
           { ...makeFilter("author", "Author"), underMore: true },
@@ -109,6 +117,7 @@ describe("Controls", () => {
     render(
       <Controls
         changedCount={1}
+        heldView={HELD_VIEW}
         filters={[
           {
             ...makeFilter("author", "Author"),
@@ -139,6 +148,7 @@ describe("Controls", () => {
     render(
       <Controls
         changedCount={2}
+        heldView={HELD_VIEW}
         filters={[{ ...makeFilter("review", "Review"), changed: true }]}
         layout={makeFilter("layout", "View")}
         direction={makeFilter("direction", "Order")}
@@ -152,6 +162,112 @@ describe("Controls", () => {
       />,
     );
 
+    expect(screen.getByRole("button", { name: /Filters/ }).textContent).toBe(
+      "Filters 1 changed",
+    );
+  });
+
+  it("the Held view is a named radio group with its count, on one tab stop", async () => {
+    const onChoose = vi.fn();
+    render(
+      <Controls
+        changedCount={0}
+        heldView={{ ...HELD_VIEW, onChoose }}
+        filters={[makeFilter("review", "Review")]}
+        layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
+        sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
+        onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    const group = screen.getByRole("group", { name: "Show" });
+    const all = within(group).getByRole("radio", { name: "All" });
+    const held = within(group).getByRole("radio", { name: "Held 2" });
+    expect((all as HTMLInputElement).checked).toBe(true);
+    await act(async () => {
+      fireEvent.click(held);
+    });
+    expect(onChoose).toHaveBeenCalledWith("held");
+  });
+
+  it("hides the Held view while nothing is held", () => {
+    render(
+      <Controls
+        changedCount={0}
+        heldView={{ ...HELD_VIEW, count: 0, offered: false }}
+        filters={[makeFilter("review", "Review")]}
+        layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
+        sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={0}
+        onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
+  });
+
+  it("keeps focus on the Held view when a poll empties it", () => {
+    function renderControls(heldView: HeldViewChoice) {
+      return (
+        <Controls
+          changedCount={0}
+          heldView={heldView}
+          filters={[makeFilter("review", "Review")]}
+          layout={makeFilter("layout", "View")}
+          direction={makeFilter("direction", "Order")}
+          sort={makeFilter("sort", "Sort")}
+          searchTextOverride={NO_OVERRIDE}
+          searchText=""
+          total={0}
+          onClear={vi.fn()}
+          onDropPendingSearch={vi.fn()}
+          onSearch={vi.fn()}
+        />
+      );
+    }
+    const { rerender } = render(renderControls(HELD_VIEW));
+    const all = screen.getByRole("radio", { name: "All" });
+    act(() => {
+      all.focus();
+    });
+
+    rerender(renderControls({ ...HELD_VIEW, count: 0, offered: false }));
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(all);
+  });
+
+  it("the Held view stays out of the collapsed count, as search text does", () => {
+    setMediaQueryMatches("(width < 760px)", true);
+    render(
+      <Controls
+        changedCount={2}
+        heldView={{ ...HELD_VIEW, value: "held" }}
+        filters={[{ ...makeFilter("review", "Review"), changed: true }]}
+        layout={makeFilter("layout", "View")}
+        direction={makeFilter("direction", "Order")}
+        sort={makeFilter("sort", "Sort")}
+        searchTextOverride={NO_OVERRIDE}
+        searchText=""
+        total={3}
+        onClear={vi.fn()}
+        onDropPendingSearch={vi.fn()}
+        onSearch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Show" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Filters/ }).textContent).toBe(
       "Filters 1 changed",
     );
