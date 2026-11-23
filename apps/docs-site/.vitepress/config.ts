@@ -8,7 +8,7 @@ import { slugifyHeading } from "../src/anchors/slug";
 import { buildFontPreloads, buildIconLinks } from "../src/head";
 import { readSiteLabels } from "../src/labels";
 import { createLinkRule, readGitHubRef } from "../src/links";
-import { LINK_RULE_NAME } from "../src/links/consts";
+import { LINK_RULE_NAME, PUBLIC_REPO_URL } from "../src/links/consts";
 import {
   deriveSrcExclude,
   listSitePages,
@@ -63,6 +63,10 @@ const config: UserConfig<DefaultTheme.Config> = {
   },
   themeConfig: {
     ...labels.chrome,
+    logo: { src: "/favicon.svg", alt: "" },
+    socialLinks: [
+      { icon: "github", link: PUBLIC_REPO_URL, ariaLabel: "GitHub" },
+    ],
     sidebar: buildSidebar(readSitePages(srcDir), labels.sidebar),
     search: { provider: "local", options: { translations: labels.search } },
   },

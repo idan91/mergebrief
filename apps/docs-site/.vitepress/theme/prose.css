@@ -1,0 +1,14 @@
+/* The page body. :root lifts each rule past the default theme's vp-doc rules. */
+:root .vp-doc li {
+  line-height: 28px;
+}
+
+:root .vp-doc :not(pre, h1, h2, h3, h4, h5, h6) > code {
+  padding: 0.15em 0.35em;
+  font-size: 0.85em;
+}
+
+:root .vp-doc blockquote {
+  border-left-color: var(--mb-line-strong);
+  color: inherit;
+}
