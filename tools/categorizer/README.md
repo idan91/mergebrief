@@ -62,7 +62,7 @@ By default the brief covers the **whole PR at the current head** (range read fro
 
 ### Primary ticket (`--context <file>`)
 
-The brief names one **primary ticket** per PR (a key matching the repo's `tracker:` block in `.mergebrief/settings.yaml`, a `#N`, an issue URL, or a branch segment starting `N-`) and reads it through a tracker provider. When no provider can read it locally, or an MCP or script already has the text, hand it over as JSON:
+The brief names one **primary ticket** per PR (a key matching the `tracker:` or `trackers:` block of the working tree's `.mergebrief/settings.yaml`, a `#N`, an issue URL, or a branch segment starting `N-`) and reads it through a tracker provider. Tracker reads take the same credentials as the worker: the `gh` login for GitHub Issues, `NOTION_TOKEN` for Notion, `JIRA_EMAIL` and `JIRA_API_TOKEN` for Jira, with the Jira site from the instance config `--config` names. When no provider can read it locally, or an MCP or script already has the text, hand it over as JSON:
 
 ```bash
 pnpm categorize --context ticket.json https://github.com/o/r/pull/1

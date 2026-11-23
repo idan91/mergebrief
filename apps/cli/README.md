@@ -65,44 +65,9 @@ workflow, the authority policy, and the wire contract:
 npx skills add idan91/mergebrief --skill mergebrief -a <your-agent>
 ```
 
-## The output contract (what scripts may rely on)
+## Output contract and exit codes
 
-- **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
-  `diff`), or empty for an operation whose success carries no body
-  (`draft update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`,
-  `auth use|owners`). **exit ≠ 0 ⇒ stdout is
-  empty** and stderr carries exactly one
-  line. For server responses it relays the error text + HTTP status;
-  client-side usage and network/proxy failures explain themselves without
-  one. One exception: when writing stdout fails for a reason other than
-  the reader closing it (EIO, ENOSPC), a successful command exits 1 and
-  stdout may hold a partial write.
-- **`diff` names its read:** on exit 0 it writes a stderr line,
-  `diff mode: revision-span` or `diff mode: compare`, after the diff; a
-  server that names neither prints none.
-- **Passthrough by default:** most commands emit the server response
-  verbatim: one canonical shape across web, API, and CLI. Exactly five
-  shapes are CLI-synthesized: the `delta` union, `auth status`,
-  `auth profiles`, `capabilities`, and `product-diff`.
-- **Additive within a major, once released:** fields are never removed,
-  renamed, or retyped within a major; new fields may appear any release;
-  read tolerantly. Breaking changes ship expand/contract with a deprecation
-  window in the changelog. Before the first release, fields may still be
-  removed; each removal is listed in `docs/api-changelog.md`.
-- `--json` is an explicit flag. TTY rendering is non-contractual.
-
-### Exit codes (additive-only, never renumbered)
-
-| Code | Meaning |
-|---|---|
-| 0 | Success, including modeled unavailability (`delta`'s `available:false` arm) |
-| 1 | Generic/unexpected: network, 5xx, version skew |
-| 2 | Usage error caught client-side (bad flags, `--group` with a custom span, malformed submit JSON shape) |
-| 3 | Auth (401); create a new token |
-| 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
-| 5 | Server rejected the payload (4xx validation). Fix and retry; agent submit loops self-correct on this code Also the CLI's own refusal of a no-flag `submit`: resending it refuses again, so re-read or pass `--revision`. |
-| 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair; do not drive it |
-| 7 | Rate limited (429): the error line names the wait as `retry after <n>s` when the server sent one; wait that long, then retry |
+Exit 0 means stdout is the documented JSON (the raw diff for `diff`, or empty for a command whose success has no body); any other exit means stdout is empty and stderr is one line. Within a major version fields are only added. The full contract and the exit code table, with the next move for each code, are in the [CLI guide](https://github.com/idan91/mergebrief/blob/main/docs/self-host/cli.md#reference).
 
 ## Commands
 
@@ -463,7 +428,7 @@ headers, owners and cached repo list, since those belong to the old instance.
 `auth login` refuses a profile name it couldn't store: `__proto__`, `.`, `..`, an
 empty name, or one with a path separator or a control character.
 
-Deploy-side setup (IdP `/api/*` exemption, token walkthrough):
+Token creation, CI setup and the identity-aware proxy escape hatch:
 [`docs/self-host/cli.md`](../../docs/self-host/cli.md).
 
 ## Flag appendix (generated)

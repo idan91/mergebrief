@@ -1,326 +1,421 @@
-# Self-host: the `mergebrief` CLI
+# The `mergebrief` CLI
 
-How to get the CLI (and the agents it drives) talking to your deployment.
-Assumes the compose stack ([compose.md](compose.md)) and the GitHub App
-([github-app.md](github-app.md)) are already up.
+`mergebrief` reads and reviews briefs from a terminal, a script, a CI job or a coding agent. It talks to your instance's API with a token you create in the web app, so it can do what you can do in the browser, up to the token's scope. Each section below is a task; the [reference](#reference) at the end lists every command, the output contract and the exit codes. Product terms such as revision, held push and chunk are defined in the [glossary](../glossary.md).
+
+You need a running instance ([compose.md](./compose.md)) that you can sign in to.
 
 ## Install
 
-The CLI needs Node 24, or 26 and later:
+The CLI needs Node 24, or 26 and later.
 
 ```sh
 npm i -g mergebrief
 mergebrief --version
 ```
 
-To run it without installing, use `npx mergebrief` in place of `mergebrief`.
-Agents and CI usually do. [`npx` or a global install](#npx-or-a-global-install)
-covers how the two differ on versions.
+**Check:** `--version` prints a version number.
 
-Don't run `npx` inside a checkout of code you don't trust, such as a pull
-request's head in CI. It prefers a `mergebrief` bin from the local project and
-reads the project's `.npmrc`, so that code can choose what runs. Install the CLI
-first, or run `npx` from another directory and name the repository with `-R`
-and the instance with `--profile`.
-
-If the shell answers `command not found: mergebrief`, npm's global bin directory
-is not on `PATH`. On macOS or Linux, add this line to your shell's startup file
-and open a new shell:
+If the shell answers `command not found: mergebrief`, npm's global bin directory is not on `PATH`. Add this line to your shell's startup file and open a new shell:
 
 ```sh
 export PATH="$(npm prefix -g)/bin:$PATH"
 ```
 
-If you installed with `pnpm add -g mergebrief`, run `pnpm setup` and open a new
-shell instead. Add `--force` if it reports that your shell's startup file already
-has a pnpm section, which an older pnpm leaves.
+With pnpm (`pnpm add -g mergebrief`), run `pnpm setup` and open a new shell instead. Add `--force` if it says your startup file already has a pnpm section.
 
-## What the CLI needs from your deployment
+To run it without installing, use `npx mergebrief` wherever these pages say `mergebrief`.
 
-The CLI is a thin client over the public HTTP API (`/api/*`) with an opaque
-Bearer token. Three things must be true:
+> [!WARNING]
+> Never run `npx mergebrief` inside a checkout of code you do not trust, such as a pull request's head in CI. `npx` prefers a `mergebrief` bin from the local project and reads the project's `.npmrc`, so that code chooses what runs. Install the CLI first, or run `npx` from another directory and name the repository with `-R owner/name`.
 
-1. **The API is reachable** at the base URL you give `auth login`, the same
-   origin the web app serves.
-2. **`/api/*` accepts `Authorization: Bearer mergebrief_...`** end to end.
-   The server side already does; the catch is usually in front of it (next
-   section).
-3. **A token exists**, created in the web app, per user, with the scope you
-   chose for it.
+## Sign in
 
-## IdP / SSO proxies: exempt `/api/*`
+### Create a token
 
-If your company has an identity provider such as Okta, we recommend putting the
-instance behind an identity-aware proxy (Cloudflare Access, oauth2-proxy,
-Authelia, Pomerium, …). Your provider's docs cover the setup. These are the paths
-to give it, with the `/api/auth/*` rule matched first:
+1. Sign in to MergeBrief in the browser and open `/settings`.
+2. Under **API tokens**, name the token (for example `laptop` or `ci-reviewer`).
+3. Pick its scope. Each level includes the one before it, and the scope is fixed for the token's life:
 
-| Path | At the proxy | Used by |
-| --- | --- | --- |
-| `/api/auth/*` | Behind the IdP | The browser: sign-in and its GitHub callback, session, sign-out, API tokens |
-| `/api/webhooks/github` | Open, with a rate limit | GitHub. Its signature is the only gate |
-| Every other `/api/*` | Open | The CLI and agents. The API checks a session or token on each request |
-| Everything else | Behind the IdP | The browser: pages and assets |
+   | Scope | In the form | Lets the CLI |
+   | --- | --- | --- |
+   | `read` | Read only | Run every read command |
+   | `private-write` | Read and review in MergeBrief | Also keep review work in MergeBrief: `draft create` and `update`, `chunk-read`, `reclassify`, `outcome`, `generate <url>` |
+   | `external-write` | Read, review, and post to GitHub | Also write to GitHub as you: `submit`, `reply`, `thread resolve` and `unresolve`, `ready`, `draft attach`, `generate <number>` |
 
-- **CLI:** it never calls `/api/auth/*`. If its requests do reach the IdP, they
-  get a login redirect or an HTML page, and the CLI reports an
-  "identity-provider proxy" error.
-- **Health checks:** the compose checks skip the proxy. Open `/healthz` and
-  `/readyz` only for a monitor outside it.
-- **An open tab:** it calls `/api/auth/*` too, so it needs a reload once the IdP
-  session expires.
-- **Compression:** leave it off at the proxy for pages and `/api` answers. The
-  app compresses its own answers and sends some plain on purpose, and a proxy
-  that compresses would compress exactly those
-  ([compose.md](./compose.md#2-terminate-tls-at-a-reverse-proxy)).
-- **Access rules:** the proxy adds to `operators` and `allowed` and replaces
-  neither.
-- **Leavers:** disabling someone in the IdP leaves their API tokens working,
-  because those skip the proxy. Also remove them from the instance config or from
-  the GitHub account that lets them in, and they lose access at their
-  [next token rotation](./security-model.md#who-can-sign-in).
+4. Choose an expiry. The default is 90 days; "no expiry" is allowed.
+5. Copy the token. It is shown once.
 
-If your proxy can inject static headers and you keep it in the path anyway,
-per-profile `headers` in the CLI config are the escape hatch:
+A token acts as you: it reaches every repository you reach in the web app, on every organization. Pick the smallest scope that does the job. A command above the token's scope fails with `403 scope-exceeded` (exit 5). `draft reanchor`, `draft delete` and `risk dismiss|address|reopen` need the signed-in browser and answer `403 human-only` to any token.
+
+### Log in
+
+```sh
+mergebrief auth login --base-url https://mergebrief.your-org.example
+```
+
+Paste the token when it asks. Pasting keeps the token out of your shell history; the prompt echoes what you paste, so clear the terminal's scrollback afterwards. The CLI stores the token in plain text in `~/.config/mergebrief/config.json`, a file only you can read (mode `0600`).
+
+**Check:**
+
+```sh
+mergebrief auth status
+```
+
+```text
+profile default → https://mergebrief.your-org.example
+token: configured · authenticated · server 1.4.0 · cli 1.4.0 · latest 1.4.0
+```
+
+`authenticated` means the token works. `auth status` always exits 0, even when the server is unreachable or the token is dead, so read the line, or `server.reachable` and `server.authenticated` in `auth status --json`.
+
+If an error says the instance "answered like an identity-provider proxy", your company's sign-in proxy is catching the CLI's requests. See [Behind an identity-aware proxy](#behind-an-identity-aware-proxy).
+
+## Review a pull request from the terminal
+
+Run these inside a clone of the repository: commands that take a pull request number pick the repository from the clone's `origin` remote. Elsewhere, add `-R owner/name`. The examples use pull request 7.
+
+1. **Find the pull request.** With no number, `pr` lists your Inbox: every repository you reach, plus the pull requests you pasted.
+
+   ```sh
+   mergebrief pr
+   ```
+
+   ```text
+   acme/widgets#7	Extract tenant boundary	open
+   ```
+
+2. **See whether its brief is ready.**
+
+   ```sh
+   mergebrief pr 7
+   ```
+
+   ```text
+   PR 7 · brief available · span 93f1a2c..4c0a9be
+   ```
+
+   `brief not ready` means it is still generating or waiting; [When the brief is not ready](#when-the-brief-is-not-ready) says what to do.
+
+3. **Open your review session.** This reads the brief and records which revision you are on, so your later writes land on the code you read.
+
+   ```sh
+   mergebrief session 7
+   ```
+
+   It prints your session as JSON on stdout, and on stderr which revision it served:
+
+   ```text
+   revision 2 93f1a2c..4c0a9be
+   ```
+
+4. **Read the change groups.** Each line is a group id and its title.
+
+   ```sh
+   mergebrief groups 7
+   ```
+
+   ```text
+   grp-1	Move tenant checks into one boundary
+   grp-2	Update the tenant fixtures
+   ```
+
+5. **Read how behaviour changes.** The [Product diff](../glossary.md) is the before and after of the pull request, one change per block.
+
+   ```sh
+   mergebrief product-diff 7
+   ```
+
+   ```text
+   PR 7 · Product diff · available · 1 change
+   user-flow	a signed-out visitor opens a brief link
+     before (diff)	the page shows an error
+     after	the page asks them to sign in
+     groups	grp-1
+   ```
+
+6. **Read one group's code.** `--group` cuts the diff to that group's whole hunks. The output is a valid diff.
+
+   ```sh
+   mergebrief diff 7 --group grp-1
+   ```
+
+7. **Mark the group read.** This records every [chunk](../glossary.md) in the group as read on your session. It prints nothing.
+
+   ```sh
+   mergebrief chunk-read 7 --group grp-1
+   ```
+
+8. **Draft a comment.** Drafts stay in your session until you submit.
+
+   ```sh
+   mergebrief draft create 7 --file src/tenant.ts --start 40 --end 44 \
+     --body "Does this run before the cache read?"
+   ```
+
+   ```text
+   {"draftId":"41"}
+   ```
+
+   Leave out `--start` and `--end` for a comment on the whole file. Add `--side old` to comment on deleted lines.
+
+9. **Submit the review to GitHub.** Your drafts post with it, as you. This needs an `external-write` token.
+
+   ```sh
+   mergebrief submit 7 --outcome comment --body "One question inline."
+   ```
+
+   ```text
+   review submitted (receipt: {"reviewId":990012,"commentsDegraded":false,"commentsFolded":0,"commentsTotal":1})
+   ```
+
+   **Check:** the review appears on the pull request on GitHub. `commentsFolded` above 0 means GitHub refused to anchor that many comments and they went into the review body instead; the review did post, so do not submit again.
+
+   `outcome approve` and `request-changes` work the same way. GitHub refuses both on your own pull request; `comment` always works.
+
+10. **Come back after new pushes.** `delta` shows what changed since your last submitted review:
+
+    ```sh
+    mergebrief delta 7 --json
+    ```
+
+    It answers `{"available":true,...}` with the changes, or `{"available":false,"reason":"..."}`, both with exit 0. `reason` is `no-checkpoint` until you have submitted a review here, `pending` while that delta is still generating, and `unchanged` when the new pushes left the pull request's own changes as they were.
+
+To put an image in a comment, `mergebrief draft attach 7 screenshot.png` uploads a PNG, JPEG, GIF or WebP file to the repository's `mergebrief/attachments` branch and prints its URL; `--draft <id>` also appends it to that draft. It needs an `external-write` token ([attachments.md](./attachments.md)).
+
+### Which revision a command reads
+
+Every push that gets a brief adds a **revision**: the first brief is revision 1, the next revision 2. `mergebrief pr 7 --json` lists them under `revisions`.
+
+**Reads** (`session`, `groups`, `product-diff`, `diff`, `context`) serve the latest revision: the newest finished brief for the pull request's current head, or the newest finished one when that head has none yet. They say on stderr which revision they served and, when the head has no brief yet, why:
+
+```text
+revision 2 93f1a2c..4c0a9be
+head 7d3e0f1 has no brief yet, its brief is generating; serving revision 2
+```
+
+When a read moves you to a newer revision than you last read on this machine, it says so, and `session 7` shows what carried over from your earlier work and what needs another look:
+
+```text
+revision 3 is now latest (you were on revision 2).
+```
+
+**Writes** to your session (`draft`, `chunk-read`, `reclassify`, `outcome`, `risk`) stay on the revision you are on, because your line numbers came from it:
+
+```text
+writing on revision 2; revision 3 is latest. Run `mergebrief session 7` to move.
+```
+
+**`submit`** posts publicly, so with no revision flag it refuses (exit 5) unless you are on the newest code: when a newer revision exists, when the head has no brief yet, when GitHub reports commits no brief covers, or when nothing shows you read the pull request, neither a read on this machine nor work in your session. The error says which, for example:
+
+```text
+revision 3 is latest and you are on revision 2: pass --revision 2 to post on what you read, or run `mergebrief session 7` to move
+```
+
+To choose a revision yourself, every one of these commands takes `--revision <n>`, or `--base <sha> --head <sha>` together for an exact span. A revision that is not on the pull request exits 4. The CLI remembers the highest revision you read per pull request in `~/.cache/mergebrief/<profile>/read-revisions.json`; deleting it is safe.
+
+### When the brief is not ready
+
+`mergebrief pr 7` tells you why there is no brief. A **held** push, one whose [trigger conditions](../repo-config/trigger-conditions.md) are not met, adds a `held:` line naming each unmet condition and whose setting it is:
+
+```text
+PR 7 · brief not ready · span 93f1a2c..4c0a9be
+held: Waiting for CI: build, test still running (this repository's setting); Needs this pull request marked ready for review (this MergeBrief instance's setting)
+```
+
+| What you see | What to do |
+| --- | --- |
+| `held:` with conditions that clear by themselves, such as CI still running | Wait. The brief generates once every condition passes. |
+| `held:` with a condition someone must act on, such as a label or ready for review | Make that change, or start it now with `mergebrief generate 7` (push access and an `external-write` token). |
+| `generates on every push` | Someone turned on generating on every push for this pull request, so its trigger conditions are skipped. |
+| No `held:` line, brief not ready | It is generating. Poll `mergebrief pr 7 --json` until `generation.status` leaves `pending` and `running`. |
+| `generation.status` is `awaiting-trigger` | The author is not on the team. Someone with push access starts it from the pull request's page in MergeBrief; a token cannot. |
+| `generation.status` is `failed` | `mergebrief generation 7` shows the stored `errorCode`. `mergebrief generate 7` reruns it when a rerun can help ([troubleshooting.md](./troubleshooting.md)). |
+
+In `--json`, the unmet conditions are `generation.unmetConditions`. `generation.unmetConditionsPartial: true` means the server could not read every stored condition, so the list is not the whole reason.
+
+## Use it in CI and from agents
+
+Four rules make the CLI safe to script:
+
+- **Pass `--json`.** On exit 0, stdout is the documented JSON and nothing else. Terminal output is for people and can change.
+- **Branch on the exit code, never on stderr text.** On a non-zero exit, stdout is empty and stderr is one line ([Exit codes](#exit-codes)).
+- **Keep the token in a secret,** and give it to the CLI as `MERGEBRIEF_TOKEN`. It replaces the stored token of whichever profile the command resolves.
+- **Install a pinned version** rather than running `npx` inside the checkout ([Install](#install)).
+
+The CLI still needs a profile for the instance's URL. In CI, write one with no token in it, so the token never touches the runner's disk:
+
+```yaml
+# .github/workflows/brief.yml (one job's steps)
+- name: Install the MergeBrief CLI
+  run: npm i -g mergebrief@1.4.0
+- name: Read the brief
+  env:
+    MERGEBRIEF_TOKEN: ${{ secrets.MERGEBRIEF_TOKEN }}
+    MERGEBRIEF_URL: https://mergebrief.your-org.example
+    PR_NUMBER: ${{ github.event.pull_request.number }}
+  run: |
+    mkdir -p ~/.config/mergebrief
+    printf '{"profiles":{"ci":{"baseUrl":"%s"}},"defaultProfile":"ci"}\n' "$MERGEBRIEF_URL" \
+      > ~/.config/mergebrief/config.json
+    chmod 600 ~/.config/mergebrief/config.json
+    mergebrief auth status --json | jq -e '.server.authenticated'
+    mergebrief -R "$GITHUB_REPOSITORY" product-diff "$PR_NUMBER" --json > product-diff.json
+```
+
+**Check:** the `jq -e` step fails the job unless the token authenticates.
+
+A script that reads a brief which may not exist yet branches on the code:
+
+```sh
+mergebrief product-diff 7 --json > product-diff.json
+case $? in
+  0) echo "read the brief" ;;
+  4) echo "no brief for this pull request yet" ;;
+  7) echo "rate limited: wait the seconds the error line names, then retry" ;;
+  *) exit 1 ;;
+esac
+```
+
+Before an agent drives a workflow, it can check that this server and this CLI both support every operation it needs. Exit 6 means stop:
+
+```sh
+mergebrief capabilities --require read-brief create-draft-comment submit-review
+```
+
+### Coding agents
+
+The agent guide ships as the `mergebrief` skill: the review workflow, what the agent may do on its own, and the wire contract. Install it into your agent with skills.sh:
+
+```sh
+npx skills add idan91/mergebrief --skill mergebrief -a <your-agent>
+```
+
+`mergebrief --agents` only prints where the guide moved.
+
+## Several instances: profiles
+
+Keep one profile per instance. A token is not tied to an organization, so one profile covers every organization you reach on that instance.
+
+```sh
+mergebrief auth login --base-url https://mb.work.example --profile work
+mergebrief auth login --base-url https://mb.oss.example --profile oss
+mergebrief auth use work                    # make work the default
+mergebrief --profile work auth owners acme  # clones of acme/* use work
+mergebrief auth profiles                    # names, URLs, owners, the default
+```
+
+**Check:** `mergebrief auth profiles --json` lists both, with `"isDefault":true` on `work`. It never prints a token or a header.
+
+Each command picks its profile in this order: `--profile` or `MERGEBRIEF_PROFILE`, then an `owners` match on the clone's `origin` owner, then the default profile (the first one you logged in to, until you change it).
+
+A clone must not choose where your token goes. When the clone's owner routes to a profile other than the default, `MERGEBRIEF_TOKEN` and a bare `auth login` are refused until `--profile` or `MERGEBRIEF_PROFILE` names the instance. When an instance cannot be reached, the error line names your other profiles.
+
+## Behind an identity-aware proxy
+
+If your instance sits behind an identity-aware proxy (Cloudflare Access, oauth2-proxy, Pomerium and the like), the proxy must let `/api/*` through to the API, apart from `/api/auth/*`. The operator sets that up ([security-model.md](./security-model.md#put-it-behind-an-identity-aware-proxy)). Until then, the CLI gets a login page instead of an answer and reports that the instance "answered like an identity-provider proxy".
+
+If your proxy accepts static headers instead, such as a service token, add them to the profile in `~/.config/mergebrief/config.json`. The CLI sends them on every request:
 
 ```json
 {
   "profiles": {
     "work": {
       "baseUrl": "https://mergebrief.internal.example",
-      "token": "mergebrief_…",
       "headers": { "CF-Access-Client-Id": "…", "CF-Access-Client-Secret": "…" }
     }
   }
 }
 ```
 
-## Creating a token (operator walkthrough)
-
-1. Sign in to the web app with GitHub, open **`/settings`**.
-2. Name the token (e.g. `ci-reviewer`), pick its **scope**, and choose an
-   expiry (90 days default; "no expiry" is allowed; for self-host
-   CI that trade-off is yours; the wrapped GitHub credential still dies
-   after ~6 months idle either way). A token binds no organization or
-   installation: it acts as you, on your GitHub sign-in, so it reaches the
-   repositories you reach in the web app.
-
-   The scope is required and fixed for the token's life; a narrower or
-   wider one is a new token. Each level includes the one before it:
-
-   | Scope | In the form | Allows |
-   | --- | --- | --- |
-   | `read` | Read only | every read command |
-   | `private-write` | Read and review in MergeBrief | review state kept in MergeBrief: `draft create` and `update`, `chunk-read`, `reclassify`, `outcome`, `generate <url>` |
-   | `external-write` | Read, review, and post to GitHub | anything that writes to GitHub: `submit`, `reply`, `thread resolve` and `thread unresolve`, `ready`, `draft attach`, `generate <number>` |
-
-   A command above its token's scope answers `403 scope-exceeded`. Pick the
-   least a token needs. No scope reaches `draft reanchor`, `draft delete` or
-   `risk dismiss|address|reopen`: they need the signed-in browser session and
-   answer `403 human-only` to any token.
-3. Copy the token: it is shown **once**. Revoke and create another freely from
-   the same page; `last_used_at` in the list tells you which tokens are
-   live.
-4. On the machine that runs the CLI, run `auth login` and paste the token
-   when it asks. Pasting keeps the token out of your shell history; the
-   prompt shows what you paste, so clear the terminal's scrollback after.
-
-   ```sh
-   mergebrief auth login --base-url https://mergebrief.your-org.example
-   mergebrief auth status
-   ```
-
-`mergebrief auth status --json` is the end-to-end probe: it reports
-reachability, whether the token authenticates, and the server version in
-one shape ([Versions](#versions) lists the version fields).
-
-## Profiles (multiple deployments)
-
-One profile per deployment. A token is not tied to an organization, so one
-profile covers every organization you reach on that deployment:
-
-```sh
-echo "$WORK_TOKEN" | mergebrief auth login --base-url https://mb.work.example --profile work
-echo "$OSS_TOKEN"  | mergebrief auth login --base-url https://mb.oss.example  --profile oss
-```
-
-Resolution order per invocation: `--profile` / `MERGEBRIEF_PROFILE` → an
-`owners:` match on the current repo's origin owner → the default profile (the
-first one you logged into, until you change it). `MERGEBRIEF_TOKEN` overrides
-the resolved profile's stored token, handy in CI where the token lives in a
-secret store, not on disk. A clone's origin must not choose where that token
-goes, so when its owner routes away from the default profile a command that sends
-a request refuses until `--profile` or `MERGEBRIEF_PROFILE` names the instance.
-
-```sh
-mergebrief auth profiles                   # names, base URLs, owners, the default
-mergebrief auth use work                   # make work the default
-mergebrief --profile work auth owners acme # route acme/* clones to work
-```
-
-`auth profiles` never prints a token or a header value. When an instance can't
-be reached, the error line names your other profiles, and `auth status` prints
-them beside a failed probe.
-
 ## Versions
 
-`mergebrief --version` prints the CLI's version. A CLI built from source
-reports `0.0.0`, and a server built from source reports `dev`. Either one
-is a dev build: it never checks for a newer version, never compares, and
-never warns. `mergebrief@next` is the most recent release candidate, not for
-production; a dist-tag never moves on its own, so `next` can be older than
-`latest` once the release it previewed is out. A candidate is not a release
-to the version check: a CLI or an instance running one gets no update line,
-no version warning and no version notice until it runs a stable version
-again.
+`mergebrief --version` prints the CLI's version. The CLI compares itself with the server on every run and with npm once a day. Every line below goes to stderr, in human and `--json` mode alike, and none changes the exit code.
 
-### What the CLI prints when versions differ
-
-Three kinds of line, all on stderr, in human and `--json` mode alike. None
-changes the exit code, and none refuses a command.
-
-| Case | On a successful run | On a failed run |
+| Situation | What the CLI prints | When |
 | --- | --- | --- |
-| A newer mergebrief exists on npm, any size | the update line, once per answer | nothing extra |
-| CLI and server differ by a major, either direction | a warning on every run | the error line gains `[server 1.4.0, cli 2.0.0, major gap]` |
-| CLI and server differ by minor or patch | nothing | the error line gains `[server 1.4.0, cli 1.6.0]` |
-| Either side is a dev build | nothing | no suffix |
+| A newer release is on npm | `A new version of mergebrief is available: 1.2.0 → 1.6.0. To update, run: npm i -g mergebrief@1.6.0` | Once per answer, after a successful command, at most daily |
+| The CLI is a major version behind the server | `mergebrief 1.2.0 is behind this server (2.0.0): some commands may fail. To update, run: npm i -g mergebrief@2.0.0` | After every successful command |
+| The server is a major version behind the CLI | `This server (1.4.0) is behind mergebrief 2.0.0: some commands may not exist there. To match it, run: npx mergebrief@1.4.0` | After every successful command |
+| Versions differ and a command fails | The error line ends with `[server 1.4.0, cli 1.6.0]`, plus `, major gap` across a major | Every failed command |
+| Either side is a dev build (`0.0.0` CLI, `dev` server) or a release candidate | Nothing | Never |
 
-The lines, for a server on 1.4.0:
+Under `npx`, the update hints suggest `npx mergebrief@x.y.z` instead of `npm i -g`. `mergebrief auth status` also shows `latest`, the newest release the server knows of, which is the one place you see that the server itself is behind.
 
-```text
-A new version of mergebrief is available: 1.2.0 → 1.6.0. To update, run: npm i -g mergebrief@1.6.0
-mergebrief 1.2.0 is behind this server (2.0.0): some commands may fail. To update, run: npm i -g mergebrief@2.0.0
-This server (1.4.0) is behind mergebrief 2.0.0: some commands may not exist there. To match it, run: npx mergebrief@1.4.0
-request failed (HTTP 404) [server 1.4.0, cli 1.6.0]
+To turn the update line and the major-version warning off, and stop the CLI asking npm, set `MERGEBRIEF_NO_VERSION_WARNING` to any value. The suffix on a failed command stays, because it is part of the error. The instance's own `updateCheck.enabled: false` does not silence the CLI.
+
+```sh
+export MERGEBRIEF_NO_VERSION_WARNING=1
 ```
 
-The first is the update line; the second and third are the major warning
-for a CLI behind the server and ahead of it; the last is a failed run's one
-error line with its suffix. Every version prints as plain
-`major.minor.patch`.
+The npm check asks `https://registry.npmjs.org/mergebrief/latest`, sends nothing about your instance, and gives up after 2 seconds so a slow registry never delays a command.
 
-The update line and the CLI-behind warning suggest `npx mergebrief@x.y.z`
-when the CLI runs under `npx` (npm sets `npm_command=exec`), and
-`npm i -g mergebrief@x.y.z` otherwise. The server-behind warning always
-suggests `npx mergebrief@<server version>`, which runs a matching CLI
-without touching a global install. Run any suggested `npx` command from outside
-a checkout you don't trust, for the reason [Install](#install) gives.
+## Reference
 
-### How the CLI knows
+### Global options
 
-- **The server's version** comes from the `MergeBrief-Version` header on
-  the first response of the run, so the comparison costs no extra request.
-  The API sets the header on every signed-in `/api/*` response, and never on
-  a 401, on `/healthz` or on `/readyz`: an unauthenticated caller learns
-  nothing the signed-in `GET /api/version` would not tell it.
-- **A newer CLI** comes from npm. The CLI asks
-  `https://registry.npmjs.org/mergebrief/latest` beside the command it is
-  running, and keeps the answer only if it arrived by the time the command
-  finished, within 2 seconds; otherwise the request is dropped, so a slow
-  registry never delays a command. The answer lands in
-  `update-check.json` under `$XDG_CACHE_HOME/mergebrief/` (or
-  `~/.cache/mergebrief/`), and the update line prints once, on a later run,
-  never during the check. The CLI asks only when the cached answer is
-  missing or more than a day old, and only an answer that arrived in time
-  is written, so a dropped or failed check leaves the cache as it was and
-  the next run asks again. The line prints after the next successful
-  command, once per answer; a failed run keeps its one error line and
-  leaves the update line for the run after. The request carries nothing
-  about your instance, and a failed check is silent. A network that reaches
-  your server but blocks `registry.npmjs.org` never sees the update line,
-  and sees the dropped request on every run; `MERGEBRIEF_NO_VERSION_WARNING`
-  stops it.
-
-### Turning the warnings off
-
-`MERGEBRIEF_NO_VERSION_WARNING`, set to any value, silences the update line
-and the major warning, and the CLI then never asks npm. The failure suffix
-stays: it is part of the error message. Nothing is gated on CI or a TTY. An agent in CI hitting a major
-gap is the reader who most needs the warning, and the update line stays
-quiet there anyway, because a fresh container never has a cached check to
-print.
-
-The instance's own `updateCheck.enabled: false`
-([upgrade.md](./upgrade.md#turn-off-or-mirror-the-update-check)) does not silence the
-CLI: the update line is the CLI asking npm from your machine, and
-`MERGEBRIEF_NO_VERSION_WARNING` is its opt-out.
-
-### `auth status`
-
-`mergebrief auth status` prints the server's version, the CLI's version
-and the newest release the server knows of on its second line:
-
-```text
-profile default → https://mb.example
-token: configured · authenticated · server 1.4.0 · cli 1.2.0 · latest 1.6.0
-```
-
-It is the one place a CLI user sees that the server itself is behind.
-`--json` carries the version fields beside `profile`, `baseUrl`,
-`tokenConfigured`, `server.reachable` and `server.authenticated`:
-
-| Field | What it holds |
+| Option | What it does |
 | --- | --- |
-| `cli.version` | this CLI's version |
-| `server.version` | the server's version, `null` when the server could not be reached or the token did not authenticate |
-| `server.latest` | the newest release the server's update check has seen |
-| `server.releaseNotesUrl` | that release's notes |
-| `server.checkedAt` | when the server last checked successfully |
-| `server.breaking` | `true` when a release between the server's version and `latest` is a breaking release |
-| `server.security` | `true` when a release in that gap fixes a vulnerability |
+| `--json` | Print the documented JSON on stdout |
+| `--profile <name>` | Use that profile ([profiles](#several-instances-profiles)) |
+| `-R, --repo <owner/name>` | Target that repository instead of the clone's `origin` |
+| `-h, --help` | Show a command's flags. `mergebrief <command> --help` is the full, version-exact flag list |
 
-The five fields after `server.version` appear only when the server sent
-them: a server whose update check is off, has not succeeded yet, or
-predates the check yields `server.version` alone.
+The CLI's environment variables and its config file are in [configuration.md](./configuration.md#cli).
 
-### `npx` or a global install
+### Commands
 
-`npx mergebrief` fetches the package on demand and usually runs the newest
-release; against an older server a major apart, the major warning names
-the version to pin, `npx mergebrief@1.4.0`. A global install
-(`npm i -g mergebrief`) stays on the version you installed until you update
-it, and the update line tells you about once a day, on the run after each
-daily check, while a newer one exists.
+The scope column is the smallest token scope the command needs. Per-command JSON shapes are in the package README on [npm](https://www.npmjs.com/package/mergebrief).
 
-When the newest release is a major ahead of your server, the two lines
-point opposite ways across days: the update line offers 2.0.0, and once you
-take it the major warning asks you to match 1.4.0. They never print in the
-same run. Upgrading the server ends it.
+| Command | What it does | Scope |
+| --- | --- | --- |
+| `auth login`, `auth status`, `auth profiles`, `auth use`, `auth owners` | Store a token, check it, and manage profiles | any |
+| `repos` | Repositories your token can see, cached per profile; `--refresh` re-reads them | `read` |
+| `pr [number]` | Your Inbox, or one pull request's state, revisions and generation | `read` |
+| `generation <number>` | The head's generation: status, attempts and the stored failure | `read` |
+| `session <number>` | Your review session on a brief | `read` |
+| `groups <number>` | The brief: change groups, chunks and risk attributes | `read` |
+| `product-diff <number>` | The brief's Product diff alone; `{}` when the brief has none | `read` |
+| `diff <number>` | The raw unified diff; `--group <id>` for one group. Rejects `--json` | `read` |
+| `delta <number>` | What changed since your last submitted review | `read` |
+| `context <number>` | The repo config the brief was generated with | `read` |
+| `marks <number>`, `narrative <number>` | Comparison marks and the revision narrative between two commits | `read` |
+| `conversation <number>` | The pull request's threads, reviews and comments | `read` |
+| `collaborators` | The repository's collaborators; needs push access | `read` |
+| `capabilities` | What this server and CLI can both run; `--require` checks a list | `read` |
+| `spend` | Today's started runs against the daily cap; operators only | `read` |
+| `draft create`, `draft update` | Write or edit a draft comment | `private-write` |
+| `chunk-read <number>` | Mark chunks read, by id or `--group`; `--unread` clears | `private-write` |
+| `reclassify <number> <groupId>` | Override a group's category in your session | `private-write` |
+| `outcome <number> <outcome>` | Set the review outcome `submit` will post | `private-write` |
+| `generate <url>` | Generate a brief for a pasted pull request | `private-write` |
+| `submit <number>` | Post your review and its drafts to GitHub | `external-write` |
+| `reply <commentId> --pr <number>` | Reply to a review comment as you | `external-write` |
+| `thread resolve`, `thread unresolve` | Resolve or reopen a review thread | `external-write` |
+| `ready <number>` | Mark a draft pull request ready for review | `external-write` |
+| `draft attach <number> <file>` | Upload an image for a comment | `external-write` |
+| `generate <number>` | Start a held head now, or rerun a failed one; needs push access | `external-write` |
+| `draft reanchor`, `draft delete`, `risk dismiss`, `risk address`, `risk reopen` | Move or delete a draft, decide a flag. Any token gets `403 human-only`: use the browser | browser only |
 
-## Local generation and the primary ticket
+### Output contract
 
-The `categorize` and `delta` dev CLIs (`tools/categorizer`) resolve the PR's
-primary ticket from the working tree's `.mergebrief/settings.yaml`
-(`trackers:` list, see [Settings](../repo-config/settings.md#several-boards-jira-or-github-issues)). Tracker reads use
-the same env as the worker (`gh auth` for GitHub Issues, `NOTION_TOKEN` for
-Notion, `JIRA_EMAIL` and `JIRA_API_TOKEN` for Jira, with the Jira site from
-the file `--config` names); `--context <file>` supplies the ticket text
-directly when none is available. Details in `tools/categorizer/README.md`.
+- **Exit 0:** stdout is the documented JSON, the raw diff for `diff`, or empty for a command whose success has no body (`draft update`, `reanchor`, `delete`, `reclassify`, `chunk-read`, `ready`, `generate <number>`, `auth use`, `auth owners`).
+- **Any other exit:** stdout is empty and stderr is exactly one line. For an error the server sent, the line carries its message and HTTP status. One exception: if writing stdout fails for a reason other than the reader closing it, a successful command exits 1 and stdout may hold a partial write.
+- **Responses pass through as the server sent them,** in the same shape the web app reads. Five shapes are the CLI's own: `delta`, `auth status`, `auth profiles`, `capabilities` and `product-diff`.
+- **Within a major version, fields are only added,** never removed, renamed or retyped, so read them tolerantly. Before the first release a field can still be removed; each removal is listed in [api-changelog.md](../api-changelog.md).
+- **Stderr carries notices on success:** which revision a read served, `diff mode: revision-span` or `diff mode: compare` after a diff, and the version lines.
+- **On a terminal, `diff` shows control and invisible characters as visible escapes** and adds color, so a pull request cannot drive your terminal. Piped, it prints the bytes unchanged. `NO_COLOR` or `TERM=dumb` turns color off, and `$PAGER` gets the escaped copy without color.
 
-## Attaching an image to a draft
+### Exit codes
 
-`mergebrief draft attach <number> <file>` pushes a PNG, JPEG, GIF or WebP
-file to the repository's `mergebrief/attachments` branch on the App's token
-and prints its URL ([attachments.md](attachments.md)). Add `--draft <id>` to
-also append the image to that held draft comment, on the revision you are on,
-or name one with `--revision <n>` or `--base <sha> --head <sha>`. It needs an
-`external-write` token, and the App installed on the repository.
+Codes are only ever added, never renumbered.
 
-Deleting that branch has no CLI command on purpose: it breaks images in
-comments already on GitHub, so the API takes the confirmation from a browser
-session only (`403 human-only` for a token). A repository admin does it from
-Home.
-
-## Agents
-
-The agent guide ships as the `mergebrief` skill (`skills/mergebrief` in the
-repository). Install it into a coding agent with skills.sh:
-
-```bash
-npx skills add idan91/mergebrief --skill mergebrief -a <your-agent>
-```
-
-The skill carries the review workflow, the authority policy, and the wire
-contract; the CLI's `--help` owns flags and payloads. `mergebrief --agents`
-now only prints where the guide moved.
+| Code | Meaning | Next move |
+| --- | --- | --- |
+| 0 | Success, including data that says something is unavailable, such as `delta`'s `"available":false` | Read stdout |
+| 1 | The server could not be reached, answered 5xx or like a login proxy, or something unexpected failed | Read the error line; retry later or fix the URL or proxy |
+| 2 | A usage error caught before any request: bad flags, a lone `--base` or `--head`, a malformed payload, a missing profile | Fix the command |
+| 3 | The token was refused (401) | Create a new token and log in again |
+| 4 | Not found: the repository, pull request, group, span or revision, or no brief yet | Check the number, or wait for the brief |
+| 5 | The server rejected the request (any other 4xx, including `scope-exceeded` and `human-only`), or the CLI refused a `submit` with no revision flag | Fix the payload or the scope; for `submit`, re-read or pass `--revision` |
+| 6 | `capabilities --require` named an operation this server and CLI cannot both run | Do not drive that operation |
+| 7 | Rate limited (429). The error line names the wait as `retry after <n>s` when the server sent one | Wait that long, then retry |

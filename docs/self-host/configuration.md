@@ -463,7 +463,7 @@ shape, fails every command that reads it.
 | `profiles.<name>.baseUrl` | | The deployment's URL. Required. When the profile holds a token, a plain `http://` URL to any host but this machine prints a warning after each successful command, because the token then travels unencrypted. |
 | `profiles.<name>.token` | | The API token, stored in plain text. `MERGEBRIEF_TOKEN` overrides it. |
 | `profiles.<name>.owners` | | GitHub owners whose clones pick this profile, matched on the `origin` remote. |
-| `profiles.<name>.headers` | | Extra headers sent on every request, for a proxy in front of the API ([cli.md](./cli.md#idp--sso-proxies-exempt-api)). |
+| `profiles.<name>.headers` | | Extra headers sent on every request, for a proxy in front of the API ([cli.md](./cli.md#behind-an-identity-aware-proxy)). |
 
 Profile resolution runs `--profile` or `MERGEBRIEF_PROFILE`, then an
-`owners` match, then the default profile ([Profiles](./cli.md#profiles-multiple-deployments)).
+`owners` match, then the default profile ([Profiles](./cli.md#several-instances-profiles)).
