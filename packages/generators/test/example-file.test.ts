@@ -24,6 +24,7 @@ const MAPPING_KEYS = new Set([
   "spend",
   "drafts",
   "triggerConditions",
+  "any",
   "trackers",
   "contextSources",
   "retention",

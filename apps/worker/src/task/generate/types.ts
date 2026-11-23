@@ -604,10 +604,21 @@ export const ConditionCheckKinds = {
   HELD: "held",
 } as const;
 
-/** Every condition passed; the run carries any config the check read. */
-export interface ConditionsMetRun {
-  readonly kind: typeof ConditionCheckKinds.PROCEED;
+/** What the gates before the claim read, so the run's inputs never read it twice. */
+export interface PreClaimReads {
   readonly repoConfig: AcquiredRepoConfig | undefined;
+  /**
+   * The PR's changed files, read only when a `paths` condition needed them
+   * and the run stays in its pool. A run bound for the large pool leaves
+   * them unread, so a multi-call head that `paths` alone would hold takes a
+   * large-pool slot before the large pool's run holds it.
+   */
+  readonly files: readonly PullRequestFile[] | undefined;
+}
+
+/** Every condition passed. */
+export interface ConditionsMetRun extends PreClaimReads {
+  readonly kind: typeof ConditionCheckKinds.PROCEED;
 }
 
 export interface ConditionsHeldRun {

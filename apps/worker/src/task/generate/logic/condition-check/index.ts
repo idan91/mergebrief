@@ -1,5 +1,9 @@
-import { resolveEffectiveTriggerConditions } from "generators/trigger-conditions";
+import type { PullRequestFile } from "github";
 import { SizeMeasures } from "types/trigger-conditions";
+import {
+  resolveEffectiveTriggerConditions,
+  type EffectiveTriggerConditions,
+} from "generators/trigger-conditions";
 import type { Mutable } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
@@ -7,8 +11,10 @@ import {
   type ConditionCheckOutcome,
   type RunContext,
 } from "../../types";
+import { throwOnGitHubFailure } from "../errors";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
-import { evaluateTriggerConditions } from "./evaluate";
+import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
+import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts } from "./types";
 
@@ -16,8 +22,9 @@ const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
 function buildProceedOutcome(
   repoConfig: AcquiredRepoConfig | undefined,
+  files?: readonly PullRequestFile[],
 ): ConditionCheckOutcome {
-  return { kind: ConditionCheckKinds.PROCEED, repoConfig };
+  return { kind: ConditionCheckKinds.PROCEED, repoConfig, files };
 }
 
 /** A gateable run, unless a Generate click stamped its head to skip the conditions. */
@@ -29,7 +36,31 @@ function isCheckable(context: RunContext): boolean {
   return checkable;
 }
 
-function readConditionFacts(context: RunContext): ConditionFacts {
+/**
+ * Only a `paths` condition that can decide the verdict reads the file list
+ * this early, and not in a run about to move to the large pool: unread paths
+ * read as met, so that run routes and the large pool's run reads the list
+ * once and decides. A failure classifies as the run's own later read would:
+ * a transient one retries before any hold, so no head is held on a list it
+ * never saw.
+ */
+async function readCheckedFiles(
+  context: RunContext,
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): Promise<readonly PullRequestFile[] | undefined> {
+  const pathsDecide = isVerdictOnPaths(effective, facts);
+  const filesWait = !pathsDecide || isBoundForLargePool(context);
+  if (filesWait) {
+    return undefined;
+  }
+  return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
+}
+
+function readConditionFacts(
+  context: RunContext,
+  files: readonly PullRequestFile[] | undefined,
+): ConditionFacts {
   const { prInfo } = context;
   const changedLines = prInfo.additions + prInfo.deletions;
   const facts: Mutable<ConditionFacts> = {
@@ -42,6 +73,7 @@ function readConditionFacts(context: RunContext): ConditionFacts {
       [SizeMeasures.ADDITIONS]: prInfo.additions,
       [SizeMeasures.DELETIONS]: prInfo.deletions,
     },
+    changedPaths: files?.map((file) => file.path),
   };
   if (prInfo.baseRef !== undefined) {
     facts.baseRef = prInfo.baseRef;
@@ -72,12 +104,15 @@ export async function applyConditionCheck(
     deps.triggerConditions,
     repoConfig.settings?.triggerConditions,
   );
+  const unreadFacts = readConditionFacts(context, undefined);
+  const files = await readCheckedFiles(context, effective, unreadFacts);
   const unmet = evaluateTriggerConditions(
     effective,
-    readConditionFacts(context),
+    readConditionFacts(context, files),
+    log,
   );
   if (unmet.length === 0) {
-    return buildProceedOutcome(repoConfig);
+    return buildProceedOutcome(repoConfig, files);
   }
 
   const held = await projection.markHeld(target, unmet);
