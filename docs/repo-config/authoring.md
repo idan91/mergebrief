@@ -48,14 +48,26 @@ risk-surface vocabulary for your repo's briefs:
   expansion: what to *do* about it.
 - `paths` (optional) is a hard scope: chunks outside the globs never fire
   the attribute.
+- `attributes:` is required, even in a file that only de-emphasizes. With
+  no custom attributes, write `attributes: {}`, or the file is rejected.
 - De-emphasis quiets display; it never removes anything from the artifact
-  or Receipt, and the floor (`touches-auth`, `removes-validation`,
+  or Receipt. The floor (`touches-auth`, `removes-validation`,
   `relaxes-permissions`, `adds-secret`, `changes-package-source`) is never
-  quiet.
+  quiet: a `deEmphasize` entry naming a floor attribute rejects the whole
+  file. An entry naming an attribute that does not exist is dropped with a
+  warning, and the rest of the file applies.
+
+```yaml
+version: 1
+attributes: {}
+deEmphasize:
+  - attribute: no-tests
+    paths: ["scripts/**"]
+```
 
 ## `settings.yaml`: workflow taste
 
 Version 1 (`version: 1` is required) takes `entryCommentOnDrafts` (default
-`true`), the ticket tracker, as `tracker:` or a `trackers:` list, and
+`true`), the ticket tracker, as `tracker:` or a `trackers:` list,
 `trustedBots`, the bot logins whose PRs generate without a collaborator's
-click. See `docs/self-host/repo-config.md` and `docs/self-host/trackers.md`.
+click, and `triggerConditions`, what a push must meet before it generates. See `docs/self-host/repo-config.md` and `docs/self-host/trackers.md`.

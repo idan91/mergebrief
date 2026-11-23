@@ -21,10 +21,12 @@ CLI ──Bearer token───────────────────�
 ```
 
 - **web** (`apps/web`, TanStack Start) serves the app and SSR. Its server entry
-  (`apps/web/src/server.ts`) proxies every `/api/*` request byte-for-byte to the
-  API process named by `MERGEBRIEF_API_ORIGIN`, so the bytes GitHub signed reach
-  the webhook route unchanged, and answers everything else from the page
-  router. HTML documents go out `no-store` because they embed per-viewer data.
+  (`apps/web/src/server.ts`) proxies every `/api/*` request to the API process
+  named by `MERGEBRIEF_API_ORIGIN`, and answers everything else from the page
+  router. The body streams through byte-for-byte, so the bytes GitHub signed
+  reach the webhook route unchanged. Hop-by-hop headers, the W3C trace headers
+  and the caller-address headers (`forwarded`, `x-forwarded-for`, `x-real-ip`)
+  are dropped (`apps/web/src/server/api/proxy.ts`). HTML documents go out `no-store` because they embed per-viewer data.
 - **api** (`apps/api`, Hono) owns HTTP: the GitHub webhook (`POST
   /api/webhooks/github`), GitHub OAuth sign-in and sessions, CLI Bearer tokens,
   every product read and write, and `/api/version`. It writes rows and
@@ -91,13 +93,15 @@ no baseline. A member may import only the workspace packages its own
 
 ## The queue contract
 
-Three task ids cross from `persistence` to the worker, all in
+Five task ids cross from `persistence` to the worker, all in
 `packages/types/src/jobs.ts` (`QueueTasks`), beside the payload shapes:
 
 | Task                  | Enqueued by                                                  | Job key                                | Payload                                                                                     |
 | --------------------- | ------------------------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `generate`            | The webhook ingest and the URL paste, through `persistence`. | `generate:{pull_request_id}`           | `installation_id` or `owner_user_id` + `grant_id`, with `pull_request_id` and `head_sha`.   |
 | `recover-generation`  | Every Claim, in the claim's own transaction.                 | `recover-generation:{pull_request_id}:{head_sha}` | The same payload.                                                                 |
+| `generate-large`      | The worker, when a `generate` run's PR read predicts a multi-call run, through `persistence`'s `routeToLargePool`. The large pool drains it with its own slots. | `generate:{pull_request_id}`, the same key | The same payload. |
+| `recover-generation-large` | The worker, when a `recover-generation` run takes over a claim and predicts a multi-call run. | `recover-generation:{pull_request_id}:{head_sha}`, the same key | The same payload. |
 | `sync-entry`          | A run ahead of a write that ends it failed, a terminal post that failed transiently, lost its comment swap or stood down on an unread head, a sync that lost its own swap, and the webhook on a close or merge. | `sync-entry:{pull_request_id}:{head_sha}` | The installation payload. Ten attempts, so graphile's backoff outlasts a GitHub outage. |
 
 - **Debounce by job key.** The ingest upserts the `pull_request` and
@@ -118,8 +122,9 @@ Three task ids cross from `persistence` to the worker, all in
   job fires once the lease could have lapsed and takes the head over if it did
   (the glossary's Takeover). A head takes at most three claims between
   triggers; the daily generation cap counts started runs instance-wide.
-- **Scheduled sweeps** (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`,
-  `sweep-webhook-deliveries`, `sweep-generation-parts`) are graphile cron entries the worker registers
+- **Scheduled tasks** (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`,
+  `sweep-webhook-deliveries`, `sweep-generation-parts`,
+  `reconcile-webhook-deliveries`) are graphile cron entries the worker registers
   for itself. Nothing enqueues them, and they run instance-wide rather than in
   one scope.
 

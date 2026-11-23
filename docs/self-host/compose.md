@@ -113,8 +113,9 @@ not for upgrading an instance: a source build reports its version as
 All published ports bind **loopback-only**. Put a reverse proxy (or a
 tunnel, for the dev loop) in front for anything internet-facing.
 
-Every service but `postgres` restarts only on nonzero exits
-(`restart: on-failure`). In `api` and `worker` a config error logs its reason
+`api`, `web` and `worker` restart only on nonzero exits
+(`restart: on-failure`). `postgres` has no restart policy: if it stops, it
+stays down until you start it. In `api` and `worker` a config error logs its reason
 and exits 0, staying down instead of restart-looping; see
 [generators.md](./generators.md)'s "When something degrades" for the triage.
 `web` exits 1 on a bad value, so it restarts until the value is fixed.
@@ -154,9 +155,17 @@ services:
       - "127.0.0.1:5433:5432"
 ```
 
-`!override` needs Docker Compose 2.24.4 or newer. `docker compose config`
-shows the result: each service should list one published port. Change only
-the host port, the number after `127.0.0.1`, and keep the loopback address.
+`!override` needs Docker Compose 2.24.4 or newer. After `up`, check the
+result with the command below; each service you moved should list one
+published port.
+Avoid `docker compose config` for this: it prints the whole resolved
+environment, secrets included.
+
+```sh
+docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
+```
+
+Change only the host port, the number after `127.0.0.1`, and keep the loopback address.
 List only the service you are moving. On an external database
 drop the `postgres` entry, since the overlay removed that service and naming
 it again fails every compose command, and add the override to `COMPOSE_FILE`
@@ -395,7 +404,11 @@ docker compose exec postgres \
 - `generation.status` walks `pending → running → succeeded` (or `superseded`
   after a superseding push; `failed` carries a sanitized reason; `capped`
   means the instance hit its daily generation cap and the run was skipped; see
-  [generators.md](./generators.md#daily-generation-cap)).
+  [generators.md](./generators.md#daily-generation-cap)). `held` means a
+  [trigger condition](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)
+  is unmet; the head generates by itself once every condition passes, or on a
+  Generate click. `awaiting-trigger` means the run waits until a collaborator
+  approves the pull request's runs.
 - Misconfiguration fails loudly at boot in the **api** and the **worker**
   alike (`docker compose logs api` or `logs worker` names the rejected env
   var); the web tier holds no credentials and only proxies `/api/*`. After
