@@ -3,6 +3,7 @@ export const SITE_PAGE_GLOBS = [
   "self-host/*.md",
   "repo-config/*.md",
   "architecture.md",
+  "glossary.md",
   "api-changelog.md",
   "releases/*.md",
 ] as const;
