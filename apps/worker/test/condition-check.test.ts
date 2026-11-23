@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { CheckRun, CommitStatus, SubmittedReview } from "github";
+import type {
+  CheckRun,
+  CommitStatus,
+  RequiredStatusCheck,
+  SubmittedReview,
+} from "github";
 import type { Mutable } from "types/utils";
 import type {
   EffectiveTriggerConditions,
@@ -16,6 +21,7 @@ import type {
   ConditionFacts,
   HeadReports,
 } from "../src/task/generate/logic/condition-check/types";
+import { isWaitingCondition } from "i18n";
 import { createLogger, type Logger } from "logging";
 
 const HEAD = "a".repeat(40);
@@ -23,7 +29,8 @@ const HEAD = "a".repeat(40);
 const NO_REPORTS: HeadReports = {
   checkRuns: [],
   statuses: [],
-  statusChecksForbidden: false,
+  checkRunsForbidden: false,
+  statusesForbidden: false,
   reviews: [],
   requiredChecks: [],
 };
@@ -1067,21 +1074,30 @@ describe("evaluateTriggerConditions, bots finished", () => {
   });
 
   it.each(["unblocked", "coderabbit", "claude", "greptile"] as const)(
-    "holds %s as permission missing when the reads are refused",
+    "holds %s as permission missing when the run read is refused",
     (bot) => {
       const unmet = evaluateBots(
         { [bot]: "finished" },
-        { statusChecksForbidden: true },
+        { checkRunsForbidden: true },
       );
 
       expect(unmet).toMatchObject([{ bot, state: "permission-missing" }]);
     },
   );
 
+  it("holds unblocked as permission missing when statuses are refused", () => {
+    const unmet = evaluateBots(
+      { unblocked: "finished" },
+      { statusesForbidden: true },
+    );
+
+    expect(unmet).toMatchObject([{ state: "permission-missing" }]);
+  });
+
   it("checks copilot normally when the status reads are refused", () => {
     const unmet = evaluateBots(
       { copilot: "finished" },
-      { statusChecksForbidden: true },
+      { checkRunsForbidden: true, statusesForbidden: true },
     );
 
     expect(unmet).toMatchObject([{ bot: "copilot", state: "not-started" }]);
@@ -1280,7 +1296,7 @@ describe("evaluateTriggerConditions, bots clean", () => {
 
     const unmet = evaluateBots(
       { claude: "clean" },
-      { reviews: [review], statusChecksForbidden: true },
+      { reviews: [review], checkRunsForbidden: true },
     );
 
     expect(unmet).toMatchObject([{ state: "permission-missing" }]);
@@ -1316,6 +1332,26 @@ describe("evaluateTriggerConditions, bots clean", () => {
     ]);
   });
 
+  it("reads Claude's run normally when only statuses are refused", () => {
+    const run = makeClaudeRun({ title: "Code review found no issues" });
+
+    const unmet = evaluateBots(
+      { claude: "clean" },
+      { checkRuns: [run], statusesForbidden: true },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("holds as not started when only statuses are refused and no run came", () => {
+    const unmet = evaluateBots(
+      { claude: "clean" },
+      { statusesForbidden: true },
+    );
+
+    expect(unmet).toMatchObject([{ state: "not-started" }]);
+  });
+
   it("holds as running while Claude's only run is in progress", () => {
     const run = makeClaudeRun({ completed: false });
 
@@ -1334,6 +1370,15 @@ function evaluateCi(
 
 const REQUIRED = { mode: "required" } as const;
 
+function makeRequiredChecks(...contexts: string[]): RequiredStatusCheck[] {
+  return contexts.map((context) => ({ context }));
+}
+
+const PINNED_BUILD: RequiredStatusCheck = {
+  context: "build",
+  appId: ACTIONS_APP_ID,
+};
+
 describe("evaluateTriggerConditions, ci", () => {
   it("passes an empty required set", () => {
     expect(evaluateCi(REQUIRED, { requiredChecks: [] })).toEqual([]);
@@ -1343,7 +1388,7 @@ describe("evaluateTriggerConditions, ci", () => {
     const runs = [makeRun({ name: "build" }), makeRun({ name: "lint" })];
 
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build", "lint"],
+      requiredChecks: makeRequiredChecks("build", "lint"),
       checkRuns: runs,
     });
 
@@ -1352,7 +1397,7 @@ describe("evaluateTriggerConditions, ci", () => {
 
   it.each(["neutral", "skipped"])("passes a %s conclusion", (conclusion) => {
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build"],
+      requiredChecks: makeRequiredChecks("build"),
       checkRuns: [makeRun({ conclusion })],
     });
 
@@ -1363,7 +1408,7 @@ describe("evaluateTriggerConditions, ci", () => {
     const runs = [makeRun({ conclusion: "failure" }), makeRun()];
 
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build"],
+      requiredChecks: makeRequiredChecks("build"),
       checkRuns: runs,
     });
 
@@ -1374,7 +1419,7 @@ describe("evaluateTriggerConditions, ci", () => {
     const runs = [makeRun(), makeRun({ conclusion: "timed_out" })];
 
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build"],
+      requiredChecks: makeRequiredChecks("build"),
       checkRuns: runs,
     });
 
@@ -1389,7 +1434,7 @@ describe("evaluateTriggerConditions, ci", () => {
     ];
 
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build", "lint", "test", "e2e"],
+      requiredChecks: makeRequiredChecks("build", "lint", "test", "e2e"),
       checkRuns: runs,
     });
 
@@ -1446,8 +1491,8 @@ describe("evaluateTriggerConditions, ci", () => {
 
   it("names the missing permission when a read was refused", () => {
     const unmet = evaluateCi(REQUIRED, {
-      requiredChecks: ["build"],
-      statusChecksForbidden: true,
+      requiredChecks: makeRequiredChecks("build"),
+      checkRunsForbidden: true,
     });
 
     expect(unmet).toEqual([
@@ -1462,15 +1507,263 @@ describe("evaluateTriggerConditions, ci", () => {
     ]);
   });
 
-  it("passes on the readable source when the other read was refused", () => {
+  it("holds a name passing on one source when the other was refused", () => {
     const unmet = evaluateCi(
       { mode: "named", checks: ["deploy"] },
       {
         statuses: [makeStatus({ context: "deploy" })],
-        statusChecksForbidden: true,
+        checkRunsForbidden: true,
       },
     );
 
+    expect(unmet).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: [],
+        running: [],
+        missing: ["deploy"],
+        permissionMissing: true,
+      },
+    ]);
+  });
+
+  it("keeps a failure read on one source when the other was refused", () => {
+    const unmet = evaluateCi(
+      { mode: "named", checks: ["build"] },
+      {
+        checkRuns: [makeRun({ conclusion: "failure" })],
+        statusesForbidden: true,
+      },
+    );
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], missing: [], permissionMissing: false },
+    ]);
+  });
+
+  it("names no missing permission when a refusal decided no name", () => {
+    const unmet = evaluateCi(
+      { mode: "named", checks: ["build", "lint"] },
+      {
+        checkRuns: [
+          makeRun({ name: "build", conclusion: "failure" }),
+          makeRun({ name: "lint", completed: false }),
+        ],
+        statusesForbidden: true,
+      },
+    );
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], running: ["lint"], permissionMissing: false },
+    ]);
+  });
+});
+
+describe("evaluateTriggerConditions, ci pinned to an App", () => {
+  it("holds on the pinned run, not a passing status of the name", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ completed: false })],
+      statuses: [makeStatus()],
+    });
+
+    expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
+  it("waits on a running pinned run while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ completed: false })],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: [],
+        running: ["build"],
+        missing: [],
+        permissionMissing: false,
+      },
+    ]);
+    expect(unmet.every(isWaitingCondition)).toBe(true);
+  });
+
+  it("fails on a failed pinned run while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ conclusion: "failure" })],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], missing: [], permissionMissing: false },
+    ]);
+  });
+
+  it("passes on the pinned run beside a failing status of the name", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun()],
+      statuses: [makeStatus({ state: "failure" })],
+    });
+
     expect(unmet).toEqual([]);
+  });
+
+  it("ignores another App's run under the pinned name", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ appId: APP_IDS.greptile })],
+    });
+
+    expect(unmet).toMatchObject([{ missing: ["build"] }]);
+  });
+
+  it("reads the pinned App's latest run past another App's rerun", () => {
+    const runs = [
+      makeRun({ conclusion: "failure" }),
+      makeRun({ appId: APP_IDS.greptile }),
+    ];
+
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: runs,
+    });
+
+    expect(unmet).toMatchObject([{ failed: ["build"] }]);
+  });
+
+  it("passes a pinned run while only the status read is refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun()],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("passes a pinned name on a success status a bot posted", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [makeStatus({ creatorType: "Bot" })],
+    });
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("reads a bot's latest status under a pinned name", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [
+        makeStatus({ state: "failure", creatorType: "User" }),
+        makeStatus({ state: "pending", creatorType: "Bot" }),
+        makeStatus({ creatorType: "Bot" }),
+      ],
+    });
+
+    expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
+  it("passes the pinned run over another bot's failing status", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun()],
+      statuses: [makeStatus({ state: "failure", creatorType: "Bot" })],
+    });
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("holds a running pinned run over another bot's passing status", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      checkRuns: [makeRun({ completed: false })],
+      statuses: [makeStatus({ creatorType: "Bot" })],
+    });
+
+    expect(unmet).toMatchObject([{ running: ["build"] }]);
+  });
+
+  it("never passes a pinned name on a status a user posted", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [makeStatus({ creatorType: "User" })],
+    });
+
+    expect(unmet).toMatchObject([{ missing: ["build"] }]);
+  });
+
+  it("holds a pinned name with no run as missing while statuses are refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statusesForbidden: true,
+    });
+
+    expect(unmet).toEqual([
+      {
+        kind: "ci",
+        setBy: "repo",
+        failed: [],
+        running: [],
+        missing: ["build"],
+        permissionMissing: true,
+      },
+    ]);
+  });
+
+  it("holds a pinned name as missing when the run read was refused", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD],
+      statuses: [makeStatus()],
+      checkRunsForbidden: true,
+    });
+
+    expect(unmet).toMatchObject([
+      { missing: ["build"], permissionMissing: true },
+    ]);
+  });
+
+  it("counts a status for the same name when it is not pinned", () => {
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: makeRequiredChecks("build"),
+      checkRuns: [makeRun()],
+      statuses: [makeStatus({ state: "failure" })],
+    });
+
+    expect(unmet).toMatchObject([{ failed: ["build"] }]);
+  });
+
+  it("lists a name two rulesets pin apart once, as its worst outcome", () => {
+    const pinnedToGreptile = { context: "build", appId: APP_IDS.greptile };
+    const runs = [
+      makeRun({ conclusion: "failure" }),
+      makeRun({ appId: APP_IDS.greptile, completed: false }),
+    ];
+
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [pinnedToGreptile, PINNED_BUILD],
+      checkRuns: runs,
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: ["build"], running: [], missing: [] },
+    ]);
+  });
+
+  it("lists a name missing under one ruleset over running under another", () => {
+    const pinnedToGreptile = { context: "build", appId: APP_IDS.greptile };
+
+    const unmet = evaluateCi(REQUIRED, {
+      requiredChecks: [PINNED_BUILD, pinnedToGreptile],
+      checkRuns: [makeRun({ completed: false })],
+    });
+
+    expect(unmet).toMatchObject([
+      { failed: [], running: [], missing: ["build"] },
+    ]);
   });
 });

@@ -297,7 +297,7 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
       type: "required_status_checks",
       parameters: {
         strict_required_status_checks_policy: false,
-        required_status_checks: [{ context: "build" }],
+        required_status_checks: [{ context: "build", integration_id: 15368 }],
       },
     },
     { type: "deletion" },

@@ -118,17 +118,19 @@ describe("describeUnmetCondition", () => {
     ]);
   });
 
-  it("gives CI one permission reason in place of its states", () => {
+  it("words the CI permission beside its failed and running checks", () => {
     const condition = {
       kind: TriggerConditionKinds.CI,
       setBy: REPO,
       failed: ["lint"],
-      running: [],
-      missing: [],
+      running: ["e2e"],
+      missing: ["build"],
       permissionMissing: true,
     };
 
     expect(describeUnmetCondition(condition, FORMAT)).toEqual([
+      "CI failed: 1 checks",
+      "Waiting for CI: 1 checks still running",
       "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions",
     ]);
   });

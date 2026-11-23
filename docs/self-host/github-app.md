@@ -28,9 +28,10 @@ This doc is the canonical setup reference for both contributors and self-hosters
 > then, a GitHub ticket reads as refused on the brief, and generation continues without it.
 
 > **Adding Checks and Commit statuses to an App you already registered:** each installation
-> must accept the new permissions on its settings page on GitHub. Until it does, a `ci`
-> condition and a `bots` condition on Unblocked, CodeRabbit, Claude or Greptile hold the push
-> as missing the permission; `copilot` reports through reviews and is checked as before. A
+> must accept the new permissions on its settings page on GitHub. Until it does, a `bots`
+> condition on Unblocked, CodeRabbit, Claude or Greptile holds the push as missing the
+> permission, and so does a `ci` condition with a check whose outcome the refused read
+> decides; `copilot` reports through reviews and is checked as before. A
 > repository with neither condition is unaffected, and anyone with push access can still
 > generate a held push from MergeBrief. Accepting the permissions wakes nothing: a push
 > already held as missing them waits for its next push or a Generate click.

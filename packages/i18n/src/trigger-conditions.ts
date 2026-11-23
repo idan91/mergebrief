@@ -75,15 +75,12 @@ function describeBot(
   return t(`triggerCondition.reason.bots.${condition.state}`, { bot });
 }
 
+/** A refused read decides every missing name, so the permission line stands in for them. */
 function describeCi(
   format: UnmetConditionFormat,
   condition: UnmetCi,
 ): string[] {
   const { t, formatChecks } = format;
-  if (condition.permissionMissing) {
-    return [t("triggerCondition.reason.ciPermissionMissing")];
-  }
-
   const reasons: string[] = [];
   if (condition.failed.length > 0) {
     const checks = formatChecks(condition.failed);
@@ -93,7 +90,9 @@ function describeCi(
     const checks = formatChecks(condition.running);
     reasons.push(t("triggerCondition.reason.ciRunning", { checks }));
   }
-  if (condition.missing.length > 0) {
+  if (condition.permissionMissing) {
+    reasons.push(t("triggerCondition.reason.ciPermissionMissing"));
+  } else if (condition.missing.length > 0) {
     const checks = formatChecks(condition.missing);
     const count = condition.missing.length;
     reasons.push(t("triggerCondition.reason.ciMissing", { checks, count }));

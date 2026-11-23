@@ -1,4 +1,9 @@
-import type { CheckRun, CommitStatus, SubmittedReview } from "github";
+import type {
+  CheckRun,
+  CommitStatus,
+  RequiredStatusCheck,
+  SubmittedReview,
+} from "github";
 import type { TriggerConditionValues } from "generators/trigger-conditions";
 import type {
   SizeMeasure,
@@ -17,15 +22,17 @@ export interface HeadReports {
   readonly checkRuns: readonly CheckRun[];
   /** Newest first, as GitHub lists them. */
   readonly statuses: readonly CommitStatus[];
-  /** GitHub refused the check-run or status read: the installation lacks Checks or Commit statuses read. */
-  readonly statusChecksForbidden: boolean;
+  /** GitHub refused the check-run read: the installation lacks Checks read. */
+  readonly checkRunsForbidden: boolean;
+  /** GitHub refused the status read: the installation lacks Commit statuses read. */
+  readonly statusesForbidden: boolean;
   /**
    * Oldest first, on any commit; a check keeps those on the head. Read for
    * `bots`, and for `reviewRequested` while no request or stamp meets it.
    */
   readonly reviews: readonly SubmittedReview[];
-  /** The base branch's ruleset-required check names; read only for `ci: required`. */
-  readonly requiredChecks: readonly string[];
+  /** The base branch's ruleset-required checks; read only for `ci: required`. */
+  readonly requiredChecks: readonly RequiredStatusCheck[];
 }
 
 /** What the check knows about the push, read fresh from GitHub this run. */
@@ -81,6 +88,12 @@ export const CheckOutcomes = {
   MISSING: "missing",
 } as const;
 export type CheckOutcome = ValueOf<typeof CheckOutcomes>;
+
+/** One check's outcome, and whether a refused read decided it. */
+export interface CheckReading {
+  readonly outcome: CheckOutcome;
+  readonly decidedByRefusal: boolean;
+}
 
 /** A review bot's own GitHub accounts; a bot without an App reports only through reviews. */
 export interface ReviewBotAccount {
