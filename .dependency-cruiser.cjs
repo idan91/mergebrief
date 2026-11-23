@@ -78,7 +78,8 @@ const LEAF_SUBPATH_FILES = [
   "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|diff/pr-span|media|media-address|sanitized-markdown)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
-  "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",
+  "^packages/generators/src/config/(instancePolicy|trackers|render-key)\\.ts$",
+  "^packages/generators/src/config/trigger-conditions/",
 ];
 
 // Matches the resolved file and the bare name of an import that did not resolve.
@@ -196,14 +197,15 @@ module.exports = {
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
     },
     {
-      name: "repo-config-imports-generators-only-through-trackers",
+      name: "repo-config-imports-generators-only-through-leaves",
       comment:
-        "repo-config takes the tracker schemas from generators and nothing else of it. A type-only import is erased and stays legal.",
+        "repo-config takes the tracker and trigger-condition schemas from generators and nothing else of it. A type-only import is erased and stays legal.",
       severity: "error",
       from: { path: "^packages/repo-config/src/" },
       to: {
         path: "^packages/generators/",
-        pathNot: "^packages/generators/src/config/trackers\\.ts$",
+        pathNot:
+          "^packages/generators/src/config/(trackers\\.ts|trigger-conditions/)",
         dependencyTypesNot: ["type-only"],
       },
     },
@@ -222,14 +224,14 @@ module.exports = {
     {
       name: "instance-policy-imports-no-adapter",
       comment:
-        "The instance-policy subpath loads no adapter: the only workspace code it reaches is its own config leaves (drafts, spend, operators, allowed, attachments, audit, updateCheck, the moved-variable list, the root reader and consts), the config error shape and the types package. npm imports of those are not held here.",
+        "The instance-policy subpath loads no adapter: the only workspace code it reaches is its own config leaves (drafts, spend, operators, allowed, attachments, audit, updateCheck, the moved-variable list, the root reader, the key renderer and consts), the config error shape and the types package. npm imports of those are not held here.",
       severity: "error",
       from: { path: "^packages/generators/src/config/instancePolicy\\.ts$" },
       to: {
         reachable: true,
         path: "^(apps|packages|tools)/",
         pathNot: [
-          "^packages/generators/src/config/(allowed|attachments|audit|consts|instancePolicy|moved-variables|operators|readRoot|spendPolicy|update-check)\\.ts$",
+          "^packages/generators/src/config/(allowed|attachments|audit|consts|instancePolicy|moved-variables|operators|readRoot|render-key|spendPolicy|update-check)\\.ts$",
           "^packages/generators/src/contract/errors\\.ts$",
           "^packages/types/",
         ],

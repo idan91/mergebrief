@@ -325,6 +325,25 @@ describe("loadGeneratorConfigFile", () => {
     expect(result.ok && result.value.trackers).toEqual([{ kind: "github" }]);
   });
 
+  it("reads the instance's triggerConditions block", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("triggerConditions:\n  readyForReview: on\n"),
+    );
+    expect(result.ok && result.value.triggerConditions).toEqual({
+      off: false,
+      all: [{ kind: "ready-for-review", value: true }],
+      any: [],
+      dropped: [],
+    });
+  });
+
+  it("refuses boot on paths in the instance's triggerConditions", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("triggerConditions:\n  paths: [src/**]\n"),
+    );
+    expect(result.ok).toBe(false);
+  });
+
   it("defaults trackers to none when the block is absent", () => {
     const result = loadGeneratorConfigFile(
       configFile("generator:\n  provider: anthropic\n"),

@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../../contract/errors";
-import { renderKey } from "../readRoot";
+import { renderKey } from "../render-key";
 import { LinkFetchModes, type LinkFetchPolicy } from "./types";
 
 /** Two full linked pages: a token bound, set well under any model's window. */
