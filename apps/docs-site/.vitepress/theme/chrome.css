@@ -53,6 +53,13 @@
   background-color: var(--vp-c-brand-1);
 }
 
+/* The outline's title is a Brief section label. */
+:root .VPDocAsideOutline .outline-title {
+  color: var(--mb-text-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* A single line stays 32px tall: the active marker is placed for that height. */
 :root .VPDocAsideOutline .outline-link {
   padding-block: 6px;
