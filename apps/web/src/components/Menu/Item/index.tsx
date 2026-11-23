@@ -20,6 +20,8 @@ export interface MenuItemProps {
   disabled?: boolean;
   /** Set while the action waits: the row refuses and shows this under its label as its description. */
   unavailableReason?: string | undefined;
+  /** What the row does, under its label as its description; a set `unavailableReason` replaces it. */
+  description?: string | undefined;
   /** A destructive action, in the negative ink. */
   danger?: boolean;
   className?: string | undefined;
@@ -48,6 +50,7 @@ export function MenuItem({
   glyph,
   disabled = false,
   unavailableReason,
+  description,
   danger = false,
   className,
   lang,
@@ -60,6 +63,7 @@ export function MenuItem({
   const reasonId = useId();
   const unavailable = unavailableReason !== undefined;
   const refused = disabled || unavailable;
+  const note = unavailableReason ?? description;
 
   useLayoutEffect(() => {
     markSelected(index, checked === true);
@@ -97,7 +101,7 @@ export function MenuItem({
     <button
       {...itemProps}
       aria-checked={checked}
-      aria-describedby={unavailable ? reasonId : undefined}
+      aria-describedby={note === undefined ? undefined : reasonId}
       aria-disabled={refused ? true : undefined}
       className={clsx(itemStyles["item"], styles["item"], className)}
       data-state={unavailable ? "unavailable" : undefined}
@@ -118,15 +122,15 @@ export function MenuItem({
           {glyph}
         </span>
       )}
-      {unavailable ? (
+      {note === undefined ? (
+        label
+      ) : (
         <span className={styles["text"]}>
           {label}
           <span aria-hidden="true" className={styles["reason"]} id={reasonId}>
-            {unavailableReason}
+            {note}
           </span>
         </span>
-      ) : (
-        label
       )}
     </button>
   );

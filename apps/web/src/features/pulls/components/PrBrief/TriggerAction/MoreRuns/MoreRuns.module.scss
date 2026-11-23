@@ -1,0 +1,13 @@
+@use "functions";
+
+@layer components {
+  .caret[data-variant] {
+    padding-inline: var(--space-3);
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    box-shadow: functions.edge-bar(
+      color-mix(in srgb, var(--color-on-brand) 35%, transparent),
+      1px
+    );
+  }
+}
