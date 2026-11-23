@@ -18,9 +18,9 @@ const PAGES: SitePage[] = [
   { source: "releases/0.1.0.md", link: "/releases/0.1.0", title: "0.1.0" },
   { source: "releases/0.2.0.md", link: "/releases/0.2.0", title: "0.2.0" },
   {
-    source: "repo-config/authoring.md",
-    link: "/repo-config/authoring",
-    title: "Authoring",
+    source: "repo-config/policy.md",
+    link: "/repo-config/policy",
+    title: "Risk policy",
   },
   {
     source: "self-host/README.md",
@@ -53,7 +53,7 @@ describe("buildSidebar", () => {
       },
       {
         text: "label:repoConfig",
-        items: [{ text: "Authoring", link: "/repo-config/authoring" }],
+        items: [{ text: "Risk policy", link: "/repo-config/policy" }],
       },
       {
         text: "label:reference",
@@ -70,6 +70,30 @@ describe("buildSidebar", () => {
           { text: "0.1.0-rc.1", link: "/releases/0.1.0-rc.1" },
         ],
       },
+    ]);
+  });
+
+  it("orders repo config pages for reading, unlisted pages last", () => {
+    const repoConfigPages: SitePage[] = [
+      "repo-config/faq.md",
+      "repo-config/policy.md",
+      "repo-config/instructions-template.md",
+      "repo-config/README.md",
+      "repo-config/trigger-conditions.md",
+      "repo-config/settings.md",
+      "repo-config/instructions.md",
+    ].map((source) => ({ source, link: "/repo-config/page", title: source }));
+
+    const [group] = buildSidebar(repoConfigPages, LABELS);
+
+    expect(group?.items.map((item) => item.text)).toEqual([
+      "repo-config/README.md",
+      "repo-config/settings.md",
+      "repo-config/trigger-conditions.md",
+      "repo-config/policy.md",
+      "repo-config/instructions.md",
+      "repo-config/instructions-template.md",
+      "repo-config/faq.md",
     ]);
   });
 

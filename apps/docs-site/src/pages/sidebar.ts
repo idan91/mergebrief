@@ -1,6 +1,10 @@
 import type { DefaultTheme } from "vitepress";
 
-import { HOME_PAGE_SOURCE, RELEASES_FOLDER } from "./consts";
+import {
+  HOME_PAGE_SOURCE,
+  RELEASES_FOLDER,
+  REPO_CONFIG_PAGE_ORDER,
+} from "./consts";
 import { readReleaseVersion } from "./index";
 import type { SidebarLabels, SitePage } from "./types";
 
@@ -26,7 +30,7 @@ const GROUP_RULES: readonly GroupRule[] = [
   {
     label: "repoConfig",
     holds: (source) => source.startsWith("repo-config/"),
-    order: compareSource,
+    order: compareRepoConfigOrder,
   },
   {
     label: "reference",
@@ -103,6 +107,16 @@ function compareHomeFirst(left: SitePage, right: SitePage): number {
     Number(right.source === HOME_PAGE_SOURCE) -
     Number(left.source === HOME_PAGE_SOURCE);
   return homeOrder === 0 ? compareSource(left, right) : homeOrder;
+}
+
+function readRepoConfigRank(page: SitePage): number {
+  const rank = REPO_CONFIG_PAGE_ORDER.indexOf(page.source);
+  return rank === -1 ? REPO_CONFIG_PAGE_ORDER.length : rank;
+}
+
+function compareRepoConfigOrder(left: SitePage, right: SitePage): number {
+  const rankOrder = readRepoConfigRank(left) - readRepoConfigRank(right);
+  return rankOrder === 0 ? compareSource(left, right) : rankOrder;
 }
 
 function compareNewestFirst(left: SitePage, right: SitePage): number {
