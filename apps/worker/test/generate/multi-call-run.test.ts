@@ -443,6 +443,38 @@ describe("a multi-call run", () => {
     ]);
   });
 
+  it("queues the newer head's sync when a push lands in the large edit", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeMultiCallGitHub(HEAD_1);
+    let pushed = false;
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async editComment(commentId, body) {
+        if (!pushed) {
+          pushed = true;
+          github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+        }
+        return client.editComment(commentId, body);
+      },
+    }));
+
+    await makeTask({
+      generator: stubThreeGroupGenerator(),
+      github,
+      forceMultiCall: true,
+      detailConcurrency: 1,
+    })(payload);
+
+    const syncs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'sync-entry'",
+    );
+    const syncHeads = syncs.map(
+      (job) => (job["payload"] as { head_sha: string }).head_sha,
+    );
+    expect(pushed).toBe(true);
+    expect(syncHeads).toContain(HEAD_2);
+  });
+
   it("leaves the generating Entry when the head read fails at grouping", async () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeMultiCallGitHub(HEAD_1);
@@ -492,6 +524,7 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls).toContain("detail:3");
     expect(edits.map((edit) => edit.body)).toEqual([
+      expect.not.stringContaining("generated in"),
       expect.stringContaining(
         "generated in 3 parts. Expect it in about 10 minutes.",
       ),

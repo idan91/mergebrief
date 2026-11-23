@@ -47,6 +47,7 @@ import {
   REPO,
   SECOND_ATTEMPT,
   openPerTestHarness,
+  SEEDED_ENTRY_ID,
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
@@ -234,20 +235,15 @@ interface SameHeadRace {
 }
 
 /**
- * The first comment read is the sync's and holds; the rerun's generating
- * refresh meets one more refused delete, so both writers start from the
- * same live comment. The ready post's delete holds when `holdsReadyDelete`.
+ * The first comment read is the sync's and holds; the rerun edits its own
+ * generating body in place, so both writers start from the same live
+ * comment. The ready post's delete holds when `holdsReadyDelete`.
  */
 function interleaveSameHeadRace(
   github: FakeGitHub,
   holdsReadyDelete: boolean,
 ): SameHeadRace {
   const race = { syncRead: makePause(), readyDelete: makePause() };
-  const refusing = makeGitHub(HEAD_1);
-  refusing.failOn("deleteComment", FakeFailures.SERVER_ERROR);
-  const refusingRepo = refusing
-    .bindInstallationGitHub(ctx.installationId)
-    .forRepo(PR_REF);
   let reads = 0;
   let deletes = 0;
   interceptInstallationRepo(github, (client) => ({
@@ -262,10 +258,7 @@ function interleaveSameHeadRace(
     },
     async deleteComment(commentId) {
       deletes += 1;
-      if (deletes === 1) {
-        return refusingRepo.deleteComment(commentId);
-      }
-      if (deletes === 2 && holdsReadyDelete) {
+      if (deletes === 1 && holdsReadyDelete) {
         await race.readyDelete.hold();
       }
       return client.deleteComment(commentId);
@@ -681,6 +674,42 @@ describe("generate task, Entry sync", () => {
     const bodies = readLiveBodies(github);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain(CLOSED_HEADING);
+  });
+
+  it("the sync edits a held head's Entry in place", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+    await trackCappedEntry(github, pr.id);
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
+    expect(bodies[0]).toContain(
+      "- Generates only when someone presses Generate (this repository's setting)",
+    );
+    const writes = listCommentCalls(github).filter(
+      (call) => !call.startsWith("fetch"),
+    );
+    expect(writes).toEqual([`edit:${String(SEEDED_ENTRY_ID)}`]);
+  });
+
+  it("the sync posts a held head's Entry where none is live", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'held', unmet_conditions = '[{"kind":"never","setBy":"repo"}]'`,
+    );
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("**No brief for `aaaaaaa`.**");
   });
 
   it("the sync names the runs a refused large run needed", async () => {

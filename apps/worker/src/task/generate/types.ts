@@ -426,6 +426,14 @@ export type EntryWrite = ValueOf<typeof EntryWrites>;
 /** Whether a live Entry body is one a post may replace. */
 export type LiveBodyMatcher = (body: string) => boolean;
 
+/** The `EntryCommentManager` write an Entry sync lands its body with, named for that method. */
+export const EntryWriteModes = {
+  REPLACE_OR_CREATE: "replace-or-create",
+  REPLACE: "replace",
+  EDIT_OR_CREATE: "edit-or-create",
+} as const;
+export type EntryWriteMode = ValueOf<typeof EntryWriteModes>;
+
 /** The operations over one live Entry comment id, plus a read of it. */
 export interface EntryCommentManager {
   getCurrentId(): bigint | null;
@@ -448,8 +456,20 @@ export interface EntryCommentManager {
     body: string,
     isReplaceable: LiveBodyMatcher,
   ): Promise<EntryWrite>;
+  /**
+   * As `replaceOrCreate`, except a replaceable live body is rewritten in
+   * place, which notifies nobody.
+   */
+  editOrCreate(
+    body: string,
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
   replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `replace`, except a replaceable live body is rewritten in place, which notifies nobody. */
+  editMatching(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
+  /** As `edit` over a live body `isEditable` accepts; otherwise as `refresh`. */
+  editOrRefresh(body: string, isEditable: LiveBodyMatcher): Promise<EntryWrite>;
 }
 
 /**
@@ -771,6 +791,7 @@ export interface BriefGenerationInputs {
   /** The signal-bound generator: the model call must honour the watch's abort. */
   readonly generator: Generator;
   readonly coreMessageLog: CoreMessageLog;
+  readonly queueEntrySync: (headSha: string) => Promise<void>;
   /** What a multi-call run of this brief needs from the worker. */
   readonly multiCall: MultiCallRunInputs;
   readonly log: Logger;

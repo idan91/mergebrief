@@ -22,6 +22,38 @@ export type Catalog = typeof en & {
       largeParts_other: "A large pull request: this brief is generated in {{count}} parts.";
       largeEstimate: "Expect it in about {{minutes}} minutes.";
     };
+    held: (typeof en)["entryComment"]["held"] & {
+      heading: "No brief for {{shortSha}}.";
+      condition: "{{reason}} ({{setBy}})";
+      previousLink: "Brief for {{shortSha}}";
+      moreChecks_one: "{{names}} and {{count}} more check";
+      moreChecks_other: "{{names}} and {{count}} more checks";
+      reason: (typeof en)["entryComment"]["held"]["reason"] & {
+        sizeMax: "{{actual}} {{measure}}, over the {{limit}} maximum";
+        sizeMin: "{{actual}} {{measure}}, under the {{limit}} minimum";
+        labels_one: "Needs the label {{labels}}";
+        labels_other: "Needs one of the labels {{labels}}";
+        "title-keywords_one": "Needs the word {{keywords}} in the title";
+        "title-keywords_other": "Needs one of these words in the title: {{keywords}}";
+        "base-branches_one": "Targets {{base}}, not {{branches}}";
+        "base-branches_other": "Targets {{base}}, not one of {{branches}}";
+        paths_one: "Changes no file matching {{paths}}";
+        paths_other: "Changes no file matching one of {{paths}}";
+        bots: (typeof en)["entryComment"]["held"]["reason"]["bots"] & {
+          "not-started": "Waiting for {{bot}} to start on this push";
+          running: "Waiting for {{bot}} to finish";
+          "not-approved": "{{bot}} finished without approving";
+          issues_one: "{{bot}} found {{count}} issue";
+          issues_other: "{{bot}} found {{count}} issues";
+          "no-verdict": "{{bot}} gave no verdict on this push";
+          "permission-missing": "Can't check {{bot}} until this installation accepts MergeBrief's Checks and Commit statuses permissions";
+        };
+        ciFailed: "CI failed: {{checks}}";
+        ciRunning: "Waiting for CI: {{checks}} still running";
+        ciMissing_one: "Waiting for CI: {{checks}} has not reported on this push";
+        ciMissing_other: "Waiting for CI: {{checks}} have not reported on this push";
+      };
+    };
   };
   generationError: (typeof en)["generationError"] & {
     "generation-config": "Generator configuration is invalid: {{detail}}";

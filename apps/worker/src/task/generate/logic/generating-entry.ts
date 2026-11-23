@@ -1,4 +1,8 @@
-import { buildEntryCommentGeneratingBody } from "../../entry-comment";
+import {
+  buildEntryCommentGeneratingBody,
+  isHeadGeneratingEntryBody,
+  isHeadHeldEntryBody,
+} from "../../entry-comment";
 import { DEFAULT_DETAIL_CONCURRENCY } from "brief-core";
 import {
   DETAIL_CALL_MINUTES,
@@ -6,17 +10,25 @@ import {
   MULTI_CALL_SETUP_MINUTES,
 } from "../consts";
 import {
+  EntryWrites,
   HeadReadings,
   type RunContext,
+  type LiveBodyMatcher,
   type SupersessionWatch,
+  type UnreadHeadRead,
 } from "../types";
 import { deriveNextHeadIndex } from "../utils";
+import {
+  buildLandedWriteCheck,
+  queueSyncAfterLandedWrite,
+  type LandedWriteCheck,
+} from "./entry-sync";
 import { isPermanentFailure } from "./errors";
 import { isRunSignal } from "./run-signals";
 import { readEntryPostHead } from "./supersession-watch";
 import { replaceOnUnreadHead, type UnreadHeadPost } from "./unread-head-entry";
 
-export interface GeneratingEntryPost extends UnreadHeadPost {
+export interface GeneratingEntryPost extends UnreadHeadPost, LandedWriteCheck {
   readonly watch: SupersessionWatch;
 }
 
@@ -26,11 +38,52 @@ export interface LargeRunCalls {
   readonly missing: number;
 }
 
+function buildOwnBodyMatcher(headSha: string): LiveBodyMatcher {
+  return (live) => {
+    const held = isHeadHeldEntryBody(live, headSha);
+    const own = held || isHeadGeneratingEntryBody(live, headSha);
+    return own;
+  };
+}
+
+/**
+ * On an unread head the post still edits this head's held or generating body
+ * in place; any other body it replaces only when the body names this head,
+ * and it never creates the comment. An edit that does not land leaves the
+ * thread as it is.
+ */
+async function writeOnUnreadHead(
+  post: GeneratingEntryPost,
+  body: string,
+  head: UnreadHeadRead,
+): Promise<void> {
+  const editable = buildOwnBodyMatcher(post.headSha);
+  const edited = await post.entryCommentManager.editMatching(body, editable);
+  if (edited === EntryWrites.WRITTEN) {
+    post.log.warn("generate: head unread, this head's Entry edited in place", {
+      error: head.error,
+    });
+    await queueSyncAfterLandedWrite(post, edited);
+    return;
+  }
+  if (edited !== EntryWrites.LEFT) {
+    post.log.warn(
+      "generate: head unread, this head's Entry edit did not land",
+      {
+        error: head.error,
+        write: edited,
+      },
+    );
+    return;
+  }
+  await replaceOnUnreadHead(post, body, head);
+}
+
 /**
  * Settles a generating body whose head is not current: a moved head ends the
  * run before the detail calls and stands the post down after them, an unread
- * one replaces only this head's body. False when the head is current and the
- * caller writes the body.
+ * one writes only over this head's body. False when the head is current and
+ * the caller writes the body.
  */
 async function settleOffHeadPost(
   post: GeneratingEntryPost,
@@ -42,12 +95,17 @@ async function settleOffHeadPost(
     return true;
   }
   if (head.kind === HeadReadings.UNREAD) {
-    await replaceOnUnreadHead(post, body, head);
+    await writeOnUnreadHead(post, body, head);
     return true;
   }
   return false;
 }
 
+/**
+ * This head's live held or generating body is edited in place, so a released
+ * hold's ready post is its one ping, whatever retry or recovery run lands the
+ * edit; any other live body is reposted.
+ */
 export async function postGeneratingEntry(
   post: GeneratingEntryPost,
   body: string,
@@ -55,7 +113,9 @@ export async function postGeneratingEntry(
   if (await settleOffHeadPost(post, body)) {
     return;
   }
-  await post.entryCommentManager.refresh(body);
+  const editable = buildOwnBodyMatcher(post.headSha);
+  const written = await post.entryCommentManager.editOrRefresh(body, editable);
+  await queueSyncAfterLandedWrite(post, written);
 }
 
 /**
@@ -137,5 +197,6 @@ async function editLargeGeneratingEntry(
     );
     return;
   }
-  await entryCommentManager.edit(body);
+  const written = await entryCommentManager.edit(body);
+  await queueSyncAfterLandedWrite(buildLandedWriteCheck(context), written);
 }
