@@ -65,6 +65,7 @@ function stubGitHub(world: CliApiHarness): void {
         state: "open",
         draft: false,
         merged: false,
+        labels: [],
         title: "Add thing",
         body: "",
         html_url: "https://github.com/octo/hello/pull/7",

@@ -72,6 +72,8 @@ export async function fetchPullRequest(
       changedFiles: data.changed_files,
       additions: data.additions,
       deletions: data.deletions,
+      labels: data.labels.map((label) => label.name),
+      pendingReviewRequests: countPendingReviewRequests(data),
       authorLogin: data.user?.login ?? null,
       authorIsBot: data.user?.type === GitHubAccountTypes.BOT,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),
@@ -96,6 +98,25 @@ export async function fetchPullRequest(
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch pull request") };
   }
+}
+
+interface ReviewRequestLists {
+  readonly requested_reviewers?: readonly { readonly type?: string }[] | null;
+  readonly requested_teams?: readonly unknown[] | null;
+}
+
+/**
+ * GitHub drops a reviewer from the lists once their review lands. A bot's
+ * request is a review tool's, never a person's.
+ */
+function countPendingReviewRequests(lists: ReviewRequestLists): number {
+  const reviewers = lists.requested_reviewers ?? [];
+  const people = reviewers.filter(
+    (reviewer) => reviewer.type !== GitHubAccountTypes.BOT,
+  );
+  const teams = lists.requested_teams?.length ?? 0;
+  const pending = people.length + teams;
+  return pending;
 }
 
 /**

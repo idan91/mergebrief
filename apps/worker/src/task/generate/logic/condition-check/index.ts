@@ -1,4 +1,6 @@
 import { resolveEffectiveTriggerConditions } from "generators/trigger-conditions";
+import { SizeMeasures } from "types/trigger-conditions";
+import type { Mutable } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
   ConditionCheckKinds,
@@ -28,7 +30,23 @@ function isCheckable(context: RunContext): boolean {
 }
 
 function readConditionFacts(context: RunContext): ConditionFacts {
-  return { draft: context.prInfo.draft };
+  const { prInfo } = context;
+  const changedLines = prInfo.additions + prInfo.deletions;
+  const facts: Mutable<ConditionFacts> = {
+    draft: prInfo.draft,
+    title: prInfo.title,
+    labels: prInfo.labels,
+    pendingReviewRequests: prInfo.pendingReviewRequests,
+    sizes: {
+      [SizeMeasures.CHANGED_LINES]: changedLines,
+      [SizeMeasures.ADDITIONS]: prInfo.additions,
+      [SizeMeasures.DELETIONS]: prInfo.deletions,
+    },
+  };
+  if (prInfo.baseRef !== undefined) {
+    facts.baseRef = prInfo.baseRef;
+  }
+  return facts;
 }
 
 /**

@@ -49,6 +49,7 @@ On the registration "what events would you like to subscribe to?" screen, check 
 
 - **Pull request**: the trigger for brief generation (open + every push/synchronize), for an
   author on the team; see [Who triggers a brief](#who-triggers-a-brief).
+  The same event carries the actions that change what a [trigger condition](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) reads: a draft flip, a label added or removed, a review requested or withdrawn, and a title or base edit. A review request or a base edit queues a full generation, which checks the conditions itself; each of the others checks a held push again. None needs an extra checkbox.
 - **Pull request review**: a reviewer submitting → queues a regeneration, and advances
   their Checkpoint when the reviewer is on the team. On a private (not internal) repository every
   reviewer counts. On a public or internal repository the owner, organization members and

@@ -131,11 +131,7 @@ it, so the worker's parser takes a new field as optional.
 The App needs five permissions (`docs/self-host/github-app.md`) and parses four
 webhook events (`packages/github/src/webhook/events.ts`):
 
-- `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and
-  `review_requested` queue a generation; `edited` queues only when it moved the
-  base; `closed` writes the state and queues nothing; `converted_to_draft`
-  updates the draft flag and projects nothing, only re-checking a head that is
-  held or whose run is in flight.
+- `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and `review_requested` queue a generation; `edited` queues one only when it moved the base; `closed` writes the state and queues nothing; `converted_to_draft` writes the state and queues a job only for a held head, or a pending or failed head whose run is in flight, so the worker checks its trigger conditions again. `labeled`, `unlabeled`, `review_request_removed` and an `edited` that changed the title but not the base, whatever else it changed, write nothing and wake only a stored pull request's head by the same rule; the worker reads the title live.
 - `pull_request_review` (`submitted`): advances the reviewer's Checkpoint when
   the repository is private (not internal), or otherwise when the review's
   `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`, or else when one

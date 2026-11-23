@@ -127,7 +127,7 @@ const unmetPlainConditionSchema = z.discriminatedUnion("kind", [
     .object({
       kind: z.literal(TriggerConditionKinds.BASE_BRANCHES),
       setBy: triggerConditionSetterSchema,
-      base: z.string(),
+      base: z.string().exactOptional(),
       branches: configuredNamesSchema,
     })
     .readonly(),

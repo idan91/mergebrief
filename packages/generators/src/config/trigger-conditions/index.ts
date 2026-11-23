@@ -273,6 +273,7 @@ export type {
   TriggerConditionSetting,
   TriggerConditionsBlock,
   TriggerConditionsIssue,
+  TriggerConditionValues,
 } from "./types";
 export { ANY_KEY, CONFIG_KEYS } from "./schemas";
 export { CiModes } from "./types";

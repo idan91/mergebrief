@@ -104,6 +104,7 @@ operators: # example; no default
 # docs/self-host/configuration.md#triggerconditions
 # triggerConditions:
 #   readyForReview: on # example; no default
+#   size: { changedLines: { max: 1500 } } # example; no default
 
 # --- Daily generation cap ----------------------------------------------------
 # The most runs per UTC day across every repo. `unlimited` lifts the cap.
