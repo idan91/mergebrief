@@ -13,7 +13,7 @@
 }
 
 /* A callout is a Brief card: neutral, since a note carries no state. */
-:root .vp-doc blockquote {
+:root .vp-doc :is(blockquote, .custom-block) {
   border: 1px solid var(--mb-line);
   border-radius: 12px;
   padding: 16px 20px;
@@ -21,15 +21,60 @@
   color: inherit;
 }
 
-:root .vp-doc blockquote > p + p {
+:root .vp-doc :is(blockquote, .custom-block) > p + p {
   margin-top: 12px;
 }
 
-/* A code block is a Brief file card: the well inside a hairline frame. */
+/* GitHub's alerts: the same card, at body size, titled in sentence case. */
+:root .vp-doc .custom-block {
+  font-size: inherit;
+  line-height: 28px;
+}
+
+:root .vp-doc .custom-block p {
+  margin: 0;
+  line-height: 28px;
+}
+
+:root .vp-doc .custom-block .custom-block-title + p {
+  margin-top: 0;
+}
+
+:root .vp-doc .custom-block .custom-block-title {
+  margin-bottom: 4px;
+  color: var(--mb-text-1);
+  font-weight: 600;
+}
+
+/* Code inside an alert reads as code anywhere else, never in the alert's tint. */
+:root .vp-doc .custom-block :not(pre) > code {
+  background-color: var(--vp-code-bg);
+  color: var(--vp-code-color);
+}
+
+/* Only a warning or a caution carries a state; the tint marks it, the words stay readable. */
+:root .vp-doc .custom-block.warning {
+  border-color: color-mix(in srgb, var(--mb-warning) 40%, var(--mb-line));
+  background-color: color-mix(in srgb, var(--mb-warning) 8%, var(--mb-card));
+}
+
+:root .vp-doc .custom-block.caution {
+  border-color: color-mix(in srgb, var(--mb-negative) 40%, var(--mb-line));
+  background-color: color-mix(in srgb, var(--mb-negative) 8%, var(--mb-card));
+}
+
+:root .vp-doc .custom-block.warning .custom-block-title {
+  color: var(--mb-warning);
+}
+
+:root .vp-doc .custom-block.caution .custom-block-title {
+  color: var(--mb-negative);
+}
+
+/* A code block is the app's markdown code block: Surface 1 in a hairline. */
 @media (min-width: 640px) {
   :root .vp-doc div[class*="language-"] {
     border: 1px solid var(--mb-line);
-    border-radius: 12px;
   }
 }
 

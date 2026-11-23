@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import type { MarkdownRenderer } from "vitepress";
 import type { Result } from "types";
 
 import { readHeadingSlugs } from "../anchors/slug";
 import { MARKDOWN_EXTENSION } from "../consts";
 import { toSiteFile } from "../pages";
+import type { CoreRule, CoreState } from "../types";
 import { splitHref, toPosixPath } from "../utils";
 import { PASSTHROUGH_HREF, PUBLIC_REPO_URL } from "./consts";
 import {
@@ -14,9 +14,6 @@ import {
   type LinkContext,
   type LinkProblem,
 } from "./types";
-
-type CoreRule = Parameters<MarkdownRenderer["core"]["ruler"]["push"]>[1];
-type CoreState = Parameters<CoreRule>[0];
 
 const VERSION_PREFIX = /^v/;
 

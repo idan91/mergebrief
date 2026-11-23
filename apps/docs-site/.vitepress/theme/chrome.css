@@ -68,8 +68,11 @@
   text-wrap: pretty;
 }
 
+/* Search is the app's dialog: Surface 3, a strong edge, 12px corners, the float shadow. */
 :root .VPLocalSearchBox .shell {
   border: 1px solid var(--mb-line-strong);
+  border-radius: 12px;
+  box-shadow: var(--mb-shadow-float);
 }
 
 /* The box draws its own clear button beside the input. */
@@ -85,4 +88,55 @@
 :root .NotFound .quote {
   max-width: 32ch;
   text-wrap: balance;
+}
+
+/* The app's secondary button, with its press. */
+:root .NotFound .link {
+  border-color: var(--mb-line-strong);
+  border-radius: 8px;
+  padding: 6px 16px;
+  color: var(--mb-text-1);
+  transition:
+    background-color 120ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .NotFound .link:hover {
+    border-color: var(--mb-line-strong);
+    background-color: var(--mb-surface-2);
+    color: var(--mb-text-1);
+  }
+}
+
+:root .NotFound .link:active {
+  transform: scale(0.97);
+}
+
+/* The app's hover pace: a colour change lands in 120ms, not VitePress's 250-500ms. */
+:root
+  :is(
+    .VPSidebarItem .text,
+    .VPDocAsideOutline .outline-link,
+    .VPNavBarMenuLink,
+    .VPSocialLink,
+    .vp-doc a
+  ) {
+  transition-duration: 120ms;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--mb-text-1) 18%, transparent);
+}
+
+/* The app's thin scrollbar on everything that scrolls inside the page. */
+:root
+  :is(
+    .vp-doc div[class*="language-"] pre,
+    .vp-doc table,
+    .VPSidebar,
+    .VPLocalSearchBox .results
+  ) {
+  scrollbar-color: var(--mb-line-strong) transparent;
+  scrollbar-width: thin;
 }

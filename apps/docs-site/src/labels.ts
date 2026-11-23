@@ -1,6 +1,7 @@
 import type { createI18n } from "i18n";
 import type { DefaultTheme } from "vitepress";
 
+import type { AlertLabels } from "./alerts";
 import type { SidebarLabels } from "./pages/types";
 
 type Translate = ReturnType<typeof createI18n>["t"];
@@ -24,6 +25,7 @@ export interface SiteLabels {
   chrome: ChromeLabels;
   search: NonNullable<DefaultTheme.LocalSearchOptions["translations"]>;
   copyCode: string;
+  alerts: AlertLabels;
 }
 
 /** Every site string that is not a proper noun, from the `docsSite.*` catalog keys. */
@@ -39,6 +41,13 @@ export function readSiteLabels(t: Translate): SiteLabels {
     chrome: readChromeLabels(t),
     search: readSearchLabels(t),
     copyCode: t("docsSite.chrome.copyCode"),
+    alerts: {
+      note: t("docsSite.alerts.note"),
+      tip: t("docsSite.alerts.tip"),
+      important: t("docsSite.alerts.important"),
+      warning: t("docsSite.alerts.warning"),
+      caution: t("docsSite.alerts.caution"),
+    },
   };
 }
 

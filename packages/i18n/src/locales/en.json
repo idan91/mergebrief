@@ -2134,6 +2134,13 @@
       "skipToContent": "Skip to content",
       "copyCode": "Copy code"
     },
+    "alerts": {
+      "note": "Note",
+      "tip": "Tip",
+      "important": "Important",
+      "warning": "Warning",
+      "caution": "Caution"
+    },
     "notFound": {
       "title": "Page not found",
       "quote": "This page is not part of the MergeBrief docs.",

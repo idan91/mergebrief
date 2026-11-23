@@ -30,9 +30,8 @@
   --mb-ring-offset: 2px;
   --mb-ring-reach: calc(var(--mb-ring-width) + var(--mb-ring-offset));
 
-  /* The Brief's card and diff well, by the web tokens' own mixes. */
+  /* The Brief's reading card, by the web token's own mix. */
   --mb-card: color-mix(in oklch, var(--mb-surface-1) 80%, var(--mb-ground));
-  --mb-well: color-mix(in srgb, var(--mb-ground) 25%, var(--mb-surface-1));
 }
 
 .dark {
@@ -128,11 +127,12 @@
   );
 
   --vp-code-color: var(--mb-text-1);
-  --vp-code-block-bg: var(--mb-well);
+  --vp-code-block-bg: var(--mb-surface-1);
   --vp-code-line-number-color: var(--mb-text-3);
   --vp-code-copy-code-bg: var(--mb-surface-2);
   --vp-code-copy-code-hover-bg: var(--mb-surface-elevated);
 
+  --vp-local-search-bg: var(--mb-surface-elevated);
   --vp-local-search-result-bg: var(--vp-local-search-bg);
   --vp-local-search-result-border: transparent;
   --vp-local-search-result-selected-bg: var(--mb-surface-2);
