@@ -16,7 +16,7 @@ Two halves of configuration:
   [generators.md](generators.md).
 - **Repo side**: `.mergebrief/settings.yaml`'s `trackers:` list (or
   `tracker:` for one) replaces the instance list for that repo. Non-secret,
-  committed with the repo. See [repo-config.md](repo-config.md).
+  committed with the repo. See [Connect your ticket tracker](../repo-config/settings.md#connect-your-ticket-tracker).
 
 ## What the read is, and is not
 
@@ -250,7 +250,7 @@ tracker:
 
 A repo whose tickets live on several boards lists them under `trackers:`
 instead, one entry per board with its own `keyPrefix` and `databaseId`; see
-[repo-config.md](repo-config.md).
+[Several boards, Jira or GitHub Issues](../repo-config/settings.md#several-boards-jira-or-github-issues).
 
 `databaseId` takes either id Notion offers for the board: the data source id
 from `•••` → **Manage data sources** → **Copy data source ID**, or the
@@ -358,7 +358,7 @@ A repo with other trackers lists this entry under `trackers:` beside them,
 one `jira` entry per list; a project key may not also be another tracker's
 prefix on the same list. Projects every repository shares go in the Instance
 config's `trackers:` instead; a `jira` entry there refuses boot without the
-`contextSources:` entry. See [repo-config.md](repo-config.md).
+`contextSources:` entry. See [Several boards, Jira or GitHub Issues](../repo-config/settings.md#several-boards-jira-or-github-issues).
 
 ### What the token can reach
 

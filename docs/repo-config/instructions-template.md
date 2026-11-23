@@ -1,14 +1,6 @@
-# `.mergebrief/instructions.md` template
+# `instructions.md` template
 
-Copy into `.mergebrief/instructions.md` on your default branch and edit.
-Every section is optional; delete what you don't need. The generator
-honors these classes only (see `docs/repo-config/authoring.md`):
-
-- grouping boundaries — which directories or files form one review unit
-- domain glossary and summary terminology — the repo's own names for its concepts
-- noise and generated-path de-emphasis — paths whose churn is low-signal for a reviewer
-- repo-specific reading conventions — structural foundation relations between directories (facts feeding foundation-first ordering, never importance)
-- summary phrasing preferences — tone and framing of the text
+Copy this into `.mergebrief/instructions.md` on your default branch and replace the examples with your repository's. Every section is optional: delete the ones you don't need. Each heading matches one thing instructions can change; [Instructions](./instructions.md) explains each one, what instructions cannot change, and the 16 KB limit.
 
 ```markdown
 ## Grouping
