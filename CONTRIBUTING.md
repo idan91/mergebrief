@@ -179,7 +179,7 @@ open an issue before starting one.
 ## Code contributions
 
 Bug fixes and features are welcome as pull requests. Run
-[the gates](#gates-a-pull-request-must-pass) before opening one. For anything architectural, open an issue to discuss first; several tempting features
+[the gates](#gates-a-pull-request-must-pass) before opening one. [`docs/dev/architecture.md`](docs/dev/architecture.md) maps the code: package layers and import edges, the job queue, the GitHub integration, read-path scopes and stored documents. For anything architectural, open an issue to discuss first; several tempting features
 are [non-goals](#what-mergebrief-will-not-do), and a PR won't change that.
 
 A vulnerability never goes in a public issue or pull request. Report it privately as
