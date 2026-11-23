@@ -251,6 +251,7 @@
       "generate": {
         "action": "Generate brief",
         "pending": "Generating…",
+        "more": "More ways to generate",
         "stale": "This push is no longer held."
       }
     },

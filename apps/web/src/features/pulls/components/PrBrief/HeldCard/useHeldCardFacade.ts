@@ -50,13 +50,20 @@ export function useHeldCardFacade({
         unmetConditionsPartial,
       );
 
+  const offersEveryPush = offersGenerate && !generateEveryPush;
+
   return {
     heading,
     lead,
     showsConditions: !noLongerOpen,
-    pending,
+    pending: pending || everyPush.pending,
     announcement,
     onGenerate: offersGenerate ? regenerate : undefined,
-    everyPush: offersGenerate ? everyPush : undefined,
+    everyPush: offersEveryPush
+      ? {
+          outcome: everyPush.announcement,
+          turnOn: () => everyPush.setOn(true),
+        }
+      : undefined,
   };
 }

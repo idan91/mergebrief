@@ -16,6 +16,7 @@ import {
 } from "@floating-ui/react";
 import {
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -49,6 +50,8 @@ export interface PopoverOptions {
   focusOnOpen?: PopoverFocusTarget | undefined;
   /** Fires once per opening, whatever opened it: click, Enter, or an arrow key. */
   onOpen?: (() => void) | undefined;
+  /** The box the panel is placed against, when not the trigger's: a split button's whole edge. */
+  anchor?: RefObject<Element | null> | undefined;
 }
 
 export interface PopoverState {
@@ -139,6 +142,7 @@ export function usePopover({
   portal = true,
   focusOnOpen = PopoverFocusTargets.TRIGGER,
   onOpen,
+  anchor,
 }: PopoverOptions): PopoverState {
   const [open, setOpen] = useState(false);
   const fallbackId = useId();
@@ -173,6 +177,12 @@ export function usePopover({
       shift(readShiftOptions),
     ],
   });
+  useLayoutEffect(() => {
+    if (open && anchor !== undefined) {
+      refs.setPositionReference(anchor.current);
+    }
+  }, [open, anchor, refs]);
+
   const click = useClick(context);
   const scrimRef = useRef<HTMLDivElement | null>(null);
   // Closing on the scrim's pointerdown removes it before a slow tap's click,

@@ -1,0 +1,12 @@
+@use "functions";
+
+@layer components {
+  .caret[data-variant] {
+    --caret-seam: #{functions.edge-bar(var(--color-brand-strong), 1px)};
+
+    padding-inline: var(--space-3);
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    box-shadow: var(--caret-seam);
+  }
+}

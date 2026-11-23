@@ -4,6 +4,7 @@
 // change, and none for a poll that returns the same state.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -313,9 +314,16 @@ describe("PrBriefBody every-push outcome", () => {
       view.rerender(makeBodyFor(released, undefined, client));
     });
 
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: "Generate on every push" }),
-    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "More ways to generate" }),
+      );
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Generate on every push" }),
+      );
+    });
 
     await waitFor(() => {
       const lines = screen

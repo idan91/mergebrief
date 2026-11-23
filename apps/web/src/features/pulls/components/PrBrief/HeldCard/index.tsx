@@ -1,6 +1,6 @@
 // The PR's current head is held by its trigger conditions and no brief is
-// shown for it: the conditions grouped by what clears them, Generate brief, and
-// the switch that generates every push of the PR.
+// shown for it: the conditions grouped by what clears them, and Generate
+// brief with a menu row that generates every push of the PR.
 // Presentational; the state announcement and the every-push outcome live in
 // the body's regions, since a saved switch releases the head and removes
 // this card.
@@ -11,8 +11,8 @@ import type { UnknownValue } from "@web/utils/open-enum/types";
 import { HeldConditions } from "../HeldConditions";
 import type { HeldCondition } from "@web/utils/unmet-conditions/types";
 import { HeldConditionsLayouts } from "../HeldConditions/types";
-import { TriggerAction } from "../TriggerAction";
-import { EveryPushSwitch } from "./EveryPushSwitch";
+import { Menu } from "@web/components/Menu";
+import { TriggerAction, type TriggerMoreRuns } from "../TriggerAction";
 import { useHeldCardFacade } from "./useHeldCardFacade";
 import styles from "./HeldCard.module.scss";
 
@@ -45,6 +45,21 @@ export function HeldCard(props: HeldCardProps) {
     onGenerate,
     everyPush,
   } = useHeldCardFacade(props);
+  const moreRuns: TriggerMoreRuns | undefined =
+    everyPush === undefined
+      ? undefined
+      : {
+          label: t("pulls.held.generate.more"),
+          rows: (
+            <Menu.Item
+              description={t("pulls.everyPush.hint")}
+              onSelect={everyPush.turnOn}
+            >
+              {t("pulls.everyPush.label")}
+            </Menu.Item>
+          ),
+          outcome: everyPush.outcome,
+        };
 
   return (
     <section
@@ -62,6 +77,7 @@ export function HeldCard(props: HeldCardProps) {
         <TriggerAction
           actionLabel={t("pulls.held.generate.action")}
           announcement={announcement}
+          moreRuns={moreRuns}
           pending={pending}
           pendingLabel={t("pulls.held.generate.pending")}
           onTrigger={onGenerate}
@@ -74,13 +90,6 @@ export function HeldCard(props: HeldCardProps) {
           unmetConditionsPartial={props.unmetConditionsPartial}
         />
       ) : null}
-      {everyPush === undefined ? null : (
-        <EveryPushSwitch
-          announcement={everyPush.announcement}
-          checked={everyPush.checked}
-          onChange={everyPush.setOn}
-        />
-      )}
     </section>
   );
 }

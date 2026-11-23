@@ -40,7 +40,10 @@
   }
 
   .reason {
+    max-inline-size: functions.to-rem(280px);
     color: var(--color-text-2);
     font-size: var(--font-size-1);
+    line-height: var(--line-height-compact);
+    text-wrap: pretty;
   }
 }

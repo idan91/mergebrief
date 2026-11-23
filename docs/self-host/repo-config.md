@@ -166,30 +166,33 @@ triggerConditions:
   labels: [needs-brief]
 ```
 
-Every condition must pass, unless it sits in an `any:` group, where one
-passing condition is enough. A push that misses one is **held**: nothing
-runs and nothing is spent, it generates by itself once every condition
-passes, and anyone with push access can generate it now from the PR's page
-in MergeBrief. With no conditions set here or on the instance, every push
-generates as before. Someone with push access can also switch one PR to
-generate on every push from its page. That skips the conditions for the
-PR, but a PR whose author needs a Trigger approval still waits for one.
+Every condition must pass before a push generates. Inside an `any:` group, one passing member is enough. With no conditions set here or on the instance, every push generates.
 
-A held push edits an existing Entry comment in place, so nobody is notified
-again; a PR with no Entry comment gets one posted. The comment names each
-unmet condition and whose setting it is, with a Generate link and a link to
-the last brief. When the push generates, the comment turns to the
-generating line the same quiet way, and the ready brief is the one
-notification.
+#### A held push
+
+A push that misses a condition is **held**. Nothing runs and nothing is spent. It generates by itself once every condition passes, and MergeBrief checks it again when:
+
+- a label is added or removed, the pull request moves to draft or out of it, its title or base branch is edited, or a review is requested or a request withdrawn;
+- someone submits a review;
+- a check run finishes or a commit status lands on the push, while a `bots` or `ci` condition holds it. MergeBrief waits about 45 seconds first, so a burst of CI results costs one check.
+
+Anyone with push access can skip the wait, from the pull request's page in MergeBrief or its row menu in the Inbox:
+
+- **Generate brief** generates this push now. `mergebrief generate <number>` does the same from the CLI.
+- **Generate on every push** generates this push now and skips the conditions for every later push of the pull request. On the page it sits in the menu beside Generate brief. The Inbox row menu shows it as a checked item while it is on, and that is where you turn it off. A pull request whose author needs a Trigger approval still waits for one.
+
+The Entry comment follows the hold without notifying anyone again. A held push edits an existing Entry comment in place, and a pull request with no Entry comment gets one posted. The comment names each unmet condition and whose setting it is, with a Generate link and a link to the last brief. When the push generates, the comment turns to the generating line the same quiet way, and the ready brief is the one notification.
+
+#### Kinds
 
 | Key | Value | Met when |
 | --- | --- | --- |
 | `readyForReview` | `on` | The pull request is not a draft. |
 | `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. `changedLines` is additions plus deletions. |
-| `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push, told by its own App or bot account, never by a check's name. `finished`: any check run, status or review it finished on this push, whatever the outcome. `approved`: its latest approval, change request or dismissed review on this push approves; a later comment leaves the approval standing, and a dismissal never lets an older approval stand again. `clean`: Claude's latest check run on this push says no issues or counts no `normal` findings; while a rerun is still going, it is running. `claude` and `copilot` never approve; only `claude` reports `clean`. |
-| `reviewRequested` | `on` | A review was requested from a person or a team, or someone on the repository's team other than the author has reviewed: a repository owner, organization member or collaborator, anyone with write access, or on a private repository anyone at all. A bot's request or review does not count, and on a public or internal repository neither does a review from anyone else, since anyone can review there. Once met, it stays met for the rest of the pull request: GitHub drops a request once that reviewer reviews, and a request removed later still counts. |
-| `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push: a check's latest run counts, and success, neutral and skipped pass. A name both a check run and a status report passes only when both do, so a name that reads as passed, or reads nothing, while a source the App may not read is refused (Checks or Commit statuses not granted) holds as missing the permission, never as passed, and the held list asks for that permission in place of listing the missing names. A name already failed or running on the source it can read shows as that, beside the permission line. `required` reads the base branch's rulesets only, and honours a rule that pins a check to one App: GitHub accepts the check from that App only, by a check run or a commit status. MergeBrief counts that App's latest run under the name alone, ignoring every status, so that run decides even when the Commit statuses read is refused. Only when the App has no run there does it count the latest status an App's bot account posted under the name, so a status a person posts never releases the push. A status does not say which App's bot posted it, so in that case another App posting the same name counts too, a workflow's status as `github-actions[bot]` included. With no run from its App, a pinned check needs Checks and Commit statuses read, like any other. Classic branch protection is not read and counts as nothing required, so `required` passes at once there, as it does with no required check and on a private repository on GitHub Free, which has no rulesets; on such a branch list the checks with `{ checks: [names] }` or move the rule to a ruleset. |
-| `paths` | A list of globs, in the glob language `policy.yaml`'s `paths` uses | A changed file matches one, case as written. A renamed file matches by its new path or its old one, a deleted file by the path it had. GitHub lists at most 3,000 changed files, so a pull request changing more matches only the files GitHub lists, inside an `any` group too. This file only; the instance config refuses it. While another condition outside an `any` group, or an `any` group without `paths`, holds the push, the file list is not read and the held list leaves `paths` out until the others pass, along with any `any` group that holds it. Once a check sees a changed file match, `paths` stays met for the rest of the pull request, even after that file is reverted or renamed away, until this list of globs changes. A check sees the file list only when `paths` decides the push, so a file that matched only while another condition held the push, then was reverted, never counted. |
+| `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push ([What a `bots` condition waits on](#what-a-bots-condition-waits-on)). |
+| `reviewRequested` | `on` | A review was requested from a person or a team, or someone on the repository's team other than the author has reviewed ([Who counts for `reviewRequested`](#who-counts-for-reviewrequested)). |
+| `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push ([What a `ci` condition counts](#what-a-ci-condition-counts)). |
+| `paths` | A list of globs, in the glob language `policy.yaml`'s `paths` uses | A changed file matches one, case as written ([What a `paths` condition sees](#what-a-paths-condition-sees)). This file only; the instance config refuses it. |
 | `labels` | A list of label names | The pull request carries one of them. Case is ignored, as GitHub ignores it in label names. |
 | `titleKeywords` | A list of words | The title contains one of them as a whole word, ignoring case: `wip` matches `[WIP] Add widgets` but not `Wipe the cache`. A phrase matches as written, and a keyword in a script written without spaces, such as Chinese, Japanese or Thai, matches anywhere in the title. |
 | `baseBranches` | A list of branch names | The pull request targets one of them directly, exact name and case. A stacked PR into another branch stays held until it retargets. |
@@ -198,55 +201,80 @@ notification.
 
 `reviewRequested` stays met for the rest of the pull request once met, and `paths` once a check sees it met, inside an `any` group too. Every other kind is checked again on each push, so moving a pull request back to draft or removing a label holds its next push.
 
-The instance's conditions apply too, merged per kind: a kind you set here
-replaces the instance's, a kind you leave out is inherited, and a list is
-one value. A kind's place travels with its value, so one you set inside
-`any:` sits in the group even where the instance set it outside. There is
-one `any:` group: the instance's inherited members and yours join it, and
-one passing member from either is enough. `<kind>: off` drops one inherited
-kind, and `triggerConditions: off` drops them all. An empty block is
-invalid. A bad block rejects the
-whole file, and a file that cannot be read or is rejected applies the
-instance's conditions alone. The block is read from the default branch
-only, so a pull request's own edit to it applies once merged.
+#### How the instance's conditions merge with yours
+
+The instance's conditions apply too, merged per kind:
+
+- A kind you set here replaces the instance's. A list is one value, so your `labels` replaces the instance's list instead of adding to it.
+- A kind you leave out is inherited.
+- `<kind>: off` drops one inherited kind, and `triggerConditions: off` drops them all. An empty block is invalid.
+- A kind's place travels with its value, so one you set inside `any:` sits in the group even where the instance set it outside.
+- There is one `any:` group. The instance's inherited members and yours join it, and one passing member from either is enough.
+
+For example, with this instance config and this repository file:
+
+```yaml
+# mergebrief.config.yaml
+triggerConditions:
+  readyForReview: on
+  size: { changedLines: { max: 1500 } }
+
+# .mergebrief/settings.yaml
+version: 1
+triggerConditions:
+  size: off
+  any:
+    labels: [needs-brief]
+    titleKeywords: [brief]
+```
+
+a push in this repository generates once its pull request is ready for review (inherited) and either carries the `needs-brief` label or has `brief` in its title. The size limit no longer applies.
+
+The block is read from the default branch only, so a pull request's own edit to it applies once merged. A bad block rejects the whole file, and a file that cannot be read or is rejected applies the instance's conditions alone.
+
+#### Who counts for `reviewRequested`
+
+The condition is met once either of these happens:
+
+- A review is requested from a person or a team.
+- Someone on the repository's team other than the author reviews: a repository owner, organization member or collaborator, anyone with write access, or on a private repository anyone at all.
+
+A bot's request or review does not count. On a public or internal repository, a review from anyone else does not count either, since anyone can review there. Once met, it stays met for the rest of the pull request: GitHub drops a request once that reviewer reviews, and a request removed later still counts.
+
+#### What a `ci` condition counts
+
+The checks pass by GitHub's merge rule on this push: each check's latest run counts, and success, neutral and skipped pass. A name that both a check run and a status report passes only when both do.
+
+- **`required` reads the base branch's rulesets only.** Classic branch protection is not read and counts as nothing required, so `required` passes at once there. It also passes at once with no required check, and on a private repository on GitHub Free, which has no rulesets. On such a branch, list the checks with `{ checks: [names] }` or move the rule to a ruleset.
+- **A source the App may not read holds the check.** When Checks or Commit statuses is not granted, a name that reads as passed, or reads nothing, on the other source holds as missing the permission, never as passed. The held list then asks for that permission in place of listing the missing names. A name already failed or running on the source the App can read shows as that, beside the permission line.
+- **A check a ruleset pins to one App.** GitHub accepts such a check from that App only, by a check run or a commit status. MergeBrief counts that App's latest run under the name and ignores every status, so the run decides even when the Commit statuses read is refused. Only when the App has no run there does it count the latest status an App's bot account posted under the name, so a status a person posts never releases the push. A status does not say which App's bot posted it, so in that case another App posting the same name counts too, a workflow's status as `github-actions[bot]` included. With no run from its App, a pinned check needs Checks and Commit statuses read, like any other.
+
+#### What a `paths` condition sees
+
+- A renamed file matches by its new path or its old one, and a deleted file by the path it had.
+- GitHub lists at most 3,000 changed files, so a pull request changing more matches only the files GitHub lists, inside an `any` group too.
+- The file list is read only when `paths` decides the push. While another condition outside an `any` group, or an `any` group without `paths`, holds the push, the list is not read, and the held list leaves `paths` out until the others pass, along with any `any` group that holds it.
+- Once a check sees a changed file match, `paths` stays met for the rest of the pull request, even after that file is reverted or renamed away, until this list of globs changes. A file that matched only while another condition held the push, then was reverted, never counted.
 
 #### What a `bots` condition waits on
 
-A `bots` condition counts only what a bot reports on the push it holds, and a
-held push is checked again when a check run finishes or a status or review lands
-on it; a status check's re-check waits about a minute, so a CI run's burst costs one.
-A bot that does not review later pushes leaves every later push held until
-someone clicks Generate, so each listed bot needs its own setting for that:
+A bot is told by its own App or bot account, never by a check's name, and only what it reports on the held push counts:
 
-- **Greptile**: `autoReview` reviews a pull request only when it opens unless
-  you set it to review new pushes. Its check run posts only with
-  `statusCheck` on.
-- **Unblocked**: turn on Re-reviews. Its `Unblocked Review` commit status
-  posts only with its commit status setting on.
+- `finished`: it finished any check run, status or review on this push, whatever the outcome.
+- `approved`: its latest approval, change request or dismissed review on this push approves. A later comment leaves the approval standing, and a dismissal never lets an older approval stand again. `claude` and `copilot` never approve.
+- `clean`: Claude's latest check run on this push says no issues or counts no `normal` findings. While a rerun is still going, it is running. Only `claude` reports `clean`.
+
+A bot that does not review later pushes leaves every later push held until someone clicks Generate, so each listed bot needs its own setting for that:
+
+- **Greptile**: `autoReview` reviews a pull request only when it opens unless you set it to review new pushes. Its check run posts only with `statusCheck` on.
+- **Unblocked**: turn on Re-reviews. Its `Unblocked Review` commit status posts only with its commit status setting on.
 - **CodeRabbit**: `auto_incremental_review`, on by default.
-- **Claude** (Claude Code Review): the repository's review trigger must run
-  after every push, its default; once on pull request creation, or manual,
-  leaves later pushes held. It skips drafts and fork pull requests, so
-  `claude` holds there.
+- **Claude** (Claude Code Review): the repository's review trigger must run after every push, its default; once on pull request creation, or manual, leaves later pushes held. It skips drafts and fork pull requests, so `claude` holds there.
 - **Copilot**: turn on Review new pushes.
 
-`approved` waits for a bot's own auto-approve setting, off by default
-wherever a bot has one. Greptile and Unblocked approve only a review that
-found nothing, so for them `approved` already means a clean review. An
-approval from CodeRabbit or Copilot is not documented to mean that, and a
-`@coderabbitai approve` comment approves without a review.
+`approved` waits for a bot's own auto-approve setting, off by default wherever a bot has one. Greptile and Unblocked approve only a review that found nothing, so for them `approved` already means a clean review. An approval from CodeRabbit or Copilot is not documented to mean that, and a `@coderabbitai approve` comment approves without a review.
 
-Unblocked, CodeRabbit, Claude and Greptile report through check runs and
-statuses, which the App reads with its Checks and Commit statuses
-permissions. An installation missing either one holds those bots as missing
-the permission while they have not reported
-([github-app.md](./github-app.md#permissions-least-privilege-exactly-these)).
-A pull request review from the bot lifts that hold, and so does a run or
-status through whichever of the two reads the App still has. `clean` reads
-only Claude's check runs, so it needs Checks alone: a refused Commit statuses
-read changes nothing for it, and with Checks refused it holds as missing the
-permission even after Claude reviews. Copilot reports through reviews and is
-unaffected.
+Unblocked, CodeRabbit, Claude and Greptile report through check runs and statuses, which the App reads with its Checks and Commit statuses permissions. An installation missing either one holds those bots as missing the permission while they have not reported ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these)). A pull request review from the bot lifts that hold, and so does a run or status through whichever of the two reads the App still has. `clean` reads only Claude's check runs, so it needs Checks alone: a refused Commit statuses read changes nothing for it, and with Checks refused it holds as missing the permission even after Claude reviews. Copilot reports through reviews and is unaffected.
 
 ## `policy.yaml` (32 KB, versioned)
 

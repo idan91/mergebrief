@@ -30,6 +30,9 @@ const { t } = createI18n();
 const GENERATE = t("pulls.held.generate.action");
 const META_KEY = ["pr-meta", "424242", 7];
 const EVERY_PUSH = "Generate on every push";
+const MORE = t("pulls.held.generate.more");
+const HINT =
+  "Generates this push now and every later one, whatever its conditions.";
 
 const BASE_PROPS: HeldCardProps = {
   repoId: "424242",
@@ -68,12 +71,17 @@ function readStatusLines(): (string | null)[] {
   return screen.getAllByRole("status").map((region) => region.textContent);
 }
 
-function readEveryPushBox(): HTMLInputElement {
-  const box = screen.getByRole("checkbox", { name: EVERY_PUSH });
-  if (!(box instanceof HTMLInputElement)) {
-    throw new Error("expected the every-push checkbox");
-  }
-  return box;
+async function openMoreRuns(): Promise<void> {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: MORE }));
+  });
+}
+
+async function chooseEveryPush(): Promise<void> {
+  await openMoreRuns();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("menuitem", { name: EVERY_PUSH }));
+  });
 }
 
 function readGroup(title: string): HTMLElement {
@@ -274,28 +282,29 @@ describe("HeldCard", () => {
     });
   });
 
-  it("offers generate on every push to a pusher, described by its hint", () => {
+  it("offers generate on every push in a menu beside Generate brief", async () => {
     renderCard();
 
-    const box = readEveryPushBox();
-    expect(box.checked).toBe(false);
-    const hintId = box.getAttribute("aria-describedby") ?? "";
-    expect(document.getElementById(hintId)?.textContent).toBe(
-      "Generates this push now and every later one, whatever its conditions.",
-    );
+    await openMoreRuns();
+
+    expect(
+      screen.getByRole("menuitem", { name: EVERY_PUSH, description: HINT }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("checkbox")).toBeNull();
   });
 
   it.each([
     ["a viewer without push access", { viewerCanPush: false }],
     ["a PR outside an installation", { appInstalled: false }],
     ["a closed PR", { prState: "closed" }],
-  ] as const)("offers no every-push switch to %s", (_who, overrides) => {
+    ["a PR that already generates every push", { generateEveryPush: true }],
+  ] as const)("offers no every-push menu to %s", (_who, overrides) => {
     renderCard(overrides);
 
-    expect(screen.queryByRole("checkbox", { name: EVERY_PUSH })).toBeNull();
+    expect(screen.queryByRole("button", { name: MORE })).toBeNull();
   });
 
-  it("turns every push on, ticked while pending, then refreshes", async () => {
+  it("turns every push on from the menu, busy while pending", async () => {
     let settle: (response: Response) => void = () => undefined;
     apiFetchMock.mockReturnValue(
       new Promise<Response>((resolve) => {
@@ -311,10 +320,13 @@ describe("HeldCard", () => {
         view.rerender(<></>);
       });
 
-    fireEvent.click(readEveryPushBox());
-    fireEvent.click(readEveryPushBox());
+    await chooseEveryPush();
 
-    expect(readEveryPushBox().checked).toBe(true);
+    const busy = screen.getByRole("button", { name: /generating/i });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: MORE }).getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
     expect(apiFetchMock).toHaveBeenCalledWith(
       "/api/repos/424242/pulls/7/generate-every-push/on",
@@ -333,12 +345,12 @@ describe("HeldCard", () => {
     });
   });
 
-  it("unticks the box and says why when the write is refused", async () => {
+  it("shows why under the buttons when the every-push write is refused", async () => {
     answerApiFetch(apiFetchMock, 404, "not-found");
     const onAnnounce = vi.fn();
     renderCard({ onAnnounce });
 
-    fireEvent.click(readEveryPushBox());
+    await chooseEveryPush();
 
     const refusal =
       "Changing this needs push access to this repository and the MergeBrief App installed on it.";
@@ -346,28 +358,8 @@ describe("HeldCard", () => {
       expect(onAnnounce).toHaveBeenCalledWith(refusal);
     });
     await waitFor(() => {
-      expect(screen.getByTestId("held-every-push").textContent).toContain(
-        refusal,
-      );
+      expect(screen.getByText(refusal).getAttribute("role")).toBeNull();
     });
-    expect(readEveryPushBox().checked).toBe(false);
-  });
-
-  it("turns every push off from a ticked box", async () => {
-    answerApiFetch(apiFetchMock, 204);
-    const onAnnounce = vi.fn();
-    renderCard({ generateEveryPush: true, onAnnounce });
-
-    fireEvent.click(readEveryPushBox());
-
-    expect(apiFetchMock).toHaveBeenCalledWith(
-      "/api/repos/424242/pulls/7/generate-every-push/off",
-      { method: "POST" },
-    );
-    await waitFor(() => {
-      expect(onAnnounce).toHaveBeenCalledWith(
-        "Pushes on this pull request wait for their conditions again.",
-      );
-    });
+    expect(screen.getByRole("button", { name: GENERATE })).toBeTruthy();
   });
 });

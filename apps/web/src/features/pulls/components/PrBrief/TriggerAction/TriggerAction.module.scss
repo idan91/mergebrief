@@ -9,6 +9,15 @@
     }
   }
 
+  .buttons {
+    display: inline-flex;
+
+    &[data-state="split"] .run[data-variant] {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+  }
+
   .outcome {
     max-inline-size: 56ch;
     margin-block-start: var(--space-3);

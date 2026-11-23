@@ -247,6 +247,34 @@ describe("Menu", () => {
     expect(reason.closest("[hidden]")).toBeNull();
   });
 
+  it("a described row fires and shows what it does under its label", async () => {
+    const onSelect = vi.fn();
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item description="Runs it now" onSelect={onSelect}>
+            Run
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+
+    const row = screen.getByRole("menuitem", {
+      name: "Run",
+      description: "Runs it now",
+    });
+    expect(row.getAttribute("aria-disabled")).toBeNull();
+    await act(async () => {
+      fireEvent.click(row);
+    });
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
   it("arrow keys reach an unavailable row so its reason is heard", async () => {
     render(
       <Menu>
