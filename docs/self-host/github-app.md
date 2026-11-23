@@ -148,7 +148,7 @@ A new App shows GitHub's generated identicon until you upload a logo. [`github-a
 - **Contents: write** is for two things only. GitHub's `markPullRequestReadyForReview` mutation, behind the author's **Mark ready for review**, answers `FORBIDDEN` without it. Images a reviewer attaches to a comment are pushed to an orphan `mergebrief/attachments` branch ([attachments.md](./attachments.md)); no other branch is touched, and the App never writes code. A ruleset on `mergebrief/*` can refuse that push. With Contents at read-only, briefs still generate, but **Mark ready for review** and attaching an image both fail with `403 github-permission`.
 - **Pull requests: write** posts the Entry comment and authorizes a reviewer's review, inline comments and replies. Without it, briefs generate and no Entry comment appears ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)).
 - **Issues: read** reads the issue a pull request names as its ticket ([trackers.md](./trackers.md#github-issues)). Without it, a GitHub ticket reads as refused on the brief, and generation continues.
-- **Checks: read** and **Commit statuses: read** feed the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates), and are what make the **Check run** and **Status** events available.
+- **Checks: read** and **Commit statuses: read** feed the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md), and are what make the **Check run** and **Status** events available.
 - **Members: read** (organization) lists the teams a reviewer can `@mention`. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub. [Who triggers a brief](#who-triggers-a-brief) does not depend on it.
 
 Deliberately not enabled:
@@ -159,7 +159,7 @@ Deliberately not enabled:
 
 ### What each event does
 
-- **Pull request** starts a brief on open and on every push, for an author on the team ([Who triggers a brief](#who-triggers-a-brief)). The same event carries a draft flip, a label added or removed, a review requested or withdrawn, and a title or base edit, which re-check a push a [trigger condition](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) holds. A review request or a base edit queues a full generation, which checks the conditions itself.
+- **Pull request** starts a brief on open and on every push, for an author on the team ([Who triggers a brief](#who-triggers-a-brief)). The same event carries a draft flip, a label added or removed, a review requested or withdrawn, and a title or base edit, which re-check a push a [trigger condition](../repo-config/trigger-conditions.md) holds. A review request or a base edit queues a full generation, which checks the conditions itself.
 - **Pull request review** queues a regeneration and advances the reviewer's Checkpoint when the reviewer is on the team, by the same rule as authors.
 - **Check run** re-checks a push held at that commit for the `bots` and `ci` conditions once the run finishes; a run that starts unfinished changes nothing. A fork pull request's run names no pull request, so MergeBrief finds the open pull requests whose held push is that commit.
 - **Status** does the same for a commit status in any state.
@@ -184,7 +184,7 @@ A push generates a brief at once only when the pull request's author is on the r
 
 Any other author's pull request shows "Brief available on demand", and nothing is spent until someone with push access starts the first brief from MergeBrief. That approval holds for the pull request, so every later push generates as usual. An author promoted onto the team triggers normally from their next push. A later event whose read fails leaves a head that already triggered as it is.
 
-A bot author is decided by the repository's `trustedBots` list in `.mergebrief/settings.yaml` ([repo-config.md](./repo-config.md)). A push that passes this check can still be held by an unmet trigger condition; anyone with push access can generate it from the pull request's page in MergeBrief or with `mergebrief generate <number>`.
+A bot author is decided by the repository's `trustedBots` list in `.mergebrief/settings.yaml` ([Settings](../repo-config/settings.md#let-a-bots-pull-requests-generate-without-a-click)). A push that passes this check can still be held by an unmet trigger condition; anyone with push access can generate it from the pull request's page in MergeBrief or with `mergebrief generate <number>`.
 
 ### Who can install and sign in
 
@@ -211,7 +211,7 @@ Until an installation accepts:
 
 ### Accept the Checks and Commit statuses permissions
 
-On an App registered before the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) existed:
+On an App registered before the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md) existed:
 
 1. In the App's settings, open **Permissions & events**, and set **Checks** and **Commit statuses** to **Read-only**.
 2. Under **Subscribe to events**, check **Check run** and **Status**.
