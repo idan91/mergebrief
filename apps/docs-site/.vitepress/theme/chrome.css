@@ -33,6 +33,7 @@
 :root .VPSidebarItem .text {
   padding-block: 6px;
   line-height: 20px;
+  text-wrap: pretty;
 }
 
 :root .VPSidebarItem.level-0 > .item .text {
@@ -47,9 +48,34 @@
   font-weight: 500;
 }
 
+/* The bar keeps the current page apart from a group heading of the same tone. */
+:root .VPSidebarItem.is-active > .item > .indicator {
+  background-color: var(--vp-c-brand-1);
+}
+
 /* A single line stays 32px tall: the active marker is placed for that height. */
 :root .VPDocAsideOutline .outline-link {
   padding-block: 6px;
   line-height: 20px;
   white-space: normal;
+  text-wrap: pretty;
+}
+
+:root .VPLocalSearchBox .shell {
+  border: 1px solid var(--mb-line-strong);
+}
+
+/* The box draws its own clear button beside the input. */
+:root .VPLocalSearchBox .search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+:root .NotFound .title {
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+:root .NotFound .quote {
+  max-width: 32ch;
+  text-wrap: balance;
 }

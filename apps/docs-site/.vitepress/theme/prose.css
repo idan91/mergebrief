@@ -1,4 +1,8 @@
 /* The page body. :root lifts each rule past the default theme's vp-doc rules. */
+:root .vp-doc :is(h1, h2, h3, h4) {
+  text-wrap: balance;
+}
+
 :root .vp-doc li {
   line-height: 28px;
 }
@@ -11,4 +15,14 @@
 :root .vp-doc blockquote {
   border-left-color: var(--mb-line-strong);
   color: inherit;
+}
+
+/* The header row alone carries a fill; rows stay on the ground. */
+:root .vp-doc tr:nth-child(2n) {
+  background-color: transparent;
+}
+
+/* A wide table scrolls; a command in a cell never breaks at its hyphen. */
+:root .vp-doc td code {
+  white-space: nowrap;
 }
