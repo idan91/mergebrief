@@ -186,7 +186,7 @@ notification.
 | `size` | `changedLines`, `additions` and/or `deletions`, each `{ min, max }` (inclusive, either or both) | Every bound holds for GitHub's totals for the whole pull request. `changedLines` is additions plus deletions. |
 | `bots` | A map of `unblocked`, `coderabbit`, `claude`, `greptile` or `copilot` to `finished`, `approved` or `clean` | Every listed bot gave that verdict on this push, told by its own App or bot account, never by a check's name. `finished`: any check run, status or review it finished on this push, whatever the outcome. `approved`: its latest approval, change request or dismissed review on this push approves; a later comment leaves the approval standing, and a dismissal never lets an older approval stand again. `clean`: Claude's latest check run on this push says no issues or counts no `normal` findings; while a rerun is still going, it is running. `claude` and `copilot` never approve; only `claude` reports `clean`. |
 | `reviewRequested` | `on` | A review is requested from a person or a team and not yet given; a request to a bot does not count. GitHub drops a request once that reviewer reviews. |
-| `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push: a check's latest run counts, and success, neutral and skipped pass. A name both a check run and a status report passes only when both do. `required` reads the base branch's rulesets, not classic branch protection. A base branch whose rulesets require no check passes, as does a private repository on GitHub Free, which has no rulesets. |
+| `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push: a check's latest run counts, and success, neutral and skipped pass. A name both a check run and a status report passes only when both do. `required` reads the base branch's rulesets only. Classic branch protection is not read and counts as nothing required, so `required` passes at once there, as it does with no required check and on a private repository on GitHub Free, which has no rulesets; on such a branch list the checks with `{ checks: [names] }` or move the rule to a ruleset. |
 | `paths` | A list of globs, in the glob language `policy.yaml`'s `paths` uses | A changed file matches one, case as written. A renamed file counts by its new path, a deleted file by the path it had. This file only; the instance config refuses it. While another condition outside an `any` group, or an `any` group without `paths`, holds the push, the file list is not read and the held list leaves `paths` out until the others pass, along with any `any` group that holds it. |
 | `labels` | A list of label names | The pull request carries one of them. Case is ignored, as GitHub ignores it in label names. |
 | `titleKeywords` | A list of words | The title contains one of them as a whole word, ignoring case: `wip` matches `[WIP] Add widgets` but not `Wipe the cache`. A phrase matches as written, and a keyword in a script written without spaces, such as Chinese, Japanese or Thai, matches anywhere in the title. |
@@ -205,6 +205,38 @@ invalid. A bad block rejects the
 whole file, and a file that cannot be read or is rejected applies the
 instance's conditions alone. The block is read from the default branch
 only, so a pull request's own edit to it applies once merged.
+
+#### What a `bots` condition waits on
+
+A `bots` condition counts only what a bot reports on the push it holds, and a
+held push is checked again when a check run finishes or a status or review lands
+on it; a status check's re-check waits about a minute, so a CI run's burst costs one.
+A bot that does not review later pushes leaves every later push held until
+someone clicks Generate, so each listed bot needs its own setting for that:
+
+- **Greptile**: `autoReview` reviews a pull request only when it opens unless
+  you set it to review new pushes. Its check run posts only with
+  `statusCheck` on.
+- **Unblocked**: turn on Re-reviews. Its `Unblocked Review` commit status
+  posts only with its commit status setting on.
+- **CodeRabbit**: `auto_incremental_review`, on by default.
+- **Claude** (Claude Code Review): the repository's review trigger must run
+  after every push, its default; once on pull request creation, or manual,
+  leaves later pushes held. It skips drafts and fork pull requests, so
+  `claude` holds there.
+- **Copilot**: turn on Review new pushes.
+
+`approved` waits for a bot's own auto-approve setting, off by default
+wherever a bot has one. Greptile and Unblocked approve only a review that
+found nothing, so for them `approved` already means a clean review. An
+approval from CodeRabbit or Copilot is not documented to mean that, and a
+`@coderabbitai approve` comment approves without a review.
+
+Unblocked, CodeRabbit, Claude and Greptile report through check runs and
+statuses, which the App reads with its Checks and Commit statuses
+permissions. An installation that has not accepted them holds those bots as
+missing the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these));
+Copilot reports through reviews and is unaffected.
 
 ## `policy.yaml` (32 KB, versioned)
 

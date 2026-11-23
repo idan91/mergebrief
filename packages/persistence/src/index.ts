@@ -369,6 +369,8 @@ export type {
   RouteToLargePoolInput,
   RequeueOutcome,
   RecheckCurrentHeadInput,
+  RecheckHeadsAtShaInput,
+  RecheckHeadsOutcome,
   TriggerGenerationInput,
 } from "./stores/ingest";
 

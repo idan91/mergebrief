@@ -128,7 +128,7 @@ it, so the worker's parser takes a new field as optional.
 
 ## GitHub integration
 
-The App needs five permissions (`docs/self-host/github-app.md`) and parses four
+The App needs seven permissions (`docs/self-host/github-app.md`) and parses seven
 webhook events (`packages/github/src/webhook/events.ts`):
 
 - `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and `review_requested` queue a generation; `edited` queues one only when it moved the base; `closed` writes the state and queues nothing; `converted_to_draft` writes the state and queues a job only for a held head, or a pending or failed head whose run is in flight, so the worker checks its trigger conditions again. `labeled`, `unlabeled`, `review_request_removed` and an `edited` that changed the title but not the base, whatever else it changed, write nothing and wake only a stored pull request's head by the same rule; the worker reads the title live.
@@ -138,15 +138,19 @@ webhook events (`packages/github/src/webhook/events.ts`):
   bounded read of the reviewer's repository permission answers `write` or
   `admin`. Then it triggers a generation so the delta from that checkpoint can
   be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
+- `check_run` (`completed`, or `created` already finished) and `status`
+  (every state): wake the open pull requests in the repository whose current head is that commit, through persistence's `recheckHeadsAtSha`, which decides which heads it moves and queues their checks about a minute out, once per burst of reports. A fork pull request's run names no pull request and a status never does, so the commit SHA finds them. Nothing else is written.
 - `installation` (`deleted`) purges every row of that Installation;
   `installation_repositories` (`removed`) purges the removed repositories.
+- `github_app_authorization` (`revoked`) deletes that user's sessions, API
+  tokens and stored GitHub credentials.
 
 The webhook route (`apps/api/src/routes/webhook.ts`) verifies the HMAC over the
 raw body before parsing anything, takes the Installation from the signed
 payload, upserts and enqueues, and answers 200 without calling GitHub or a
 model. Redelivery is idempotent through natural-key upserts and the job key,
-and a pull request or review signature the route processed in the last 72
-hours is skipped.
+and a pull request, review, check run or status signature the route processed
+in the last 72 hours is skipped.
 
 **The Entry comment.** One branded comment per pull request carries the deep
 link to the Brief. On each settled head the worker deletes its previous comment

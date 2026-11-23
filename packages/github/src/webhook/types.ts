@@ -7,6 +7,17 @@ export type GitHubAppAuthorizationAction = ValueOf<
   typeof GitHubAppAuthorizationActions
 >;
 
+/**
+ * A run starting or finishing; a rerun request changes no run until GitHub
+ * creates one. A run created unfinished is ignored: queued or in progress, it
+ * meets no condition, and its completion wakes the head.
+ */
+export const CheckRunActions = {
+  CREATED: "created",
+  COMPLETED: "completed",
+} as const;
+export type CheckRunAction = ValueOf<typeof CheckRunActions>;
+
 /** GitHub's `author_association` values, in GitHub's own casing. */
 export const AuthorAssociations = {
   OWNER: "OWNER",

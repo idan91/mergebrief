@@ -9,10 +9,16 @@ import {
   isGrantRowId,
   isReviewerId,
   MAX_GENERATION_ATTEMPTS,
+  isRepoId,
+  parseScopeContext,
+  parseTenantContext,
   parseUnmetConditions,
   TriggerOnDemandOutcomes,
+  type RepoId,
+  type ScopeContext,
 } from "../src/index";
 import { claimTestRun, failTestRun, succeedTestRun } from "../src/testing";
+import { STATUS_CHECK_RECHECK_DELAY_SECONDS } from "../src/stores/ingest";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -700,5 +706,292 @@ describe("a claim on a failure a rerun cannot help", () => {
     const runId = await claimTestRun(gen, target);
 
     expect((await gen.get(target))?.runId).toBe(runId);
+  });
+});
+
+describe("recheckHeadsAtSha", () => {
+  const OTHER_CTX = parseTenantContext({ installationId: 101n });
+  const OTHER_REPO_ID = brandWith(isRepoId, 201n);
+  const NEXT_HEAD_SHA = "5f0c6a2b9d1e4c3a8b7f6e5d4c3b2a1908f7e6d5";
+
+  const UNMET_CI: readonly UnmetCondition[] = [
+    {
+      kind: "ci",
+      setBy: "repo",
+      failed: [],
+      running: ["build"],
+      missing: [],
+      permissionMissing: false,
+    },
+  ];
+
+  interface HeldSeed {
+    readonly ctx?: ScopeContext;
+    readonly repoId?: RepoId;
+    readonly prNumber?: number;
+    readonly unmet?: readonly UnmetCondition[];
+  }
+
+  async function seedHeldAt(seed: HeldSeed = {}) {
+    const ctx = seed.ctx ?? GATE_CTX;
+    const triggered = await createIngestRoutines(
+      shared.handle,
+      ctx,
+    ).triggerGeneration({
+      pullRequest: {
+        repoId: seed.repoId ?? GATE_REPO_ID,
+        prNumber: seed.prNumber ?? 7,
+        state: PrStates.OPEN,
+      },
+      headSha: GATE_HEAD_SHA,
+      debounceSeconds: 0,
+    });
+    const pullRequestId = triggered.pullRequest.id;
+    const held = await createGenerationProjection(shared.handle, ctx).markHeld(
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+      seed.unmet ?? UNMET_CI,
+    );
+    expect(held.ok).toBe(true);
+    return pullRequestId;
+  }
+
+  async function clearQueue() {
+    await shared.harness.raw("delete from graphile_worker.jobs");
+  }
+
+  function recheckAtSha(ctx: ScopeContext = GATE_CTX, headSha = GATE_HEAD_SHA) {
+    return createIngestRoutines(shared.handle, ctx).recheckHeadsAtSha({
+      repoId: GATE_REPO_ID,
+      headSha,
+    });
+  }
+
+  it("queues each open PR whose current head is the held SHA", async () => {
+    const first = await seedHeldAt();
+    const second = await seedHeldAt({ prNumber: 8 });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([first, second]);
+    expect(await countQueuedJobs(shared)).toBe(2);
+    const row = await createGenerationProjection(shared.handle, GATE_CTX).get(
+      makeBriefTarget(first, GATE_HEAD_SHA),
+    );
+    expect(row?.status).toBe(GenerationStatuses.HELD);
+  });
+
+  it("queues a status check's wake a CI burst's debounce out", async () => {
+    await seedHeldAt();
+    await clearQueue();
+
+    await recheckAtSha();
+
+    const rows = await shared.harness.raw(
+      "select extract(epoch from run_at - now())::int as delay from graphile_worker.jobs",
+    );
+    expect(Number(rows[0]?.["delay"])).toBe(STATUS_CHECK_RECHECK_DELAY_SECONDS);
+  });
+
+  it("leaves a head held on no bots or ci item asleep", async () => {
+    await seedHeldAt({ unmet: UNMET });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("wakes a head whose stored list holds an item this build cannot read", async () => {
+    const pullRequestId = await seedHeldAt({
+      unmet: [{ kind: "labels", setBy: "repo", labels: ["needs-brief"] }],
+    });
+    await shared.harness.raw(
+      `update generation set unmet_conditions = '[{"kind":"deploy-window","setBy":"repo"},{"kind":"labels","setBy":"repo","labels":["needs-brief"]}]'`,
+    );
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([pullRequestId]);
+  });
+
+  it("leaves a final failure's locked job at the SHA alone", async () => {
+    const pullRequestId = await seedHeldAt();
+    const gen = createGenerationProjection(shared.handle, GATE_CTX);
+    await failTestRun(gen, makeBriefTarget(pullRequestId, GATE_HEAD_SHA), {
+      code: GenerationFailureCodes.GITHUB_ACCESS,
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("rechecks a head held on labels while its job is locked", async () => {
+    const pullRequestId = await seedHeldAt({
+      unmet: [{ kind: "labels", setBy: "repo", labels: ["needs-brief"] }],
+    });
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([pullRequestId]);
+    expect(await countQueuedJobs(shared)).toBe(2);
+  });
+
+  it("wakes a head whose any group holds a ci member", async () => {
+    const [ci] = UNMET_CI;
+    if (ci === undefined || ci.kind === "any") {
+      throw new Error("expected a plain ci item");
+    }
+    const unmet: readonly UnmetCondition[] = [
+      { kind: "any", conditions: [ci, { kind: "never", setBy: "repo" }] },
+    ];
+    const pullRequestId = await seedHeldAt({ unmet });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([pullRequestId]);
+  });
+
+  it("never wakes another installation's PR at the same SHA", async () => {
+    await seedHeldAt({ ctx: OTHER_CTX });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("wakes only the caller's installation when both hold the SHA", async () => {
+    const own = await seedHeldAt();
+    await seedHeldAt({ ctx: OTHER_CTX });
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([own]);
+    expect(await countQueuedJobs(shared)).toBe(1);
+  });
+
+  it("never wakes a PR in another repository at the same SHA", async () => {
+    await seedHeldAt({ repoId: OTHER_REPO_ID });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("leaves a pending head at the SHA with no job alone", async () => {
+    await trigger();
+    await clearQueue();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("keeps a waiting generate-large job at the SHA as it is", async () => {
+    await seedHeldAt();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set task_identifier = 'generate-large', run_at = now() + interval '1 hour'",
+    );
+    const readJobs = () =>
+      shared.harness.raw(
+        "select id, task_identifier, run_at from graphile_worker.jobs",
+      );
+    const before = await readJobs();
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([]);
+    expect(await readJobs()).toEqual(before);
+  });
+
+  it("queues a fresh job beside a failed head's locked job at the SHA", async () => {
+    const triggered = await trigger();
+    const pullRequestId = triggered.pullRequest.id;
+    await failTestRun(
+      createGenerationProjection(shared.handle, GATE_CTX),
+      makeBriefTarget(pullRequestId, GATE_HEAD_SHA),
+      { code: GenerationFailureCodes.PROVIDER_TIMEOUT },
+    );
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    const outcome = await recheckAtSha();
+
+    expect(outcome.rechecked).toEqual([pullRequestId]);
+    expect(await countQueuedJobs(shared)).toBe(2);
+  });
+
+  it("queues a fresh job beside a pending head's locked job", async () => {
+    const triggered = await trigger();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now()",
+    );
+
+    await recheckAtSha();
+
+    const keys = await shared.harness.raw(
+      "select key from graphile_worker.jobs order by id",
+    );
+    expect(keys.map((job) => job["key"])).toEqual([
+      null,
+      `generate:${triggered.pullRequest.id}`,
+    ]);
+  });
+
+  it("queues nothing for a head at the SHA a run has claimed", async () => {
+    const triggered = await trigger();
+    await claimTestRun(
+      createGenerationProjection(shared.handle, GATE_CTX),
+      makeBriefTarget(triggered.pullRequest.id, GATE_HEAD_SHA),
+    );
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing for a closed PR whose head is held", async () => {
+    await seedHeldAt();
+    await createIngestRoutines(shared.handle, GATE_CTX).recordState({
+      repoId: GATE_REPO_ID,
+      prNumber: 7,
+      state: PrStates.CLOSED,
+      closedAt: new Date(),
+    });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing for a held SHA the PR has pushed past", async () => {
+    await seedHeldAt();
+    await createIngestRoutines(shared.handle, GATE_CTX).triggerGeneration({
+      pullRequest: { repoId: GATE_REPO_ID, prNumber: 7, state: PrStates.OPEN },
+      headSha: NEXT_HEAD_SHA,
+      debounceSeconds: 0,
+    });
+    await clearQueue();
+
+    expect((await recheckAtSha()).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
+  });
+
+  it("queues nothing in the url-box owner world", async () => {
+    await seedHeldAt();
+    await clearQueue();
+
+    const ownerCtx = parseScopeContext({ ownerUserId: GATE_REVIEWER });
+
+    expect((await recheckAtSha(ownerCtx)).rechecked).toEqual([]);
+    expect(await countQueuedJobs(shared)).toBe(0);
   });
 });

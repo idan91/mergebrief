@@ -19,6 +19,7 @@ import {
 } from "../src/webhook/events";
 import {
   AuthorAssociations,
+  CheckRunActions,
   GitHubAppAuthorizationActions,
 } from "../src/webhook/types";
 import type { Result } from "types/utils";
@@ -965,6 +966,136 @@ describe("parseWebhookEvent, github_app_authorization", () => {
         eventName: "github_app_authorization",
         payload: { action: "revoked", sender: { login: "octocat" } },
       }),
+    );
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
+  });
+});
+
+/** A fixture with its `check_run` object mutated in a copy. */
+function makeCheckRunFixture(
+  patch: (checkRun: Record<string, unknown>) => void,
+): unknown {
+  const fixture = jsonFixture("check_run.completed.json");
+  if (!isRecord(fixture) || !isRecord(fixture["check_run"])) {
+    throw new Error("fixture shape changed");
+  }
+  const checkRun = { ...fixture["check_run"] };
+  patch(checkRun);
+  return { ...fixture, check_run: checkRun };
+}
+
+function parseCheckRunEvent(payload: unknown): ParsedWebhookEvent {
+  return expectOk(parseWebhookEvent({ eventName: "check_run", payload }));
+}
+
+describe("parseWebhookEvent, check_run", () => {
+  it("parses completed with the installation, repository and head SHA", () => {
+    const event = parseCheckRunEvent(jsonFixture("check_run.completed.json"));
+    if (event.kind !== ParsedWebhookEventKinds.CHECK_RUN) {
+      throw new Error(`expected check-run, got ${event.kind}`);
+    }
+    expect(event).toEqual({
+      kind: ParsedWebhookEventKinds.CHECK_RUN,
+      action: CheckRunActions.COMPLETED,
+      installationId: 987654n,
+      repoId: 186853002n,
+      repoOwnerId: 21031067n,
+      repoFullName: "Codertocat/Hello-World",
+      headSha: "ec26c3e57ca3a959ca5aad62de7213c562f8c821",
+    });
+  });
+
+  it("parses created when the run arrived finished", () => {
+    const fixture = jsonFixture("check_run.completed.json");
+    const payload = isRecord(fixture) ? { ...fixture, action: "created" } : {};
+    const event = parseCheckRunEvent(payload);
+    expect(
+      event.kind === ParsedWebhookEventKinds.CHECK_RUN && event.action,
+    ).toBe(CheckRunActions.CREATED);
+  });
+
+  it.each(["queued", "in_progress"])(
+    "ignores created while the run is %s, which meets nothing",
+    (status) => {
+      const patched = makeCheckRunFixture((checkRun) => {
+        checkRun["status"] = status;
+      });
+      const payload = isRecord(patched)
+        ? { ...patched, action: "created" }
+        : {};
+      expect(parseCheckRunEvent(payload).kind).toBe(
+        ParsedWebhookEventKinds.IGNORED,
+      );
+    },
+  );
+
+  it("parses a fork PR's run, which names no pull request", () => {
+    const payload = makeCheckRunFixture((checkRun) => {
+      checkRun["pull_requests"] = [];
+    });
+    const event = parseCheckRunEvent(payload);
+    expect(
+      event.kind === ParsedWebhookEventKinds.CHECK_RUN && event.headSha,
+    ).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
+  });
+
+  it.each(["rerequested", "requested_action"])(
+    "ignores the %s action, which changes no run",
+    (action) => {
+      const fixture = jsonFixture("check_run.completed.json");
+      const payload = isRecord(fixture) ? { ...fixture, action } : {};
+      expect(parseCheckRunEvent(payload).kind).toBe(
+        ParsedWebhookEventKinds.IGNORED,
+      );
+    },
+  );
+
+  it("errors on a run without a head SHA", () => {
+    const payload = makeCheckRunFixture((checkRun) => {
+      delete checkRun["head_sha"];
+    });
+    const error = expectErr(
+      parseWebhookEvent({ eventName: "check_run", payload }),
+    );
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
+  });
+});
+
+describe("parseWebhookEvent, status", () => {
+  it("parses a status with the installation, repository and SHA", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "status",
+        payload: jsonFixture("status.json"),
+      }),
+    );
+    expect(event).toEqual({
+      kind: ParsedWebhookEventKinds.STATUS,
+      installationId: 987654n,
+      repoId: 186853002n,
+      repoOwnerId: 21031067n,
+      repoFullName: "Codertocat/Hello-World",
+      headSha: "ec26c3e57ca3a959ca5aad62de7213c562f8c821",
+    });
+  });
+
+  it.each(["pending", "success", "failure", "error"])(
+    "parses a %s status",
+    (state) => {
+      const fixture = jsonFixture("status.json");
+      const payload = isRecord(fixture) ? { ...fixture, state } : {};
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "status", payload }),
+      );
+      expect(event.kind).toBe(ParsedWebhookEventKinds.STATUS);
+    },
+  );
+
+  it("errors on a status without an installation", () => {
+    const fixture = jsonFixture("status.json");
+    const payload = isRecord(fixture) ? { ...fixture, installation: null } : {};
+    const error = expectErr(
+      parseWebhookEvent({ eventName: "status", payload }),
     );
     expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
   });

@@ -15,3 +15,6 @@ export const RepositoryVisibilities = {
   INTERNAL: "internal",
 } as const;
 export type RepositoryVisibility = ValueOf<typeof RepositoryVisibilities>;
+
+/** A check run's `status` once it has finished, whatever its conclusion. */
+export const CHECK_RUN_COMPLETED_STATUS = "completed";

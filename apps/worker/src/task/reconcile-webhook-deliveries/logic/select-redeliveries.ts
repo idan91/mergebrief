@@ -21,6 +21,19 @@ const ROW_WRITING_EVENTS: ReadonlySet<string> = new Set([
   "pull_request_review",
 ]);
 
+/**
+ * A replay of one of these only wakes a head to check it again, and they
+ * come by the dozen per push, so they resend after every other due delivery.
+ */
+const RECHECK_ONLY_EVENTS: ReadonlySet<string> = new Set([
+  "check_run",
+  "status",
+]);
+
+export function isRecheckOnly({ event }: HookDelivery): boolean {
+  return RECHECK_ONLY_EVENTS.has(event);
+}
+
 function isSuccess({ statusCode }: HookDelivery): boolean {
   const succeeded = statusCode >= SUCCESS_MIN && statusCode <= SUCCESS_MAX;
   return succeeded;
@@ -105,7 +118,10 @@ function readDueOriginal(
   return expired || waiting ? undefined : original;
 }
 
-/** The failed deliveries to resend now, oldest first. Takes no state beyond GitHub's log. */
+/**
+ * The failed deliveries to resend now, oldest first, wake-only ones after
+ * the rest. Takes no state beyond GitHub's log.
+ */
 export function selectRedeliveries(
   deliveries: readonly HookDelivery[],
   now: Date,
@@ -126,5 +142,9 @@ export function selectRedeliveries(
       due.push(original);
     }
   }
-  return due.slice(0, MAX_REDELIVERIES_PER_TICK);
+  const ordered = [
+    ...due.filter((delivery) => !isRecheckOnly(delivery)),
+    ...due.filter(isRecheckOnly),
+  ];
+  return ordered.slice(0, MAX_REDELIVERIES_PER_TICK);
 }

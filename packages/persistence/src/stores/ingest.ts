@@ -6,8 +6,9 @@
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a head a live run holds is neither reset nor re-enqueued.
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { traceStore } from "./trace-store";
+import { isHeldOnStatusChecks } from "./unmet-conditions";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -65,6 +66,7 @@ import {
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
+  type RepoId,
   type TriggerOnDemandOutcome,
   type ReviewerId,
   type UncoveredWork,
@@ -73,6 +75,12 @@ import {
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 /** How far out a Generate or Regenerate click queues the head's job. */
 export const TRIGGER_ON_DEMAND_DELAY_SECONDS = 10;
+/**
+ * How far out a status check queues a held head's re-check. A CI run reports
+ * by the dozen, and a waiting job keeps its first `run_at`, so a burst inside
+ * this window collapses into one re-check.
+ */
+export const STATUS_CHECK_RECHECK_DELAY_SECONDS = 45;
 
 /**
  * A head a live read stamped, cleared when this newer event reports another:
@@ -265,11 +273,10 @@ function isRetriedFailure(row: GenerationRow): boolean {
  * a pending one only while its run is in flight, and a failed one only while
  * a retry of a failure that may still clear is in flight.
  */
-async function isRecheckOwed(
-  tx: IngestTransaction,
-  pullRequestId: PullRequestRowId,
+function isRecheckOwed(
+  job: QueueJobState | undefined,
   row: GenerationRow,
-): Promise<boolean> {
+): boolean {
   const { status } = row;
   if (!RECHECKED_STATUSES.has(status)) {
     return false;
@@ -279,7 +286,6 @@ async function isRecheckOwed(
   if (finalFailure) {
     return false;
   }
-  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
   if (isJobWaiting(job)) {
     return false;
   }
@@ -315,6 +321,91 @@ async function lockPullRequestRow(
     .limit(1)
     .for("update");
   return rows[0];
+}
+
+/** Which head a wake re-checks and how far out its job runs. */
+interface HeadRecheck {
+  readonly pullRequestId: PullRequestRowId;
+  /** Only while this is the PR's current head; absent wakes whatever is. */
+  readonly headSha?: string;
+  readonly delaySeconds: number;
+  /** A status check's recheck: a held head no run holds wakes only while a `bots` or `ci` item holds it. */
+  readonly requiresStatusCheckHold: boolean;
+}
+
+/**
+ * Queues the job of an open PR whose current head the wake rule names, read
+ * under the PR's row lock; with `headSha`, only while that is the current
+ * head.
+ */
+async function recheckLockedHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  recheck: HeadRecheck,
+): Promise<boolean> {
+  const { pullRequestId, headSha } = recheck;
+  const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+  if (prRow?.state !== PrStates.OPEN) {
+    return false;
+  }
+  const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+  if (head === undefined) {
+    return false;
+  }
+  const headMoved = headSha !== undefined && head.row.headSha !== headSha;
+  if (headMoved) {
+    return false;
+  }
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  if (!isRecheckOwed(job, head.row)) {
+    return false;
+  }
+  const jobLocked = job?.locked === true;
+  const statusCheckCannotMove =
+    recheck.requiresStatusCheckHold &&
+    !jobLocked &&
+    !isHeldOnStatusChecks(head.row.unmetConditions);
+  if (statusCheckCannotMove) {
+    return false;
+  }
+
+  await enqueueGenerateJob(
+    tx,
+    scope,
+    { headSha: head.row.headSha },
+    pullRequestId,
+    recheck.delaySeconds,
+  );
+  return true;
+}
+
+/**
+ * The scope's open PRs in the repository with a brief row at the SHA the wake
+ * may name, in id order, the order their row locks are taken in. Unlocked:
+ * the wake reads each one again under its lock.
+ */
+async function listRecheckCandidates(
+  tx: IngestTransaction,
+  scope: RowScope,
+  input: RecheckHeadsAtShaInput,
+): Promise<PullRequestRowId[]> {
+  const rows = await tx
+    .selectDistinct({ id: pullRequest.id })
+    .from(pullRequest)
+    .innerJoin(generation, eq(generation.pullRequestId, pullRequest.id))
+    .where(
+      and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.repoId, input.repoId),
+        eq(pullRequest.state, PrStates.OPEN),
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, input.headSha),
+        inArray(generation.status, [...RECHECKED_STATUSES]),
+      ),
+    )
+    .orderBy(pullRequest.id);
+  return rows.map((row) => row.id);
 }
 
 /**
@@ -605,6 +696,19 @@ export interface IngestRoutines {
    */
   recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
   /**
+   * `recheckCurrentHead` for every open PR in the repository whose current head
+   * is the SHA, by the same rule, for a status check that names a commit and no
+   * PR; a held head no run holds wakes only while a `bots` or `ci` item holds
+   * it, the only kinds a report can move. Each PR is locked in id order and
+   * read again under its lock; a head the PR has pushed past, another
+   * repository's or installation's PR and an owner scope queue nothing. The job
+   * runs `STATUS_CHECK_RECHECK_DELAY_SECONDS` out, so a CI run's burst of
+   * reports collapses into one re-check.
+   */
+  recheckHeadsAtSha(
+    input: RecheckHeadsAtShaInput,
+  ): Promise<RecheckHeadsOutcome>;
+  /**
    * A pusher's fresh run of the PR's current head, claims reset and the job
    * queued a few seconds out over a waiting one (a locked job's key detaches,
    * as on a push). A held head is released to `pending` with its conditions
@@ -657,6 +761,16 @@ export interface ReleaseApprovedHoldInput {
 
 export interface RecheckCurrentHeadInput {
   readonly pullRequestId: PullRequestRowId;
+}
+
+export interface RecheckHeadsAtShaInput {
+  readonly repoId: RepoId;
+  readonly headSha: string;
+}
+
+export interface RecheckHeadsOutcome {
+  /** The PRs whose head at the SHA got a recheck job queued, in id order. */
+  readonly rechecked: readonly PullRequestRowId[];
 }
 
 export interface RequeueOutcome {
@@ -966,27 +1080,35 @@ export function createIngestRoutines(
       }
 
       return db.transaction(async (tx) => {
-        const { pullRequestId } = input;
-        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
-        if (prRow?.state !== PrStates.OPEN) {
-          return { queued: false };
-        }
-        const head = await readCurrentBriefHead(tx, scope, pullRequestId);
-        const owed =
-          head !== undefined &&
-          (await isRecheckOwed(tx, pullRequestId, head.row));
-        if (!owed) {
-          return { queued: false };
-        }
+        const queued = await recheckLockedHead(tx, scope, {
+          pullRequestId: input.pullRequestId,
+          delaySeconds: TRIGGER_ON_DEMAND_DELAY_SECONDS,
+          requiresStatusCheckHold: false,
+        });
+        return { queued };
+      });
+    },
 
-        await enqueueGenerateJob(
-          tx,
-          scope,
-          { headSha: head.row.headSha },
-          pullRequestId,
-          TRIGGER_ON_DEMAND_DELAY_SECONDS,
-        );
-        return { queued: true };
+    async recheckHeadsAtSha(input) {
+      if (scope.ownerUserId !== null) {
+        return { rechecked: [] };
+      }
+
+      return db.transaction(async (tx) => {
+        const candidates = await listRecheckCandidates(tx, scope, input);
+        const rechecked: PullRequestRowId[] = [];
+        for (const pullRequestId of candidates) {
+          const queued = await recheckLockedHead(tx, scope, {
+            pullRequestId,
+            headSha: input.headSha,
+            delaySeconds: STATUS_CHECK_RECHECK_DELAY_SECONDS,
+            requiresStatusCheckHold: true,
+          });
+          if (queued) {
+            rechecked.push(pullRequestId);
+          }
+        }
+        return { rechecked };
       });
     },
 
