@@ -18,6 +18,7 @@ import {
   parseServerVersion,
   type ResolveDsnOptions,
 } from "persistence";
+import type { TriggerConditionsBlock } from "generators/trigger-conditions";
 import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
@@ -62,6 +63,8 @@ export interface WorkerConfig {
   readonly trackers: readonly TrackerConfig[];
   /** Whether issue references resolve beyond the PR's repo and its `issuesRepo`; off by default. */
   readonly siblingRepos: boolean;
+  /** The instance's trigger conditions; a repo's settings merge over them per kind. Absent: none. */
+  readonly triggerConditions: TriggerConditionsBlock | undefined;
   /** What the generic link fetcher may read; public when the block is absent. */
   readonly linkFetch: LinkFetchPolicy;
   /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
@@ -259,6 +262,7 @@ export function loadConfig(
       contextSources: generatorConfig.value.contextSources,
       trackers: generatorConfig.value.trackers,
       siblingRepos: generatorConfig.value.siblingRepos,
+      triggerConditions: generatorConfig.value.triggerConditions,
       linkFetch: generatorConfig.value.linkFetch,
       serverVersion: knobs.value.serverVersion,
       revisionNarrative: {

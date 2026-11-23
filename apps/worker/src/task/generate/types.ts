@@ -20,6 +20,7 @@ import type {
   Generator,
   SpendPolicy,
 } from "generators";
+import type { TriggerConditionsBlock } from "generators/trigger-conditions";
 import type { TFunction } from "i18next";
 import type { Logger } from "logging";
 import type {
@@ -94,6 +95,10 @@ export interface GenerateTaskDeps {
   readonly jiraTransport?: JiraTransport;
   /** The instance's `siblingRepos`; absent means off: an installation job reads its own repo and `issuesRepo` only. */
   readonly siblingRepos?: boolean;
+  /** Pauses before each in-run retry of a transient `settings.yaml` read; absent means `SETTINGS_READ_RETRY_DELAYS_MS`. */
+  readonly settingsReadRetryDelaysMs?: readonly number[];
+  /** The instance's trigger conditions; absent means none, so only a repo's own hold a push. */
+  readonly triggerConditions?: TriggerConditionsBlock | undefined;
   /** The revision-narrative gate main.ts read; absent means enabled. */
   readonly revisionNarrative?: RevisionNarrativeConfig;
   /** The huge-span ratio main.ts read; absent means the default. */
@@ -572,6 +577,24 @@ export interface AwaitingTriggerRun {
 }
 
 export type AuthorGateOutcome = ProceedingRun | AwaitingTriggerRun;
+
+export const ConditionCheckKinds = {
+  PROCEED: "proceed",
+  /** A trigger condition is unmet, or the hold stood down; the run ends here. */
+  HELD: "held",
+} as const;
+
+/** Every condition passed; the run carries any config the check read. */
+export interface ConditionsMetRun {
+  readonly kind: typeof ConditionCheckKinds.PROCEED;
+  readonly repoConfig: AcquiredRepoConfig | undefined;
+}
+
+export interface ConditionsHeldRun {
+  readonly kind: typeof ConditionCheckKinds.HELD;
+}
+
+export type ConditionCheckOutcome = ConditionsMetRun | ConditionsHeldRun;
 
 export type GeneratingRun = FreshRun | StoredBriefRun;
 export type RunDecision = GeneratingRun | CappedRun | StandDownRun;

@@ -23,6 +23,7 @@ const MAPPING_KEYS = new Set([
   "timeouts",
   "spend",
   "drafts",
+  "triggerConditions",
   "trackers",
   "contextSources",
   "retention",

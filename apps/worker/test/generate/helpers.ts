@@ -14,6 +14,7 @@ import {
   parseTenantContext,
   type GenerationTarget,
   type GrantRowId,
+  type InstallationId,
   type KeyProvider,
   type PullRequestRow,
   type PullRequestRowId,
@@ -34,6 +35,7 @@ import {
   type Generator,
 } from "generators";
 import { createI18n } from "i18n";
+import { RepoConfigPaths } from "repo-config";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
 import {
@@ -62,6 +64,7 @@ import {
 import { buildEntryCommentCappedBody } from "../../src/task/entry-comment";
 import type { EntryCommentLink } from "../../src/task/entry-comment/types";
 import { RunPools, type GenerateTask } from "../../src/task/generate/types";
+import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
 import {
   openPerTestPglite,
   registerSharedPglite,
@@ -792,13 +795,51 @@ export async function seedViewerGrant(
 /** Wraps each repo client the task binds as the installation: an interleaving the fake cannot arrange. */
 export function interceptInstallationRepo(
   github: FakeGitHub,
-  wrap: (client: InstallationRepoClient) => InstallationRepoClient,
+  wrap: (
+    client: InstallationRepoClient,
+    repo: RepositoryRef,
+    installationId: InstallationId,
+  ) => InstallationRepoClient,
 ): void {
   const bind = github.bindInstallationGitHub.bind(github);
   github.bindInstallationGitHub = (installationId) => {
     const bound = bind(installationId);
-    return { ...bound, forRepo: (repo) => wrap(bound.forRepo(repo)) };
+    return {
+      ...bound,
+      forRepo: (repo) => wrap(bound.forRepo(repo), repo, installationId),
+    };
   };
+}
+
+export interface ReadCount {
+  count: number;
+}
+
+/** The first `settings.yaml` read answers as `failing` does; later reads as `github`. */
+export function failFirstSettingsRead(
+  github: FakeGitHub,
+  failing: FakeGitHub,
+): ReadCount {
+  const reads: ReadCount = { count: 0 };
+  interceptInstallationRepo(github, (client, repo, installationId) => {
+    const failingClient = failing
+      .bindInstallationGitHub(installationId)
+      .forRepo(repo);
+    return {
+      ...client,
+      fetchRepoFile(input) {
+        if (input.path !== RepoConfigPaths.SETTINGS) {
+          return client.fetchRepoFile(input);
+        }
+        reads.count += 1;
+        if (reads.count === 1) {
+          return failingClient.fetchRepoFile(input);
+        }
+        return client.fetchRepoFile(input);
+      },
+    };
+  });
+  return reads;
 }
 
 /** As `interceptInstallationRepo`, for the viewer's binding on a url-box job. */
@@ -1015,6 +1056,19 @@ export function buildRepoFile(
   };
 }
 
+export function addSettings(
+  github: FakeGitHub,
+  content: string,
+  ref?: string,
+): void {
+  const file = buildRepoFile(content, "sha-settings");
+  if (ref === undefined) {
+    github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS }, file);
+    return;
+  }
+  github.addRepoFile(REPO, { path: RepoConfigPaths.SETTINGS, ref }, file);
+}
+
 export interface CapturedLogger {
   logger: Logger;
   readLines: () => Array<Record<string, unknown>>;
@@ -1085,16 +1139,21 @@ export interface TriggerOptions {
   readonly requiresTriggerApproval?: boolean;
   /** A push carries this; a trigger without it can't move the PR to a head it left. */
   readonly githubUpdatedAt?: Date;
+  readonly prNumber?: number;
 }
 
 /** Enqueue via the REAL ingest boundary and return {pr row, job payload}. */
 export async function trigger(
   headSha: string,
-  { githubUpdatedAt, ...options }: TriggerOptions = {},
+  {
+    githubUpdatedAt,
+    prNumber = PR_REF.prNumber,
+    ...options
+  }: TriggerOptions = {},
 ): Promise<TriggeredJob> {
   const pullRequest: Mutable<PullRequestUpsertInput> = {
     repoId: makeRepoId(7n),
-    prNumber: 7,
+    prNumber,
     repoSlug: "acme/widget",
     state: PrStates.OPEN,
   };
@@ -1169,6 +1228,8 @@ export interface TaskOverrides extends Omit<
   readonly operatorToken?: OwnedOperatorToken;
 }
 
+const NO_SETTINGS_READ_PAUSES = SETTINGS_READ_RETRY_DELAYS_MS.map(() => 0);
+
 function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
   const { github = makeGitHub(HEAD_1), operatorToken, ...rest } = overrides;
   return {
@@ -1177,6 +1238,7 @@ function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
     translate: createI18n().t,
     generator: stubGenerator(),
     contextProviders: createBuiltInContextProviders(DEFAULT_LINK_FETCH),
+    settingsReadRetryDelaysMs: NO_SETTINGS_READ_PAUSES,
     ...rest,
     github: openTestPort(github, operatorToken),
   };

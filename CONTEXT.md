@@ -220,7 +220,7 @@ A **URL** pull request GitHub no longer shows to this reviewer. The row and its 
 _Avoid_: stale (means newer commits exist)
 
 **Trigger**:
-What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint** when they hold one. No compute-on-first-click gate for a **Trusted author**: spend is bounded by the debounce and the **Daily cap**, not by withholding compute. Any other author's PR waits for a **Trigger approval**.
+What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint** when they hold one. No compute-on-first-click gate for a **Trusted author**: spend is bounded by the debounce and the **Daily cap**, not by withholding compute, unless a **Trigger condition** holds it. Any other author's PR waits for a **Trigger approval**.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
@@ -228,7 +228,7 @@ How a human reaches a computed **Brief**: one branded PR comment carrying a deep
 _Avoid_: activation (as "the click"), deep-link gate, draft-first (the former name for the opt-out, which was described as an opt-in)
 
 **Generation**:
-The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts, with the parts a large one claims, are what the **Daily cap** counts. A running Generation belongs to its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
+The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, **Held**, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts, with the parts a large one claims, are what the **Daily cap** counts. A running Generation belongs to its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
 _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
 
 **Trusted author**:
@@ -242,6 +242,18 @@ _Avoid_: blocked, gated (as a status name), pending approval
 **Trigger approval**:
 A collaborator's one-time go-ahead for a PR whose author is not a **Trusted author**. It records who approved and when, never moves once given, and from then on every push on that PR is a **Trigger** as usual.
 _Avoid_: authorization, consent
+
+**Trigger condition**:
+A configured rule a push must meet before it triggers a **Brief**: ready for review, size, a review bot's verdict, a requested review, required CI, paths, labels, title keywords, base branch, or never. Set under `triggerConditions:` in the **Instance config** and the **Repo config**'s `settings.yaml`, merged per kind with the repository's kind winning. Every condition must pass, unless it sits in an **Any group**. With none configured, every push behaves as before.
+_Avoid_: gate, rule (alone)
+
+**Held**:
+A **Generation** a **Trigger condition** keeps from computing. It generates by itself once every condition passes, or now on a Generate click; nothing ran and no attempt was spent. Distinct from **Awaiting trigger**, which never computes without a click.
+_Avoid_: waiting (collides with the pending job's wait reasons), blocked, paused
+
+**Any group**:
+The one `any:` group under `triggerConditions:`, where one passing condition is enough. One level, any kind but never, at least two kinds per file.
+_Avoid_: OR rule, either-or
 
 **Claim**:
 The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles an unclaimed Generation as succeeded without one.
