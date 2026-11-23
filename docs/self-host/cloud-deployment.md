@@ -1,15 +1,8 @@
 # Cloud deployment: Hetzner and EC2
 
-This guide deploys a pinned MergeBrief release image on a VM with a real
-domain. It describes deployment; it does not provision resources. Provider
-documentation was checked on 2026-11-01. Commands below are for a
-fresh Ubuntu 24.04 LTS VM. Replace example domains and placeholders before
-running them. No example contains working credentials.
+This guide runs a pinned MergeBrief release on a fresh Ubuntu 24.04 LTS VM with a real domain, from creating the VM to a brief on a real pull request. Replace `brief.example.com` and every `<placeholder>` before you run a command.
 
-Compose is the supported application deployment. The Hetzner tracks have been
-run end to end, the external-database one on Neon. The Supabase variant and the
-EC2 tracks follow the providers' documentation and have not been run end to end
-yet.
+The Hetzner tracks have been run end to end, the external-database one on Neon. The Supabase variant and the EC2 tracks follow the providers' documentation and have not been run end to end yet.
 
 ## Choose the deployment
 
@@ -21,15 +14,9 @@ yet.
 | E2 | EC2, Compose | Private RDS PostgreSQL | AWS private networking and managed DB |
 | E3 | EC2, Compose | Neon or Supabase | Cross-provider managed DB |
 
-Start each track with a fresh database and a separate hostname/GitHub App.
-Do not point two instances at the same database: their workers
-would consume the same jobs. Changing DATABASE_URL does not copy existing
-data. Moving an existing deployment requires backup, quiescing writers and
-restore; see [operations](operations.md).
+Give each instance its own database, hostname and GitHub App. Two instances on one database would consume the same jobs. Changing `DATABASE_URL` copies no data; moving a deployment is a backup and restore ([operations.md](operations.md#restore)).
 
-Start a VM at 2 vCPU and 4 GB RAM with at least 40 GB SSD. This is an initial
-sizing hypothesis, not a measured minimum. Keep one API and worker initially.
-The worker has two generation slots by default, one ordinary and one large.
+Start the VM at 2 vCPU, 4 GB RAM and 40 GB SSD, with one api and one worker. That is a starting point, not a measured minimum.
 
 ## 1. Provision the VM
 
@@ -161,8 +148,7 @@ alone does not establish this. Continue with section 2.
 
 ### EC2: E1, E2 or E3
 
-These steps follow AWS's documentation as of 2026-11-04 and have not been run
-end to end yet. Console wording moves, so where a label differs, pick the nearest one.
+These steps follow AWS's documentation and have not been run end to end yet. Console wording moves, so where a label differs, pick the nearest one.
 
 In the [EC2 console](https://console.aws.amazon.com/ec2/), select your region at
 the top right, then click **Launch instance**:
@@ -298,9 +284,9 @@ Contributors testing unpublished changes build from source instead: see the
 
 ## 4. Configure GitHub, sessions and model access
 
-Edit `.env` locally on the VM with your editor. Never paste secrets into
-issues, logs or shell command arguments. Populate these variables from
-[GitHub App setup](github-app.md):
+Register the GitHub App with `https://brief.example.com` as its origin, following [github-app.md](github-app.md) through [Install the App](github-app.md#install-the-app). Install it on a test repository. Leave **Active** checked under **Webhook**: deliveries fail until section 6, where you redeliver one.
+
+Edit `.env` on the VM with your editor. Never paste secrets into issues, logs or shell command arguments. Fill in these variables:
 
 ```dotenv
 GITHUB_APP_ID=<app-id>
@@ -313,10 +299,7 @@ PUBLIC_BASE_URL=https://brief.example.com
 ANTHROPIC_API_KEY=<provider-api-key>
 ```
 
-The PEM placeholder must be replaced with the complete key, including BEGIN
-and END lines; Compose accepts a single-quoted multiline value. Set only
-one private-key form. Other model providers need the configuration described
-in [generators](generators.md), not just a differently named key.
+Replace the PEM placeholder with the whole `.pem` file the App gave you, BEGIN and END lines included, inside the single quotes. For the file form instead, see [Use a key file instead of the inline key](compose.md#use-a-key-file-instead-of-the-inline-key). Another model provider needs its block in the config file ([generators.md](generators.md)), not only a different key.
 
 Generate distinct values in a trusted terminal and place them in `.env`:
 
@@ -330,18 +313,6 @@ The first output is a webhook secret; the second is SESSION_KEY_V1. Keep the
 session key in your secret backup: existing encrypted reviewer credentials
 need it after database restore. These commands generate secrets for you;
 do not capture their output in shared terminal recordings.
-
-Register the App URLs:
-
-- Homepage: `https://brief.example.com`
-- Callback: `https://brief.example.com/api/auth/github/callback`
-- Webhook: `https://brief.example.com/api/webhooks/github`
-
-Keep user authorization token expiration enabled. Configure permissions and
-events exactly as [github-app.md](github-app.md) specifies, then install the
-App on the test repository. Activate the webhook after readiness succeeds.
-To replace GitHub's generated badge, upload the MergeBrief
-[logo](github-app.md#logo).
 
 An instance starts closed: nobody can sign in until its config names them.
 In the `mergebrief.config.yaml` you copied in section 3, replace the
@@ -416,18 +387,17 @@ Create an isolated database/project for this instance in a region near the VM.
 The API and worker need the same database. The browser and web process do
 not need database credentials.
 
-The worker uses persistent connections, LISTEN/NOTIFY and session behavior, and
-the boot migrations take a session advisory lock, so never use a transaction
-pooler, and do not replace Postgres with a provider's REST API. Follow your provider's steps below, then
-[store the connection string](#store-the-connection-string).
-[Provider notes](cloud-provider-notes.md) has the sources behind these choices.
+The worker holds `LISTEN`/`NOTIFY` sessions and the boot migrations take a session advisory lock, so use a direct or session-mode connection, never a transaction pooler, and never a provider's REST API in place of Postgres. Follow your provider's steps below, then [store the connection string](#store-the-connection-string).
+
+| Provider | Connection to pick | DSN ends with | CA file |
+| --- | --- | --- | --- |
+| RDS | The instance endpoint, private, from the same VPC | `?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem` | The region bundle |
+| Neon | Direct: pooling off, no `-pooler` in the host | `?sslmode=verify-full` | None: the chain ends in a public root |
+| Supabase | **Session pooler**, port 5432 | `?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem` | The project's CA certificate |
 
 ### E2: private RDS from EC2
 
-These steps follow AWS's documentation as of 2026-11-04 and have not been run
-on RDS yet. The commands in steps 5 and 6, the migrations and the TLS check were
-rehearsed on Postgres 17 with a non-superuser admin, a TLS-only server and a
-private CA bundle.
+These steps follow AWS's documentation and have not been run on RDS yet. The `psql` steps, the migrations and the TLS check were rehearsed on Postgres 17 with a non-superuser admin, a TLS-only server and a private CA bundle.
 
 1. In the [RDS console](https://console.aws.amazon.com/rds/), in the same region
    as the instance, open **Databases → Create database**:
@@ -458,17 +428,14 @@ private CA bundle.
 2. Wait for status **Available**. On the database's **Connectivity & security**
    tab, copy the **Endpoint**. Use this DNS name, never a resolved IP, so hostname
    verification and failover keep working.
-3. On the VM, from `~/deploy/mergebrief`, download your region's CA bundle from
-   [AWS's list](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html#UsingWithRDS.SSL.CertificatesAllRegions).
-   The `chmod` matters: the `umask 077` from section 3 leaves the file private,
-   and the containers read it as UID 1000. A CA certificate is public.
+3. On the VM, from `~/deploy/mergebrief`, download your region's CA bundle. Replace `<region>` with the database's region, such as `eu-central-1`; [AWS's list](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html#UsingWithRDS.SSL.CertificatesAllRegions) has every bundle. The `chmod` matters: the `umask 077` from section 3 leaves the file private, and the containers read it as UID 1000. A CA certificate is public.
 
    ```sh
    mkdir -p secrets
    chmod 700 secrets
    curl --fail --show-error --silent \
      --output secrets/provider-ca.pem \
-     https://truststore.pki.rds.amazonaws.com/eu-central-1/eu-central-1-bundle.pem
+     https://truststore.pki.rds.amazonaws.com/<region>/<region>-bundle.pem
    chmod 644 secrets/provider-ca.pem
    ```
 
@@ -502,7 +469,8 @@ private CA bundle.
    ```
 
    The `GRANT` is required. The RDS master user is not a superuser, and on
-   Postgres 16 and newer it must be a member of a role to make it an owner;
+   Postgres 16 and newer it must be a member of a role to make it an owner
+   ([`createrole_self_grant`](https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-CREATEROLE-SELF-GRANT));
    otherwise the last statement answers `must be able to SET ROLE`. As owner,
    `mergebrief_app` can create the application and queue schemas, and it holds no
    RDS administration.
@@ -518,19 +486,14 @@ override below mounts the bundle. Continue with
 [Store the connection string](#store-the-connection-string), and keep the
 provider CA override.
 
-An EC2 security group reference provides network admission; it is not a
-Postgres login. The connection still needs credentials and verified TLS.
-Do not paste a short-lived RDS IAM authentication token into DATABASE_URL:
-the current static DSN configuration is not an IAM-token refresh integration.
-
-Private RDS is not reachable directly from Hetzner. Keep it private and
-establish a routed VPN/private connectivity if that is what you are testing;
-for a first cross-cloud deployment use Neon/Supabase.
+- The security groups admit the instance on the network; the connection still needs the login and verified TLS. Keep `rds.force_ssl` on, the default on RDS PostgreSQL 15 and newer ([RDS TLS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.SSL.html)).
+- Do not put a short-lived RDS IAM authentication token in the DSN: nothing refreshes it.
+- Private RDS is not reachable from Hetzner. For a cross-cloud deployment use Neon or Supabase.
+- Sources: [security groups for an application server](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.RDSSecurityGroups.html), [automatic EC2 connectivity](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateDBInstance.html#USER_CreateDBInstance.Prerequisites.VPC.Automatic), [CA bundles](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
 
 ### H2/E3: Neon
 
-These steps follow Neon's documentation as of 2026-11-03. Track H2 has run them
-once.
+Track H2 has run these steps once.
 
 1. In the [Neon console](https://console.neon.tech), create a project:
 
@@ -545,7 +508,7 @@ once.
    the connection string. Keep the default branch, compute, database and role.
    That role owns the database, so it can create the app's schemas.
 3. Turn off **Connection pooling**. Check that the hostname no longer contains
-   `-pooler`.
+   `-pooler`. Neon's pooler runs in transaction mode, which [does not support](https://neon.com/docs/connect/connection-pooling) `LISTEN`/`NOTIFY` or session advisory locks.
 4. Copy the connection string, then change its ending:
 
    | Neon shows | Use instead |
@@ -573,8 +536,7 @@ Continue with [Store the connection string](#store-the-connection-string).
 
 ### H2/E3: Supabase
 
-These steps follow Supabase's documentation as of 2026-11-03 and have not been
-run end to end yet.
+These steps follow Supabase's [connection documentation](https://supabase.com/docs/guides/database/connecting-to-postgres) and have not been run end to end yet.
 
 1. In the [Supabase dashboard](https://supabase.com/dashboard), create a project:
 
@@ -630,7 +592,7 @@ postgresql://postgres.abcdefghijklmnop:<url-encoded-password>@aws-0-eu-central-1
 The session pooler holds one database connection per client, and the Free plan's
 default pool size is 15. The `DATABASE_POOL_MAX=3` set below needs up to 12, so
 leave it at 3. Supabase's session mode is also the least proven path here: when
-you reach [section 6](#6-verify-the-deployment), confirm
+you reach [section 6](#6-turn-on-the-webhook-and-check-it-end-to-end), confirm
 that a push actually produces a brief.
 
 ### Store the connection string
@@ -757,66 +719,129 @@ To switch back, run `down` again, remove `COMPOSE_FILE` and `DATABASE_URL_FILE`
 from `.env`, take the database entries out of the override, and start the stack
 with the section 5A commands.
 
-## 6. Verify the deployment
+## 6. Turn on the webhook and check it end to end
+
+Run these from `~/deploy/mergebrief`, in order. Each step says what you should see.
+
+1. **The services are up.**
+
+   ```sh
+   sudo docker compose ps -a
+   ```
+
+   `api` and `web` show `healthy` and `worker` shows `Up`; on H1 or E1, `postgres` shows `healthy` too. The worker has no health check, and a configuration error exits 0, so read its state here: `Exited (0)` means `sudo docker compose logs worker` ends with the reason.
+
+2. **HTTPS reaches the database.**
+
+   ```sh
+   curl --fail --show-error https://brief.example.com/healthz
+   curl --fail --show-error https://brief.example.com/readyz
+   ```
+
+   Both succeed. `/healthz` proves Caddy and `web`; `/readyz` proves `web` to `api` to the database. On an external database it also proves verified TLS: with `sslmode=verify-full`, the api cannot reach a database whose certificate does not verify. A `502` is Caddy with no `web` behind it yet.
+
+3. **The logs are clean.**
+
+   ```sh
+   sudo docker compose logs --tail=80 api worker web
+   ```
+
+   No `"level":"error"` lines. Do not paste `docker compose config` output anywhere shared: it prints resolved secrets.
+
+4. **Turn on the webhook.** In the App's settings, on the **General** tab under **Webhook**, check that **Active** is checked and **Webhook URL** is `https://brief.example.com/api/webhooks/github`, then click **Save changes**. Open **Advanced**, open the newest delivery under **Recent Deliveries**, click **Redeliver**, and confirm. It answers `200`.
+5. **Sign-in works.** Open `https://brief.example.com`, sign in with GitHub, sign out, and sign in again.
+6. **A pull request gets a brief.** Open a pull request on the test repository while you watch the worker:
+
+   ```sh
+   sudo docker compose logs -f worker
+   ```
+
+   About a minute later the App comments on the pull request. When the brief is ready the comment reads **Read the brief for this push**, and its link opens the brief. A brief whose pull request has no comment: [No Entry comment appears](troubleshooting.md#no-entry-comment-appears).
+
+7. **A second push gets its own brief.** Push another commit. The comment is replaced for the new head, and its brief opens.
+8. **A review reaches GitHub as you.** Submit a review from MergeBrief. On GitHub, it shows your account as its author.
+9. **E2 only: TLS and privacy.** Repeat the `psql` command from [step 5](#e2-private-rds-from-ec2) while the stack runs. Every row shows `ssl` as `t`:
+
+   ```sql
+   SELECT a.usename, s.ssl, s.version
+   FROM pg_stat_ssl s JOIN pg_stat_activity a USING (pid)
+   WHERE a.usename = 'mergebrief_app';
+   ```
+
+   Then, on your own computer, confirm the database is private. The answer is a private address, such as `172.31.x.x`:
+
+   ```sh
+   dig +short <rds-endpoint>
+   ```
+
+Optionally, test recovery: run `sudo docker compose restart worker` while a brief generates, and confirm the run finishes after the restart rather than staying stuck. Watch the provider's spend while it retries.
+
+## 7. Start on boot
+
+A reboot leaves the stack down: `restart: on-failure` does not bring services back when Docker starts, and `postgres` has no restart policy. A systemd unit runs `docker compose up` once at boot ([what the unit does](operations.md#starting-on-boot)).
+
+Write the unit from `~/deploy/mergebrief`, so `WorkingDirectory` gets this folder's path:
 
 ```sh
-sudo docker compose ps -a
-curl --fail --show-error https://brief.example.com/healthz
-curl --fail --show-error https://brief.example.com/readyz
-sudo docker compose logs --tail=80 api worker web
-sudo docker compose stats --no-stream
+cd ~/deploy/mergebrief
+sudo tee /etc/systemd/system/mergebrief.service > /dev/null <<EOF
+[Unit]
+Description=MergeBrief
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$PWD
+ExecStart=/usr/bin/docker compose up -d --wait
+ExecStop=/usr/bin/docker compose stop
+TimeoutStopSec=240
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now mergebrief
 ```
 
-Readiness proves the web-to-API-to-database path, not successful generation.
-The worker has no HTTP health endpoint, and a configuration error can exit
-with code zero. Check that it remains running and actually consumes work.
-Avoid `docker compose config` in shared logs: it can print resolved secrets.
-
-Then check the instance end to end:
-
-- Sign in with GitHub; sign out and back in.
-- Open a PR on the installed test repository; inspect a successful signed
-  webhook delivery and a generated brief.
-- Confirm the App posted its Entry comment on that PR. A missing comment does
-  not fail the generation, so a successful brief does not prove this.
-- Push another commit and verify the new head's brief appears.
-- Submit a review from MergeBrief and verify its author/content on GitHub.
-- Restart the worker during generation and confirm eventual job recovery
-  without a permanently stuck run. Observe provider spend during retries.
-- Restart the stack and reboot the VM; confirm persistence and readiness.
-- For external DB, confirm verified TLS using the provider's connection
-  diagnostics or `pg_stat_ssl` from an authenticated application session.
-- Back up and restore into an isolated fresh database, then point an
-  isolated instance at it. Do not send duplicate webhooks or run two workers
-  against production data while validating restore.
-
-For a local DB, use the [pg_dump and restore procedure](operations.md#backup)
-and keep encrypted backups off the VM. For managed DBs, explicitly enable
-and test the selected plan's snapshot/PITR functionality. Back up instance
-secrets separately, particularly SESSION_KEY_V1. A VM disk snapshot alone
-is not proof of a consistent live Postgres backup.
-
-For E2, repeat the `psql` command from [step 5](#e2-private-rds-from-ec2) while
-the stack runs. Every row should show `ssl` as `t`:
-
-```sql
-SELECT a.usename, s.ssl, s.version
-FROM pg_stat_ssl s JOIN pg_stat_activity a USING (pid)
-WHERE a.usename = 'mergebrief_app';
-```
-
-Then, on your own computer, confirm the database is private. This should end in
-a private address, such as `172.31.x.x`:
+**Check:** `systemctl cat mergebrief | grep WorkingDirectory` shows `/root/deploy/mergebrief` on Hetzner or `/home/ubuntu/deploy/mergebrief` on EC2. Then reboot:
 
 ```sh
-dig +short <rds-endpoint>
+sudo reboot
 ```
 
-## 7. Upgrade to a new release
+Reconnect, and from `~/deploy/mergebrief` repeat checks 1 and 2 from [section 6](#6-turn-on-the-webhook-and-check-it-end-to-end). Deliveries GitHub sent while the VM was down are resent by the worker within about 30 minutes, or redeliver one from the App's **Advanced** tab.
+
+## 8. Back up the instance
+
+Back up the database and the files that unlock it, and keep both off the VM.
+
+- **H1 or E1, the database on the VM.** Dump it, then copy the dump to your own computer:
+
+  ```sh
+  sudo docker compose exec -T postgres \
+    sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
+    > mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
+  ```
+
+  ```sh
+  scp root@<server-public-ipv4>:~/deploy/mergebrief/mergebrief-*.dump .
+  ```
+
+  On EC2 the login is `ubuntu@<elastic-ip>`. Scheduling and restore are in [operations.md](operations.md#backup). A VM disk snapshot alone is not a consistent Postgres backup.
+
+- **H2, E2 or E3, a managed database.** The provider's snapshots or point-in-time recovery are the backup. Turn them on for your plan and test a restore.
+- **Every track: the instance's own files.** Copy `.env`, `mergebrief.config.yaml`, and `docker-compose.override.yml` and `secrets/` if you have them, into your password manager or an encrypted store. A restored database needs the same `SESSION_KEY_V1` to read the reviewer tokens it holds.
+
+Prove a backup by restoring it into an isolated fresh database and pointing an isolated instance at it ([Restore](operations.md#restore)). Do not run that instance's worker against production data or send it production webhooks.
+
+## 9. Upgrade to a new release
 
 Follow [upgrading to a new version](operations.md#upgrading-to-a-new-version).
 It covers the backup, the replacement Compose file, the external-database
-variant and rollback. Repeat the section 6 checks afterwards.
+variant and rollback. Repeat checks 1 to 3 of [section 6](#6-turn-on-the-webhook-and-check-it-end-to-end) afterwards.
 
 Its commands run bare `docker`. On a VM set up by this guide, run them as
 written from a root shell, in the folder section 3 created. That folder sits
