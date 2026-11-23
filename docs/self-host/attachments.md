@@ -57,7 +57,7 @@ attachments:
 Each is a positive whole number; an omitted key takes the default, anything
 else refuses boot. The count lives in the api process: a restart clears it,
 and each replica counts on its own
-([operations.md](operations.md#running-more-than-one-api)).
+([data-and-scaling.md](data-and-scaling.md#run-more-than-one-api)).
 
 ## Reading images and videos
 
@@ -135,4 +135,4 @@ than a pull request: `upload-attachment` and `purge-attachments`, with
 past the gate (a non-admin, a token, a rule on the branch) is a denial
 naming the same repository; the gate's own refusal, a 404 to someone with
 no access, carries no target, as everywhere. See
-[operations.md](operations.md#the-audit-log).
+[data-and-scaling.md](data-and-scaling.md#query-the-audit-log).

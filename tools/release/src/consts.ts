@@ -27,12 +27,14 @@ export const NPM_PACKAGE = "mergebrief";
 /** Where an rc lands on npm; `latest` is never moved by a candidate. */
 export const RC_DIST_TAG = "next";
 
-export const OPERATIONS_DOC_PATH = "docs/self-host/operations.md";
+export const UPGRADE_DOC_PATH = "docs/self-host/upgrade.md";
+
+export const BACKUP_DOC_PATH = "docs/self-host/backup-restore.md";
 
 export const UPGRADE_CHAIN_PLACEHOLDER = "{{tag}}";
 
-// The chain in docs/self-host/operations.md, "The upgrade step", with the
-// tag as a placeholder. A test holds the two in step.
+// The chain in docs/self-host/upgrade.md, "Upgrade on the bundled database",
+// with the tag as a placeholder. A test holds the two in step.
 export const UPGRADE_CHAIN = `DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \\
   && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \\

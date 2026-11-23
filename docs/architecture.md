@@ -263,7 +263,7 @@ compares and warns on Skew.
 | Question                                                                                                                                  | Where it is answered                                                           |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | The words (Release, Instance, Image, Expand and Contract step, Breaking release, Skew, Dev build, Version notice)                          | `CONTEXT.md`                                                                   |
-| How an operator learns of a release, upgrades, rolls back, turns the check off                                                            | `docs/self-host/operations.md`                                                 |
+| How an operator learns of a release, upgrades, rolls back, turns the check off                                                            | `docs/self-host/upgrade.md`                                                    |
 | What the CLI prints when versions differ                                                                                                  | `docs/self-host/cli.md`                                                        |
 | The rules each member holds (anonymous update check, the version header, `instance_version`, the migration lint, the stamp and prune)     | the `AGENTS.md` of `apps/api`, `packages/persistence`, `apps/cli`, `tools/release` |
 | Consumer-visible API changes by version                                                                                                   | `docs/api-changelog.md`                                                        |
@@ -273,7 +273,7 @@ compares and warns on Skew.
 - Running it: [compose](self-host/compose.md),
   [GitHub App](self-host/github-app.md),
   [generators](self-host/generators.md),
-  [operations](self-host/operations.md),
+  [upgrade](self-host/upgrade.md),
   [observability](self-host/observability.md), [CLI](self-host/cli.md).
 - The vocabulary every name above comes from: [`CONTEXT.md`](../CONTEXT.md).
 - Contributing, starting with the review taxonomy:

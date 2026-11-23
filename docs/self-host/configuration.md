@@ -12,7 +12,7 @@ Every setting MergeBrief reads, in one place. There are four surfaces:
 - **The CLI's own environment and `config.json`** on the machine that runs
   `mergebrief`.
 
-This page says what each setting accepts. The how-to pages ([compose.md](./compose.md), [generators.md](./generators.md), [operations.md](./operations.md), [observability.md](./observability.md)) say when to change one.
+This page says what each setting accepts. The how-to pages ([compose.md](./compose.md), [generators.md](./generators.md), [upgrade.md](./upgrade.md), [secrets.md](./secrets.md), [data-and-scaling.md](./data-and-scaling.md), [observability.md](./observability.md)) say when to change one.
 
 ## How values are read
 
@@ -82,8 +82,8 @@ it.
 | `GITHUB_APP_SLUG` | api, worker | unset | no | The App's URL name, the last segment of `https://github.com/apps/<slug>`: lowercase letters, digits and hyphens. Set, Home links a viewer with no reachable installation to the install page; unset, that line carries no link. Empty reads as unset. |
 | `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token (fine-grained, Contents and Pull requests read) tried after a reviewer's own token is denied on a pasted pull request. A sign-in token is scoped to the App's installations, so it cannot read a private repository the App is not installed on; a public repository needs no such token. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
 | `SESSION_KEY_REF` | api | `SESSION_KEY_V1` | no | The NAME of the variable new GitHub tokens are sealed under: an uppercase letter, then uppercase letters, digits or underscores. Anything else refuses boot. Empty takes the default. |
-| `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it (the worker for pasted pull requests and the hourly sweep's GitHub revokes), so a rotated-out key stays set until no grant names it ([Tokens at rest](./operations.md#tokens-at-rest)). |
-| `SESSION_KEY_V2`, and any later `SESSION_KEY_V<n>` | api, worker | none | api: when `SESSION_KEY_REF` names it | A rotated session key, in the same format as `SESSION_KEY_V1`. Nothing reads it until `SESSION_KEY_REF` names it; from then on new tokens are sealed under it, and it stays set while any stored grant names it. The numbering is a convention, not a rule: any name `SESSION_KEY_REF` accepts works the same way. Rotate under a new name, never by changing a value in place ([Tokens at rest](./operations.md#tokens-at-rest)). |
+| `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it (the worker for pasted pull requests and the hourly sweep's GitHub revokes), so a rotated-out key stays set until no grant names it ([Tokens at rest](./secrets.md#how-github-tokens-are-stored)). |
+| `SESSION_KEY_V2`, and any later `SESSION_KEY_V<n>` | api, worker | none | api: when `SESSION_KEY_REF` names it | A rotated session key, in the same format as `SESSION_KEY_V1`. Nothing reads it until `SESSION_KEY_REF` names it; from then on new tokens are sealed under it, and it stays set while any stored grant names it. The numbering is a convention, not a rule: any name `SESSION_KEY_REF` accepts works the same way. Rotate under a new name, never by changing a value in place ([Tokens at rest](./secrets.md#how-github-tokens-are-stored)). |
 
 ### Database
 
@@ -91,8 +91,8 @@ it.
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | api, worker, migrate | none | yes, unless `DATABASE_URL_FILE` is set | A `postgres://` or `postgresql://` URL. A host that is not loopback (`localhost`, `127.0.0.0/8`, `::1`, or a unix socket path) must carry `sslmode=verify-full` or `sslmode=disable`, and `uselibpqcompat=true` only beside `verify-full`; anything else refuses boot ([TLS](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). A file the DSN names, such as `sslrootcert`, that cannot be read refuses boot naming the path. The default compose file sets its own value, so there this is ignored; `pnpm app:host` and an external database need it. |
 | `DATABASE_URL_FILE` | api, worker, migrate | unset | no | Path to a file holding the DSN, trimmed, for a compose `secrets:` mount. Wins over `DATABASE_URL` and logs a warning when `DATABASE_URL` is also set and non-empty. An unreadable file refuses boot. Empty reads as unset. |
-| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection, then fails. Keep `api` replicas x this value + `worker` count x (2 x this value + `WORKER_LARGE_CONCURRENCY` + 2) under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). Empty takes the default. |
-| `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind; apply the migrations with `docker compose run --rm api migrate`, or `pnpm -C apps/api migrate` from a checkout ([operations.md](./operations.md#external-database-auto-migratefalse)). `migrate` always applies. **Empty reads as `false`.** |
+| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection, then fails. Keep `api` replicas x this value + `worker` count x (2 x this value + `WORKER_LARGE_CONCURRENCY` + 2) under Postgres `max_connections` ([data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api)). Empty takes the default. |
+| `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind; apply the migrations with `docker compose run --rm api migrate`, or `pnpm -C apps/api migrate` from a checkout ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)). `migrate` always applies. **Empty reads as `false`.** |
 
 ### Addresses and listeners
 
@@ -175,7 +175,7 @@ under these names.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `mergebrief` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). `api` and `worker` warn at boot while a database on another host still has the `mergebrief` password. |
-| `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api). |
+| `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. Every replica serves every request, with the caveats in [data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api). |
 | `WORKER_COUNT` | `1` | `worker` replicas. `docker compose up --scale worker=N` wins for that run. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
 | `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.yml:docker-compose.external-db.yml` for an external database, and append `:docker-compose.override.yml` once you have an override file, since setting it turns off the automatic load ([compose.md](./compose.md#external-postgres-managed-database)). |
 
@@ -364,7 +364,7 @@ out is inherited, and `off` drops one kind or the whole block. Only
 
 | Key | Default | Accepts |
 | --- | --- | --- |
-| `retention.pullRequestDays` | unset (keep forever) | Days a closed or merged pull request is kept before the worker's daily sweep erases it with its briefs: a whole number of at least 1 ([Retention](./operations.md#retention-what-grows-and-what-does-not-prune-itself)). |
+| `retention.pullRequestDays` | unset (keep forever) | Days a closed or merged pull request is kept before the worker's daily sweep erases it with its briefs: a whole number of at least 1 ([Retention](./data-and-scaling.md#prune-closed-pull-requests)). |
 | `retention.auditDays` | unset (keep forever) | Days the daily sweep keeps audit rows: a whole number of at least 30. |
 | `audit.privateWrites` | `true` | `false` stops `api` recording writes that stay inside the instance; writes that reach GitHub and every denial are recorded either way. |
 
@@ -381,7 +381,7 @@ out is inherited, and `off` drops one kind or the whole block. Only
 
 | Key | Default | Accepts |
 | --- | --- | --- |
-| `updateCheck.enabled` | `true` | `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Anything but `true` or `false` refuses boot. |
+| `updateCheck.enabled` | `true` | `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./upgrade.md#turn-off-or-mirror-the-update-check)). Anything but `true` or `false` refuses boot. |
 | `updateCheck.url` | `https://github.com/idan91/mergebrief/releases/latest/download/version.json` | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. `api` refuses any other value; `worker` checks only that it is text. |
 
 ### `linkFetch`

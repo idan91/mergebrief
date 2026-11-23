@@ -111,7 +111,7 @@ The App ID, Client ID and client secret are on the App's **General** tab; the pr
 | Webhook secret | The value you generated in [Before you start](#before-you-start) | `GITHUB_WEBHOOK_SECRET` |
 | Slug, optional | The App's public page, `https://github.com/apps/<slug>` | `GITHUB_APP_SLUG`, so Home can link a viewer with no installation to the install page |
 
-Keep the `.pem` file private (`chmod 600`). If a client secret or private key leaks, generate a new one and delete the old one on this page ([operations.md](./operations.md#rotating-secrets)).
+Keep the `.pem` file private (`chmod 600`). If a client secret or private key leaks, generate a new one and delete the old one on this page ([secrets.md](./secrets.md)).
 
 ## Install the App
 
@@ -170,7 +170,7 @@ A reviewer signs in with GitHub through this App, and their reviews, comments an
 
 If **Expire user authorization tokens** is off, every sign-in fails, and the api logs it only at `debug`, as `sign-in refused: GitHub rejected the code`. Check that setting first when sign-in fails for everyone.
 
-Signing out, **Sign out everywhere** and revoking a MergeBrief API token revoke the reviewer's GitHub token at GitHub, through the App's client id and secret, once no session and no live API token still uses that sign-in. A refused or unanswered revoke is logged as `grant.revoke.fail`, and the sign-out completes anyway. MergeBrief never uses the stored copy again; it is deleted at once, or with the last revoked or expired API token that still lists it. The stored copy is encrypted at rest ([Tokens at rest](./operations.md#tokens-at-rest)).
+Signing out, **Sign out everywhere** and revoking a MergeBrief API token revoke the reviewer's GitHub token at GitHub, through the App's client id and secret, once no session and no live API token still uses that sign-in. A refused or unanswered revoke is logged as `grant.revoke.fail`, and the sign-out completes anyway. MergeBrief never uses the stored copy again; it is deleted at once, or with the last revoked or expired API token that still lists it. The stored copy is encrypted at rest ([Tokens at rest](./secrets.md#how-github-tokens-are-stored)).
 
 When a user revokes the App in their GitHub settings, GitHub sends an authorization-revoked event, and MergeBrief deletes every session, API token and stored GitHub credential that user held and records it in the audit log. They sign in again to come back.
 

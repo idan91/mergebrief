@@ -58,7 +58,7 @@ changes get a breaking-change entry in
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | **THE worker alert**: the queue gave up on this job, or the head spent its claims and its row ends `failed` as `attempts-exhausted`. From the `sync-entry` job it means the PR's Entry comment may still not match its brief state |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; `kind: provider-spend-limit` = the provider account reached a spend limit (the line carries no `status`), alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId`, `kind` | yes: a reviewer session or API token could not rotate its GitHub credentials. `kind` names GitHub's OAuth error (or `expiration-not-enabled`) when GitHub refused the App's own credentials or settings: fix the App, the session is kept. `kind: seal-failed` means GitHub rotated but the session key could not seal the new pair |
-| `token.decrypt.fail` | error | api | `reqId`, `reviewerId` | yes: the session key cannot open a stored GitHub token, the access token on a request or the refresh token during a rotation. The session is kept and every request that needs GitHub answers 500 until the key matches the one that sealed it. A ciphertext moved from another grant row or column fails the same way ([Tokens at rest](./operations.md#tokens-at-rest)) |
+| `token.decrypt.fail` | error | api | `reqId`, `reviewerId` | yes: the session key cannot open a stored GitHub token, the access token on a request or the refresh token during a rotation. The session is kept and every request that needs GitHub answers 500 until the key matches the one that sealed it. A ciphertext moved from another grant row or column fails the same way ([Tokens at rest](./secrets.md#how-github-tokens-are-stored)) |
 | `token.refresh.unavailable` | warn | api | `reqId`, `reviewerId`, `refreshTokenPossiblyConsumed` | on **sustained rate**: GitHub did not answer a token rotation within 10 seconds or answered with an outage, or another refresh held the same grant for over 2 seconds. Every session and token is kept and the request answers 502. `refreshTokenPossiblyConsumed: true` means GitHub may have rotated before the call failed, so a later `token.refresh.fail` retiring the same reviewer's grant can trace back to it |
 | `authorization.revoked` | info | api | `deliveryId`, `reqId`, `reviewerId`, `sessions`, `tokens`, `grants` | no: a user revoked the App on github.com, and every session, API token and grant they held here was deleted |
 | `grant.revoke.fail` | warn | api, worker | `reqId` (api only), `grantId`, `code` | on **sustained rate**: GitHub refused or did not answer a token revoke after a sign-out, an API token revoke or the hourly sweep deleting a dead grant, so that token may stay valid at GitHub until it expires. `code` is `token-delete-failed` (422, 5xx or no answer), or `credential-unreadable` when the session key no longer opens the stored token, or the worker runs without `SESSION_KEY_V1`. A 404 is not logged: GitHub answers it for a token it already invalidated and also for a wrong client secret, so a drifted secret surfaces through `token.refresh.fail` instead |
@@ -87,7 +87,7 @@ the handler returned; they differ when a handler fails after the gate
 allowed the request. `operation` names the domain operation the request
 routed to, and is what joins this line to the audit row that request wrote
 (the audit ledger is a separate, never-purged store; see
-[operations.md](./operations.md)).
+[data-and-scaling.md](./data-and-scaling.md#query-the-audit-log)).
 
 ## Correlation
 
@@ -267,7 +267,7 @@ authenticated liveness probe, not orchestrator health. It also carries
 `latest`, the newest release the update check has seen, with
 `releaseNotesUrl`, `checkedAt`, `breaking` and `security`; with the check
 off or not yet succeeded it carries `version` alone
-([operations.md](./operations.md#the-update-check)). `dismissedVersion`,
+([upgrade.md](./upgrade.md#turn-off-or-mirror-the-update-check)). `dismissedVersion`,
 when present, is the release the signed-in viewer dismissed the notice
 for.
 

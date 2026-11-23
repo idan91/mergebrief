@@ -157,7 +157,7 @@ operators: # example; no default
 # --- Retention and audit ----------------------------------------------------
 # Days the daily sweeps keep audit rows (at least 30) and closed pull requests
 # (at least 1). Unset, rows are kept forever.
-# docs/self-host/operations.md
+# docs/self-host/data-and-scaling.md
 # retention:
 #   auditDays: 365 # example; no default
 #   pullRequestDays: 90 # example; no default
@@ -170,7 +170,7 @@ operators: # example; no default
 # --- Update check -----------------------------------------------------------
 # false stops the hourly fetch of version.json and the version notice. `url`
 # names a mirror, for a network that blocks github.com.
-# docs/self-host/operations.md#the-update-check
+# docs/self-host/upgrade.md#turn-off-or-mirror-the-update-check
 # updateCheck:
 #   enabled: true # default
 #   # The default is the project's own release file on GitHub.

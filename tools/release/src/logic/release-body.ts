@@ -1,10 +1,11 @@
 import {
+  BACKUP_DOC_PATH,
   NPM_PACKAGE,
-  OPERATIONS_DOC_PATH,
   RC_DIST_TAG,
   REPOSITORY_URL,
   UPGRADE_CHAIN,
   UPGRADE_CHAIN_PLACEHOLDER,
+  UPGRADE_DOC_PATH,
 } from "../consts";
 import type { ReleaseNotes, ReleaseVersion } from "../types";
 import {
@@ -35,7 +36,8 @@ export function buildReleaseBody(notes: ReleaseNotes): string {
 function buildStableBody(notes: ReleaseNotes): string {
   const version = formatReleaseVersion(notes.version);
   const tag = formatReleaseTag(notes.version);
-  const docs = `${REPOSITORY_URL}/blob/${tag}/${OPERATIONS_DOC_PATH}`;
+  const upgradeDoc = `${REPOSITORY_URL}/blob/${tag}/${UPGRADE_DOC_PATH}`;
+  const backupDoc = `${REPOSITORY_URL}/blob/${tag}/${BACKUP_DOC_PATH}`;
   const chain = UPGRADE_CHAIN.replaceAll(UPGRADE_CHAIN_PLACEHOLDER, tag);
 
   const body = [
@@ -47,7 +49,7 @@ function buildStableBody(notes: ReleaseNotes): string {
     chain,
     "```",
     "",
-    `The first line is the backup, the only way back across more than one release ([Backup](${docs}#backup)). The full walk is [the upgrade step](${docs}#the-upgrade-step); going back is [Rolling back](${docs}#rolling-back).`,
+    `The first line is the backup, the only way back across more than one release ([Backup](${backupDoc}#back-up-the-bundled-database)). The full walk is [the upgrade step](${upgradeDoc}#upgrade-on-the-bundled-database); going back is [Roll back](${upgradeDoc}#roll-back).`,
     "",
     notes.body,
   ].join("\n");
