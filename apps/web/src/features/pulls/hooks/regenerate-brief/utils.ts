@@ -9,7 +9,7 @@ import {
 /** A queued run swaps the card, and that swap is announced by the page. */
 export const RegenerateNotices: RegenerateNoticeKeys = {
   [RegenerateResultKinds.QUEUED]: undefined,
-  [RegenerateResultKinds.HELD]: "pulls.briefError.generation-held",
+  [RegenerateResultKinds.RUNNING]: "pulls.briefError.generation-running",
   [RegenerateResultKinds.NOT_REGENERABLE]:
     "pulls.briefError.generation-not-regenerable",
   [RegenerateResultKinds.NOT_ALLOWED]: "pulls.failed.regenerate.notAllowed",
@@ -34,7 +34,7 @@ export function readRegenerateNotice(
 /** The answers that say the meta read is stale. */
 const META_STALE_KINDS: ReadonlySet<RegenerateResultKind> = new Set([
   RegenerateResultKinds.QUEUED,
-  RegenerateResultKinds.HELD,
+  RegenerateResultKinds.RUNNING,
   RegenerateResultKinds.NOT_REGENERABLE,
 ]);
 

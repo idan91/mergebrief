@@ -437,7 +437,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const NEXT_HEAD_SHA = "b".repeat(40);
 
     /** Lock every job, as a worker that picked it up would. */
-    async function holdJobs(): Promise<void> {
+    async function lockJobs(): Promise<void> {
       await harness.raw("update graphile_worker.jobs set locked_at = now()");
     }
 
@@ -447,9 +447,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
       );
     }
 
-    it("a new head while the job is held queues its own job", async () => {
+    it("a new head while the job is locked queues its own job", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       await trigger({ headSha: NEXT_HEAD_SHA });
 
@@ -463,11 +463,11 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(jobs[1]?.["head"]).toBe(NEXT_HEAD_SHA);
     });
 
-    // A known duplicate run, not a wanted behaviour: the held job has not
+    // A known duplicate run, not a wanted behaviour: the locked job has not
     // marked its row running yet, so the trigger queues the head again.
-    it("a same-head trigger while the job is held queues a second job", async () => {
+    it("a same-head trigger while the job is locked queues a second job", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       await trigger();
 
@@ -483,7 +483,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   describe("routeToLargePool", () => {
-    async function holdJobs(): Promise<void> {
+    async function lockJobs(): Promise<void> {
       await harness.raw("update graphile_worker.jobs set locked_at = now()");
     }
 
@@ -495,7 +495,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("moves the running job's key to a generate-large job due now", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       const routed = await createIngestRoutines(
         harness.handle,
@@ -543,7 +543,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("routes a recovery run under the head's recovery key", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       const routed = await createIngestRoutines(
         harness.handle,
@@ -566,7 +566,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("queues nothing for a pull request outside the scope", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       const routed = await createIngestRoutines(
         harness.handle,
@@ -586,7 +586,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const DELAY_SECONDS = 125;
     const DELAY_SLACK_SECONDS = 2;
 
-    async function holdJobs(): Promise<void> {
+    async function lockJobs(): Promise<void> {
       await harness.raw("update graphile_worker.jobs set locked_at = now()");
     }
 
@@ -598,7 +598,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("adds a delayed job beside the locked job that holds the key", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
 
       const requeued = await createIngestRoutines(
         harness.handle,
@@ -697,7 +697,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("queues nothing for a pull request outside the scope", async () => {
       const first = await trigger();
-      await holdJobs();
+      await lockJobs();
       const otherCtx = parseTenantContext({ installationId: 101n });
 
       const requeued = await createIngestRoutines(

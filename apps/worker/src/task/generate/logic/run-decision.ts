@@ -64,7 +64,7 @@ export async function decideRun(context: RunContext): Promise<RunDecision> {
       return claimed;
     },
   );
-  if (claim.kind === ClaimOutcomes.HELD) {
+  if (claim.kind === ClaimOutcomes.RUNNING) {
     await followHolder(context, claim.leaseRemainingMs);
   }
   if (claim.kind === ClaimOutcomes.EXHAUSTED) {
@@ -157,7 +157,7 @@ async function followHolder(
 
 /**
  * The holder may be dead with its lease still live, and this job may be the
- * head's only one, so a held run queues a follow-up for after the lease.
+ * head's only one, so the refused run queues a follow-up for after the lease.
  */
 async function requeueAfterLease(
   context: RunContext,

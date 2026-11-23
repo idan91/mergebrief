@@ -180,14 +180,14 @@ describe("claimRun", () => {
     expect(await countAttemptRows(world)).toBe(1);
   });
 
-  it("reports held and the lease time left while another run holds it", async () => {
+  it("reports running and the lease time left while another run claims it", async () => {
     const world = await makeClaimWorld();
     const first = readRunId(await claim(world));
 
     const second = await claim(world);
 
-    if (second.kind !== ClaimOutcomes.HELD) {
-      throw new Error(`expected held, got ${second.kind}`);
+    if (second.kind !== ClaimOutcomes.RUNNING) {
+      throw new Error(`expected running, got ${second.kind}`);
     }
     expect(second.leaseRemainingMs).toBeGreaterThan(LEASE_MS - LEASE_SLACK_MS);
     expect(second.leaseRemainingMs).toBeLessThanOrEqual(LEASE_MS);
@@ -446,7 +446,7 @@ describe("claimRun attempt budget and recovery job", () => {
     ]);
   });
 
-  it("a held row queues no recovery job", async () => {
+  it("a claimed row queues no recovery job", async () => {
     const world = await makeClaimWorld();
     readRunId(await claim(world));
 
