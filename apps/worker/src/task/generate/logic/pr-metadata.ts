@@ -6,7 +6,19 @@ import {
   toPrLifecycleState,
   type PrMetadata,
 } from "brief-core";
+import type { PullRequestFile } from "github";
 import type { PrMetadataInputs, RecordStackInputs } from "../types";
+
+type PrFile = PrMetadata["files"][number];
+
+/** Path and churn only: a rename's old path never reaches a prompt. */
+function shapePrFile(file: PullRequestFile): PrFile {
+  return {
+    path: file.path,
+    additions: file.additions,
+    deletions: file.deletions,
+  };
+}
 
 /** The PR metadata every core reads, with the stack attached when the open list came back. */
 export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
@@ -21,7 +33,7 @@ export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
     baseSha: prInfo.baseSha,
     commitCount: prInfo.commitCount,
     headRef: prInfo.headRef,
-    files,
+    files: files.map(shapePrFile),
     draft: prInfo.draft,
     merged: prInfo.merged,
   };

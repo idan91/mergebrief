@@ -1,5 +1,6 @@
 import type { RepoId } from "persistence";
 import type { RepoIdentity } from "brief-core/pr-stack";
+import type { ValueOf } from "types/utils";
 
 export interface PullRequestRef {
   readonly owner: string;
@@ -70,9 +71,23 @@ export interface PullRequestInfo {
   readonly baseRepo?: RepoIdentity;
 }
 
+/** GitHub's `status` on a listed pull request file. */
+export const PullRequestFileStatuses = {
+  ADDED: "added",
+  REMOVED: "removed",
+  MODIFIED: "modified",
+  RENAMED: "renamed",
+  COPIED: "copied",
+  CHANGED: "changed",
+  UNCHANGED: "unchanged",
+} as const;
+export type PullRequestFileStatus = ValueOf<typeof PullRequestFileStatuses>;
+
 /** One changed file's path + churn, as the generation inputs need it. */
 export interface PullRequestFile {
   readonly path: string;
+  /** A rename's path before it; a copy's source is not this file's old path, so it stays unset. */
+  readonly previousPath?: string;
   readonly additions: number;
   readonly deletions: number;
 }

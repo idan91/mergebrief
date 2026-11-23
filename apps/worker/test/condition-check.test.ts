@@ -43,9 +43,9 @@ const PADDED_NAME_LENGTH = 195;
 const COSTLY_GLOB_LITERAL_LENGTH = 196;
 const COSTLY_GLOB = `**/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH)}*`;
 
-function makePaddedMisses(prefix: string): string[] {
+function makePaddedMisses(prefix: string, count = MISS_COUNT): string[] {
   return Array.from(
-    { length: MISS_COUNT },
+    { length: count },
     (_, index) => `${prefix}${String(index).padStart(PADDED_NAME_LENGTH, "0")}`,
   );
 }
@@ -358,12 +358,13 @@ describe("evaluateTriggerConditions, paths", () => {
   it("holds once the scan outruns its step budget", () => {
     const misses = makePaddedMisses("src/");
     const lastMatches = `a/${"x".repeat(COSTLY_GLOB_LITERAL_LENGTH + 1)}`;
+    const previousPaths = ["old/a.ts", "old/b.ts"];
 
     const lines: Record<string, unknown>[] = [];
 
     const unmet = evaluateTriggerConditions(
       makeEffective({ kind: "paths", value: [COSTLY_GLOB] }),
-      makeFacts({ changedPaths: [...misses, lastMatches] }),
+      makeFacts({ changedPaths: [...misses, lastMatches], previousPaths }),
       stubLogger(lines),
     );
 
@@ -372,7 +373,7 @@ describe("evaluateTriggerConditions, paths", () => {
       expect.objectContaining({
         level: "warn",
         globs: 1,
-        paths: LISTED_PATH_COUNT,
+        paths: LISTED_PATH_COUNT + previousPaths.length,
       }),
     ]);
   });
@@ -410,6 +411,54 @@ describe("evaluateTriggerConditions, paths", () => {
     const unmet = evaluateOne(
       { kind: "paths", value: [COSTLY_GLOB, "src/payments/**"] },
       { changedPaths: [...misses, "src/payments/charge.ts"] },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("matches a mass rename's last new path within the step budget", () => {
+    const renamedTo = makePaddedMisses("apps/");
+    const renamedFrom = makePaddedMisses("libs/");
+
+    const unmet = evaluateOne(
+      {
+        kind: "paths",
+        value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
+      },
+      {
+        changedPaths: [...renamedTo, "services/ledger/post.ts"],
+        previousPaths: renamedFrom,
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("matches a mass rename's last old path within the step budget", () => {
+    const renamedTo = makePaddedMisses("apps/", LISTED_PATH_COUNT);
+    const renamedFrom = makePaddedMisses("libs/");
+
+    const unmet = evaluateOne(
+      {
+        kind: "paths",
+        value: ["**/payments/**", "**/billing/**", "**/ledger/**"],
+      },
+      {
+        changedPaths: renamedTo,
+        previousPaths: [...renamedFrom, "services/ledger/post.ts"],
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("matches a rename by its old path once every new path misses", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      {
+        changedPaths: ["archive/refund.ts"],
+        previousPaths: ["src/payments/refund.ts"],
+      },
     );
 
     expect(unmet).toEqual([]);

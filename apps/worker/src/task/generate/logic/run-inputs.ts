@@ -86,9 +86,9 @@ export async function prepareRunInputs(
 async function readPullRequestFiles(
   context: RunContext,
   checkedFiles: readonly PullRequestFile[] | undefined,
-): Promise<PullRequestFile[]> {
+): Promise<readonly PullRequestFile[]> {
   if (checkedFiles !== undefined) {
-    return [...checkedFiles];
+    return checkedFiles;
   }
   return throwOnGitHubFailure(await context.source.fetchPullRequestFiles());
 }

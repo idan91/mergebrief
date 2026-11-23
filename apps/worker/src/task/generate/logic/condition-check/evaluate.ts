@@ -214,10 +214,10 @@ function checkBaseBranches({
 
 /**
  * One scan's steps, glob tokens x path length, the globs a repository
- * writer's and the paths a PR author's: sized for 3000 paths of 200
- * characters against a few general globs.
+ * writer's and the paths a PR author's: sized for 6000 paths of 200
+ * characters, 3000 files each renamed, against a few general globs.
  */
-const PATHS_MATCH_STEPS = 20_000_000;
+const PATHS_MATCH_STEPS = 40_000_000;
 
 /**
  * Git paths are case-sensitive, so a glob matches as written. A scan past
@@ -225,7 +225,8 @@ const PATHS_MATCH_STEPS = 20_000_000;
  * a Generate click still runs it. Unread paths read as met: the list is read
  * only when the verdict turns on it (`isVerdictOnPaths`), so a head held on
  * another condition lists no `paths` item, nor an `any` group holding one,
- * until the others pass.
+ * until the others pass. GitHub lists at most 3,000 files, so a larger PR
+ * matches on those alone.
  */
 function checkPaths({
   value,
@@ -238,16 +239,17 @@ function checkPaths({
   }
   const matched = matchesAnyGlob(
     value,
-    [facts.changedPaths],
+    [facts.changedPaths, facts.previousPaths ?? []],
     PATHS_MATCH_STEPS,
   );
   if (matched === true) {
     return [];
   }
   if (matched === undefined) {
+    const previousCount = facts.previousPaths?.length ?? 0;
     log?.warn("generate: paths match budget spent, held as no match", {
       globs: value.length,
-      paths: facts.changedPaths.length,
+      paths: facts.changedPaths.length + previousCount,
     });
   }
   return [{ kind: TriggerConditionKinds.PATHS, setBy, paths: value }];
