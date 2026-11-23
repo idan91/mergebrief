@@ -30,6 +30,7 @@ function MenuRoot({
   offsetPx,
   portal,
   onOpen,
+  anchor,
   children,
 }: MenuProps) {
   const popover = usePopover({
@@ -37,6 +38,7 @@ function MenuRoot({
     offsetPx,
     portal,
     onOpen,
+    anchor,
     focusOnOpen: PopoverFocusTargets.LIST,
   });
   const list = useDropdownList(popover.context, { role: DropdownRoles.MENU });

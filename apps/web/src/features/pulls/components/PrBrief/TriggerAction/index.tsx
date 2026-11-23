@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { Button } from "@web/components/Button";
 import { handOffFocusOnRemoval } from "../../../utils/focus-hand-off";
@@ -43,11 +43,13 @@ export function TriggerAction({
   const label = pending ? pendingLabel : actionLabel;
   const layout = onTrigger === undefined ? "outcome-only" : "offered";
   const split = onTrigger !== undefined && moreRuns !== undefined;
+  const buttonsRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className={styles["action"]} data-state={layout}>
       {onTrigger === undefined ? null : (
         <div
+          ref={buttonsRef}
           className={styles["buttons"]}
           data-state={split ? "split" : undefined}
         >
@@ -63,6 +65,7 @@ export function TriggerAction({
           </Button>
           {moreRuns === undefined ? null : (
             <MoreRuns
+              anchor={buttonsRef}
               disabled={pending}
               label={moreRuns.label}
               rows={moreRuns.rows}
