@@ -54,7 +54,7 @@ After the quick start, read these in order the first time; each stands on its ow
 
 Read these when a repository or a reviewer needs them:
 
-- [repo-config.md](./repo-config.md): what a repository's own `.mergebrief/` files can change about its briefs.
+- [Configure your repository](../repo-config/README.md): what a repository's own `.mergebrief/` files can change about its briefs, and [repo-config.md](./repo-config.md) for the operator's side.
 - [trackers.md](./trackers.md): where the primary ticket is read from, and what the worker fetches from links in a pull request description.
 - [attachments.md](./attachments.md): the one push the App makes, for images in review comments.
 - [cli.md](./cli.md): connecting the `mergebrief` CLI, and the `/api/*` exemption an identity-aware proxy needs.
