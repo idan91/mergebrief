@@ -11,13 +11,9 @@ import {
   CiModes,
   resolveEffectiveTriggerConditions,
   type EffectiveTriggerConditions,
-  type TriggerConditionSetting,
 } from "generators/trigger-conditions";
-import {
-  SizeMeasures,
-  TriggerConditionKinds,
-  type TriggerConditionKind,
-} from "types/trigger-conditions";
+import { SizeMeasures, TriggerConditionKinds } from "types/trigger-conditions";
+import { readConditionStamps } from "persistence";
 import type { Mutable, Result } from "types/utils";
 import type { AcquiredRepoConfig } from "../../../repo-config";
 import {
@@ -29,11 +25,16 @@ import type { ConditionReads } from "../../../github-port";
 import { throwOnGitHubFailure } from "../errors";
 import { REVIEW_BOT_ACCOUNTS } from "./consts";
 import { acquireGateRepoConfig, isGateable } from "../run-gates";
-import { evaluateTriggerConditions, isVerdictOnPaths } from "./evaluate";
+import {
+  addPathsMatch,
+  deriveOwedStamps,
+  evaluateTriggerConditions,
+  isVerdictOnPaths,
+} from "./evaluate";
 import { isBoundForLargePool } from "../pool-routing";
 import { postHeldEntry } from "./held-entry";
 import type { ConditionFacts, HeadReports } from "./types";
-import { isReviewBot } from "./utils";
+import { isKindConfigured, isReviewBot, listSettings } from "./utils";
 
 const HELD: ConditionCheckOutcome = { kind: ConditionCheckKinds.HELD };
 
@@ -63,20 +64,6 @@ async function isEveryPushTurnedOnSincePickup(
 ): Promise<boolean> {
   const row = await context.repo.pullRequests.getById(context.prRow.id);
   return row !== undefined && row.generateEveryPushAt !== null;
-}
-
-function listSettings(
-  effective: EffectiveTriggerConditions,
-): TriggerConditionSetting[] {
-  const conditions = [...effective.all, ...effective.any];
-  return conditions.map((condition) => condition.setting);
-}
-
-function isKindConfigured(
-  effective: EffectiveTriggerConditions,
-  kind: TriggerConditionKind,
-): boolean {
-  return listSettings(effective).some((setting) => setting.kind === kind);
 }
 
 /**
@@ -164,10 +151,25 @@ function requireConditionReads(context: RunContext): ConditionReads {
   return reads;
 }
 
+/** A pending request or the PR's stamp meets `reviewRequested` without the review list. */
+function isReviewListOwed(
+  context: RunContext,
+  effective: EffectiveTriggerConditions,
+): boolean {
+  const kind = TriggerConditionKinds.REVIEW_REQUESTED;
+  if (!isKindConfigured(effective, kind)) {
+    return false;
+  }
+  const { reviewRequestedMetAt } = readConditionStamps(context.prRow);
+  const pending = context.prInfo.pendingReviewRequests > 0;
+  return reviewRequestedMetAt === undefined && !pending;
+}
+
 /**
- * Only a `bots` or `ci` condition reads the head's reports, each read once.
- * A refused check-run or status read marks the permission missing; any
- * other failure classifies as the paths read does.
+ * Only a `bots` or `ci` condition reads the head's check runs and statuses,
+ * and `bots` or an unmet `reviewRequested` its reviews, each read once. A
+ * refused check-run or status read marks the permission missing; any other
+ * failure classifies as the paths read does.
  */
 async function readHeadReports(
   context: RunContext,
@@ -175,7 +177,8 @@ async function readHeadReports(
 ): Promise<HeadReports> {
   const botsSet = isKindConfigured(effective, TriggerConditionKinds.BOTS);
   const ciSet = isKindConfigured(effective, TriggerConditionKinds.CI);
-  if (!botsSet && !ciSet) {
+  const readsReviews = botsSet || isReviewListOwed(context, effective);
+  if (!readsReviews && !ciSet) {
     return NO_REPORTS;
   }
 
@@ -188,7 +191,9 @@ async function readHeadReports(
     readsReports
       ? reads.listCommitStatuses(headSha)
       : answerNothing<CommitStatus>(),
-    botsSet ? reads.listSubmittedReviews() : answerNothing<SubmittedReview>(),
+    readsReviews
+      ? reads.listSubmittedReviews()
+      : answerNothing<SubmittedReview>(),
     readsRuleset
       ? reads.listRequiredStatusChecks(baseRef)
       : answerNothing<string>(),
@@ -218,8 +223,11 @@ function readConditionFacts(
     draft: prInfo.draft,
     title: prInfo.title,
     headSha: prInfo.headSha,
+    repoPrivate: prInfo.repoPrivate,
     labels: prInfo.labels,
+    authorLogin: prInfo.authorLogin ?? undefined,
     pendingReviewRequests: prInfo.pendingReviewRequests,
+    stamps: readConditionStamps(context.prRow),
     sizes: {
       [SizeMeasures.CHANGED_LINES]: changedLines,
       [SizeMeasures.ADDITIONS]: prInfo.additions,
@@ -233,6 +241,62 @@ function readConditionFacts(
     facts.baseRef = prInfo.baseRef;
   }
   return facts;
+}
+
+/** A store error's class: its name and SQLSTATE, never its message, which may carry a connection string. */
+interface StoreErrorClass {
+  readonly errorName: string;
+  readonly errorCode?: string;
+}
+
+function readErrorCode(error: unknown): string | undefined {
+  const coded = typeof error === "object" && error !== null && "code" in error;
+  if (!coded) {
+    return undefined;
+  }
+  return typeof error.code === "string" ? error.code : undefined;
+}
+
+/** A driver error may arrive wrapped by the query builder, its code on the cause. */
+function classifyStoreError(error: unknown): StoreErrorClass {
+  if (!(error instanceof Error)) {
+    return { errorName: "unknown" };
+  }
+  const classified: Mutable<StoreErrorClass> = { errorName: error.name };
+  const code = readErrorCode(error) ?? readErrorCode(error.cause);
+  if (code !== undefined) {
+    classified.errorCode = code;
+  }
+  return classified;
+}
+
+/**
+ * A stamp write runs before any claim, so it writes only what the row lacks
+ * and never fails the run: the condition was seen met either way, and the
+ * next run that sees it met writes it again.
+ */
+async function writeOwedStamps(
+  context: RunContext,
+  effective: EffectiveTriggerConditions,
+  facts: ConditionFacts,
+): Promise<void> {
+  const owed = deriveOwedStamps(effective, facts);
+  const { pullRequests } = context.repo;
+  const pullRequestId = context.prRow.id;
+  try {
+    if (owed.reviewRequested) {
+      await pullRequests.stampReviewRequestedMet(pullRequestId);
+    }
+    if (owed.pathsDigest !== undefined) {
+      await pullRequests.stampPathsMet(pullRequestId, owed.pathsDigest);
+    }
+  } catch (error) {
+    context.log.warn("generate: condition stamp write failed", {
+      reviewRequested: owed.reviewRequested,
+      paths: owed.pathsDigest !== undefined,
+      ...classifyStoreError(error),
+    });
+  }
 }
 
 /**
@@ -262,11 +326,10 @@ export async function applyConditionCheck(
   const reports = await readHeadReports(context, effective);
   const unreadFacts = readConditionFacts(context, undefined, reports);
   const files = await readCheckedFiles(context, effective, unreadFacts);
-  const unmet = evaluateTriggerConditions(
-    effective,
-    readConditionFacts(context, files, reports),
-    log,
-  );
+  const readFacts = readConditionFacts(context, files, reports);
+  const facts = addPathsMatch(effective, readFacts, log);
+  const unmet = evaluateTriggerConditions(effective, facts);
+  await writeOwedStamps(context, effective, facts);
   if (unmet.length === 0) {
     return buildProceedOutcome(repoConfig, files);
   }

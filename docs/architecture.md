@@ -131,12 +131,13 @@ it, so the worker's parser takes a new field as optional.
 The App needs seven permissions (`docs/self-host/github-app.md`) and parses seven
 webhook events (`packages/github/src/webhook/events.ts`):
 
-- `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and `review_requested` queue a generation; `edited` queues one only when it moved the base; `closed` writes the state and queues nothing; `converted_to_draft` writes the state and queues a job only for a held head, or a pending or failed head whose run is in flight, so the worker checks its trigger conditions again. `labeled`, `unlabeled`, `review_request_removed` and an `edited` that changed the title but not the base, whatever else it changed, write nothing and wake only a stored pull request's head by the same rule; the worker reads the title live.
+- `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and `review_requested` queue a generation, and a `review_requested` naming a person or a team also stamps the pull request's `review_requested_met_at`, so `reviewRequested` stays met; `edited` queues one only when it moved the base; `closed` writes the state and queues nothing; `converted_to_draft` writes the state and queues a job only for a held head, or a pending or failed head whose run is in flight, so the worker checks its trigger conditions again. `labeled`, `unlabeled`, `review_request_removed` and an `edited` that changed the title but not the base, whatever else it changed, write nothing and wake only a stored pull request's head by the same rule; the worker reads the title live.
 - `pull_request_review` (`submitted`): advances the reviewer's Checkpoint when
   the repository is private (not internal), or otherwise when the review's
   `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`, or else when one
   bounded read of the reviewer's repository permission answers `write` or
-  `admin`. Then it triggers a generation so the delta from that checkpoint can
+  `admin`. Such a reviewer, unless they wrote the pull request, also stamps
+  its `review_requested_met_at`, so `reviewRequested` stays met. Then it triggers a generation so the delta from that checkpoint can
   be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
 - `check_run` (`completed`, or `created` already finished) and `status`
   (every state): wake the open pull requests in the repository whose current head is that commit, through persistence's `recheckHeadsAtSha`, which decides which heads it moves and queues their checks about a minute out, once per burst of reports. A fork pull request's run names no pull request and a status never does, so the commit SHA finds them. Nothing else is written.

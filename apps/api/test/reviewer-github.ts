@@ -49,6 +49,7 @@ export function makeFakePullRequestInfo(
   return {
     repoId: brandRepoId(BigInt(options.repoId)),
     repoFullName: REPO_SLUG,
+    repoPrivate: false,
     headSha: "h".repeat(40),
     headRef: "feature",
     baseSha: "b".repeat(40),

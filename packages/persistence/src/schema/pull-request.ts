@@ -114,6 +114,20 @@ export const pullRequest = pgTable(
     generateEveryPushAt: timestamp("generate_every_push_at", {
       withTimezone: true,
     }),
+    /**
+     * When the PR first met `reviewRequested`: a person's review request or
+     * review. Set once, never cleared; the condition stays met while set.
+     */
+    reviewRequestedMetAt: timestamp("review_requested_met_at", {
+      withTimezone: true,
+    }),
+    /**
+     * When a changed path first matched the repo's `paths` globs, and the
+     * digest of those globs: met while the digest matches the current list.
+     * CHECK-paired.
+     */
+    pathsMetAt: timestamp("paths_met_at", { withTimezone: true }),
+    pathsMetDigest: text("paths_met_digest"),
     /** NULL while open; the retention sweep's one input once closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /**
@@ -166,6 +180,10 @@ export const pullRequest = pgTable(
       check(
         "pull_request_generate_every_push_shape",
         sql`(${table.generateEveryPushBy} is null) = (${table.generateEveryPushAt} is null)`,
+      ),
+      check(
+        "pull_request_paths_met_shape",
+        sql`(${table.pathsMetAt} is null) = (${table.pathsMetDigest} is null)`,
       ),
       check(
         "pull_request_owner_shape",

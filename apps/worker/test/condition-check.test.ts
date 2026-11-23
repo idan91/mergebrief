@@ -6,6 +6,9 @@ import type {
   TriggerConditionSetting,
 } from "generators/trigger-conditions";
 import {
+  addPathsMatch,
+  deriveOwedStamps,
+  digestPathGlobs,
   evaluateTriggerConditions,
   isVerdictOnPaths,
 } from "../src/task/generate/logic/condition-check/evaluate";
@@ -30,8 +33,11 @@ const BASE_FACTS: ConditionFacts = {
   title: "Add widgets",
   headSha: HEAD,
   baseRef: "main",
+  repoPrivate: false,
   labels: [],
+  authorLogin: "octocat",
   pendingReviewRequests: 0,
+  stamps: {},
   sizes: { "changed-lines": 120, additions: 100, deletions: 20 },
   changedPaths: ["src/widgets/index.ts"],
   reports: NO_REPORTS,
@@ -78,10 +84,9 @@ function evaluateOne(
   setting: TriggerConditionSetting,
   overrides: Partial<ConditionFacts> = {},
 ) {
-  return evaluateTriggerConditions(
-    makeEffective(setting),
-    makeFacts(overrides),
-  );
+  const effective = makeEffective(setting);
+  const facts = addPathsMatch(effective, makeFacts(overrides));
+  return evaluateTriggerConditions(effective, facts);
 }
 
 describe("evaluateTriggerConditions, size", () => {
@@ -301,6 +306,136 @@ describe("evaluateTriggerConditions, reviewRequested", () => {
 
     expect(unmet).toEqual([{ kind: "review-requested", setBy: "repo" }]);
   });
+
+  it("stays met by its stamp once GitHub dropped the request", () => {
+    const unmet = evaluateOne(
+      { kind: "review-requested", value: true },
+      { stamps: { reviewRequestedMetAt: new Date() } },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it.each<[string, SubmittedReview, boolean]>([
+    [
+      "a collaborator's",
+      makeAuthoredReview({ authorLogin: "bob", authorType: "User" }),
+      true,
+    ],
+    [
+      "an owner's",
+      makeAuthoredReview({ authorLogin: "bob", authorAssociation: "OWNER" }),
+      true,
+    ],
+    [
+      "a member's",
+      makeAuthoredReview({ authorLogin: "bob", authorAssociation: "MEMBER" }),
+      true,
+    ],
+    [
+      "an outsider's",
+      makeAuthoredReview({ authorLogin: "eve", authorAssociation: "NONE" }),
+      false,
+    ],
+    [
+      "a past contributor's",
+      makeAuthoredReview({
+        authorLogin: "eve",
+        authorAssociation: "CONTRIBUTOR",
+      }),
+      false,
+    ],
+    [
+      "an unknown association's",
+      { reviewId: 1n, state: "COMMENTED", authorLogin: "eve" },
+      false,
+    ],
+    [
+      "a bot's",
+      makeAuthoredReview({ authorLogin: "copilot", authorType: "Bot" }),
+      false,
+    ],
+    ["the author's own", makeAuthoredReview({ authorLogin: "octocat" }), false],
+  ])("on %s review alone is met %s", (_case, review, met) => {
+    const unmet = evaluateOne(
+      { kind: "review-requested", value: true },
+      { reports: { ...NO_REPORTS, reviews: [review] } },
+    );
+
+    expect(unmet.length === 0).toBe(met);
+  });
+});
+
+function makeAuthoredReview(author: Partial<SubmittedReview>): SubmittedReview {
+  return {
+    reviewId: 1n,
+    state: "COMMENTED",
+    authorAssociation: "COLLABORATOR",
+    ...author,
+  };
+}
+
+describe("deriveOwedStamps", () => {
+  const reviewRequested = makeEffective({
+    kind: "review-requested",
+    value: true,
+  });
+  const payments = makeEffective({ kind: "paths", value: ["src/payments/**"] });
+
+  it("owes the review stamp on a pending request", () => {
+    const owed = deriveOwedStamps(
+      reviewRequested,
+      makeFacts({ pendingReviewRequests: 1 }),
+    );
+
+    expect(owed).toEqual({ reviewRequested: true });
+  });
+
+  it("owes no review stamp once stamped or with the condition unset", () => {
+    const stamped = deriveOwedStamps(
+      reviewRequested,
+      makeFacts({
+        pendingReviewRequests: 1,
+        stamps: { reviewRequestedMetAt: new Date() },
+      }),
+    );
+    const unset = deriveOwedStamps(
+      payments,
+      makeFacts({ pendingReviewRequests: 1 }),
+    );
+
+    expect([stamped, unset]).toEqual([
+      { reviewRequested: false },
+      { reviewRequested: false },
+    ]);
+  });
+
+  it("owes the paths stamp with the globs' digest on a match", () => {
+    const facts = makeFacts({ changedPaths: ["src/payments/refund.ts"] });
+    const owed = deriveOwedStamps(payments, addPathsMatch(payments, facts));
+
+    expect(owed).toEqual({
+      reviewRequested: false,
+      pathsDigest: digestPathGlobs(["src/payments/**"]),
+    });
+  });
+
+  it.each<[string, Partial<ConditionFacts>]>([
+    ["no match", { changedPaths: ["docs/guide.md"] }],
+    ["unread paths", { changedPaths: undefined }],
+    [
+      "a stamp under the same globs",
+      {
+        changedPaths: ["src/payments/refund.ts"],
+        stamps: { pathsMetDigest: digestPathGlobs(["src/payments/**"]) },
+      },
+    ],
+  ])("owes no paths stamp on %s", (_case, overrides) => {
+    const facts = addPathsMatch(payments, makeFacts(overrides));
+    const owed = deriveOwedStamps(payments, facts);
+
+    expect(owed.pathsDigest).toBeUndefined();
+  });
 });
 
 describe("evaluateTriggerConditions, paths", () => {
@@ -361,12 +496,14 @@ describe("evaluateTriggerConditions, paths", () => {
     const previousPaths = ["old/a.ts", "old/b.ts"];
 
     const lines: Record<string, unknown>[] = [];
+    const effective = makeEffective({ kind: "paths", value: [COSTLY_GLOB] });
+    const facts = makeFacts({
+      changedPaths: [...misses, lastMatches],
+      previousPaths,
+    });
 
-    const unmet = evaluateTriggerConditions(
-      makeEffective({ kind: "paths", value: [COSTLY_GLOB] }),
-      makeFacts({ changedPaths: [...misses, lastMatches], previousPaths }),
-      stubLogger(lines),
-    );
+    const matched = addPathsMatch(effective, facts, stubLogger(lines));
+    const unmet = evaluateTriggerConditions(effective, matched);
 
     expect(unmet).toHaveLength(1);
     expect(lines).toEqual([
@@ -464,6 +601,32 @@ describe("evaluateTriggerConditions, paths", () => {
     expect(unmet).toEqual([]);
   });
 
+  it("stays met by a stamp under the same globs, whatever the files", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**", "*.sql"] },
+      {
+        changedPaths: ["docs/guide.md"],
+        stamps: {
+          pathsMetDigest: digestPathGlobs(["*.sql", "src/payments/**"]),
+        },
+      },
+    );
+
+    expect(unmet).toEqual([]);
+  });
+
+  it("checks again once the globs differ from the stamp's", () => {
+    const unmet = evaluateOne(
+      { kind: "paths", value: ["src/payments/**"] },
+      {
+        changedPaths: ["docs/guide.md"],
+        stamps: { pathsMetDigest: digestPathGlobs(["docs/**"]) },
+      },
+    );
+
+    expect(unmet).toHaveLength(1);
+  });
+
   it("reads unread changed paths as met", () => {
     const unmet = evaluateTriggerConditions(
       makeEffective({ kind: "paths", value: ["src/payments/**"] }),
@@ -530,6 +693,32 @@ describe("isVerdictOnPaths", () => {
     const verdictOnPaths = isVerdictOnPaths(effective, {
       ...unread,
       labels: ["needs-brief"],
+    });
+
+    expect(verdictOnPaths).toBe(false);
+  });
+
+  it("is false for a paths condition its stamp already meets", () => {
+    const verdictOnPaths = isVerdictOnPaths(makeEffective(paths), {
+      ...unread,
+      stamps: { pathsMetDigest: digestPathGlobs(["src/payments/**"]) },
+    });
+
+    expect(verdictOnPaths).toBe(false);
+  });
+
+  it("is false once a stamped member of its any group is met", () => {
+    const effective: EffectiveTriggerConditions = {
+      all: [],
+      any: [
+        { setting: paths, setBy: "repo" },
+        { setting: { kind: "review-requested", value: true }, setBy: "repo" },
+      ],
+    };
+
+    const verdictOnPaths = isVerdictOnPaths(effective, {
+      ...unread,
+      stamps: { reviewRequestedMetAt: new Date() },
     });
 
     expect(verdictOnPaths).toBe(false);
@@ -631,9 +820,10 @@ describe("evaluateTriggerConditions, any group of paths and more", () => {
   };
 
   it("passes on a matching path alone", () => {
+    const facts = makeFacts({ changedPaths: ["src/payments/refund.ts"] });
     const unmet = evaluateTriggerConditions(
       pathsOrLabels,
-      makeFacts({ changedPaths: ["src/payments/refund.ts"] }),
+      addPathsMatch(pathsOrLabels, facts),
     );
 
     expect(unmet).toEqual([]);

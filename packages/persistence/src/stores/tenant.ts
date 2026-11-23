@@ -204,6 +204,22 @@ export interface PullRequestRepository {
   turnOffGenerateEveryPush(
     pullRequestId: PullRequestRowId,
   ): Promise<PullRequestRow | undefined>;
+  /**
+   * Record that the PR met `reviewRequested`. The first stamp stands: a
+   * stamped row is returned as it is. `undefined` if no row in ctx's scope.
+   */
+  stampReviewRequestedMet(
+    pullRequestId: PullRequestRowId,
+  ): Promise<PullRequestRow | undefined>;
+  /**
+   * Record that the PR met `paths` under the globs `digest` names. A stamp
+   * under the same digest stands, returned as it is; another digest
+   * replaces it. `undefined` if no row in ctx's scope.
+   */
+  stampPathsMet(
+    pullRequestId: PullRequestRowId,
+    digest: string,
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -473,6 +489,22 @@ export function createTenantRepository(
         pullRequestId,
         set: { generateEveryPushBy: null, generateEveryPushAt: null },
         guard: isNotNull(pullRequest.generateEveryPushAt),
+      });
+    },
+
+    async stampReviewRequestedMet(pullRequestId) {
+      return updateGuardedPullRequest(db, scope, {
+        pullRequestId,
+        set: { reviewRequestedMetAt: sql`now()` },
+        guard: isNull(pullRequest.reviewRequestedMetAt),
+      });
+    },
+
+    async stampPathsMet(pullRequestId, digest) {
+      return updateGuardedPullRequest(db, scope, {
+        pullRequestId,
+        set: { pathsMetAt: sql`now()`, pathsMetDigest: digest },
+        guard: sql`${pullRequest.pathsMetDigest} is distinct from ${digest}`,
       });
     },
   };

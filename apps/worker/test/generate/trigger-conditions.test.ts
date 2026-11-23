@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PullRequestFile, PullRequestInfo } from "github";
+import { matchesAnyGlob } from "brief-core/path-matching";
 import {
   createGenerationProjection,
   createIngestRoutines,
@@ -14,7 +15,8 @@ import {
   buildEntryCommentGeneratingBody,
   buildEntryCommentHeldBody,
 } from "../../src/task/entry-comment";
-import { FakeFailures, type FakeGitHub } from "github/testing";
+import { digestPathGlobs } from "../../src/task/generate/logic/condition-check/evaluate";
+import { FakeFailures, type FakeGitHub, type FakeReview } from "github/testing";
 import { createI18n } from "i18n";
 import type { TFunction } from "i18next";
 import { RepoConfigPaths } from "repo-config";
@@ -22,6 +24,7 @@ import { GenerationStatuses } from "types";
 import { GenerationFailureCodes } from "types/generations";
 import {
   addSettings,
+  captureLogger,
   countStartedRuns,
   ctx,
   FIRST_ATTEMPT,
@@ -41,6 +44,7 @@ import {
   makeSyncEntryTask,
   makeTask,
   type ReadCount,
+  openPerTestHarness,
   PR_REF,
   readLiveBodies,
   readRowStatus,
@@ -54,6 +58,13 @@ import {
   trigger,
 } from "./helpers";
 import { SETTINGS_READ_RETRY_DELAYS_MS } from "../../src/task/generate/logic/run-gates";
+
+vi.mock("brief-core/path-matching", async (importOriginal) => {
+  const actual = await importOriginal<{
+    matchesAnyGlob: typeof matchesAnyGlob;
+  }>();
+  return { ...actual, matchesAnyGlob: vi.fn(actual.matchesAnyGlob) };
+});
 
 setUpHarness();
 
@@ -130,6 +141,44 @@ const MULTI_CALL_FILES = 121;
 const PAYMENTS_PATHS_SETTINGS =
   "version: 1\ntriggerConditions:\n  paths: ['src/payments/**']\n";
 const PAST_FILE_LIST_COUNT = 3001;
+
+const REVIEW_REQUESTED_SETTINGS =
+  "version: 1\ntriggerConditions:\n  reviewRequested: on\n";
+const REVIEW_REQUESTED_OR_LABELS_SETTINGS = `version: 1
+triggerConditions:
+  any:
+    reviewRequested: on
+    labels: [needs-brief]
+`;
+const PAYMENTS_GLOBS = ["src/payments/**"];
+const REFUSE_REVIEW_STAMP_SQL = [
+  `create function refuse_review_stamp() returns trigger language plpgsql as $$
+begin
+  raise exception 'stamp refused';
+end $$`,
+  `create trigger refuse_review_stamp before update of review_requested_met_at
+  on pull_request for each row execute function refuse_review_stamp()`,
+];
+
+function makeReview(author: Partial<FakeReview>): FakeReview {
+  return {
+    reviewId: 501n,
+    reviewNodeId: "PRR_501",
+    state: "COMMENTED",
+    body: "",
+    ...author,
+  };
+}
+
+function readPullRequest(pr: PullRequestRow) {
+  return createTenantRepository(harness.handle, ctx).pullRequests.getById(
+    pr.id,
+  );
+}
+
+function countReviewReads(github: ReturnType<typeof makeGitHub>): number {
+  return github.listCalls("listSubmittedReviews").length;
+}
 
 function makeDocsOnlyGitHub() {
   return makeGitHub(HEAD_1, [
@@ -864,6 +913,24 @@ describe("generate task, trigger conditions", () => {
     expect(await countStartedRuns()).toBe(0);
   });
 
+  it("scans the changed paths once in a run held on paths", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1, [
+      { path: "docs/guide.md", additions: 3, deletions: 1 },
+      { path: "src/widgets/index.ts", additions: 2, deletions: 0 },
+    ]);
+    addSettings(
+      github,
+      "version: 1\ntriggerConditions:\n  paths: ['**/payments/**']\n",
+    );
+    vi.mocked(matchesAnyGlob).mockClear();
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
+    expect(vi.mocked(matchesAnyGlob).mock.calls).toHaveLength(1);
+  });
+
   it("reads no file list to hold a head without a paths condition", async () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
@@ -990,6 +1057,68 @@ describe("generate task, trigger conditions", () => {
         ],
       },
     ]);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("stamps the paths digest when a changed file matches", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1, [
+      { path: "src/payments/refund.ts", additions: 4, deletions: 0 },
+    ]);
+    addSettings(github, PAYMENTS_PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    const row = await readPullRequest(pr);
+    expect(row?.pathsMetDigest).toBe(digestPathGlobs(PAYMENTS_GLOBS));
+    expect(row?.pathsMetAt).toBeInstanceOf(Date);
+  });
+
+  it("meets paths from its stamp after the file was reverted", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.stampPathsMet(pr.id, digestPathGlobs(PAYMENTS_GLOBS));
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PAYMENTS_PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("reads no file list in the check when the stamp meets paths", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.stampPathsMet(pr.id, digestPathGlobs(PAYMENTS_GLOBS));
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PAYMENTS_PATHS_SETTINGS);
+    github.failOn("fetchPullRequestFiles", FakeFailures.SERVER_ERROR);
+
+    await expect(
+      makeTask({ github })(payload, { job: FIRST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    expect(await countStartedRuns()).toBe(1);
+    expect(countFileListReads(github)).toBe(1);
+  });
+
+  it("checks paths again once the repo edits its globs", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.stampPathsMet(pr.id, digestPathGlobs(["docs/**"]));
+    const github = makeDocsOnlyGitHub();
+    addSettings(github, PAYMENTS_PATHS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.HELD);
     expect(countFileListReads(github)).toBe(1);
   });
 
@@ -1144,6 +1273,176 @@ describe("generate task, trigger conditions", () => {
         permissionMissing: true,
       },
     ]);
+  });
+
+  it("stamps the PR when a pending review request meets it", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { pendingReviewRequests: 1 });
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeInstanceOf(
+      Date,
+    );
+    expect(countReviewReads(github)).toBe(0);
+  });
+
+  it("generates and warns when the review stamp write fails", async () => {
+    await openPerTestHarness();
+    for (const statement of REFUSE_REVIEW_STAMP_SQL) {
+      await harness.raw(statement);
+    }
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { pendingReviewRequests: 1 });
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+    const { logger, readLines } = captureLogger();
+
+    await makeTask({ github, log: logger })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    const warned = readLines().find(
+      (line) => line["msg"] === "generate: condition stamp write failed",
+    );
+    expect(warned).toMatchObject({ errorCode: "P0001" });
+    expect(JSON.stringify(warned)).not.toContain("stamp refused");
+  });
+
+  it("meets reviewRequested from its stamp after GitHub dropped it", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.stampReviewRequestedMet(pr.id);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect(countReviewReads(github)).toBe(0);
+  });
+
+  it("meets reviewRequested on a collaborator's review with no stamp", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.addReview(
+      PR_REF,
+      makeReview({
+        authorLogin: "bob",
+        authorType: "User",
+        authorAssociation: "COLLABORATOR",
+      }),
+    );
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeInstanceOf(
+      Date,
+    );
+  });
+
+  it.each(["NONE", "CONTRIBUTOR"] as const)(
+    "holds reviewRequested on a review by a %s account",
+    async (authorAssociation) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.addReview(
+        PR_REF,
+        makeReview({
+          authorLogin: "eve",
+          authorType: "User",
+          authorAssociation,
+        }),
+      );
+      addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+      await makeTask({ github })(payload);
+
+      expect(await readUnmet(pr)).toEqual([
+        { kind: "review-requested", setBy: "repo" },
+      ]);
+      expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeNull();
+    },
+  );
+
+  it("meets reviewRequested on a contributor's review in a private repo", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { repoPrivate: true });
+    github.addReview(
+      PR_REF,
+      makeReview({
+        authorLogin: "eve",
+        authorType: "User",
+        authorAssociation: "CONTRIBUTOR",
+      }),
+    );
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
+    expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeInstanceOf(
+      Date,
+    );
+  });
+
+  it.each([
+    ["the author's own", { authorLogin: "octocat", authorType: "User" }],
+    ["a bot's", { authorLogin: "copilot", authorType: "Bot" }],
+  ] as const)(
+    "holds reviewRequested on %s review in a private repo",
+    async (_case, author) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.updatePullRequest(PR_REF, { repoPrivate: true });
+      github.addReview(PR_REF, makeReview(author));
+      addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+      await makeTask({ github })(payload);
+
+      expect(await readUnmet(pr)).toEqual([
+        { kind: "review-requested", setBy: "repo" },
+      ]);
+    },
+  );
+
+  it("holds reviewRequested when only a bot reviewed", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.addReview(
+      PR_REF,
+      makeReview({ authorLogin: "copilot", authorType: "Bot" }),
+    );
+    addSettings(github, REVIEW_REQUESTED_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readUnmet(pr)).toEqual([
+      { kind: "review-requested", setBy: "repo" },
+    ]);
+    expect((await readPullRequest(pr))?.reviewRequestedMetAt).toBeNull();
+    expect(countReviewReads(github)).toBe(1);
+  });
+
+  it("meets an any group on a stamped review request alone", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.stampReviewRequestedMet(pr.id);
+    const github = makeGitHub(HEAD_1);
+    addSettings(github, REVIEW_REQUESTED_OR_LABELS_SETTINGS);
+
+    await makeTask({ github })(payload);
+
+    expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("reads no check runs, statuses or reviews without bots or ci", async () => {
