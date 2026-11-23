@@ -55,7 +55,7 @@ Under **Webhook**:
 
 1. **Active**: checked.
 2. **Webhook URL**: your `PUBLIC_BASE_URL` followed by `/api/webhooks/github`, such as `https://brief.example.com/api/webhooks/github`.
-3. **Secret**: the `openssl rand -hex 32` output from [Before you start](#before-you-start). The api and worker refuse to boot on a secret under 32 characters.
+3. **Webhook secret**: the `openssl rand -hex 32` output from [Before you start](#before-you-start). The api and worker refuse to boot on a secret under 32 characters.
 4. **SSL verification**: leave it enabled.
 
 GitHub refuses a `localhost` or private-network webhook URL. If your instance is not running yet, register anyway: deliveries fail until it is up, and you redeliver one in [Check the App](#check-the-app).
@@ -107,7 +107,7 @@ Everything below is on the App's **General** tab. Each value goes in `.env` besi
 | App ID | **About**, a number | `GITHUB_APP_ID` |
 | Client ID | **About**, a string, not the App ID | `GITHUB_OAUTH_CLIENT_ID` |
 | Client secret | **Client secrets**, **Generate a new client secret**. GitHub shows it once: copy it now | `GITHUB_OAUTH_CLIENT_SECRET` |
-| Private key | **Private keys**, **Generate a private key**. Your browser downloads a `.pem` file | `GITHUB_APP_PRIVATE_KEY` (the contents) or `GITHUB_APP_PRIVATE_KEY_PATH` (a mounted file) |
+| Private key | **Credentials** in the left sidebar, then **Key pairs**, **New key**. Your browser downloads the key as a PEM file | `GITHUB_APP_PRIVATE_KEY` (the contents) or `GITHUB_APP_PRIVATE_KEY_PATH` (a mounted file) |
 | Webhook secret | The value you generated in [Before you start](#before-you-start) | `GITHUB_WEBHOOK_SECRET` |
 | Slug, optional | The App's public page, `https://github.com/apps/<slug>` | `GITHUB_APP_SLUG`, so Home can link a viewer with no installation to the install page |
 
