@@ -21,37 +21,28 @@ export function isOwnDraft(view: OwnDraftSource): boolean {
 
 /** The instance draft-policy slice the notice reads (a `DraftPolicySummary`). */
 export interface DraftPolicyNoticeSource {
-  readonly generate: boolean;
   readonly debounceSeconds?: number;
 }
 
 export interface DraftPolicyNotice {
-  readonly kind: "drafts-off" | "damped";
   readonly text: string;
 }
 
 /**
- * The own-draft policy notice: explains why the brief is absent (instance has
- * drafts off) or slow to refresh (damping window). It is shown
- * to the DRAFT'S OWN AUTHOR only; reviewers of someone else's draft and any
- * ready-PR view get nothing. The damped text states the CONFIGURED window
- * (never a hardcoded duration, since the operator picks it). Null when there is
- * nothing to explain: no policy on the row (list rows) or the zero-config
- * default.
+ * The own-draft policy notice: explains why the brief is slow to refresh
+ * (damping window). It is shown to the DRAFT'S OWN AUTHOR only; reviewers of
+ * someone else's draft and any ready-PR view get nothing. The text states the
+ * CONFIGURED window (never a hardcoded duration, since the operator picks it).
+ * Absent when there is nothing to explain: no policy on the row (list rows)
+ * or the zero-config default.
  */
 export function draftPolicyNotice(
   t: TFunction,
   policy: DraftPolicyNoticeSource | undefined,
   view: OwnDraftSource,
-): DraftPolicyNotice | null {
+): DraftPolicyNotice | undefined {
   if (policy === undefined || !isOwnDraft(view)) {
-    return null;
-  }
-  if (!policy.generate) {
-    return {
-      kind: "drafts-off",
-      text: t("pulls.ownDraft.draftsOff"),
-    };
+    return undefined;
   }
   if (policy.debounceSeconds !== undefined) {
     // "can take up to" is an upper bound, deliberately: the FE cannot tell a
@@ -61,13 +52,12 @@ export function draftPolicyNotice(
     // wait there; the bound is true in every case. Revisit trigger recorded
     // in the plan (echo the applied window on the generation summary).
     return {
-      kind: "damped",
       text: t("pulls.ownDraft.damped", {
         window: formatWindow(t, policy.debounceSeconds),
       }),
     };
   }
-  return null;
+  return undefined;
 }
 
 /** "about a minute" under 2 minutes, else "about N minutes" (rounded). */

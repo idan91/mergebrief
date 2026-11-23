@@ -4,13 +4,11 @@ import type { Mutable } from "types/utils";
 
 import type { GenerationSummary, PrSummary } from "../../../../../types";
 import { hasStoredHeadBrief } from "../../../../../utils/briefRouteState";
-import { awaitsReadyForReview } from "../../../../../utils/draft-policy";
 import { draftPolicyNotice } from "../../../../../utils/ownDraft";
 import {
   isNoLongerOpen,
   readSupersededStop,
 } from "../../../../../utils/pr-state";
-import { readAwaitingDetailKey } from "../../../awaiting-head";
 import { isPastDailyCap, readCapReset } from "../../../capped-head";
 import { isRerunHopeless } from "@web/utils/failure-class";
 import {
@@ -100,13 +98,12 @@ function describeGenerating(
   const explanation = [t("pulls.newerCommits.explain.generating")];
   if (generation.status === GenerationStatuses.PENDING) {
     const pendingNotice = draftPolicyNotice(t, meta.draftPolicy, meta);
-    const damped = pendingNotice?.kind === "damped";
     explanation.push(
       waitLabel(t, {
         status: generation.status,
         phase: generation.phase,
         waitReason: generation.waitReason,
-        pendingNotice: damped ? pendingNotice.text : undefined,
+        pendingNotice: pendingNotice?.text,
       }),
     );
   }
@@ -154,7 +151,6 @@ function describeStalled(t: TFunction, input: NewerCommitsInput): StateCopy {
     const rerunKey = readSpentHeadRerunNoteKey({
       prState: meta.state,
       appInstalled: meta.appInstalled,
-      awaitsReadyForReview: awaitsReadyForReview(meta),
     });
     return describeLabelled(NewerCommitsStates.STALLED, label, [
       ...stopped,
@@ -176,24 +172,19 @@ function describeAwaiting(t: TFunction, input: NewerCommitsInput): StateCopy {
     return describeNoBriefLine(t, t("pulls.awaitingTrigger.notOpenCopy"));
   }
   const title = t("pulls.newerCommits.status.onDemand");
-  const detailKey = readAwaitingDetailKey({
-    noLongerOpen: false,
-    awaitsReadyForReview: awaitsReadyForReview(meta),
-  });
+  const detail = t("pulls.awaitingTrigger.copy");
   const offersGenerate = readOffersTrigger({
     prState: meta.state,
     viewerCanPush: meta.viewerCanPush,
     appInstalled: meta.appInstalled,
   });
   if (!offersGenerate) {
-    return describeLabelled(NewerCommitsStates.ON_DEMAND, title, [
-      t(detailKey),
-    ]);
+    return describeLabelled(NewerCommitsStates.ON_DEMAND, title, [detail]);
   }
   return {
     state: NewerCommitsStates.ON_DEMAND,
     title,
-    explanation: [t(detailKey)],
+    explanation: [detail],
     action: buildRunAction(
       t,
       NewerCommitsActionKinds.GENERATE,
@@ -257,7 +248,6 @@ function describeFailed(
     offersRegenerate: offersRun,
     prState: meta.state,
     appInstalled: meta.appInstalled,
-    awaitsReadyForReview: awaitsReadyForReview(meta),
   });
   const copy = exhausted
     ? describeLabelled(
@@ -326,7 +316,6 @@ function describeSkipped(
     cappedAt: generation.updatedAt,
     prState: meta.state,
     appInstalled: meta.appInstalled,
-    awaitsReadyForReview: awaitsReadyForReview(meta),
     units: generation.cappedUnits,
   });
   return describeLabelled(NewerCommitsStates.SKIPPED, label, [lead, detail]);
@@ -344,9 +333,6 @@ function describeNoBriefLine(t: TFunction, line: string): Mutable<StateCopy> {
 function readInstalledNoBriefLine(t: TFunction, meta: PrSummary): string {
   if (isNoLongerOpen(meta.state)) {
     return t("pulls.failed.notOpenNote");
-  }
-  if (awaitsReadyForReview(meta)) {
-    return t("pulls.empty.awaitsReadyCopy");
   }
   return t("pulls.newerCommits.explain.noRun");
 }

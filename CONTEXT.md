@@ -220,7 +220,7 @@ A **URL** pull request GitHub no longer shows to this reviewer. The row and its 
 _Avoid_: stale (means newer commits exist)
 
 **Trigger**:
-What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint** when they hold one. No compute-on-first-click gate for a **Trusted author**: spend is bounded by the debounce and the **Daily cap**, not by withholding compute, unless a **Trigger condition** holds it. Any other author's PR waits for a **Trigger approval**.
+What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless a `readyForReview` **Trigger condition** holds it; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint** when they hold one. No compute-on-first-click gate for a **Trusted author**: spend is bounded by the debounce and the **Daily cap**, not by withholding compute, unless a **Trigger condition** holds it. Any other author's PR waits for a **Trigger approval**.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
@@ -428,7 +428,7 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Instance config**:
-`mergebrief.config.yaml`, read from the workspace root or from the path the **Operator** gives in `MERGEBRIEF_CONFIG`: the generator (provider, model, effort, `fullRegeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists, shared `trackers`, the `attachments` limits, the `retention` windows, the `audit` switch and the `updateCheck` switch. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
+`mergebrief.config.yaml`, read from the workspace root or from the path the **Operator** gives in `MERGEBRIEF_CONFIG`: the generator (provider, model, effort, `fullRegeneration`), the `drafts` policy, the `spend` cap, the `operators` list, the `allowed` lists, shared `trackers`, the `attachments` limits, the `retention` windows, the `audit` switch and the `updateCheck` switch. No file means the zero-config defaults: drafts generate with the normal debounce, no **Trigger conditions**, a cap of 300 a day, no Operators, and so nobody who may sign in or start a brief.
 _Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
 
 **Repo config**:
@@ -638,7 +638,7 @@ _Avoid_: banner (the skin, not the concept), update prompt, nag (that is the CLI
 - A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (with **Evidence**) or **dismissed** (with reason). The **Receipt** shows the Dispositions as they stand at **Submit**. A Flag may carry a **Risk note**.
 - On submit, the review lands natively on GitHub (comments plus approve, request changes or comment) authored by the reviewer; the **Signature line** carries the **Receipt**'s counts. The review otherwise reads as a normal human review.
-- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires on every push, drafts included unless the **Instance config** turns drafts off, and on a PR whose author is not a **Trusted author** once it has its **Trigger approval**; the **Entry** comment posts on drafts too unless the **Repo config** opts out, and then waits for ready.
+- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires on every push, drafts included, unless a **Trigger condition** holds it (**Held**), and on a PR whose author is not a **Trusted author** once it has its **Trigger approval**; the **Entry** comment posts on drafts too unless the **Repo config** opts out, and then waits for ready.
 - The **Analysis Layer** is reviewer-agnostic; a human reviewer consumes it through the **Engagement Layer**.
 
 ## Example dialogue

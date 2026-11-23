@@ -16,6 +16,7 @@ import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import {
   getGenerateJobKey,
+  isHopelessFailure,
   projectAwaitingTrigger,
   projectPendingGeneration,
   readCurrentBriefHead,
@@ -41,13 +42,16 @@ import {
   addQueueJob,
   buildJobPayload,
   getRecoveryJobKey,
+  MAX_GENERATION_ATTEMPTS,
   readQueueJob,
+  type QueueJobState,
 } from "./queue";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
   GenerationFailureClasses,
   GenerationFailureClassByCode,
+  GenerationFailureCodes,
   GenerationStatuses,
   PrStates,
   QueueTasks,
@@ -172,6 +176,13 @@ async function owesCheckpointDelta(
   return rows.length > 0;
 }
 
+/** A head a fact event may re-check: held, or pending or failed with a run in flight; `isRecheckOwed` narrows failed further. */
+const RECHECKED_STATUSES: ReadonlySet<GenerationStatus> = new Set([
+  GenerationStatuses.HELD,
+  GenerationStatuses.PENDING,
+  GenerationStatuses.FAILED,
+]);
+
 /** A row a queued job still has work for; any other row is finished. */
 const WAITS_FOR_JOB: ReadonlySet<GenerationStatus> = new Set([
   GenerationStatuses.PENDING,
@@ -212,20 +223,70 @@ async function isGenerateJobLocked(
 }
 
 /**
- * Whether a job for the PR waits in the queue with no worker on it yet. A job
- * that spent its attempts stays in graphile's table unlocked but never runs
- * again, so it does not count as waiting.
+ * Whether a job waits in the queue with no worker on it yet. A job that spent
+ * its attempts stays in graphile's table unlocked but never runs again, so it
+ * does not count as waiting.
  */
+function isJobWaiting(job: QueueJobState | undefined): boolean {
+  if (job === undefined) {
+    return false;
+  }
+  return !job.locked && job.hasAttemptsLeft;
+}
+
 async function hasQueuedGenerateJob(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
   const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
-  if (job === undefined) {
+  return isJobWaiting(job);
+}
+
+/**
+ * A failure a graphile retry of the same job may follow. A failure the worker
+ * never retries, or a spent claim budget, is final, and a job still locked
+ * behind it is only finishing: a fresh job would rerun it or hold it.
+ */
+function isRetriedFailure(row: GenerationRow): boolean {
+  const { errorCode } = row;
+  const exhausted = errorCode === GenerationFailureCodes.ATTEMPTS_EXHAUSTED;
+  if (errorCode === null || exhausted) {
     return false;
   }
-  const waitsForWorker = !job.locked && job.hasAttemptsLeft;
-  return waitsForWorker;
+  const failureClass = GenerationFailureClassByCode[errorCode];
+  const claimsLeft = row.claims < MAX_GENERATION_ATTEMPTS;
+  return failureClass === GenerationFailureClasses.TRANSIENT && claimsLeft;
+}
+
+/**
+ * Whether a fact event owes the head a fresh job. A job waiting unlocked
+ * re-checks when it runs, whatever its task, and an `add_job` would rewrite a
+ * `generate-large` job back to `generate`. Otherwise a held head is owed one,
+ * a pending one only while its run is in flight, and a failed one only while
+ * a retry of a failure that may still clear is in flight.
+ */
+async function isRecheckOwed(
+  tx: IngestTransaction,
+  pullRequestId: PullRequestRowId,
+  row: GenerationRow,
+): Promise<boolean> {
+  const { status } = row;
+  if (!RECHECKED_STATUSES.has(status)) {
+    return false;
+  }
+  const finalFailure =
+    status === GenerationStatuses.FAILED && !isRetriedFailure(row);
+  if (finalFailure) {
+    return false;
+  }
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  if (isJobWaiting(job)) {
+    return false;
+  }
+
+  const recheckOwed =
+    status === GenerationStatuses.HELD || job?.locked === true;
+  return recheckOwed;
 }
 
 /**
@@ -344,15 +405,6 @@ async function pinLateTriggerToCurrentHead(
   return named.length > 0 ? pinned : input;
 }
 
-/** A rerun of these fails the same way and still spends. */
-function isRerunHopeless(row: GenerationRow): boolean {
-  if (row.errorCode === null) {
-    return false;
-  }
-  const failureClass = GenerationFailureClassByCode[row.errorCode];
-  return failureClass === GenerationFailureClasses.CANNOT_HELP;
-}
-
 /**
  * Why the current head cannot take a fresh run, or `undefined` when it can:
  * a head waiting for its Trigger approval, one trigger conditions hold, or
@@ -381,7 +433,7 @@ async function findTriggerOnDemandRefusal(
     return undefined;
   }
   const failed = head.row.status === GenerationStatuses.FAILED;
-  const regenerable = failed && !isRerunHopeless(head.row);
+  const regenerable = failed && !isHopelessFailure(head.row.errorCode);
   if (!regenerable) {
     return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
@@ -542,6 +594,17 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
+   * An open PR whose current head is `held`, or `pending` or `failed` with
+   * its job locked by a run that may write a hold before it sees the new
+   * facts (a failure only when graphile may retry it: transient, with the
+   * claim budget not yet spent), gets that head's job queued, so the worker checks the conditions
+   * again; a locked job's key is detached and a fresh job follows it. A job
+   * waiting unlocked under the key, whatever its task, is left as it is. Read
+   * under the pull request's row lock; any other status, a closed or merged
+   * PR, an owner scope and a PR outside the scope queue nothing.
+   */
+  recheckCurrentHead(input: RecheckCurrentHeadInput): Promise<RequeueOutcome>;
+  /**
    * A pusher's fresh run of the PR's current head, claims reset and the job
    * queued a few seconds out over a waiting one (a locked job's key detaches,
    * as on a push). A held head is released to `pending` with its conditions
@@ -590,6 +653,10 @@ export interface QueueEntrySyncInput {
 export interface ReleaseApprovedHoldInput {
   readonly pullRequestId: PullRequestRowId;
   readonly headSha: string;
+}
+
+export interface RecheckCurrentHeadInput {
+  readonly pullRequestId: PullRequestRowId;
 }
 
 export interface RequeueOutcome {
@@ -886,6 +953,36 @@ export function createIngestRoutines(
           tx,
           scope,
           { headSha, refreshRunAt: true },
+          pullRequestId,
+          TRIGGER_ON_DEMAND_DELAY_SECONDS,
+        );
+        return { queued: true };
+      });
+    },
+
+    async recheckCurrentHead(input) {
+      if (scope.ownerUserId !== null) {
+        return { queued: false };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+        if (prRow?.state !== PrStates.OPEN) {
+          return { queued: false };
+        }
+        const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+        const owed =
+          head !== undefined &&
+          (await isRecheckOwed(tx, pullRequestId, head.row));
+        if (!owed) {
+          return { queued: false };
+        }
+
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          { headSha: head.row.headSha },
           pullRequestId,
           TRIGGER_ON_DEMAND_DELAY_SECONDS,
         );

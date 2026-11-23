@@ -250,22 +250,18 @@ and policy still come only from the server's default-branch fetch.
 ## Related instance block: `drafts:` (operator-side)
 
 `mergebrief.config.yaml` (instance config) carries a `drafts` block, the
-operator's draft-PR spend knobs:
+operator's draft-PR spend knob:
 
 ```yaml
 drafts:
-  generate: on        # on|off: whether drafts generate at all (default on)
   debounceSeconds: 900  # optional draft REgeneration window; unset = normal 60s
 ```
 
-Default **on**: the author-side surface (own-draft view, mark-ready CTA)
-depends on draft generations existing. Under `generate: off` a draft PR is
-state-tracked only and gets its **first** brief when marked ready (the
-`ready_for_review` trigger); the web view still shows PR conversation and
-meta meanwhile. **Precedence:** `generate: off` makes the repo-level
-default-on `entryCommentOnDrafts` above moot until ready: no generation means
-no entry comment, automatically. Spend knobs are instance config; a repo
-file may narrow instance behavior, never widen spend.
+Drafts generate like any pull request. To hold a draft until it is marked
+ready, set `readyForReview: on` under
+[`triggerConditions:`](#triggerconditions-what-a-push-must-meet-before-it-generates),
+in the instance config or in a repository's own settings file. The removed
+`drafts.generate` key refuses boot and names that replacement.
 
 `debounceSeconds` damps WIP push-storm spend: a draft's first push in a
 storm fixes the start time and later pushes within the window only update

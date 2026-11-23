@@ -59,10 +59,9 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
  * do in the full loader.
  */
 
-/** The zero-config draft policy: drafts generate, no damping. Lives here
- * (not `types`). That package holds vocab maps, not defaults. */
+/** The zero-config draft policy: no damping. Lives here (not `types`).
+ * That package holds vocab maps, not defaults. */
 export const DEFAULT_DRAFT_POLICY: DraftPolicy = {
-  generate: true,
   debounceSeconds: null,
 };
 
@@ -93,32 +92,31 @@ export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   updateCheck: DEFAULT_UPDATE_CHECK_SETTINGS,
 };
 
-/**
- * `generate: on|off`. YAML 1.2 parses `on`/`off` as STRINGS (the 1.1
- * boolean idiom is gone), so both the string forms and real booleans are
- * accepted and normalized. SHOUT/kebab vocab does not apply: these are
- * operator-facing YAML values, mirroring the compose on/off idiom.
- */
-const generateSchema = z
-  .union([z.literal("on"), z.literal("off"), z.boolean()])
-  .transform((value) => value === "on" || value === true);
-
 const draftsBlockSchema = z
   .strictObject({
-    generate: generateSchema.optional(),
     debounceSeconds: z.number().positive().finite().optional(),
   })
   .transform(
     (block): DraftPolicy => ({
-      generate: block.generate ?? true,
       debounceSeconds: block.debounceSeconds ?? null,
     }),
   );
+
+const REMOVED_GENERATE_ISSUE =
+  "drafts: generate: removed; hold drafts with triggerConditions.readyForReview: on";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /** Parse a raw `drafts` root value; shared with the full loader's gate. */
 export function validateDraftsBlock(
   block: unknown,
 ): Result<DraftPolicy, ConfigError> {
+  if (isRecord(block) && "generate" in block) {
+    return configError([REMOVED_GENERATE_ISSUE]);
+  }
+
   const parsed = draftsBlockSchema.safeParse(block);
   if (!parsed.success) {
     return configError(

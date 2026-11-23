@@ -160,15 +160,13 @@
       "overCapUnits_other": "This pull request needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
       "overCapNote": "No push or retry is briefed until the instance operator raises the daily cap.",
       "nextPush": "This push will not be picked up again on its own. The next push after the reset is briefed as usual.",
-      "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it.",
-      "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review after the reset queues a run."
+      "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it."
     },
     "awaitingTrigger": {
       "heading": "Brief available on demand",
       "notOpenHeading": "No brief generated",
       "copy": "A collaborator with push access can generate this pull request's brief. After that, its pushes are briefed as usual.",
       "notOpenCopy": "This pull request is no longer open, so its brief will not be generated.",
-      "readyForReviewCopy": "A collaborator with push access can generate this pull request's brief. Brief generation for draft pull requests is off on this instance, so after that, pushes are briefed once it is marked ready for review.",
       "generate": {
         "action": "Generate brief",
         "pending": "Generating…",
@@ -187,8 +185,7 @@
     "empty": {
       "heading": "No brief for this pull request yet",
       "copy": "The next push (or a submitted review) is briefed as usual in a repository where the App is installed.",
-      "notOpenCopy": "This pull request is no longer open, so no brief will generate.",
-      "awaitsReadyCopy": "Brief generation for draft pull requests is off on this instance, so nothing is generated until this pull request is marked ready for review."
+      "notOpenCopy": "This pull request is no longer open, so no brief will generate."
     },
     "failed": {
       "heading": "Brief generation failed",
@@ -200,8 +197,6 @@
       "repasteNote": "Paste this pull request's URL on the home page to retry it.",
       "repasteAfterPushNote": "A rerun of this push fails the same way. After a new push, paste this pull request's URL on the home page to brief it.",
       "exhaustedRequeueNote": "A new push, a submitted review or a review request queues a new run.",
-      "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review queues a new run.",
-      "readyForReviewAfterPushNote": "A rerun of this push fails the same way. Brief generation for draft pull requests is off on this instance, so after a new push, mark this pull request ready for review to brief it.",
       "fixFirst": {
         "generationConfig": "An operator needs to fix this instance's generator configuration before a rerun can succeed.",
         "githubAccess": "The MergeBrief App needs read access to this repository's contents before a rerun can succeed.",
@@ -233,7 +228,6 @@
       "awaitingTriggerNotOpen": "No brief generated. This pull request is no longer open.",
       "superseded": "A newer revision is on the way.",
       "supersededNotOpen": "Generation stopped. This pull request is no longer open.",
-      "supersededReadyForReview": "Generation stopped. Marking this pull request ready for review queues a new run.",
       "noBrief": "No brief for this pull request yet."
     },
     "errorBoundary": {
@@ -341,7 +335,6 @@
       "revisionLinkGone": "That revision link is no longer available. Showing the latest brief."
     },
     "ownDraft": {
-      "draftsOff": "Brief generation for draft pull requests is off on this instance, so nothing is generated until this pull request is marked ready for review.",
       "damped": "Draft mode: the brief can take up to {{window}} to refresh after the last push.",
       "windowMinute": "about a minute",
       "windowMinutes_one": "about {{count}} minute",

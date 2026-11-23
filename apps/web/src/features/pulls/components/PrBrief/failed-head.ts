@@ -85,8 +85,6 @@ export interface FailedNoteInput {
   readonly prState: PrState | UnknownValue;
   /** No webhook reports on a url row: only a paste of its URL queues a run, whatever its state. */
   readonly appInstalled: boolean;
-  /** A draft under a drafts-off instance: only ready for review queues a run. */
-  readonly awaitsReadyForReview: boolean;
 }
 
 /** A url row reads GitHub on a reviewer's grant, so no App access is involved. */
@@ -115,22 +113,6 @@ const ExhaustedNoRerunNoteKeys: Record<PrState | UnknownValue, TranslationKey> =
     [UnknownValues.UNKNOWN]: "pulls.failed.exhaustedRequeueNote",
   };
 
-/** A held draft's pushes and reviews queue nothing; marking it ready does. */
-const ReadyForReviewNoteKeys: Record<PrState | UnknownValue, TranslationKey> = {
-  [PrStates.OPEN]: "pulls.failed.readyForReviewNote",
-  [PrStates.CLOSED]: "pulls.failed.notOpenNote",
-  [PrStates.MERGED]: "pulls.failed.notOpenNote",
-  [UnknownValues.UNKNOWN]: "pulls.failed.readyForReviewNote",
-};
-
-/** Marking a held draft ready reruns its head, so a cannot-help head needs a new push first. */
-const ReadyAfterPushNoteKeys: Record<PrState | UnknownValue, TranslationKey> = {
-  [PrStates.OPEN]: "pulls.failed.readyForReviewAfterPushNote",
-  [PrStates.CLOSED]: "pulls.failed.notOpenNote",
-  [PrStates.MERGED]: "pulls.failed.notOpenNote",
-  [UnknownValues.UNKNOWN]: "pulls.failed.readyForReviewAfterPushNote",
-};
-
 /** A paste reruns the head GitHub names, so a cannot-help head needs a new push first. */
 function readUrlRerunNoteKey(
   errorCode: GenerationFailureCode | undefined,
@@ -141,21 +123,8 @@ function readUrlRerunNoteKey(
   return "pulls.failed.repasteNote";
 }
 
-function readReadyForReviewNoteKey(
-  errorCode: GenerationFailureCode | undefined,
-  prState: PrState | UnknownValue,
-): TranslationKey {
-  if (readFailureClass(errorCode) === GenerationFailureClasses.CANNOT_HELP) {
-    return ReadyAfterPushNoteKeys[prState];
-  }
-  return ReadyForReviewNoteKeys[prState];
-}
-
 /** The facts that decide how a head nobody can rerun from here runs again. */
-export type RerunNoteInput = Pick<
-  FailedNoteInput,
-  "prState" | "appInstalled" | "awaitsReadyForReview"
->;
+export type RerunNoteInput = Pick<FailedNoteInput, "prState" | "appInstalled">;
 
 type NoRerunNoteInput = RerunNoteInput & Pick<FailedNoteInput, "errorCode">;
 
@@ -163,13 +132,9 @@ function readNoRerunNoteKey({
   errorCode,
   appInstalled,
   prState,
-  awaitsReadyForReview,
 }: NoRerunNoteInput): TranslationKey {
   if (!appInstalled) {
     return readUrlRerunNoteKey(errorCode);
-  }
-  if (awaitsReadyForReview) {
-    return readReadyForReviewNoteKey(errorCode, prState);
   }
   if (errorCode === GenerationFailureCodes.ATTEMPTS_EXHAUSTED) {
     return ExhaustedNoRerunNoteKeys[prState];
@@ -179,8 +144,7 @@ function readNoRerunNoteKey({
 
 /**
  * A head whose queued job used every attempt reruns as an exhausted failure
- * does: on any trigger on an open installation PR, on ready for review for a
- * held draft, on a paste for a url row.
+ * does: on any trigger on an open installation PR, on a paste for a url row.
  */
 export function readSpentHeadRerunNoteKey(
   input: RerunNoteInput,

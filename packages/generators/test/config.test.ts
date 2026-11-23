@@ -240,7 +240,7 @@ describe("loadGeneratorConfigFile", () => {
   it("accepts and validates a drafts root key block", () => {
     const result = loadGeneratorConfigFile(
       configFile(
-        "generator:\n  provider: anthropic\ndrafts:\n  generate: on\n  debounceSeconds: 900\n",
+        "generator:\n  provider: anthropic\ndrafts:\n  debounceSeconds: 900\n",
       ),
     );
     expect(result.ok).toBe(true);

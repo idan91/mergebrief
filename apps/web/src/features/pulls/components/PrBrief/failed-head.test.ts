@@ -73,7 +73,6 @@ describe("buildFailedNote", () => {
       offersRegenerate: true,
       prState: PrStates.OPEN,
       appInstalled: true,
-      awaitsReadyForReview: false,
     });
     expect(note).toBe(
       "The MergeBrief App needs read access to this repository's contents before a rerun can succeed. 1 attempt so far.",
@@ -88,7 +87,6 @@ describe("buildFailedNote", () => {
         offersRegenerate: true,
         prState: PrStates.OPEN,
         appInstalled: true,
-        awaitsReadyForReview: false,
       }),
     ).toBe(undefined);
   });
@@ -100,7 +98,6 @@ describe("buildFailedNote", () => {
       offersRegenerate: false,
       prState: PrStates.OPEN,
       appInstalled: true,
-      awaitsReadyForReview: false,
     });
     expect(note).toBe(
       "1 attempt so far. A new push re-queues generation automatically.",
@@ -116,80 +113,12 @@ describe("buildFailedNote", () => {
         offersRegenerate: false,
         prState,
         appInstalled: true,
-        awaitsReadyForReview: false,
       });
       expect(note).toBe(
         "1 attempt so far. This pull request is no longer open, so no brief will generate.",
       );
     },
   );
-});
-
-describe("buildFailedNote on a draft its instance skips", () => {
-  it.each([
-    GenerationFailureCodes.PROVIDER_TIMEOUT,
-    GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
-  ])("points a %s draft at ready for review", (errorCode) => {
-    const note = buildFailedNote(appI18n.t, {
-      errorCode,
-      attempts: 0,
-      offersRegenerate: false,
-      prState: PrStates.OPEN,
-      appInstalled: true,
-      awaitsReadyForReview: true,
-    });
-    expect(note).toMatch(/marking this pull request ready for review/);
-    expect(note).not.toMatch(/push|review request/);
-  });
-
-  it("keeps the ready for review note for a transient failure", () => {
-    const note = buildFailedNote(appI18n.t, {
-      errorCode: GenerationFailureCodes.PROVIDER_TIMEOUT,
-      attempts: 0,
-      offersRegenerate: false,
-      prState: PrStates.OPEN,
-      appInstalled: true,
-      awaitsReadyForReview: true,
-    });
-    expect(note).toBe(
-      "1 attempt so far. Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review queues a new run.",
-    );
-  });
-
-  it.each([
-    GenerationFailureCodes.DIFF_TOO_LARGE,
-    GenerationFailureCodes.OUTPUT_SECRET,
-    GenerationFailureCodes.PROVIDER_REFUSAL,
-  ])(
-    "waits for a new push before pointing a %s draft at ready",
-    (errorCode) => {
-      const note = buildFailedNote(appI18n.t, {
-        errorCode,
-        attempts: 0,
-        offersRegenerate: false,
-        prState: PrStates.OPEN,
-        appInstalled: true,
-        awaitsReadyForReview: true,
-      });
-      expect(note).toBe(
-        "1 attempt so far. A rerun of this push fails the same way. Brief generation for draft pull requests is off on this instance, so after a new push, mark this pull request ready for review to brief it.",
-      );
-    },
-  );
-
-  it("still says a merged draft will not generate", () => {
-    const note = buildFailedNote(appI18n.t, {
-      errorCode: GenerationFailureCodes.PROVIDER_TIMEOUT,
-      attempts: 0,
-      offersRegenerate: false,
-      prState: PrStates.MERGED,
-      appInstalled: true,
-      awaitsReadyForReview: true,
-    });
-    expect(note).toBe(
-      "1 attempt so far. This pull request is no longer open, so no brief will generate.",
-    );
-  });
 });
 
 describe("buildFailedNote on a url row", () => {
@@ -202,7 +131,6 @@ describe("buildFailedNote on a url row", () => {
         offersRegenerate: false,
         prState,
         appInstalled: false,
-        awaitsReadyForReview: false,
       });
       expect(note).toBe(
         "Paste this pull request's URL on the home page to retry it.",
@@ -219,7 +147,6 @@ describe("buildFailedNote on a url row a rerun cannot help", () => {
       offersRegenerate: false,
       prState: PrStates.OPEN,
       appInstalled: false,
-      awaitsReadyForReview: false,
     });
 
     expect(note).toBe(

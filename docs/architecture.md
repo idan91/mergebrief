@@ -134,7 +134,8 @@ webhook events (`packages/github/src/webhook/events.ts`):
 - `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and
   `review_requested` queue a generation; `edited` queues only when it moved the
   base; `closed` writes the state and queues nothing; `converted_to_draft`
-  updates the draft flag.
+  updates the draft flag and projects nothing, only re-checking a head that is
+  held or whose run is in flight.
 - `pull_request_review` (`submitted`): advances the reviewer's Checkpoint when
   the repository is private (not internal), or otherwise when the review's
   `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`, or else when one

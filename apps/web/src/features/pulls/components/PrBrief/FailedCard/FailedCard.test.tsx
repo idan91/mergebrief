@@ -36,7 +36,6 @@ const BASE_PROPS: FailedCardProps = {
   viewerCanPush: true,
   appInstalled: true,
   prState: "open",
-  awaitsReadyForReview: false,
 };
 
 function makeCard(overrides: Partial<FailedCardProps>, client: QueryClient) {
