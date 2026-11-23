@@ -1,9 +1,9 @@
 import type { DefaultTheme } from "vitepress";
 
 import {
-  HOME_PAGE_SOURCE,
   RELEASES_FOLDER,
   REPO_CONFIG_PAGE_ORDER,
+  SELF_HOST_PAGE_ORDER,
 } from "./consts";
 import { readReleaseVersion } from "./index";
 import type { SidebarLabels, SitePage } from "./types";
@@ -25,12 +25,12 @@ const GROUP_RULES: readonly GroupRule[] = [
   {
     label: "selfHosting",
     holds: (source) => source.startsWith("self-host/"),
-    order: compareHomeFirst,
+    order: (left, right) => compareByOrder(SELF_HOST_PAGE_ORDER, left, right),
   },
   {
     label: "repoConfig",
     holds: (source) => source.startsWith("repo-config/"),
-    order: compareRepoConfigOrder,
+    order: (left, right) => compareByOrder(REPO_CONFIG_PAGE_ORDER, left, right),
   },
   {
     label: "reference",
@@ -102,20 +102,18 @@ function compareSource(left: SitePage, right: SitePage): number {
   return left.source.localeCompare(right.source, "en");
 }
 
-function compareHomeFirst(left: SitePage, right: SitePage): number {
-  const homeOrder =
-    Number(right.source === HOME_PAGE_SOURCE) -
-    Number(left.source === HOME_PAGE_SOURCE);
-  return homeOrder === 0 ? compareSource(left, right) : homeOrder;
+function readPageRank(order: readonly string[], page: SitePage): number {
+  const rank = order.indexOf(page.source);
+  return rank === -1 ? order.length : rank;
 }
 
-function readRepoConfigRank(page: SitePage): number {
-  const rank = REPO_CONFIG_PAGE_ORDER.indexOf(page.source);
-  return rank === -1 ? REPO_CONFIG_PAGE_ORDER.length : rank;
-}
-
-function compareRepoConfigOrder(left: SitePage, right: SitePage): number {
-  const rankOrder = readRepoConfigRank(left) - readRepoConfigRank(right);
+/** The group's listed pages in their order, then every unlisted page by path. */
+function compareByOrder(
+  order: readonly string[],
+  left: SitePage,
+  right: SitePage,
+): number {
+  const rankOrder = readPageRank(order, left) - readPageRank(order, right);
   return rankOrder === 0 ? compareSource(left, right) : rankOrder;
 }
 

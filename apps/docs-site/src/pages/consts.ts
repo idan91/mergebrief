@@ -7,6 +7,28 @@ export const SITE_PAGE_GLOBS = [
   "releases/*.md",
 ] as const;
 
+/** The Self-hosting group's reading order: set up, configure, secure, then operate. A page left off follows them, by path. */
+export const SELF_HOST_PAGE_ORDER: readonly string[] = [
+  "self-host/README.md",
+  "self-host/compose.md",
+  "self-host/github-app.md",
+  "self-host/cloud-deployment.md",
+  "self-host/configuration.md",
+  "self-host/generators.md",
+  "self-host/repo-config.md",
+  "self-host/trackers.md",
+  "self-host/attachments.md",
+  "self-host/cli.md",
+  "self-host/security-model.md",
+  "self-host/observability.md",
+  "self-host/upgrade.md",
+  "self-host/backup-restore.md",
+  "self-host/secrets.md",
+  "self-host/data-and-scaling.md",
+  "self-host/troubleshooting.md",
+  "self-host/uninstall.md",
+];
+
 /** The Repo config group's reading order; a page left off follows them, by path. */
 export const REPO_CONFIG_PAGE_ORDER: readonly string[] = [
   "repo-config/README.md",

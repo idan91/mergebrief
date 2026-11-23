@@ -97,6 +97,30 @@ describe("buildSidebar", () => {
     ]);
   });
 
+  it("orders self-hosting pages for reading, unlisted pages last", () => {
+    const selfHostPages: SitePage[] = [
+      "self-host/uninstall.md",
+      "self-host/glossary.md",
+      "self-host/upgrade.md",
+      "self-host/compose.md",
+      "self-host/troubleshooting.md",
+      "self-host/README.md",
+      "self-host/backup-restore.md",
+    ].map((source) => ({ source, link: "/self-host/page", title: source }));
+
+    const [group] = buildSidebar(selfHostPages, LABELS);
+
+    expect(group?.items.map((item) => item.text)).toEqual([
+      "self-host/README.md",
+      "self-host/compose.md",
+      "self-host/upgrade.md",
+      "self-host/backup-restore.md",
+      "self-host/troubleshooting.md",
+      "self-host/uninstall.md",
+      "self-host/glossary.md",
+    ]);
+  });
+
   it("drops a group with no pages", () => {
     expect(
       buildSidebar(PAGES.slice(0, 2), LABELS).map((group) => group.text),
