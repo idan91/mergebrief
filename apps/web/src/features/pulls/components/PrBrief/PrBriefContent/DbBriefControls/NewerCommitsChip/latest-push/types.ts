@@ -8,7 +8,10 @@ export const LatestPushStates = {
   /** Pending behind a job that spent its attempts: nothing will run the head. */
   STALLED: "stalled",
   CAPPED: "capped",
-  /** Trigger conditions hold it: it generates once they pass, or on Generate now. */
+  /**
+   * Trigger conditions hold it: it generates once they pass, or on the
+   * chip's Generate new brief action.
+   */
   HELD: "held",
 } as const;
 export type LatestPushState = ValueOf<typeof LatestPushStates>;

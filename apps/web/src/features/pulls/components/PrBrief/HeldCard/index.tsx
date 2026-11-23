@@ -1,5 +1,5 @@
 // The PR's current head is held by its trigger conditions and no brief is
-// shown for it: the conditions grouped by what clears them, Generate now, and
+// shown for it: the conditions grouped by what clears them, Generate brief, and
 // the switch that generates every push of the PR.
 // Presentational; the state announcement and the every-push outcome live in
 // the body's regions, since a saved switch releases the head and removes

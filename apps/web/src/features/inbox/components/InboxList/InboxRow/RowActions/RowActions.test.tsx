@@ -330,13 +330,13 @@ describe("RowActions", () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
-  it("a held row the viewer can push to offers Generate now", async () => {
+  it("a held row the viewer can push to offers Generate brief", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
     const { onAnnounce, invalidate } = await renderActions(HELD_ROW);
 
     await openMenu();
     await act(async () => {
-      fireEvent.click(screen.getByRole("menuitem", { name: "Generate now" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Generate brief" }));
     });
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
@@ -364,7 +364,7 @@ describe("RowActions", () => {
 
     await openMenu();
     await act(async () => {
-      fireEvent.click(screen.getByRole("menuitem", { name: "Generate now" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Generate brief" }));
     });
 
     expect(onAnnounce).toHaveBeenCalledWith("This push is no longer held.");
@@ -378,12 +378,17 @@ describe("RowActions", () => {
       "a head that is not held",
       { generation: { status: "failed" as const, updatedAt: "2026-09-20" } },
     ],
-  ])("a held row offers no Generate now with %s", async (_label, overrides) => {
-    await renderActions({ ...HELD_ROW, ...overrides });
-    await openMenu();
+  ])(
+    "a held row offers no Generate brief with %s",
+    async (_label, overrides) => {
+      await renderActions({ ...HELD_ROW, ...overrides });
+      await openMenu();
 
-    expect(screen.queryByRole("menuitem", { name: "Generate now" })).toBeNull();
-  });
+      expect(
+        screen.queryByRole("menuitem", { name: "Generate brief" }),
+      ).toBeNull();
+    },
+  );
 
   it("a pusher's held row toggles generate on every push on", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));

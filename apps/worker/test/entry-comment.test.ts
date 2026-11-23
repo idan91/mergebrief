@@ -465,7 +465,7 @@ describe("held entry body", () => {
         "  - Needs the label `needs-brief` (this repository's setting)",
         "  - 1284 changed lines, over the 500 maximum (this repository's setting)",
         "",
-        "[Generate now](https://mb.example/repos/123/pulls/7?rev=2) · [Brief for `0123456`](https://mb.example/repos/123/pulls/7?rev=1)",
+        "[Generate brief](https://mb.example/repos/123/pulls/7?rev=2) · [Brief for `0123456`](https://mb.example/repos/123/pulls/7?rev=1)",
         "",
         "<sub>Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates.</sub>",
         ENTRY_MARKER,
@@ -485,7 +485,7 @@ describe("held entry body", () => {
       "- Generates only when someone presses Generate (this repository's setting)",
     );
     expect(body).toContain(
-      "[Generate now](https://mb.example/repos/123/pulls/7?rev=2)\n",
+      "[Generate brief](https://mb.example/repos/123/pulls/7?rev=2)\n",
     );
     expect(body).not.toContain("Brief for");
   });

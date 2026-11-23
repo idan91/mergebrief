@@ -50,7 +50,7 @@
     },
     "held": {
       "heading": "No brief for {{shortSha}}.",
-      "generateLink": "Generate now",
+      "generateLink": "Generate brief",
       "previousLink": "Brief for {{shortSha}}",
       "footer": "Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates."
     },
@@ -232,10 +232,12 @@
     },
     "held": {
       "heading": "No brief for this push yet",
+      "notOpenHeading": "No brief generated",
       "lead": {
         "waits": "It generates by itself once these finish.",
         "needs": "It won't generate by itself until the changes below are made.",
-        "unknown": "Its trigger conditions are not met yet."
+        "unknown": "Its trigger conditions are not met yet.",
+        "notOpen": "This pull request is no longer open, so its brief will not be generated."
       },
       "groups": {
         "waiting": "Waiting on",
@@ -247,7 +249,7 @@
         "instance": "Instance"
       },
       "generate": {
-        "action": "Generate now",
+        "action": "Generate brief",
         "pending": "Generating…",
         "stale": "This push is no longer held."
       }
@@ -1928,7 +1930,7 @@
         "deleted": "Deleted",
         "regenerate": "Regenerate",
         "regenerateQueued": "Regenerate queued",
-        "generateNow": "Generate now",
+        "generate": "Generate brief",
         "generateQueued": "Generate queued",
         "archive": "Archive",
         "unarchive": "Unarchive",

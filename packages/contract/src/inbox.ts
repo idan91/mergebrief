@@ -76,7 +76,7 @@ export interface InboxItem {
   readonly viewerCanDelete: boolean;
   /**
    * GitHub says the viewer may push to an installation row's repository, as
-   * the listing read it: the bar Generate now on a held head asks for. False
+   * the listing read it: the bar Generate brief on a held head asks for. False
    * on a url row.
    */
   readonly viewerCanPush: boolean;
