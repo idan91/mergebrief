@@ -233,7 +233,8 @@ How to run the webhook receiver end-to-end on your machine and watch a real GitH
 the **fixture-capture** step: the real payloads you replay here are what the webhook parser's
 test shapes are checked against, so grab a few while you have the tunnel open.
 
-> Prereq: a **dev** GitHub App registered and installed on a test repo; see
+> Prereq: a **dev** GitHub App registered and installed on a test repo. Start the tunnel in
+> [step 4](#4-open-a-public-tunnel) first, then register the App with its URL by following
 > [`docs/self-host/github-app.md`](./docs/self-host/github-app.md). Use the App's dev credentials
 > here; never paste production secrets into a local `.env`.
 
@@ -340,9 +341,9 @@ ngrok http 3000
 ```
 
 GitHub rejects `localhost`, so it must reach you through a public URL. ngrok (not
-`gh webhook forward`) is the recommended tunnel because the app also needs the OAuth callback
-publicly reachable, and one tunnel serves both. See the rationale in
-[`docs/self-host/github-app.md`](./docs/self-host/github-app.md#webhook).
+`gh webhook forward`, which forwards webhooks only) keeps the OAuth callback and the webhook on
+one origin, so `PUBLIC_BASE_URL` stays a single value. Use that URL as the origin in the App's
+three URLs ([`docs/self-host/github-app.md`](./docs/self-host/github-app.md#before-you-start)).
 
 Set the dev App's **Webhook URL** to:
 

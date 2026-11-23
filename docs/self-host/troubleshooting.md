@@ -106,7 +106,7 @@ Home again, usually with "Signing in didn't complete. Try again." and
 | One user only: GitHub refused that user's code, for example because their primary email is unverified. | `debug`: the same line | The user fixes it on GitHub and signs in again. |
 | GitHub refused the App's OAuth client id or secret. | `error`: `sign-in refused: GitHub refused the App's OAuth credentials`, with `kind` set to GitHub's error token | Fix `GITHUB_OAUTH_CLIENT_ID` or `GITHUB_OAUTH_CLIENT_SECRET`, then `docker compose up -d`. |
 | GitHub did not answer the user read after the code exchange. Home says "GitHub couldn't be reached. Try signing in again in a moment." | `warn`: `sign-in failed: GitHub did not answer the user read` | Try again; check GitHub's status if it persists. |
-| GitHub reports a `redirect_uri` mismatch. | | The App's callback URL must be `<PUBLIC_BASE_URL>/api/auth/github/callback` ([github-app.md](./github-app.md#webhook)). |
+| GitHub reports a `redirect_uri` mismatch. | | The App's callback URL must be `<PUBLIC_BASE_URL>/api/auth/github/callback` ([github-app.md](./github-app.md#set-the-callback-url-and-sign-in-options)). |
 
 A user who cancels on GitHub's consent page lands on Home with no message;
 the api logs `sign-in cancelled on GitHub` at `debug`.
@@ -213,7 +213,7 @@ attempt and stopping after five. A 400 or 413 is never resent, nor is a revoked
 authorization, and a push or review stays back once its installation had a later
 uninstall or removed repositories. You can also redeliver from the App's **Advanced**
 tab. GitHub also refuses a `localhost` or private webhook URL at
-registration ([github-app.md](./github-app.md#webhook)).
+registration ([github-app.md](./github-app.md#set-the-webhook)).
 
 ## The worker cannot list webhook deliveries
 
