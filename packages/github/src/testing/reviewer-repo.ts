@@ -3,10 +3,8 @@ import type { Mutable } from "types/utils";
 import type { ReviewerRepoClient } from "../client/types";
 import { GitHubApiErrorCodes } from "../errors";
 import type { RepositoryRef } from "../operations/pull-request/types";
-import {
-  PullRequestReviewStates,
-  type AuthoredReview,
-} from "../operations/review-pending";
+import { PullRequestReviewStates } from "../operations/review";
+import type { AuthoredReview } from "../operations/review-pending";
 import { SUBMITTED_STATES } from "./consts";
 import {
   buildRepoReader,

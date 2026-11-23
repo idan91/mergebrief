@@ -20,6 +20,7 @@ import type {
 } from "../operations/repo";
 import type { RepoFileResult } from "../operations/repo-file";
 import type { ReviewCommentListing } from "../operations/review-comment-list";
+import type { CheckRun, CommitStatus } from "../operations/status-checks/types";
 import { RepositoryVisibilities, type RepositoryVisibility } from "../types";
 import { FIRST_IDS } from "./consts";
 import type {
@@ -61,6 +62,12 @@ export interface RepoState {
   readonly collaboratorPermissions: Map<string, CollaboratorPermission>;
   mentionableUsers: readonly MentionableUser[];
   visibility: RepositoryVisibility;
+  /** Keyed by the commit ref, in the order they were added. */
+  readonly checkRuns: Map<string, CheckRun[]>;
+  /** Keyed by the commit ref, oldest first; GitHub lists them newest first. */
+  readonly commitStatuses: Map<string, CommitStatus[]>;
+  /** Keyed by branch name; a branch with none arranged requires nothing. */
+  readonly requiredStatusChecks: Map<string, readonly string[]>;
 }
 
 export interface InstallationState {
@@ -139,6 +146,9 @@ function createRepoState(): RepoState {
     collaboratorPermissions: new Map(),
     mentionableUsers: [],
     visibility: RepositoryVisibilities.PUBLIC,
+    checkRuns: new Map(),
+    commitStatuses: new Map(),
+    requiredStatusChecks: new Map(),
   };
 }
 
@@ -200,6 +210,27 @@ function buildArrange(state: WorldState): WorldArrange {
       }
       const pullRequests = ensureRepo(state, ref).pullRequests;
       pullRequests.set(ref.prNumber, createPullRequestState(pull));
+    },
+    addReview(ref, review) {
+      const pull = state.repos
+        .get(getRepoKey(ref))
+        ?.pullRequests.get(ref.prNumber);
+      if (pull === undefined) {
+        throw new Error(`no pull request ${ref.prNumber} arranged to review`);
+      }
+      reserveId(state, "REVIEW", review.reviewId);
+      pull.reviews.push(review);
+    },
+    addCheckRun(repo, ref, run) {
+      const runs = ensureRepo(state, repo).checkRuns;
+      runs.set(ref, [...(runs.get(ref) ?? []), run]);
+    },
+    addCommitStatus(repo, ref, status) {
+      const statuses = ensureRepo(state, repo).commitStatuses;
+      statuses.set(ref, [...(statuses.get(ref) ?? []), status]);
+    },
+    setRequiredStatusChecks(repo, branch, contexts) {
+      ensureRepo(state, repo).requiredStatusChecks.set(branch, contexts);
     },
     updatePullRequest(ref, info) {
       const pull = state.repos

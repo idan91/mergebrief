@@ -13,6 +13,12 @@ import {
 } from "../operations/comments";
 import { listOpenPullRequests } from "../operations/pull-request";
 import type { ConfirmationReadOptions } from "../operations/deadline";
+import { listSubmittedReviews } from "../operations/review-list";
+import {
+  listCheckRuns,
+  listCommitStatuses,
+  listRequiredStatusChecks,
+} from "../operations/status-checks";
 import type { RepositoryRef } from "../operations/pull-request/types";
 import { buildRepoReader } from "./repo-reader";
 import type { CallRunner, InstallationRepoClient } from "./types";
@@ -91,6 +97,30 @@ export function buildInstallationRepoClient(
       return run(
         (octokit) => deleteAttachmentBranch(octokit, { ...repo, branch }),
         "delete attachment branch",
+      );
+    },
+    listCheckRuns(ref) {
+      return run(
+        (octokit) => listCheckRuns(octokit, { ...repo, ref }),
+        "list check runs",
+      );
+    },
+    listCommitStatuses(ref) {
+      return run(
+        (octokit) => listCommitStatuses(octokit, { ...repo, ref }),
+        "list commit statuses",
+      );
+    },
+    listSubmittedReviews(prNumber) {
+      return run(
+        (octokit) => listSubmittedReviews(octokit, { ...repo, prNumber }),
+        "list pull request reviews",
+      );
+    },
+    listRequiredStatusChecks(branch) {
+      return run(
+        (octokit) => listRequiredStatusChecks(octokit, { ...repo, branch }),
+        "list branch rules",
       );
     },
   };

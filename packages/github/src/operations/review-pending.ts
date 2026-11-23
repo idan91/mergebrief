@@ -12,14 +12,13 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
+import { HttpStatuses, type Mutable, type Result } from "types";
 import {
-  HttpStatuses,
-  ReviewVerdictStates,
-  type Mutable,
-  type Result,
-  type ValueOf,
-} from "types";
-import type { PendingReview } from "./review";
+  PullRequestReviewStates,
+  type PendingReview,
+  type PullRequestReviewState,
+} from "./review";
+import { readReviewList } from "./review-list";
 
 export interface PullRequestReviewRef {
   readonly owner: string;
@@ -31,38 +30,11 @@ export interface DeletePendingPullRequestReviewInput extends PullRequestReviewRe
   readonly reviewId: bigint;
 }
 
-/** GitHub wire values for a review's state, the unsubmitted one included. */
-export const PullRequestReviewStates = {
-  PENDING: "PENDING",
-  ...ReviewVerdictStates,
-} as const;
-export type PullRequestReviewState = ValueOf<typeof PullRequestReviewStates>;
-
-const REVIEWS_PER_PAGE = 100;
-
 const reviewListEntrySchema = z.object({
   id: z.number(),
   node_id: z.string(),
   state: z.string(),
 });
-
-async function readReviewList(
-  octokit: Octokit,
-  ref: PullRequestReviewRef,
-  context: string,
-): Promise<Result<unknown[], GitHubApiError>> {
-  try {
-    const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
-      owner: ref.owner,
-      repo: ref.repo,
-      pull_number: ref.prNumber,
-      per_page: REVIEWS_PER_PAGE,
-    });
-    return { ok: true, value: reviews };
-  } catch (error) {
-    return { ok: false, error: mapRequestError(error, context) };
-  }
-}
 
 /**
  * The viewer's pending review on a PR, `undefined` when there is none. Only
