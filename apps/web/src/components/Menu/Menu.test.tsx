@@ -138,6 +138,34 @@ describe("Menu", () => {
     ).toBe("true");
   });
 
+  it("a toggling row is a checkbox that keeps the menu open", async () => {
+    const onToggle = vi.fn<() => void>();
+    render(
+      <Menu>
+        <Menu.Trigger>
+          <Button variant="secondary">Account menu</Button>
+        </Menu.Trigger>
+        <Menu.Content>
+          <Menu.Item checked={false} toggles onSelect={onToggle}>
+            Generate on every push
+          </Menu.Item>
+        </Menu.Content>
+      </Menu>,
+    );
+    await openMenu();
+
+    const row = screen.getByRole("menuitemcheckbox", {
+      name: "Generate on every push",
+    });
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    await act(async () => {
+      fireEvent.click(row);
+    });
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
   it("the menu opens on its first row whatever is checked", async () => {
     renderMenu("fr");
     await openMenu();

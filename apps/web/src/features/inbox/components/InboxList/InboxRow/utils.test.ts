@@ -43,6 +43,7 @@ describe("describeRow", () => {
       viewerIsAuthor: true,
       viewerCanDelete: false,
       viewerCanPush: false,
+      generateEveryPush: false,
       behind: false,
       unreachable: false,
     };
@@ -62,6 +63,7 @@ describe("describeRow", () => {
       viewerIsAuthor: true,
       viewerCanDelete: false,
       viewerCanPush: false,
+      generateEveryPush: false,
       behind: false,
       unreachable: false,
     };

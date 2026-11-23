@@ -17,7 +17,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./RowActions.module.scss";
 import { useRowActionsFacade } from "./useRowActionsFacade";
-import { offersGenerateNow, openOnGithub } from "./utils";
+import { offersEveryPush, offersGenerateNow, openOnGithub } from "./utils";
 
 export interface RowActionsProps {
   item: InboxItem;
@@ -86,6 +86,7 @@ export function RowActions({
     ? t("home.inbox.actions.deleteHeld")
     : undefined;
   const canGenerateNow = offersGenerateNow(item);
+  const canSetEveryPush = offersEveryPush(item);
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 
@@ -132,6 +133,16 @@ export function RowActions({
               onSelect={facade.regenerate}
             >
               {t("home.inbox.actions.regenerate")}
+            </Menu.Item>
+          ) : null}
+          {canSetEveryPush ? (
+            <Menu.Item
+              checked={facade.everyPushOn}
+              disabled={facade.everyPushPending}
+              toggles
+              onSelect={facade.toggleEveryPush}
+            >
+              {t("pulls.everyPush.label")}
             </Menu.Item>
           ) : null}
           <Menu.Item

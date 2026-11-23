@@ -3,7 +3,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InboxArchivedFilter } from "types/inbox";
 
-import { useRegenerateBrief } from "@web/features/pulls/hooks";
+import {
+  useGenerateEveryPush,
+  useRegenerateBrief,
+} from "@web/features/pulls/hooks";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../brief/model";
@@ -15,7 +18,7 @@ import { HeldRowGenerateNotices } from "./consts";
 
 const INBOX_QUERY_KEY = [INBOX_QUERY_ROOT];
 
-/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate and Generate now on a held head. */
+/** The row actions with a side effect: the clipboard write, the archive either way, the regenerate, Generate now on a held head, and the every-push switch. */
 export function useRowActionsFacade(
   item: InboxItem,
   view: InboxArchivedFilter,
@@ -37,6 +40,13 @@ export function useRowActionsFacade(
     repoId: item.repoId,
     prNumber: item.prNumber,
     notices: HeldRowGenerateNotices,
+    announce: onAnnounce,
+    alsoInvalidates: INBOX_QUERY_KEY,
+  });
+  const everyPush = useGenerateEveryPush({
+    repoId: item.repoId,
+    prNumber: item.prNumber,
+    on: item.generateEveryPush,
     announce: onAnnounce,
     alsoInvalidates: INBOX_QUERY_KEY,
   });
@@ -72,6 +82,11 @@ export function useRowActionsFacade(
     regenerating,
     generatingNow: generateNow.pending,
     generateNow: generateNow.regenerate,
+    everyPushOn: everyPush.checked,
+    everyPushPending: everyPush.pending,
+    toggleEveryPush: () => {
+      everyPush.setOn(!everyPush.checked);
+    },
     copyLink: () => {
       void copyLink();
     },

@@ -22,6 +22,7 @@ import {
 } from "./attachments";
 import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
+import { generateEveryPushRoutes } from "./generate-every-push";
 import { readsRoutes } from "./reads";
 import type { ReadsRouteDeps } from "./reads/types";
 import { markReadyRoute } from "./ready";
@@ -53,6 +54,10 @@ export function prRoutes(
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
   app.route("/regenerate", regenerateRoute(deps, instanceAccess));
+  app.route(
+    "/generate-every-push",
+    generateEveryPushRoutes(deps, instanceAccess),
+  );
   const mediaBudget = createMediaStreamBudget(deps.mediaMaxBytes);
   const renderedSources = createRenderedSourcesStore();
   app.route(

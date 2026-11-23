@@ -47,6 +47,7 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
     viewerIsAuthor: false,
     viewerCanDelete: false,
     viewerCanPush: false,
+    generateEveryPush: false,
     reviewState: InboxReviewStates.NEW,
     behind: false,
     unreachable: false,
@@ -61,6 +62,7 @@ const URL_ROW = omitFields(
 
 const HELD_ROW = makeItem({
   viewerCanPush: true,
+  generateEveryPush: false,
   generation: {
     status: "held",
     updatedAt: "2026-09-20T10:00:00Z",
@@ -381,6 +383,93 @@ describe("RowActions", () => {
     await openMenu();
 
     expect(screen.queryByRole("menuitem", { name: "Generate now" })).toBeNull();
+  });
+
+  it("a pusher's held row toggles generate on every push on", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const { onAnnounce, invalidate } = await renderActions(HELD_ROW);
+
+    await openMenu();
+    const toggle = screen.getByRole("menuitemcheckbox", {
+      name: "Generate on every push",
+    });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(
+      /\/api\/repos\/424242\/pulls\/7\/generate-every-push\/on$/,
+    );
+    expect(init?.method).toBe("POST");
+    expect(onAnnounce).toHaveBeenCalledWith(
+      "Every push on this pull request now generates a brief.",
+    );
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox"] });
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it("a row already on shows its tick and turns it off", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await renderActions(
+      makeItem({ viewerCanPush: true, generateEveryPush: true }),
+    );
+
+    await openMenu();
+    const toggle = screen.getByRole("menuitemcheckbox", {
+      name: "Generate on every push",
+    });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(/\/generate-every-push\/off$/);
+  });
+
+  it("a refused toggle announces why and leaves the tick as it was", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "refused", code: "not-found" }), {
+        status: 404,
+      }),
+    );
+    const { onAnnounce } = await renderActions(HELD_ROW);
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitemcheckbox", {
+          name: "Generate on every push",
+        }),
+      );
+    });
+
+    expect(onAnnounce).toHaveBeenCalledWith(
+      "Changing this needs push access to this repository and the MergeBrief App installed on it.",
+    );
+    expect(
+      screen
+        .getByRole("menuitemcheckbox", { name: "Generate on every push" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it.each([
+    ["no push access", { viewerCanPush: false }],
+    ["a pasted row", { source: "url" as const, viewerCanPush: true }],
+    [
+      "a merged pull request",
+      { state: "merged" as const, viewerCanPush: true },
+    ],
+    ["a head that is not held", { viewerCanPush: true }],
+  ])("offers no every-push toggle with %s", async (_label, overrides) => {
+    await renderActions(makeItem(overrides));
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitemcheckbox")).toBeNull();
   });
 
   it("an installation row behind GitHub has no Regenerate", async () => {

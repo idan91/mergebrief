@@ -81,6 +81,7 @@ function timelineMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     viewerIsAuthor: false,
     viewerCanResolve: false,
     viewerCanPush: false,
+    generateEveryPush: false,
     appInstalled: true,
     behind: false,
     generation: {

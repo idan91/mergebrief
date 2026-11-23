@@ -12,6 +12,7 @@ const prMetaSliceSchema = z.object({
   briefAvailable: z.boolean(),
   headBriefStored: z.boolean().optional(),
   behind: z.boolean().optional(),
+  generateEveryPush: z.boolean().optional(),
   generation: z
     .object({
       status: z.string(),

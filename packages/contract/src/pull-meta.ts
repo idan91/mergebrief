@@ -36,6 +36,8 @@ export interface PullMetaView {
   readonly comparisons: RevisionComparisons;
   /** The PR sits in an installation's world; the App can act on its repo. */
   readonly appInstalled: boolean;
+  /** Every push of this PR generates, trigger conditions or not; false on a url row. */
+  readonly generateEveryPush: boolean;
   /** The configured window a reader shows, never a hardcoded duration. */
   readonly draftPolicy: DraftPolicy;
   /** Every stored brief, ordered by `headIndex`; absent when none is stored. */

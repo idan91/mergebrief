@@ -190,6 +190,21 @@ describe("generation lifecycle CHECKs", () => {
     ).resolves.toEqual([]);
   });
 
+  it("refuses an every-push switch with only one of its pair", async () => {
+    await seedPendingRow();
+
+    await expect(
+      shared.harness.raw(
+        "update pull_request set generate_every_push_by = 31337",
+      ),
+    ).rejects.toThrow("pull_request_generate_every_push_shape");
+    await expect(
+      shared.harness.raw(
+        "update pull_request set generate_every_push_at = now()",
+      ),
+    ).rejects.toThrow("pull_request_generate_every_push_shape");
+  });
+
   it("refuses a claim on a row that is not running", async () => {
     await seedPendingRow();
 

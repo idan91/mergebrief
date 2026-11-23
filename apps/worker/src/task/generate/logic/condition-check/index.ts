@@ -44,13 +44,25 @@ function buildProceedOutcome(
   return { kind: ConditionCheckKinds.PROCEED, repoConfig, files };
 }
 
-/** A gateable run, unless a Generate click stamped its head to skip the conditions. */
+/**
+ * A gateable run, unless a Generate click stamped its head or the PR
+ * generates on every push, which skips the conditions for every head.
+ */
 function isCheckable(context: RunContext): boolean {
-  const { projected } = context;
+  const { projected, prRow } = context;
   const stamped =
     projected !== undefined && projected.generateRequestedAt !== null;
-  const checkable = isGateable(context) && !stamped;
+  const everyPush = prRow.generateEveryPushAt !== null;
+  const checkable = isGateable(context) && !stamped && !everyPush;
   return checkable;
+}
+
+/** The switch went on after pickup read the row; the store refused the hold under its lock. */
+async function isEveryPushTurnedOnSincePickup(
+  context: RunContext,
+): Promise<boolean> {
+  const row = await context.repo.pullRequests.getById(context.prRow.id);
+  return row !== undefined && row.generateEveryPushAt !== null;
 }
 
 function listSettings(
@@ -217,12 +229,13 @@ function readConditionFacts(
 
 /**
  * Whether the run may go on to its claim. The instance's and the default
- * branch's conditions merge per kind; a repo settings read a retry may
- * clear is tried again in the run, and a refused or last read applies the
- * instance's alone. An unmet condition holds the row and ends the run:
- * no claim, no attempt, no model. A hold the store refuses (a Generate
- * click, a live claim, a kept status) stands the run down the same way;
- * the click's own job runs the head. A held head gets the held Entry.
+ * branch's conditions merge per kind; a repo settings read a retry may clear
+ * is retried in the run, and a refused or last read applies the instance's
+ * alone. An unmet condition holds the row and ends the run: no claim, no
+ * attempt, no model. A hold the store refuses (a Generate click, a live claim,
+ * a kept status) stands the run down too; the click's job runs the head, but a
+ * PR turned to every push goes on to the claim, since the switch queues a job
+ * only for a held head. A held head gets the held Entry.
  */
 export async function applyConditionCheck(
   context: RunContext,
@@ -252,6 +265,9 @@ export async function applyConditionCheck(
 
   const held = await projection.markHeld(target, unmet);
   if (!held.ok) {
+    if (await isEveryPushTurnedOnSincePickup(context)) {
+      return buildProceedOutcome(repoConfig, files);
+    }
     log.info("generate: condition hold stood down", { code: held.error.code });
     return HELD;
   }

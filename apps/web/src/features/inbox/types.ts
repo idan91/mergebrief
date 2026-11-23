@@ -69,6 +69,8 @@ export interface InboxItem {
   viewerCanDelete: boolean;
   /** GitHub says the viewer may push to an installation row's repository; false on a url row. */
   viewerCanPush: boolean;
+  /** Every push of this PR generates, trigger conditions or not; a server predating the field reads false. */
+  generateEveryPush: boolean;
   reviewState?: InboxReviewState | UnknownValue;
   behind: boolean;
   unreachable: boolean;

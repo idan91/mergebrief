@@ -188,6 +188,19 @@ export const TriggerOnDemandOutcomes = {
 } as const;
 export type TriggerOnDemandOutcome = ValueOf<typeof TriggerOnDemandOutcomes>;
 
+/** What turning on generating on every push found. */
+export const GenerateEveryPushOutcomes = {
+  /** The switch is on, and the PR's held current head was released with its job queued. */
+  RELEASED: "released",
+  /** The switch is on; no held head was waiting, so nothing was queued. */
+  ON: "on",
+  /** The PR is outside the scope, or the scope is an owner's; nothing was written. */
+  NOT_FOUND: "not-found",
+} as const;
+export type GenerateEveryPushOutcome = ValueOf<
+  typeof GenerateEveryPushOutcomes
+>;
+
 /** What charging a paid run that holds no claim to the day's cap found. */
 export const ChargeOutcomes = {
   /** One attempt row was written under the cap. */

@@ -31,6 +31,7 @@ export function makeMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     viewerIsAuthor: false,
     viewerCanResolve: true,
     viewerCanPush: true,
+    generateEveryPush: false,
     appInstalled: true,
     behind: true,
     updatedAt: "2026-10-24T10:00:00.000Z",
