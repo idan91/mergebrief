@@ -88,6 +88,24 @@ export async function runReady(
 }
 
 /**
+ * POST regenerate: Generate on the PR's current head, released from a hold
+ * or rerun after a failure. The 202 carries no body, so stdout stays empty.
+ */
+export async function runRegenerate(
+  client: ApiClient,
+  repoId: string,
+  prNumber: number,
+): Promise<void> {
+  await client.request({
+    method: ProductOperations[ProductActionIds.REGENERATE_BRIEF].method,
+    path: buildRequestPath(ProductActionIds.REGENERATE_BRIEF, {
+      repoId,
+      prNumber,
+    }),
+  });
+}
+
+/**
  * POST generate-brief, URL-box generation, no confirm prompt (the operator's
  * own key, mirroring the web URL box). The 202 body ({repoId, prNumber}) is
  * passthrough.

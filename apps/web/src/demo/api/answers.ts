@@ -14,6 +14,8 @@ import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
 import {
   AUTH_LOGOUT_PATH,
   AUTH_SESSION_PATH,
+  DEMO_HELD_BEHIND_PR_NUMBER,
+  DEMO_HELD_PR_NUMBER,
   DEMO_PR,
   VERSION_PATH,
 } from "./consts";
@@ -22,6 +24,9 @@ import {
   briefTextByHead,
   buildSpendAnswer,
   conversationAnswer,
+  emptyConversationAnswer,
+  heldBehindPullMetaAnswer,
+  heldPullMetaAnswer,
   inboxAnswer,
   mentionTargetsAnswer,
   pullMetaAnswer,
@@ -33,7 +38,7 @@ import {
 } from "./fixtures";
 import { answerSessionRequest } from "./session/answers";
 import type { DemoSessionStore } from "./session";
-import type { DemoRead, PullReadId } from "./types";
+import type { DemoPull, DemoRead, PullReadId } from "./types";
 import {
   answerEmpty,
   answerJson,
@@ -43,12 +48,30 @@ import {
   matchesQuery,
 } from "./utils";
 
-const PULL_PARAMS = { repoId: DEMO_PR.repoId, prNumber: DEMO_PR.prNumber };
 const REPO_PARAMS = { repoId: DEMO_PR.repoId };
 const PATCH_SEPARATOR = "\n";
 
-function buildPullPath(id: PullReadId): string {
-  return buildOperationPath(id, PULL_PARAMS);
+/** Every pull request the demo answers for; the held ones reuse the first revision's stored brief. */
+const DEMO_PULLS: readonly DemoPull[] = [
+  {
+    prNumber: DEMO_PR.prNumber,
+    meta: pullMetaAnswer,
+    conversation: conversationAnswer,
+  },
+  {
+    prNumber: DEMO_HELD_PR_NUMBER,
+    meta: heldPullMetaAnswer,
+    conversation: emptyConversationAnswer,
+  },
+  {
+    prNumber: DEMO_HELD_BEHIND_PR_NUMBER,
+    meta: heldBehindPullMetaAnswer,
+    conversation: emptyConversationAnswer,
+  },
+];
+
+function buildPullPath(id: PullReadId, prNumber: number): string {
+  return buildOperationPath(id, { repoId: DEMO_PR.repoId, prNumber });
 }
 
 /** The stored brief for an exact `(base, head)` span, as the API looks it up. */
@@ -104,7 +127,7 @@ function answerNarrative(query: URLSearchParams): Response {
   return answerStoredJson(revisionNarrativeText);
 }
 
-const READS: readonly DemoRead[] = [
+const APP_READS: readonly DemoRead[] = [
   { path: AUTH_SESSION_PATH, answer: () => answerJson(sessionAnswer) },
   { path: VERSION_PATH, answer: () => answerJson(versionAnswer) },
   {
@@ -126,39 +149,63 @@ const READS: readonly DemoRead[] = [
     ),
     answer: () => answerJson(mentionTargetsAnswer),
   },
-  {
-    path: buildPullPath(ProductQueryIds.READ_PULL),
-    answer: () => answerJson(pullMetaAnswer),
-  },
-  {
-    path: buildPullPath(ProductQueryIds.READ_STACK),
-    answer: () => answerJson(stackAnswer),
-  },
-  {
-    path: buildPullPath(ProductQueryIds.READ_CONVERSATION),
-    answer: () => answerJson(conversationAnswer),
-  },
-  {
-    path: buildPullPath(ProductQueryIds.READ_BRIEF_CONTEXT),
-    answer: () => answerStoredJson(briefContextText),
-  },
-  { path: buildPullPath(ProductQueryIds.READ_BRIEF), answer: answerBrief },
-  // The fixture stores no counts, so every card sizes from its estimate.
-  {
-    path: buildPullPath(ProductQueryIds.READ_BRIEF_LAYOUT),
-    answer: () => answerJson({ layout: null }),
-  },
-  { path: buildPullPath(ProductQueryIds.READ_DIFF), answer: answerDiff },
-  { path: buildPullPath(ProductQueryIds.READ_MARKS), answer: answerMarks },
-  {
-    path: buildPullPath(ProductQueryIds.READ_NARRATIVE),
-    answer: answerNarrative,
-  },
-  // No file contents travel with the fixture: every hunk edge stays folded.
-  {
-    path: buildPullPath(ProductQueryIds.READ_FILE_RANGE),
-    answer: () => answerRefusal(ApiErrorCodes.FILE_NOT_FOUND),
-  },
+];
+
+/** One pull request's reads; the stored artifacts answer by span, whichever pull request asks. */
+function buildPullReads({
+  prNumber,
+  meta,
+  conversation,
+}: DemoPull): DemoRead[] {
+  return [
+    {
+      path: buildPullPath(ProductQueryIds.READ_PULL, prNumber),
+      answer: () => answerJson(meta),
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_STACK, prNumber),
+      answer: () => answerJson(stackAnswer),
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_CONVERSATION, prNumber),
+      answer: () => answerJson(conversation),
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_BRIEF_CONTEXT, prNumber),
+      answer: () => answerStoredJson(briefContextText),
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_BRIEF, prNumber),
+      answer: answerBrief,
+    },
+    // The fixture stores no counts, so every card sizes from its estimate.
+    {
+      path: buildPullPath(ProductQueryIds.READ_BRIEF_LAYOUT, prNumber),
+      answer: () => answerJson({ layout: null }),
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_DIFF, prNumber),
+      answer: answerDiff,
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_MARKS, prNumber),
+      answer: answerMarks,
+    },
+    {
+      path: buildPullPath(ProductQueryIds.READ_NARRATIVE, prNumber),
+      answer: answerNarrative,
+    },
+    // No file contents travel with the fixture: every hunk edge stays folded.
+    {
+      path: buildPullPath(ProductQueryIds.READ_FILE_RANGE, prNumber),
+      answer: () => answerRefusal(ApiErrorCodes.FILE_NOT_FOUND),
+    },
+  ];
+}
+
+const READS: readonly DemoRead[] = [
+  ...APP_READS,
+  ...DEMO_PULLS.flatMap(buildPullReads),
 ];
 
 const readsByPath = new Map(READS.map((read) => [read.path, read]));

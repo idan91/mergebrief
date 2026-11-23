@@ -50,51 +50,9 @@
     },
     "held": {
       "heading": "No brief for {{shortSha}}.",
-      "condition": "{{reason}} ({{setBy}})",
-      "setBy": {
-        "repo": "this repository's setting",
-        "instance": "this MergeBrief instance's setting"
-      },
-      "anyGroup": "Needs one of these:",
       "generateLink": "Generate now",
       "previousLink": "Brief for {{shortSha}}",
-      "moreChecks_one": "{{names}} and {{count}} more check",
-      "moreChecks_other": "{{names}} and {{count}} more checks",
-      "footer": "Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates.",
-      "reason": {
-        "ready-for-review": "Needs this pull request marked ready for review",
-        "never": "Generates only when someone presses Generate",
-        "review-requested": "Needs a review requested from someone",
-        "sizeMax": "{{actual}} {{measure}}, over the {{limit}} maximum",
-        "sizeMin": "{{actual}} {{measure}}, under the {{limit}} minimum",
-        "sizeMeasure": {
-          "changed-lines": "changed lines",
-          "additions": "added lines",
-          "deletions": "deleted lines"
-        },
-        "labels_one": "Needs the label {{labels}}",
-        "labels_other": "Needs one of the labels {{labels}}",
-        "title-keywords_one": "Needs the word {{keywords}} in the title",
-        "title-keywords_other": "Needs one of these words in the title: {{keywords}}",
-        "base-branches_one": "Targets {{base}}, not {{branches}}",
-        "base-branches_other": "Targets {{base}}, not one of {{branches}}",
-        "paths_one": "Changes no file matching {{paths}}",
-        "paths_other": "Changes no file matching one of {{paths}}",
-        "bots": {
-          "not-started": "Waiting for {{bot}} to start on this push",
-          "running": "Waiting for {{bot}} to finish",
-          "not-approved": "{{bot}} finished without approving",
-          "issues_one": "{{bot}} found {{count}} issue",
-          "issues_other": "{{bot}} found {{count}} issues",
-          "no-verdict": "{{bot}} gave no verdict on this push",
-          "permission-missing": "Can't check {{bot}} until this installation accepts MergeBrief's Checks and Commit statuses permissions"
-        },
-        "ciFailed": "CI failed: {{checks}}",
-        "ciRunning": "Waiting for CI: {{checks}} still running",
-        "ciMissing_one": "Waiting for CI: {{checks}} has not reported on this push",
-        "ciMissing_other": "Waiting for CI: {{checks}} have not reported on this push",
-        "ciPermissionMissing": "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions"
-      }
+      "footer": "Posted by MergeBrief. Edited in place while this push waits, and replaced when its brief generates."
     },
     "onDemand": {
       "heading": "A brief for this pull request is available on demand.",
@@ -104,6 +62,51 @@
     "ready": {
       "link": "Read the brief for this push",
       "footer": "Posted by MergeBrief. Replaced when MergeBrief runs on a later push."
+    }
+  },
+  "triggerCondition": {
+    "condition": "{{reason}} ({{setBy}})",
+    "anyGroup": "Needs one of these:",
+    "unreadable": "Conditions this server could not read",
+    "setBy": {
+      "repo": "this repository's setting",
+      "instance": "this MergeBrief instance's setting"
+    },
+    "moreChecks_one": "{{names}} and {{count}} more check",
+    "moreChecks_other": "{{names}} and {{count}} more checks",
+    "reason": {
+      "ready-for-review": "Needs this pull request marked ready for review",
+      "never": "Generates only when someone presses Generate",
+      "review-requested": "Needs a review requested from someone",
+      "sizeMax": "{{actual}} {{measure}}, over the {{limit}} maximum",
+      "sizeMin": "{{actual}} {{measure}}, under the {{limit}} minimum",
+      "sizeMeasure": {
+        "changed-lines": "changed lines",
+        "additions": "added lines",
+        "deletions": "deleted lines"
+      },
+      "labels_one": "Needs the label {{labels}}",
+      "labels_other": "Needs one of the labels {{labels}}",
+      "title-keywords_one": "Needs the word {{keywords}} in the title",
+      "title-keywords_other": "Needs one of these words in the title: {{keywords}}",
+      "base-branches_one": "Targets {{base}}, not {{branches}}",
+      "base-branches_other": "Targets {{base}}, not one of {{branches}}",
+      "paths_one": "Changes no file matching {{paths}}",
+      "paths_other": "Changes no file matching one of {{paths}}",
+      "bots": {
+        "not-started": "Waiting for {{bot}} to start on this push",
+        "running": "Waiting for {{bot}} to finish",
+        "not-approved": "{{bot}} finished without approving",
+        "issues_one": "{{bot}} found {{count}} issue",
+        "issues_other": "{{bot}} found {{count}} issues",
+        "no-verdict": "{{bot}} gave no verdict on this push",
+        "permission-missing": "Can't check {{bot}} until this installation accepts MergeBrief's Checks and Commit statuses permissions"
+      },
+      "ciFailed": "CI failed: {{checks}}",
+      "ciRunning": "Waiting for CI: {{checks}} still running",
+      "ciMissing_one": "Waiting for CI: {{checks}} has not reported on this push",
+      "ciMissing_other": "Waiting for CI: {{checks}} have not reported on this push",
+      "ciPermissionMissing": "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions"
     }
   },
   "errors": {
@@ -225,6 +228,28 @@
         "indeterminate": "MergeBrief could not confirm the brief started. Reload to see where it stands."
       }
     },
+    "held": {
+      "heading": "No brief for this push yet",
+      "lead": {
+        "waits": "It generates by itself once these finish.",
+        "needs": "It won't generate by itself until the changes below are made.",
+        "unknown": "Its trigger conditions are not met yet."
+      },
+      "groups": {
+        "waiting": "Waiting on",
+        "needs": "Needs a change first"
+      },
+      "partial": "Some conditions could not be shown",
+      "setBy": {
+        "repo": "Repository",
+        "instance": "Instance"
+      },
+      "generate": {
+        "action": "Generate now",
+        "pending": "Generating…",
+        "stale": "This push is no longer held."
+      }
+    },
     "superseded": {
       "heading": "A newer revision is on the way",
       "copy": "This push was superseded before its brief finished; the newest push is briefed as usual.",
@@ -274,6 +299,7 @@
       "failed": "Brief generation failed.",
       "awaitingTrigger": "Brief available on demand.",
       "awaitingTriggerNotOpen": "No brief generated. This pull request is no longer open.",
+      "held": "No brief for this push yet. Its trigger conditions are not met.",
       "superseded": "A newer revision is on the way.",
       "supersededNotOpen": "Generation stopped. This pull request is no longer open.",
       "noBrief": "No brief for this pull request yet."
@@ -415,6 +441,7 @@
         "generatingParts_other": "Generating: {{done}} of {{count}} parts",
         "stopped": "New brief stopped",
         "onDemand": "New brief on demand",
+        "held": "New brief held",
         "failed": "New brief failed",
         "exhausted": "New brief out of attempts",
         "skipped": "New brief skipped",
@@ -444,7 +471,8 @@
         "noRun": "MergeBrief has no run for the newer commits. Request a review or push a commit to start one.",
         "newerBriefOlderPush": "A newer brief is ready to read. It does not cover the latest push.",
         "newerBriefEarlierBase": "A newer brief is ready to read. It covers the latest push on an earlier base.",
-        "generateAfterReset": "Generate the new brief after the reset."
+        "generateAfterReset": "Generate the new brief after the reset.",
+        "held": "MergeBrief holds the latest push until its trigger conditions are met."
       },
       "announce": {
         "queued": "New brief queued.",

@@ -11,6 +11,8 @@ export interface PopoverContentProps {
   /** The panel's accessible name, where its role wants one. */
   label?: string | undefined;
   className?: string | undefined;
+  /** Written as `data-variant` on the panel, for the consumer's module to style. */
+  variant?: string | undefined;
   /** Rises from the bottom edge over a scrim instead of floating by the trigger. */
   sheet?: boolean | undefined;
   children: ReactNode;
@@ -24,6 +26,7 @@ export interface PopoverContentProps {
 export function PopoverContent({
   label,
   className,
+  variant,
   sheet = false,
   children,
 }: PopoverContentProps) {
@@ -58,6 +61,7 @@ export function PopoverContent({
           aria-label={label}
           className={clsx(styles["content"], className)}
           data-sheet={sheet ? "" : undefined}
+          data-variant={variant}
           id={popover.panelId}
           inert={!popover.open || undefined}
           ref={popover.setFloating}

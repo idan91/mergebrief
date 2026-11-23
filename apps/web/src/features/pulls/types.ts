@@ -5,10 +5,14 @@ import type {
   WaitReason,
 } from "contract";
 import type {
+  BotVerdict,
   GenerationFailureCode,
   GenerationStatus,
   GenerationUnitsParams,
   PrState,
+  UnmetBot,
+  UnmetConditionKinds,
+  UnmetPlainCondition,
   ValueOf,
 } from "types";
 import type { ChunkLayoutBody } from "brief-core/chunk-layout";
@@ -29,6 +33,24 @@ export interface BriefLayoutReply {
   layout?: ChunkLayoutBody;
 }
 
+/** A bot item as this bundle reads it: the verdict is never shown, so one it predates reads `unknown`. */
+export interface HeldBot extends Omit<UnmetBot, "verdict"> {
+  readonly verdict: BotVerdict | UnknownValue;
+}
+
+export type HeldPlainCondition =
+  | Exclude<UnmetPlainCondition, UnmetBot>
+  | HeldBot;
+
+/** An `any` group with the members this bundle reads. */
+export interface HeldAnyGroup {
+  readonly kind: typeof UnmetConditionKinds.ANY;
+  readonly conditions: readonly HeldPlainCondition[];
+}
+
+/** One unmet condition of a held head, as this bundle reads it. */
+export type HeldCondition = HeldPlainCondition | HeldAnyGroup;
+
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
   readonly status: GenerationStatus | UnknownValue;
@@ -46,6 +68,10 @@ export interface GenerationSummary {
   readonly startedAt?: string;
   /** PR meta only, once a multi-call run planned its detail calls. */
   readonly parts?: GenerationPartsView;
+  /** PR meta only, while held: the conditions this bundle reads, unknown ones dropped. */
+  readonly unmetConditions?: readonly HeldCondition[];
+  /** The held list left out an item, or an `any` group member, this bundle predates. */
+  readonly unmetConditionsPartial?: true;
 }
 
 /** The wire discriminates by the unavailable key; parsing adds kind for consumers. */

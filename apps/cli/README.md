@@ -130,8 +130,15 @@ stored at that span, on a base the PR may since have left; `briefAvailable`:
 one is stored for the PR's current base too. Generation is webhook-driven for
 an installed repo (`generate <url>` queues a pasted PR); poll with backoff
 while `generation.status` is `pending` or `running`, since an
-`awaiting-trigger` head waits for a collaborator's Generate click;
-`comparisons.lastReview`, what `delta` resolves.
+`awaiting-trigger` head waits for a collaborator's Generate click in the
+browser and a `held` head waits for its trigger conditions, listed in
+`generation.unmetConditions` (`generate <number>` starts a held one now;
+`generation.unmetConditionsPartial: true` means the server could not read
+every stored condition, so the list is not the whole reason);
+`comparisons.lastReview`, what `delta` resolves. Without `--json`, a held
+head adds a `held:` line naming each unmet condition and whose setting it
+is, every check listed; a condition this CLI does not know prints its kind,
+and a partial list ends with "Conditions this server could not read".
 
 ```json
 {"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"headBriefStored":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"errorCode":null,"errorParams":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
@@ -323,12 +330,20 @@ Receipt: `{"resolved":true,"alreadyInTargetState":false}`.
 Mark a draft PR ready for review (GitHub enforces who may). No span.
 Prints nothing on success.
 
-### `generate <url>`
+### `generate <number|url>`
 
-Generate a brief for a PR URL on demand, with no confirm prompt (your own
-key, mirroring the web URL box). The server queues the run and answers
-where the brief will render: `{"repoId":"42001","prNumber":7}`. Poll
-`pr <n>` for progress.
+With a number: Generate on the PR's current head, as the button in the web
+app does. It releases a head trigger conditions hold, or reruns one that
+failed in a way a rerun can help; it needs push access and an
+`external-write` token, and prints nothing on success. A head awaiting a
+collaborator's Trigger approval refuses a token with 403: that click stays in
+the browser.
+
+With a URL: generate a brief for a pasted PR on demand, with no confirm
+prompt (your own key, mirroring the web URL box). The server queues the run
+and answers where the brief will render: `{"repoId":"42001","prNumber":7}`.
+
+Either way, poll `pr <n>` for progress.
 
 ### `generation <n>`
 
@@ -492,7 +507,7 @@ Commands:
   outcome [options] <number> <outcome>        set your session's review intent (publishing is `submit`)
   thread                                      review-thread state on GitHub (the viewer's own act)
   ready <number>                              mark a draft PR ready for review (GitHub-enforced authorship)
-  generate <url>                              generate a brief for a PR URL (no confirm; your own key)
+  generate <number|url>                       generate a PR's brief now: a number presses Generate on a held or failed head, a URL pastes it (no confirm; your own key)
   collaborators                               the target repo's collaborator roster (push access required)
   capabilities [options]                      what this server+CLI pair can run; --require makes it a fail-closed check
   spend                                       today's started runs against the daily cap (Operators only)
@@ -1083,12 +1098,13 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ### `mergebrief generate`
 
 ```
-Usage: mergebrief generate [options] <url>
+Usage: mergebrief generate [options] <number|url>
 
-generate a brief for a PR URL (no confirm; your own key)
+generate a PR's brief now: a number presses Generate on a held or failed head, a
+URL pastes it (no confirm; your own key)
 
 Arguments:
-  url         the PR's GitHub URL
+  number|url  a PR number in the target repository, or a PR's GitHub URL
 
 Options:
   -h, --help  display help for command

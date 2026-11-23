@@ -125,6 +125,7 @@ export {
   type SizeMeasure,
   type TriggerConditionKind,
   type TriggerConditionSetter,
+  type UnmetBot,
   type UnmetCondition,
   type UnmetConditionKind,
   type UnmetPlainCondition,

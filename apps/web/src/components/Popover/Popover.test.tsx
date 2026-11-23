@@ -178,6 +178,23 @@ describe("Popover", () => {
     expect(screen.getByLabelText("Details")).toBeTruthy();
   });
 
+  it("marks the panel with the consumer's variant for its styles", async () => {
+    render(
+      <Popover>
+        <Popover.Trigger>
+          <Button variant="secondary">Open</Button>
+        </Popover.Trigger>
+        <Popover.Content label="Details" variant="wide">
+          <p>Inside</p>
+        </Popover.Content>
+      </Popover>,
+    );
+    await openPopover();
+
+    const panel = screen.getByLabelText("Details");
+    expect(panel.getAttribute("data-variant")).toBe("wide");
+  });
+
   it("renders in the tree beside the trigger when portal is off", async () => {
     renderPopover(PopoverFocusTargets.TRIGGER, false);
     const trigger = await openPopover();

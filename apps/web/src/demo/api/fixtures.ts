@@ -18,13 +18,21 @@ import {
   type VersionResponse,
 } from "contract";
 import {
+  BotStates,
+  BotVerdicts,
   GenerationStatuses,
   InboxReviewStates,
   PrStates,
   PullRequestSources,
+  ReviewBots,
   ReviewCommentSides,
   ReviewVerdictStates,
+  SizeBoundSides,
+  SizeMeasures,
   ThreadSubjectTypes,
+  TriggerConditionKinds,
+  TriggerConditionSetters,
+  UnmetConditionKinds,
 } from "types";
 
 import { parseBrief } from "@web/features/brief/model";
@@ -37,6 +45,8 @@ import {
 } from "./briefs";
 import { DEMO_BASE_SHA, DEMO_REV1_HEAD, DEMO_REV2_HEAD } from "./briefs/consts";
 import {
+  DEMO_HELD_BEHIND_PR_NUMBER,
+  DEMO_HELD_PR_NUMBER,
   DEMO_PR,
   DEMO_REVIEWER_LOGIN,
   DEMO_VERSION,
@@ -80,6 +90,11 @@ const BOT_TOKEN_REPLY_ID = 1204;
 const BOT_REVIEWED_AT = "2026-10-20T14:20:00.000Z";
 const BOT_REPLIED_AT = "2026-10-20T15:05:00.000Z";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HELD_PUSHED_AT = "2026-10-21T08:30:00.000Z";
+const HELD_HEAD = "3f9c2ab7e41d0c58b6a9f2e7d3c1b0a4958e6f21";
+const HELD_BEHIND_HEAD = "77d1c0e5a2b94f3e8d6c1a0b9f7e2d4c3b5a6e81";
+const HELD_SIZE_LIMIT = 500;
+const HELD_SIZE_ACTUAL = 1284;
 
 /** The title as the brief records it, so the page header and the brief never part. */
 function readPullTitle(briefText: string): string {
@@ -159,6 +174,135 @@ export const pullMetaAnswer: PullMetaView = {
   revisions: [firstRevision, latestRevision],
 };
 
+/** Held behind a draft flag, running CI, and an `any` group none of whose members passed. */
+const heldGeneration: GenerationSummaryView = {
+  status: GenerationStatuses.HELD,
+  phase: null,
+  attempts: 0,
+  errorCode: null,
+  errorParams: null,
+  updatedAt: HELD_PUSHED_AT,
+  unmetConditions: [
+    {
+      kind: TriggerConditionKinds.READY_FOR_REVIEW,
+      setBy: TriggerConditionSetters.INSTANCE,
+    },
+    {
+      kind: TriggerConditionKinds.CI,
+      setBy: TriggerConditionSetters.REPO,
+      failed: [],
+      running: ["typecheck", "unit"],
+      missing: [],
+      permissionMissing: false,
+    },
+    {
+      kind: UnmetConditionKinds.ANY,
+      conditions: [
+        {
+          kind: TriggerConditionKinds.BOTS,
+          setBy: TriggerConditionSetters.REPO,
+          bot: ReviewBots.CODERABBIT,
+          verdict: BotVerdicts.APPROVED,
+          state: BotStates.NOT_APPROVED,
+        },
+        {
+          kind: TriggerConditionKinds.SIZE,
+          setBy: TriggerConditionSetters.REPO,
+          measure: SizeMeasures.CHANGED_LINES,
+          side: SizeBoundSides.MAX,
+          limit: HELD_SIZE_LIMIT,
+          actual: HELD_SIZE_ACTUAL,
+        },
+      ],
+    },
+  ],
+};
+
+const HELD_TITLE = "Read trigger conditions from the instance config";
+
+/** A draft whose newest push trigger conditions hold; no brief is stored for it. */
+export const heldPullMetaAnswer: PullMetaView = {
+  repoId: DEMO_PR.repoId,
+  repoSlug: DEMO_PR.repoSlug,
+  prNumber: DEMO_HELD_PR_NUMBER,
+  title: HELD_TITLE,
+  state: PrStates.OPEN,
+  baseSha: DEMO_BASE_SHA,
+  headSha: HELD_HEAD,
+  briefAvailable: false,
+  headBriefStored: false,
+  draft: true,
+  authorLogin: DEMO_PR.authorLogin,
+  viewerIsAuthor: false,
+  viewerCanResolve: false,
+  viewerCanPush: false,
+  generation: heldGeneration,
+  updatedAt: HELD_PUSHED_AT,
+  behind: false,
+  comparisons: {},
+  appInstalled: true,
+  draftPolicy: { debounceSeconds: null },
+};
+
+/** The newest push waits for a review bot; the first push's brief stays on screen. */
+const heldBehindGeneration: GenerationSummaryView = {
+  status: GenerationStatuses.HELD,
+  phase: null,
+  attempts: 0,
+  errorCode: null,
+  errorParams: null,
+  updatedAt: HELD_PUSHED_AT,
+  unmetConditions: [
+    {
+      kind: TriggerConditionKinds.BOTS,
+      setBy: TriggerConditionSetters.REPO,
+      bot: ReviewBots.CODERABBIT,
+      verdict: BotVerdicts.FINISHED,
+      state: BotStates.RUNNING,
+    },
+    {
+      kind: TriggerConditionKinds.LABELS,
+      setBy: TriggerConditionSetters.INSTANCE,
+      labels: ["needs-brief"],
+    },
+  ],
+};
+
+/** The first revision's brief is the one stored; the push after it is held. */
+export const heldBehindPullMetaAnswer: PullMetaView = {
+  repoId: DEMO_PR.repoId,
+  repoSlug: DEMO_PR.repoSlug,
+  prNumber: DEMO_HELD_BEHIND_PR_NUMBER,
+  title: readPullTitle(briefRev1Text),
+  state: PrStates.OPEN,
+  baseSha: DEMO_BASE_SHA,
+  headSha: HELD_BEHIND_HEAD,
+  briefAvailable: false,
+  headBriefStored: false,
+  draft: false,
+  authorLogin: DEMO_PR.authorLogin,
+  viewerIsAuthor: false,
+  viewerCanResolve: false,
+  viewerCanPush: false,
+  generation: heldBehindGeneration,
+  updatedAt: HELD_PUSHED_AT,
+  behind: false,
+  comparisons: firstRevision.comparisons,
+  appInstalled: true,
+  draftPolicy: { debounceSeconds: null },
+  revisions: [firstRevision],
+};
+
+/** The held pull requests drew no review threads. */
+export const emptyConversationAnswer: ConversationResponse = {
+  threads: [],
+  reviews: [],
+  prComments: [],
+  hasMoreThreads: false,
+  hasMoreReviews: false,
+  hasMorePrComments: false,
+};
+
 export const inboxAnswer: InboxResponse = {
   items: [
     {
@@ -182,14 +326,35 @@ export const inboxAnswer: InboxResponse = {
       githubCreatedAt: REV1_CREATED_AT,
       stack: null,
     },
+    {
+      repoId: DEMO_PR.repoId,
+      repoSlug: DEMO_PR.repoSlug,
+      prNumber: DEMO_HELD_PR_NUMBER,
+      title: HELD_TITLE,
+      state: PrStates.OPEN,
+      draft: true,
+      source: PullRequestSources.INSTALLATION,
+      installationId: DEMO_PR.installationId,
+      authorLogin: DEMO_PR.authorLogin,
+      viewerIsAuthor: false,
+      viewerCanDelete: false,
+      reviewState: InboxReviewStates.NEW,
+      behind: false,
+      unreachable: false,
+      generation: heldGeneration,
+      latestBriefAt: null,
+      githubUpdatedAt: HELD_PUSHED_AT,
+      githubCreatedAt: HELD_PUSHED_AT,
+      stack: null,
+    },
   ],
   page: 1,
   pageSize: InboxQueryBounds.PAGE_SIZE,
-  total: 1,
+  total: 2,
   archivedTotal: 0,
   searchMatchTotal: 0,
   archivedSearchMatchTotal: 0,
-  counts: { new: 1, inProgress: 0, reviewed: 0, updated: 0 },
+  counts: { new: 2, inProgress: 0, reviewed: 0, updated: 0 },
   viewer,
   reachableInstallations: [
     {

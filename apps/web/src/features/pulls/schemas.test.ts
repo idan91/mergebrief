@@ -41,6 +41,7 @@ import {
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
   type unavailablePreviousBriefSchema,
+  type unmetConditionSchema,
   videoAssetsSchema,
 } from "./schemas";
 import type {
@@ -55,6 +56,7 @@ import type {
   AvailablePreviousBriefComparison,
   DraftPolicySummary,
   GenerationSummary,
+  HeldCondition,
   LastReviewComparison,
   PrComparisons,
   PreviousBriefComparison,
@@ -1055,7 +1057,212 @@ describe("videoAssetsSchema", () => {
   });
 });
 
+const HELD_GENERATION = { ...PENDING_GENERATION, status: "held" };
+
+const READY_ITEM = { kind: "ready-for-review", setBy: "instance" };
+const CI_ITEM = {
+  kind: "ci",
+  setBy: "repo",
+  failed: [],
+  running: ["build"],
+  missing: [],
+  permissionMissing: false,
+};
+const BOT_ITEM = {
+  kind: "bots",
+  setBy: "repo",
+  bot: "coderabbit",
+  verdict: "approved",
+  state: "issues",
+  issues: 2,
+};
+
+function parseHeldGeneration(unmetConditions: unknown) {
+  const parsed = parseWithSchema(prSummarySchema, {
+    ...ROW,
+    generation: { ...HELD_GENERATION, unmetConditions },
+  });
+  if (!parsed.ok) {
+    throw new Error("unreachable");
+  }
+  return parsed.value.generation;
+}
+
+function parseHeldConditions(unmetConditions: unknown) {
+  return parseHeldGeneration(unmetConditions)?.unmetConditions;
+}
+
+describe("generationSummarySchema unmetConditions", () => {
+  it("reads every plain kind and an any group", () => {
+    const wire = [
+      READY_ITEM,
+      { kind: "never", setBy: "repo" },
+      { kind: "review-requested", setBy: "repo" },
+      {
+        kind: "size",
+        setBy: "instance",
+        measure: "changed-lines",
+        side: "max",
+        limit: 800,
+        actual: 1284,
+      },
+      { kind: "labels", setBy: "repo", labels: ["needs-brief"] },
+      { kind: "title-keywords", setBy: "repo", keywords: ["brief"] },
+      {
+        kind: "base-branches",
+        setBy: "repo",
+        base: "dev",
+        branches: ["main"],
+      },
+      { kind: "paths", setBy: "repo", paths: ["src/**"] },
+      BOT_ITEM,
+      CI_ITEM,
+      { kind: "any", conditions: [READY_ITEM, CI_ITEM] },
+    ];
+
+    const generation = parseHeldGeneration(wire);
+
+    expect(generation?.unmetConditions).toStrictEqual(wire);
+    expect(generation).not.toHaveProperty("unmetConditionsPartial");
+  });
+
+  it("keeps a bot item whose verdict this bundle predates", () => {
+    const generation = parseHeldGeneration([
+      { ...BOT_ITEM, verdict: "merged" },
+    ]);
+
+    expect(generation?.unmetConditions).toStrictEqual([
+      { ...BOT_ITEM, verdict: UnknownValues.UNKNOWN },
+    ]);
+    expect(generation).not.toHaveProperty("unmetConditionsPartial");
+  });
+
+  it("marks the list partial when it drops an item", () => {
+    const generation = parseHeldGeneration([
+      { kind: "deploy-window", setBy: "repo" },
+      CI_ITEM,
+    ]);
+
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("marks the list partial when an any group drops a member", () => {
+    const generation = parseHeldGeneration([
+      { kind: "any", conditions: [{ kind: "mystery" }, CI_ITEM] },
+    ]);
+
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("keeps the partial mark a server sends after dropping an item", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        ...HELD_GENERATION,
+        unmetConditions: [CI_ITEM],
+        unmetConditionsPartial: true,
+      },
+    });
+
+    const generation = parsed.ok ? parsed.value.generation : undefined;
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("keeps the server's partial mark when it sends no readable item", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: { ...HELD_GENERATION, unmetConditionsPartial: true },
+    });
+
+    const generation = parsed.ok ? parsed.value.generation : undefined;
+    expect(generation).not.toHaveProperty("unmetConditions");
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("reads no partial mark the server leaves off", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        ...HELD_GENERATION,
+        unmetConditions: [CI_ITEM],
+        unmetConditionsPartial: false,
+      },
+    });
+
+    expect(parsed.ok && parsed.value.generation).not.toHaveProperty(
+      "unmetConditionsPartial",
+    );
+  });
+
+  it("drops an item of a kind this bundle predates and keeps the rest", () => {
+    const unmet = parseHeldConditions([
+      { kind: "deploy-window", setBy: "repo" },
+      READY_ITEM,
+    ]);
+
+    expect(unmet).toStrictEqual([READY_ITEM]);
+  });
+
+  it.each([
+    ["bot", { ...BOT_ITEM, bot: "reviewatron" }],
+    ["bot state", { ...BOT_ITEM, state: "sleeping" }],
+    ["setBy", { ...READY_ITEM, setBy: "org" }],
+    [
+      "size measure",
+      {
+        kind: "size",
+        setBy: "repo",
+        measure: "files",
+        side: "max",
+        limit: 1,
+        actual: 2,
+      },
+    ],
+  ])("drops an item whose %s this bundle predates", (_field, item) => {
+    const generation = parseHeldGeneration([item, CI_ITEM]);
+
+    expect(generation?.unmetConditions).toStrictEqual([CI_ITEM]);
+    expect(generation?.unmetConditionsPartial).toBe(true);
+  });
+
+  it("keeps an any group's known members and drops the unknown one", () => {
+    const unmet = parseHeldConditions([
+      { kind: "any", conditions: [{ kind: "mystery" }, READY_ITEM] },
+    ]);
+
+    expect(unmet).toStrictEqual([{ kind: "any", conditions: [READY_ITEM] }]);
+  });
+
+  it("drops an any group with no member this bundle reads", () => {
+    const unmet = parseHeldConditions([
+      READY_ITEM,
+      { kind: "any", conditions: [{ kind: "mystery" }] },
+    ]);
+
+    expect(unmet).toStrictEqual([READY_ITEM]);
+  });
+
+  it("drops a list that is not a list and keeps the meta", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: { ...HELD_GENERATION, unmetConditions: "nope" },
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.value.generation?.status).toBe("held");
+    expect(parsed.ok && parsed.value.generation).not.toHaveProperty(
+      "unmetConditions",
+    );
+  });
+});
+
 const SCHEMA_PINS = {
+  HeldCondition: true satisfies Equals<
+    z.output<typeof unmetConditionSchema>,
+    HeldCondition
+  >,
   VideoAssetsResponse: true satisfies Equals<
     z.output<typeof videoAssetsSchema>,
     VideoAssetsResponse

@@ -42,7 +42,7 @@
     }
   },
   "generate-brief": {
-    "command": "mergebrief generate <url>"
+    "command": "mergebrief generate <number|url>"
   },
   "list-collaborators": {
     "command": "mergebrief collaborators"
@@ -189,10 +189,7 @@
     "command": "mergebrief reclassify <number>"
   },
   "regenerate-brief": {
-    "webOnly": {
-      "reason": "Regenerating is the brief page's recovery affordance; the CLI has no failed-card surface",
-      "owner": "maintainer"
-    }
+    "command": "mergebrief generate <number|url>"
   },
   "reopen-risk": {
     "command": "mergebrief risk reopen <number>"
