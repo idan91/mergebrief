@@ -18,7 +18,10 @@ export interface HandoffDeps {
 
 export interface ProcessControl {
   readonly isAlive: (pid: number) => boolean;
-  readonly terminate: (pid: number) => void;
+  /** The process's command line, or undefined when it cannot be read. */
+  readonly commandOf: (pid: number) => string | undefined;
+  /** Sends SIGTERM; false when the signal could not be delivered. */
+  readonly terminate: (pid: number) => boolean;
 }
 
 export interface E2eStopDeps {

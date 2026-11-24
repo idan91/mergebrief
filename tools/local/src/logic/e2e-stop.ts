@@ -7,6 +7,9 @@ import type { E2eStopDeps } from "../types";
 const E2E_PG_CONTAINER = "mergebrief-e2e-pg";
 const API_PID_FILE = /^api-pid-(\d+)$/;
 const CONTAINER_FILE_PREFIX = "pg-container-id-";
+const CONTAINER_ID = /^[0-9a-f]{12,64}$/;
+/** The harness starts the api with node; a reused pid running anything else is not ours. */
+const API_COMMAND = /\bnode\b/;
 
 function readTrimmed(path: string): string | undefined {
   try {
@@ -52,11 +55,17 @@ function stopOrphanRun(deps: E2eStopDeps, owner: number): string {
     apiPid > 1 &&
     deps.processes.isAlive(apiPid)
   ) {
-    deps.processes.terminate(apiPid);
-    parts.push(`api ${apiPid} stopped`);
+    const isApi = API_COMMAND.test(deps.processes.commandOf(apiPid) ?? "");
+    if (!isApi) {
+      parts.push(`pid ${apiPid} now runs something else, not signalled`);
+    } else if (deps.processes.terminate(apiPid)) {
+      parts.push(`api ${apiPid} stopped`);
+    } else {
+      parts.push(`api ${apiPid} could not be signalled`);
+    }
   }
   const containerId = readTrimmed(containerFile);
-  if (containerId !== undefined && containerId !== "") {
+  if (containerId !== undefined && CONTAINER_ID.test(containerId)) {
     const stopped = deps.docker(["stop", containerId]).status === 0;
     parts.push(
       `container ${containerId} ${stopped ? "stopped" : "already gone"}`,

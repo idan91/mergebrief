@@ -37,8 +37,18 @@ const processes: ProcessControl = {
       );
     }
   },
+  commandOf: (pid) => {
+    const run = spawnSync("ps", ["-o", "command=", "-p", String(pid)], {
+      encoding: "utf8",
+    });
+    return run.status === 0 ? run.stdout.trim() : undefined;
+  },
   terminate: (pid) => {
-    process.kill(pid, "SIGTERM");
+    try {
+      return process.kill(pid, "SIGTERM");
+    } catch {
+      return false;
+    }
   },
 };
 
