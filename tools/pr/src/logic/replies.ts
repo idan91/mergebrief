@@ -56,10 +56,19 @@ function takeOverStaleLock(lockPath: string): void {
   const claimed = `${lockPath}.stale.${process.pid}`;
   try {
     renameSync(lockPath, claimed);
-    rmSync(claimed, { force: true });
   } catch {
     // Another waiter took it over first.
+    return;
   }
+  // Between the age check and the rename another waiter may have replaced the
+  // stale lock with its own live one; hand that one back untouched.
+  const age =
+    Date.now() - (statSync(claimed, { throwIfNoEntry: false })?.mtimeMs ?? 0);
+  if (age <= STALE_LOCK_MS) {
+    renameSync(claimed, lockPath);
+    return;
+  }
+  rmSync(claimed, { force: true });
 }
 
 /** An exclusive lock file beside the store; one left by a crashed writer expires. */

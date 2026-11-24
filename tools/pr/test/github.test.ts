@@ -68,7 +68,7 @@ describe("parseStackResponse", () => {
       number: 58,
       head: "chore/BRIEF-476/1-pr-stack-status",
       base: "main",
-      headPushedAt: "2026-11-24T10:20:00Z",
+      activitySince: "2026-11-24T10:00:00Z",
       threadsTruncated: true,
       reviews: [{ id: 4648695178, commentIds: [3539470933] }],
       issueComments: [
@@ -86,10 +86,22 @@ describe("parseStackResponse", () => {
     });
   });
 
+  it("counts from a push that GitHub dates before the commit", () => {
+    const response = JSON.parse(RESPONSE);
+    const commit = response.data.repository.pr58.commits.nodes[0].commit;
+    commit.committedDate = "2026-11-24T10:30:00Z";
+
+    const result = parseStackResponse(JSON.stringify(response), [58]);
+
+    expect(result.ok && result.value[0]?.activitySince).toBe(
+      "2026-11-24T10:20:00Z",
+    );
+  });
+
   it("falls back to the commit time when no check suite records the push", () => {
     const result = parseStackResponse(RESPONSE, [59]);
 
-    expect(result.ok && result.value[0]?.headPushedAt).toBe(
+    expect(result.ok && result.value[0]?.activitySince).toBe(
       "2026-11-24T11:00:00Z",
     );
   });

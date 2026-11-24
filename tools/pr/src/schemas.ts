@@ -90,10 +90,11 @@ const threadSchema = z
   });
 
 /**
- * GraphQL has no push time for a commit; the first check suite is created on
- * push, so it stands in, and the commit time is the fallback without CI.
+ * Activity counts from the earlier of the head's commit time and its first
+ * check suite (created on push): a comment posted between commit and push is
+ * new to the head, and a local clock running ahead of GitHub cannot hide one.
  */
-function readHeadPushedAt(
+function readActivitySince(
   commit:
     | { committedDate: string; checkSuites: readonly { createdAt: string }[] }
     | undefined,
@@ -102,7 +103,9 @@ function readHeadPushedAt(
     return "";
   }
   const pushes = commit.checkSuites.map((suite) => suite.createdAt);
-  return pushes.toSorted()[0] ?? commit.committedDate;
+  return (
+    [commit.committedDate, ...pushes].toSorted()[0] ?? commit.committedDate
+  );
 }
 
 const pullSchema = z
@@ -135,7 +138,7 @@ const pullSchema = z
     head: pull.headRefName,
     base: pull.baseRefName,
     headSha: pull.headRefOid,
-    headPushedAt: readHeadPushedAt(pull.commits[0]?.commit),
+    activitySince: readActivitySince(pull.commits[0]?.commit),
     threadsTruncated: pull.reviewThreads.pageInfo.hasNextPage,
     reviews: pull.reviews,
     issueComments: pull.comments,
