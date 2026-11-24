@@ -341,7 +341,7 @@ The harness providers are refused in the shipped image
 ### `triggerConditions`
 
 The same block a repository writes in its `settings.yaml`, with the same
-kinds ([Choose which pushes get a brief](../repo-config/trigger-conditions.md)),
+kinds ([Trigger conditions](../repo-config/trigger-conditions.md)),
 except `paths`, which only a repository sets. A repository's block merges
 over this one per kind: a kind it sets replaces this one, a kind it leaves
 out is inherited, and `off` drops one kind or the whole block. Only

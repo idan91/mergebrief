@@ -1,6 +1,6 @@
-# Choose which pushes get a brief
+# Trigger conditions
 
-By default every push to an open pull request generates a brief. A `triggerConditions:` block in `.mergebrief/settings.yaml` makes a push wait until it meets conditions you choose: the pull request is out of draft, CI passed, a review bot finished, a label is on it, and so on. A push that misses a condition is **held**: nothing runs and nothing is spent until it passes, or until someone with push access presses Generate.
+Trigger conditions choose which pushes get a brief. By default every push to an open pull request generates a brief. A `triggerConditions:` block in `.mergebrief/settings.yaml` makes a push wait until it meets conditions you choose: the pull request is out of draft, CI passed, a review bot finished, a label is on it, and so on. A push that misses a condition is **held**: nothing runs and nothing is spent until it passes, or until someone with push access presses Generate.
 
 The rest of `settings.yaml` is on [Settings](./settings.md). The instance's operator can set conditions for every repository too; [yours merge over theirs](#how-the-instances-conditions-merge-with-yours).
 

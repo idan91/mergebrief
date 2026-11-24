@@ -15,7 +15,7 @@ A broken instance file refuses boot. A broken repository file only degrades that
 
 ## Set conditions for every repository
 
-Write a `triggerConditions:` block in `mergebrief.config.yaml`. It takes the same kinds and recipes as a repository's ([Choose which pushes get a brief](../repo-config/trigger-conditions.md)) except `paths`, and a bad block refuses `worker` boot ([configuration.md](./configuration.md#triggerconditions)). A held push names each unmet condition as the instance's or the repository's, so authors know whom to ask.
+Write a `triggerConditions:` block in `mergebrief.config.yaml`. It takes the same kinds and recipes as a repository's ([Trigger conditions](../repo-config/trigger-conditions.md)) except `paths`, and a bad block refuses `worker` boot ([configuration.md](./configuration.md#triggerconditions)). A held push names each unmet condition as the instance's or the repository's, so authors know whom to ask.
 
 ## Damp draft regeneration
 

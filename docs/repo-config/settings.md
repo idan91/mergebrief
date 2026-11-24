@@ -15,9 +15,9 @@ triggerConditions:
 
 Each task below ends with a way to see it worked. To confirm the file applied at all, see [Check that your config applied](./README.md#check-that-your-config-applied).
 
-## Choose which pushes get a brief
+## Trigger conditions
 
-`triggerConditions:` makes a push wait for conditions you choose, such as the pull request being out of draft or CI passing. It has its own page of recipes: [Choose which pushes get a brief](./trigger-conditions.md).
+`triggerConditions:` makes a push wait for conditions you choose, such as the pull request being out of draft or CI passing. It has its own page of recipes: [Trigger conditions](./trigger-conditions.md).
 
 ## Keep the Entry comment off drafts
 
@@ -121,4 +121,4 @@ To check: the bot's next pull request gets a brief and an Entry comment without 
 | `tracker` | the instance's list | One tracker entry ([Connect your ticket tracker](#connect-your-ticket-tracker)) |
 | `trackers` | the instance's list | 1 to 8 tracker entries |
 | `trustedBots` | none | Up to 32 bot logins ([Let a bot's pull requests generate without a click](#let-a-bots-pull-requests-generate-without-a-click)) |
-| `triggerConditions` | the instance's conditions | A map of conditions, or `off` ([Choose which pushes get a brief](./trigger-conditions.md)) |
+| `triggerConditions` | the instance's conditions | A map of conditions, or `off` ([Trigger conditions](./trigger-conditions.md)) |
