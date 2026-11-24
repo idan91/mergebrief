@@ -18,7 +18,7 @@ All but the last come from [the update check](#turn-off-or-mirror-the-update-che
 ## Before you upgrade
 
 1. **Read the notes of every release between yours and the target**, not only the newest. Each GitHub Release body opens with the upgrade commands for that release.
-2. **Check whether any release in the gap is breaking.** The notice says an extra step is needed, and `breaking` is `true` in `GET /api/version` and in `mergebrief auth status --json`. A breaking release's notes list extra steps; do them in order, on top of the upgrade ([Breaking releases](#breaking-releases)).
+2. **Check whether any release in the gap is breaking.** The notice says an extra step is needed. From a terminal signed in to the instance, `mergebrief auth status --json | jq .server.breaking` prints `true` when a release in the gap is breaking and `false` when none is; `null` means the instance is up to date or its [update check](#turn-off-or-mirror-the-update-check) has not answered. A breaking release's notes list extra steps; do them in order, on top of the upgrade ([Breaking releases](#breaking-releases)).
 3. **Skim [`docs/api-changelog.md`](../api-changelog.md)** if anything scripts against `/api/*` or the log's `evt` names.
 4. **Check `mergebrief.config.yaml` against the new release.** Config is never migrated for you, and an unknown key refuses boot ([configuration.md](./configuration.md#instance-config-mergebriefconfigyaml)).
 
@@ -152,6 +152,23 @@ A breaking release needs more than the upgrade: a new required or removed env ke
 ```sh
 docker compose up -d --wait
 ```
+
+### Renamed and removed variables
+
+A variable an older release read and a newer one renamed or moved into `mergebrief.config.yaml` refuses boot, or logs a warning, naming its replacement. Remove it from `.env`, set the replacement, then run `docker compose up -d` after a `.env` change or `docker compose restart api worker` after a config file change.
+
+| Variable | What happens | Replace it with |
+| --- | --- | --- |
+| `GENERATOR_API_KEY_ENV` | Set at all, even empty, the worker refuses boot. | `generator.apiKeyEnv` |
+| `REVISION_NARRATIVE_ENABLED`, `HUGE_SPAN_RATIO` | Set and not empty, the worker refuses boot. | `generator.revisionNarrative`, `generator.hugeSpanRatio` |
+| `AUDIT_RETENTION_DAYS`, `PR_RETENTION_DAYS` | Set and not empty, the worker refuses boot. | `retention.auditDays`, `retention.pullRequestDays` |
+| `AUDIT_PRIVATE_WRITES` | Set at all, even empty, the api refuses boot: an empty value used to read as `false`. | `audit.privateWrites` |
+| `MERGEBRIEF_UPDATE_CHECK`, `MERGEBRIEF_UPDATE_CHECK_URL` | Set and not empty, the api refuses boot. | `updateCheck.enabled`, `updateCheck.url` |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES`, `MERGEBRIEF_ATTACHMENT_QUOTA_MB`, `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES`, `MERGEBRIEF_MEDIA_MAX_MB` | Set and not empty, the api refuses boot. | The `attachments` block |
+| `MERGEBRIEF_URL_BOX_TOKEN` | Set and not empty, `api` and `worker` log one warning and ignore it. | `MERGEBRIEF_URL_FALLBACK_TOKEN` |
+| `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | Set and not empty, `api` and `worker` log one warning and ignore it. | Nothing: removed |
+
+Every key's format is in [configuration.md](./configuration.md#instance-config-mergebriefconfigyaml).
 
 ### A new Postgres major
 

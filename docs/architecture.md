@@ -39,7 +39,7 @@ Both kinds produce the same brief. A pasted pull request is not private to the r
 3. **The worker checks whether it may run:**
    - The author must be on the repository's team, or a bot the repository trusts. Anyone else's pull request shows **Brief available on demand** until someone with push access starts it ([Who triggers a brief](./self-host/github-app.md#who-triggers-a-brief)).
    - Every **trigger condition** the instance and the repository set must pass, such as "ready for review" or "CI passed". If one does not, the push is **held**: nothing runs and nothing is spent, and it generates by itself once the conditions pass ([trigger-conditions.md](./repo-config/trigger-conditions.md)).
-   - The instance must be under its **daily cap** of started runs ([generators.md](./self-host/generators.md#daily-generation-cap)).
+   - The instance must be under its **daily cap** of started runs ([spend-cap.md](./self-host/spend-cap.md)).
 4. **The worker generates the brief** with the provider in the instance config, stores it, and posts the Entry comment. A large pull request is briefed in parts, in a separate pool of worker slots so it does not hold up ordinary pushes ([generators.md](./self-host/generators.md#worker-slots)).
 
 A push during a run stops that run as `superseded` and the newer head generates instead. A submitted review also queues a run, so the reviewer's next **delta brief** is ready before they come back.

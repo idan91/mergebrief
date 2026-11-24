@@ -51,17 +51,39 @@ If your company has an identity provider such as Okta, you can decide who reache
 
 ## Who can sign in
 
-An instance starts closed. Nobody can sign in or start a brief until its config names them ([generators.md](./generators.md#who-may-start-a-brief)):
+An instance starts closed. Nobody can sign in or start a brief until `mergebrief.config.yaml` names them, and a paste, a Regenerate and an API token all answer to the same list. On a solo instance, your own id under `operators` is all you need.
+
+```yaml
+# mergebrief.config.yaml
+operators:
+  - 583231      # GitHub user ids of the people who run the instance
+allowed:
+  users:
+    - 9919      # single people, such as an outside reviewer
+  accounts:
+    - 12345678  # organizations or personal accounts whose installations count
+```
+
+Find a person's id with `gh api users/<login> --jq .id`, or in their avatar URL (`avatars.githubusercontent.com/u/<id>`), and an organization's with `gh api orgs/<org> --jq .id`. List ids, never logins: GitHub frees a login when its owner renames, and whoever registers it next would inherit the access. Then restart the services that read the lists:
+
+```sh
+docker compose restart api worker
+```
+
+**Check:** the person signs in. A refused account sees "This GitHub account isn't allowed on this instance. Ask whoever runs it for access.", and the api logs `info` `sign-in refused: the account is not allowed on this instance` with the account's `reviewerId`.
 
 | Named by | Who that lets in |
 | --- | --- |
-| `operators` | Those people, and anyone in an installation of the App on their personal accounts, which includes collaborators on those repositories |
-| `allowed.users` | Those people, whatever they can install |
-| `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts |
+| `operators` | Those people, and anyone in an installation of the App on their personal accounts, which includes collaborators on those repositories. Up to 100 ids. |
+| `allowed.users` | Those people, whatever they can install. Up to 1000 ids. |
+| `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts. Up to 1000 ids. |
+
+- **What counts as "in an installation"** is GitHub's answer: the installations a person has explicit access to, through ownership, as a collaborator or through organization membership. Reading a public repository does not count, and neither does a suspended installation. An installation made at enterprise level never matches, so list each organization.
+- **Empty and bare blocks.** Omitting `operators`, or writing `operators: []`, means nobody is an operator. A bare `operators:` with nothing under it, a bare `allowed:`, or an `allowed:` that names neither list refuses boot. An instance whose config names nobody logs `the instance config names nobody` at boot and refuses every sign-in.
 
 Webhook deliveries answer to the same list. A pull request, review, check run or status delivery starts or wakes a run only for a repository on a listed account or an operator's personal account. Anything else is answered 200 and logged with the account's id, at `warn`, or at `debug` for a check run or status, which a push brings by the dozen. A stranger who installs a public App spends nothing. Install and uninstall events still apply.
 
-Everyone on the list can paste a pull request URL or regenerate a brief, and each of those runs spends your provider key, counted against the [daily cap](./generators.md#daily-generation-cap).
+Everyone on the list can paste a pull request URL or regenerate a brief, and each of those runs spends your provider key, counted against the [daily cap](./spend-cap.md).
 
 A person you take off the list loses access at their next GitHub token rotation, about every 8 hours of use. That ends their sessions and their API tokens, including one with no expiry. Until then they can read what their own GitHub access allows, and they cannot start a brief or create a token.
 
@@ -89,7 +111,7 @@ A reviewer's own GitHub access decides every read. [How MergeBrief works](../arc
 
 ### An operator
 
-- **Is** a GitHub user whose numeric id is in the instance config's `operators` list ([generators.md](./generators.md#operators)).
+- **Is** a GitHub user whose numeric id is in the instance config's `operators` list ([Who can sign in](#who-can-sign-in)).
 - **Reads** everything their reviewer access gives them, plus instance-wide state no repository scopes: today's started runs against the daily cap, on the Instance tab of Settings or with `mergebrief spend`.
 - **Writes** nothing beyond their reviewer access. The role grants no repository reach.
 
@@ -116,7 +138,7 @@ Whoever controls the host sits outside this model. `.env` holds every credential
 
 ### Rate limiting
 
-Apart from the per-reviewer [attachment upload quota](./attachments.md#upload-quota), the API has no built-in rate limiting, the webhook route included. Rate limit at your reverse proxy; [compose.md](./compose.md#rate-limit-the-webhook-route-at-your-proxy) says how to scope a limit to the webhook route and size it for GitHub's bursts.
+Apart from the per-reviewer [attachment upload quota](./attachments.md#limit-uploads-per-reviewer), the API has no built-in rate limiting, the webhook route included. Rate limit at your reverse proxy; [compose.md](./compose.md#rate-limit-the-webhook-route-at-your-proxy) says how to scope a limit to the webhook route and size it for GitHub's bursts.
 
 ### Sessions and tokens
 
@@ -198,12 +220,12 @@ Span attributes are ids, counts, decision tokens, the model name and token count
 
 ### What a reviewer's browser loads
 
-The table covers the instance's own processes. A reviewer's browser also loads avatars from `github.com`. An image in a description or a comment loads through the API, or straight from one of the hosts GitHub serves its own stored files from (`github.com`, and named hosts under `githubusercontent.com` and `githubassets.com` such as `raw.` and `user-images.`).
+The table covers the instance's own processes. A reviewer's browser also loads:
 
-- **GitHub's image relay, `camo.githubusercontent.com`, is not one of them:** it fetches an image from any host, and can fetch it again on each view.
-- **Nor is a release file on `github.com`:** GitHub counts each download where the repository's owner can read it.
-- **An image on any other host is never loaded:** the page names the host and links the address, so that host does not learn who opened the brief or when.
+- **Avatars** from `github.com`.
+- **Images in a description or comment,** through the API or straight from the hosts GitHub serves its own stored files from (`github.com`, and named hosts under `githubusercontent.com` and `githubassets.com`). An image on any other host, GitHub's image relay `camo.githubusercontent.com` and a release download are never loaded: the page names the host and links the address instead.
+- **A Mermaid diagram's own references:** the diagram library can fetch an image or stylesheet address the diagram names.
 
-Two limits remain. A file GitHub serves is still fetched from GitHub, and GitHub meters some of what it serves to the repository's owner: a file kept in Git LFS counts against the owner's bandwidth, so a pull request author who points an image at their own repository can see that it was fetched, though not by whom. The page cannot tell such a file from a committed one before it loads. A Mermaid diagram is the other: the diagram library can still fetch an image or a stylesheet address the diagram itself names.
+A file kept in Git LFS counts against its owner's bandwidth, so an author who points an image at their own repository can see that it was fetched, though not by whom.
 
 The `mergebrief` CLI asks the npm registry for its newest version unless `MERGEBRIEF_NO_VERSION_WARNING` is set ([cli.md](./cli.md#versions)).
