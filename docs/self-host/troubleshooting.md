@@ -5,7 +5,7 @@ Find what you see in [the index](#find-your-symptom), then confirm the cause wit
 Three habits apply to every fix below:
 
 - **Read the last log line first.** `docker compose ps -a` shows what is down (without `-a` a stopped container is not listed), and `docker compose logs <service>` shows why. A process that refuses boot names the variable and the reason, never the value.
-- **Apply `.env` edits with `docker compose up -d`.** It recreates the services with the new environment; `docker compose restart` keeps the old one. A change to `mergebrief.config.yaml` alone needs only `docker compose restart api worker`, since the file is mounted and read at boot.
+- **Apply each fix the way its file needs.** A `.env` edit and a `mergebrief.config.yaml` edit take different commands ([Apply a change](./configuration.md#apply-a-change)).
 - **Some causes log only at `debug`.** Set `LOG_LEVEL=debug` in `.env`, run `docker compose up -d`, reproduce, then set it back.
 
 ## Find your symptom
@@ -15,6 +15,7 @@ Three habits apply to every fix below:
 | You see | Go to |
 | --- | --- |
 | `up` fails with a Dockerfile-not-found error, or before anything starts | [The stack does not start](#the-stack-does-not-start) |
+| `up` fails with `port is already allocated` or `address already in use` | [A host port is already in use](#a-host-port-is-already-in-use) |
 | `api`, `worker` or `web` shows `Exited (0)` | [A service exits with code 0](#a-service-exits-with-code-0) |
 | A service shows `Restarting (1)`, or its uptime keeps resetting | [A service keeps restarting](#a-service-keeps-restarting) |
 | `docker compose up -d --wait` sits at `Waiting`, or ends with `dependency failed to start` | [`up --wait` stops at the api](#up---wait-stops-at-the-api) |
@@ -35,6 +36,7 @@ Three habits apply to every fix below:
 | Every page answers 403 `forbidden host` | [Every request answers 403 forbidden host](#every-request-answers-403-forbidden-host) |
 | Reads work, but posting, submitting or signing out answers 403 | [Writes answer 403 forbidden](#writes-answer-403-forbidden) |
 | Every GitHub-backed request answers 500 | [Requests answer 500 after a key change](#requests-answer-500-after-a-key-change) |
+| One user's GitHub-backed requests answer 500 or 502, or one user is signed out, with `token.refresh.fail` or `token.refresh.unavailable` in the api log | [GitHub token refresh fails](#github-token-refresh-fails) |
 
 ### Webhooks
 
@@ -59,6 +61,9 @@ Three habits apply to every fix below:
 | You see | Go to |
 | --- | --- |
 | `url-fallback-token.owner.fail` in the api or worker log | [GitHub refused the URL fallback token](#github-refused-the-url-fallback-token) |
+| `jira.token.check` in the worker log at boot | [Jira refused the token at boot](#jira-refused-the-token-at-boot) |
+| `audit.fail` in the api log | [An audit row is missing](#an-audit-row-is-missing) |
+| `artifact.check.fail` in the worker log | [A brief failed its write check](#a-brief-failed-its-write-check) |
 | No version notice, and `update.check.fail` in the api log | [The update check fails](#the-update-check-fails) |
 
 ## The stack does not start
@@ -79,17 +84,30 @@ Three habits apply to every fix below:
 | Your proxy answers 502 | The proxy cannot reach `web` on `127.0.0.1:3000`: `web` is not up, or the proxy's upstream names another port. | On the host, `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/readyz`. No answer: read `docker compose ps -a` and `docker compose logs web`. A `200`: fix the proxy's upstream. |
 | `http://localhost:3000/readyz` answers 503 | `web` is up but cannot reach the api, or the api cannot reach the database. | Read `docker compose logs api`. `curl -i localhost:3000/api/version` answering 401 means `web` and `api` are both up, so the database is the gap. |
 
+## A host port is already in use
+
+**You see:** `docker compose up` stops with `Bind for 127.0.0.1:5432 failed: port is already allocated`, or `listen tcp4 127.0.0.1:5432: bind: address already in use`. The same can happen on `3000`.
+
+**Cause:** the bundled Postgres publishes `127.0.0.1:5432` and `web` publishes `127.0.0.1:3000`, and something on the host already holds that port: usually a local Postgres, or another compose project. "Port is already allocated" usually means another container holds it, and "address already in use" a process outside Docker. Find which:
+
+```sh
+docker ps --filter publish=5432
+sudo lsof -iTCP:5432 -sTCP:LISTEN
+```
+
+**Fix:** stop the other holder, or move MergeBrief's host port in `docker-compose.override.yml` ([Moving a host port](./compose.md#moving-a-host-port)), then run `docker compose up -d --wait` again. Moving only the host side changes nothing inside the stack: `api` and `worker` still reach `postgres:5432` on the compose network.
+
 ## A service exits with code 0
 
-`api` and `worker` exit 0 on a configuration error, so compose's `restart: on-failure` leaves them down instead of restarting into the same error. A transient fault, such as a Postgres boot race, exits 1 and restarts ([A service keeps restarting](#a-service-keeps-restarting)). The `worker` has no HTTP surface, so `docker compose ps -a` showing `Exited (0)` is the only sign, and webhooks keep answering 200 while no brief appears.
+`api` and `worker` exit 0 on a configuration error, so compose's `restart: on-failure` leaves them down instead of restarting into the same error. A transient fault, such as a Postgres boot race or a provider that did not answer the boot check, exits 1 and restarts ([A service keeps restarting](#a-service-keeps-restarting)). The `worker` has no HTTP surface, so `docker compose ps -a` showing `Exited (0)` is the only sign, and webhooks keep answering 200 while no brief appears.
 
 Read the last line of `docker compose logs worker`:
 
 | Last line starts with | Cause | Fix |
 | --- | --- | --- |
-| `worker composition: invalid configuration` | A worker variable is missing or malformed; the line names it. | Fix it in `.env`, then `docker compose up -d`. |
-| `worker composition: invalid GitHub configuration` | A GitHub App variable is missing or malformed. | Same. |
-| `worker composition: invalid generator configuration` | The provider block refused, for example a missing key or a CLI provider in the shipped image ([generators.md](./generators.md#subscription-cli-providers)). | Fix the `generator:` block, then `docker compose restart worker`; fix its key variable in `.env`, then `docker compose up -d`. If the line says `config file: not readable (EACCES)`, UID 1000 cannot read the mounted file: `chmod 644 mergebrief.config.yaml`. |
+| `worker composition: invalid configuration` | A `.env` variable or the instance config is wrong; the line names each problem. In `.env`: a worker variable missing or malformed, such as `DATABASE_URL`, `WORKER_CONCURRENCY` or `PUBLIC_BASE_URL`; a variable whose setting moved into the config file (`HUGE_SPAN_RATIO: moved to generator.hugeSpanRatio in mergebrief.config.yaml`); or `GENERATOR_API_KEY_ENV: removed`. In `mergebrief.config.yaml`: a bad block the worker reads, such as `generator`, `retention`, `spend`, `triggerConditions`, `contextSources`, `trackers` or `linkFetch`, or `config file: not readable (EACCES)`, where UID 1000 cannot read the mounted file. | A variable: fix it, or delete it from `.env` and set the config key the line names, then `docker compose up -d`. A config key: fix the file and restart the services that read it ([Apply a change](./configuration.md#apply-a-change)). `EACCES`: `chmod 644 mergebrief.config.yaml`, then `docker compose restart api worker`. |
+| `worker composition: invalid GitHub configuration` | A GitHub App variable is missing or malformed. | Fix it in `.env`, then `docker compose up -d`. |
+| `worker composition: invalid generator configuration` | The provider could not be built: the key variable the `generator:` block names is unset, a CLI provider is not in the shipped image ([generators.md](./generators.md#subscription-cli-providers)), or the provider's boot check refused the key or the model. A boot check that could not reach the provider exits 1 instead ([A service keeps restarting](#a-service-keeps-restarting)). | Set the key variable in `.env`, then `docker compose up -d`; or fix the `generator:` block, then `docker compose restart worker`. |
 | `worker composition: invalid tracker configuration` or `worker composition: trackers` | A tracker in the instance config cannot be read, such as a `notion` entry whose token is unset ([trackers.md](./trackers.md#connect-notion)), a `jira` entry whose `JIRA_EMAIL` or `JIRA_API_TOKEN` is unset, or a `jira` entry whose `site` is not a Jira site (the line says `no Jira site answers at`) ([trackers.md](./trackers.md#connect-jira)). | Set the token or email in `.env` and run `docker compose up -d`, or fix `site` or remove the entry and run `docker compose restart worker`. |
 | `worker composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set ([observability.md](./observability.md#tracing)). | Fix the value, or unset the endpoint, then `docker compose up -d`. |
 | `worker composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable, then `docker compose up -d`. |
@@ -120,6 +138,7 @@ A line `api composition: the instance config names nobody` does not stop the api
 | `api composition failed` or `worker: boot failed`, with an `err` naming a connection error | The database is unreachable, refused the connection, or is full. | Read the `err`: [Postgres refuses connections](#postgres-refuses-connections), [The Neon compute is suspended](#the-neon-compute-is-suspended), or the external-database rows in [The stack does not start](#the-stack-does-not-start). |
 | `api composition: database schema is N migration(s) behind`, or `worker: boot failed` saying the same | `MERGEBRIEF_AUTO_MIGRATE=false` and the release's migrations are not applied. | [Upgrade with a restricted database role](./upgrade.md#upgrade-with-a-restricted-database-role). |
 | `migration lock: still held after 300s` | A long migration, or a transaction pooler in `DATABASE_URL`. | See the `migration lock` row in [The stack does not start](#the-stack-does-not-start). |
+| `worker: boot failed`, with an `err` naming `invalid generator configuration` and a `preflight` that failed or could not reach the provider | The provider's boot check of the key and model got no answer, or a 429 or 5xx. A restart can outlast that, so the worker exits 1 and compose starts it again; a refused key or an unknown model exits 0 instead. | Check the provider's status page and the host's outbound route to it. The worker comes up by itself once the provider answers. |
 | `web boot refused`, with a `reason` | `web` exits 1 on a bad value, unlike `api` and `worker`, so it restarts until fixed. Its values come from `docker-compose.yml`: `PUBLIC_BASE_URL` and the `OTEL_*` variables in `.env`. | Fix the value the `reason` names, then `docker compose up -d`. |
 
 ## `up --wait` stops at the api
@@ -160,7 +179,7 @@ A line `api composition: the instance config names nobody` does not stop the api
 
 ## A person is refused a brief or sign-in
 
-"This GitHub account isn't allowed on this instance" means the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([Who can sign in](./security-model.md#who-can-sign-in)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts. Find the id with `gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then run `docker compose restart api worker`. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
+"This GitHub account isn't allowed on this instance" means the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([Who can sign in](./security-model.md#who-can-sign-in)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts. Find the id in the api log's refusal line, or look it up ([Who can sign in](./security-model.md#who-can-sign-in)), and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then run `docker compose restart api worker`. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
 
 ## Sign-in does not stick
 
@@ -204,11 +223,26 @@ A user who cancels on GitHub's consent page lands on Home with no message; the a
 
 ## Requests answer 500 after a key change
 
-**You see:** every request that needs GitHub answers 500, and the api logs `token.decrypt.fail` at `error`. Sessions are kept.
+**You see:** every request that needs GitHub answers 500, and the api logs `token.decrypt.fail` at `error`.
 
 **Cause:** the session key no longer opens the stored GitHub tokens, usually because a `SESSION_KEY_*` variable changed or was removed.
 
-**Fix:** set the key back and run `docker compose up -d` ([If the session key changed or was lost](./secrets.md#if-the-session-key-changed-or-was-lost)).
+**Fix:** set the key back, or recover without it ([If the session key changed or was lost](./secrets.md#if-the-session-key-changed-or-was-lost)).
+
+## GitHub token refresh fails
+
+**You see:** one user's requests that need GitHub answer 500 or 502, or one user lands signed out, and the api logs `token.refresh.fail` or `token.refresh.unavailable` with that user's `reviewerId`. A user's GitHub token expires after eight hours, and the api rotates it with the stored refresh token on the first request that needs GitHub after that.
+
+| Line | Cause | Fix |
+| --- | --- | --- |
+| `token.refresh.fail` with `kind: expiration-not-enabled` | **Expire user authorization tokens** is off in the App's settings, so GitHub returned no refresh token. Sessions are kept and the request answers 500. | Turn the setting on ([github-app.md](./github-app.md#reviewer-sign-in)). |
+| `token.refresh.fail` with another `kind`, such as `incorrect_client_credentials` | GitHub refused the App's OAuth client id or secret. Sessions are kept and the request answers 500; sign-in fails too. | Fix `GITHUB_OAUTH_CLIENT_ID` or `GITHUB_OAUTH_CLIENT_SECRET` in `.env`, then `docker compose up -d` ([Rotate the OAuth client secret](./secrets.md#rotate-the-oauth-client-secret)). |
+| `token.refresh.fail` with `kind: seal-failed` | GitHub rotated the tokens, but the session key could not seal the new pair, so it was not stored and the old refresh token is spent. | Check the session key variables ([Rotate the session key](./secrets.md#rotate-the-session-key)). That user signs in again. |
+| `token.refresh.fail` without `kind`: `GitHub refused the grant's refresh token; grant retired` | GitHub refused that user's refresh token: it expired, the user revoked it, or it was already used. Their sessions end and their API tokens are revoked. | Nothing on the instance. The user signs in again and creates new API tokens in `/settings`. |
+| `token.refresh.fail` without `kind`: `api token died during refresh` | An API token expired or was revoked while its request was refreshing. | Nothing; the caller needs a live token. |
+| `token.refresh.unavailable` | GitHub did not answer the rotation within 10 seconds or answered with an outage, or another request held the same rotation for over 2 seconds. Sessions and tokens are kept and the request answers 502. | Try again. If it repeats, check GitHub's status and the host's route to `github.com`. |
+
+A `token.refresh.unavailable` with `refreshTokenPossiblyConsumed: true` can be followed by a `token.refresh.fail` without `kind` for the same user: GitHub rotated before the answer was lost, so that user signs in again.
 
 ## Webhook deliveries answer 401
 
@@ -217,7 +251,7 @@ A user who cancels on GitHub's consent page lands on Home with no message; the a
 **Cause:** the signature over the delivery's exact bytes does not match `GITHUB_WEBHOOK_SECRET` as the api holds it. One of these:
 
 - The App's webhook secret and `.env` differ. The HMAC uses the value exactly as set, so a stray character counts.
-- `.env` changed but the api still runs the old value, after `docker compose restart` instead of `docker compose up -d`.
+- `.env` changed but the api still runs the old value, after `docker compose restart` instead of `docker compose up -d` ([Apply a change](./configuration.md#apply-a-change)).
 - The App has no webhook secret, so GitHub sends no signature at all.
 - Something in front of the api rewrites the request body.
 
@@ -233,7 +267,7 @@ A user who cancels on GitHub's consent page lands on Home with no message; the a
 | 500 | An unexpected failure; the api logs `webhook.dispatch.fail` at `error`. | Read that line, then redeliver. |
 | 502 | An uninstall or removed-repositories event GitHub could not confirm in time. Nothing was purged. | Redeliver. |
 
-GitHub never retries a failed delivery on its own, so the worker asks it to: every 15 minutes it resends up to 20 of what failed in the last three days, waiting longer after each attempt and stopping after five. A 400 or 413 is never resent, nor is a revoked authorization, and a push or review stays back once its installation had a later uninstall or removed repositories. You can also redeliver from the App's **Advanced** tab. GitHub also refuses a `localhost` or private webhook URL at registration ([github-app.md](./github-app.md#set-the-webhook)).
+GitHub never retries a failed delivery on its own, so the worker asks it to: every 15 minutes it resends up to 20 of what failed in the last three days, waiting 15 minutes, 1 hour, 4 hours, then 12 hours after each attempt and stopping after five. The first resend lands 15 to 30 minutes after the failure. A 400 or 413 is never resent, nor is a revoked authorization, and a push or review stays back once its installation had a later uninstall or removed repositories. You can also redeliver from the App's **Advanced** tab. GitHub also refuses a `localhost` or private webhook URL at registration ([github-app.md](./github-app.md#set-the-webhook)).
 
 ## The worker cannot list webhook deliveries
 
@@ -268,14 +302,14 @@ Open the pull request in MergeBrief: the brief page says where the push stands.
 
 **You see:** the brief page shows "Brief generation failed" with a reason, a count such as "2 attempts so far.", and often a **Regenerate brief** button for anyone with push access. On GitHub, the Entry comment reads "No brief for `<sha>`: generation failed." and links to the push in MergeBrief.
 
-Every failure also logs `job.fail` in the worker, with the message `generate: permanent failure` or `generate: failed (...)`. A failure at the model provider adds `provider.error` with `provider`, and `status` or `kind` ([observability.md](./observability.md#event-vocabulary)). Find the reason the page shows:
+Every failure also logs `job.fail` in the worker, with the message `generate: permanent failure` or `generate: failed (...)`. A failure at the model provider adds `provider.error` with `provider` and `kind` ([Provider error kinds](./observability.md#provider-error-kinds)). Find the reason the page shows:
 
 | The page says | Cause | Fix |
 | --- | --- | --- |
-| "The model provider rejected the configured credentials." | The provider refused the key: `provider.error` with `status` 401 or 403. | Put a valid key in the variable the `generator:` block reads, `ANTHROPIC_API_KEY` by default, run `docker compose up -d`, then **Regenerate brief**. |
-| "The model provider's rate limit was hit." | The provider answered 429 through every retry. | **Regenerate brief** later. If it repeats, lower the slot count or `generator.detailConcurrency`, or raise the provider's limit ([Worker slots](./generators.md#worker-slots)). |
-| "The model provider timed out before finishing." | The provider answered 408, or the call ran past its time limit. | **Regenerate brief**. |
-| "The model provider could not be reached." | The provider answered 5xx, or the connection failed, through every retry. | Check the provider's status and the host's outbound route to it, then **Regenerate brief**. |
+| "The model provider rejected the configured credentials." | The provider refused the key (401 or 403): `provider.error` with `kind: auth`. | Put a valid key in the variable the `generator:` block reads ([Rotate the model provider key](./secrets.md#rotate-the-model-provider-key)), then **Regenerate brief**. |
+| "The model provider's rate limit was hit." | The provider answered 429 through every retry: `provider.error` with `kind: provider-transient`. | **Regenerate brief** later. If it repeats, lower the slot count or `generator.detailConcurrency`, or raise the provider's limit ([Worker slots](./generators.md#worker-slots)). |
+| "The model provider timed out before finishing." | The provider answered 408 (`kind: provider-transient`), or the call ran past its time limit (`kind: timeout`). | **Regenerate brief**. |
+| "The model provider could not be reached." | The provider answered 5xx, or the connection failed, through every retry: `kind: provider-transient`. | Check the provider's status and the host's outbound route to it, then **Regenerate brief**. |
 | "The model declined to summarize this pull request." | The model refused. | Nothing on the instance changes this push: a rerun refuses the same way, so no button is offered. The next push is briefed as usual. |
 | "The model provider refused the request because the account reached a spend limit: ..." | `provider.error` with `kind: provider-spend-limit`. | Raise the limit on the provider's billing page, or wait for it to reset, then **Regenerate brief**. |
 | "The model returned output that could not be read as a brief." | The answer failed the brief's schema after salvage and one feedback retry. The raw answer is saved in the worker ([Read a failed generation's raw output](./observability.md#read-a-failed-generations-raw-output)). | **Regenerate brief**. If it repeats, use a stronger `model:` ([generators.md](./generators.md#brief-text-runs-long-on-a-weaker-model)). |
@@ -318,10 +352,37 @@ Related lines:
 
 | Line | Meaning | Fix |
 | --- | --- | --- |
-| `info` `URL fallback token serves its owner only`, with `ownerId` | The lookup worked. `ownerId` is the one GitHub user id the token serves. | If that is not your id (`gh api users/<login> --jq .id`), the token was made on another account, such as a bot. Make it on your own. |
+| `info` `URL fallback token serves its owner only`, with `ownerId` | The lookup worked. `ownerId` is the one GitHub user id the token serves. | If that is not your id ([find yours](./security-model.md#who-can-sign-in)), the token was made on another account, such as a bot. Make it on your own. |
 | `warn` `URL fallback token owner lookup failed; the token serves nobody until a retry succeeds`, with `retryInMs` | GitHub did not answer the lookup. It retries in the background, from 30 seconds up to every 15 minutes. | Nothing, unless it keeps repeating; then check the host's route to `api.github.com`. |
 | `warn` `URL fallback token rejected by GitHub, check MERGEBRIEF_URL_FALLBACK_TOKEN` | The token stopped working after boot. A paste, or a read for a URL pull request, fell back to the reviewer's own denial. | Replace the token as above. |
 | `MERGEBRIEF_URL_BOX_TOKEN is no longer read: rename it to MERGEBRIEF_URL_FALLBACK_TOKEN.` | The variable's old name. | Rename it in `.env`, then `docker compose up -d` ([upgrade.md](./upgrade.md#renamed-and-removed-variables)). |
+
+## Jira refused the token at boot
+
+**You see:** once at boot, the worker logs `jira.token.check` with `site` and an `outcome`. Boot goes on either way.
+
+| `outcome` | Line | Fix |
+| --- | --- | --- |
+| `refused`, at `error` | `jira: Jira refused the account email and API token; ...` Every Jira ticket reads as unread with `no-credential` until both are right and the worker restarts. | Set a working `JIRA_EMAIL` and `JIRA_API_TOKEN` pair ([Rotate a tracker token](./secrets.md#rotate-a-tracker-token)). |
+| `broader`, at `warn` | `jira: the API token can do more than read issues; ...` | Create a token whose only scope is `read:jira-work` ([trackers.md](./trackers.md#2-create-an-api-token-with-one-scope)) and swap it in the same way. |
+
+No line does not prove the token is scoped right: the check answers only what Atlassian reports.
+
+## An audit row is missing
+
+**You see:** the api logs `error` `audit emit failed after a completed action` with `evt: audit.fail`, the `operation` and an `err`.
+
+**Cause:** the action completed, and may already have reached GitHub, but writing its audit row failed, almost always a database error the `err` names. The caller got its normal answer. The row is never written later, so the audit log lacks that action; the `api.access` line with the same `reqId` still records the request.
+
+**Fix:** read the `err`. A connection or pool error points to [Postgres refuses connections](#postgres-refuses-connections); a full disk or a read-only database needs the database fixed. A repeating line means every audited action is going unrecorded until the database is healthy.
+
+## A brief failed its write check
+
+**You see:** the worker logs `warn` `generate: artifact failed its write check, written as generated` with `evt: artifact.check.fail`, the artifact `kind` (`brief`, `delta` or `revision-narrative`), `issueCount` and `firstPath`.
+
+**Cause:** before storing a brief, delta brief or revision narrative, the worker checks its shape. This one did not pass, and was stored as the model wrote it. `firstPath` names the first field that failed; the line never carries body content.
+
+**Fix:** a single line needs nothing. If it repeats, collect the `kind` and `firstPath` values and report them; a different `model:` may stop it ([generators.md](./generators.md#switch-the-provider)).
 
 ## The update check fails
 
