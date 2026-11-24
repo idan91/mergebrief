@@ -241,6 +241,20 @@ describe("pre-push lint", () => {
     expect(hasRemoteBranch("fix/BRIEF-2/2-bad")).toBe(false);
   });
 
+  it("skips lint when the branch changes the lint config or plugin", () => {
+    commitOnBranch("chore/BRIEF-5/1-rules", {
+      ".oxlintrc.json": "{}\n",
+      "tools/oxlint-plugin-house/src/index.mjs": "export {};\n",
+      "src/a.ts": "export const a = 1; // FAIL_LINT\n",
+    });
+
+    const result = push(["HEAD"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("lint skipped");
+    expect(readLintedFiles()).toEqual([]);
+  });
+
   it("never runs a whole-repo lint when nothing lintable changed", () => {
     commitOnBranch("docs/BRIEF-3/1-words", { "docs/a.md": "# notes\n" });
 

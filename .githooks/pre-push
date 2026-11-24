@@ -52,13 +52,20 @@ lint_changed_files() {
     echo "pre-push: no merge base with origin/main; fetch it. Lint skipped" >&2
     return 0
   }
+  # oxlint loads the house plugin from this checkout, so it runs only on the
+  # config and plugin origin/main already carries: pushing an unreviewed
+  # checkout never runs its plugin code.
+  if ! git diff --quiet origin/main -- .oxlintrc.json tools/oxlint-plugin-house; then
+    echo "pre-push: the lint config or house plugin differs from origin/main; lint skipped (pnpm lint still covers it)" >&2
+    return 0
+  fi
   set -- "$base" "$1" -- '*.ts' '*.tsx' '*.mts' '*.cts' '*.js' '*.jsx' '*.mjs' '*.cjs'
   count=$(git diff -z --name-only --diff-filter=ACMR "$@" | tr -cd '\000' | wc -c)
   if [ "$count" -eq 0 ]; then
     return 0
   fi
   git diff -z --name-only --diff-filter=ACMR "$@" |
-    xargs -0 "$oxlint" --quiet --no-error-on-unmatched-pattern --
+    xargs -0 "$oxlint" --quiet --disable-nested-config --no-error-on-unmatched-pattern --
 }
 
 while read -r local_ref local_sha remote_ref _remote_sha; do
