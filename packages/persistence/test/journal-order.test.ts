@@ -1,6 +1,6 @@
 // The journal-order judgment of `check:migrations`: every journal `when` sits
 // above the one before it, or drizzle skips the later entry for good on a
-// database already migrated past the earlier one.
+// database already migrated past the earlier one; every `idx` is its position.
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectJournalOrderOffenders,
+  findJournalIndexOffenders,
   findJournalOrderOffenders,
 } from "../scripts/journal-order";
 
@@ -55,6 +56,39 @@ describe("findJournalOrderOffenders", () => {
   });
 });
 
+describe("findJournalIndexOffenders", () => {
+  it("passes a journal whose idx values count up from zero", () => {
+    const entries = [
+      { idx: 0, tag: "0000_a" },
+      { idx: 1, tag: "0001_b" },
+    ];
+
+    expect(findJournalIndexOffenders(entries)).toEqual([]);
+  });
+
+  it("names an entry whose idx skips a position", () => {
+    const entries = [
+      { idx: 0, tag: "0000_a" },
+      { idx: 2, tag: "0002_b" },
+    ];
+
+    expect(findJournalIndexOffenders(entries)).toEqual([
+      { tag: "0002_b", idx: 2, expectedIdx: 1 },
+    ]);
+  });
+
+  it("names a repeated idx and a journal not starting at zero", () => {
+    const entries = [
+      { idx: 1, tag: "0001_a" },
+      { idx: 1, tag: "0001_b" },
+    ];
+
+    expect(findJournalIndexOffenders(entries)).toEqual([
+      { tag: "0001_a", idx: 1, expectedIdx: 0 },
+    ]);
+  });
+});
+
 describe("collectJournalOrderOffenders", () => {
   it("refuses a journal it cannot parse", () => {
     const dir = makeMigrationsDir('{"entries":[{"tag":"0001_a"}]}');
@@ -62,10 +96,37 @@ describe("collectJournalOrderOffenders", () => {
     expect(collectJournalOrderOffenders(dir)).toMatchObject({ ok: false });
   });
 
-  it("holds the checked-in journal strictly increasing", () => {
+  it("refuses a journal entry without an idx", () => {
+    const dir = makeMigrationsDir('{"entries":[{"tag":"0000_a","when":10}]}');
+
+    expect(collectJournalOrderOffenders(dir)).toMatchObject({ ok: false });
+  });
+
+  it("reports when and idx offenders from one journal", () => {
+    const dir = makeMigrationsDir(
+      JSON.stringify({
+        entries: [
+          { idx: 0, tag: "0000_a", when: 20 },
+          { idx: 2, tag: "0001_b", when: 10 },
+        ],
+      }),
+    );
+
+    expect(collectJournalOrderOffenders(dir)).toEqual({
+      ok: true,
+      value: {
+        order: [
+          { tag: "0001_b", when: 10, previousTag: "0000_a", previousWhen: 20 },
+        ],
+        index: [{ tag: "0001_b", idx: 2, expectedIdx: 1 }],
+      },
+    });
+  });
+
+  it("holds the checked-in journal rising and sequential", () => {
     expect(collectJournalOrderOffenders(MIGRATIONS_DIR)).toEqual({
       ok: true,
-      value: [],
+      value: { order: [], index: [] },
     });
   });
 });

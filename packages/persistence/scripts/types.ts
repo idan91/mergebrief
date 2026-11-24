@@ -18,6 +18,7 @@ export interface MigrationOffender {
 }
 
 export interface JournalEntry {
+  readonly idx: number;
   readonly tag: string;
   readonly when: number;
 }
@@ -27,4 +28,15 @@ export interface JournalOrderOffender {
   readonly when: number;
   readonly previousTag: string;
   readonly previousWhen: number;
+}
+
+export interface JournalIndexOffender {
+  readonly tag: string;
+  readonly idx: number;
+  readonly expectedIdx: number;
+}
+
+export interface JournalOffenders {
+  readonly order: readonly JournalOrderOffender[];
+  readonly index: readonly JournalIndexOffender[];
 }

@@ -1,7 +1,8 @@
 // `pnpm -C packages/persistence check:migrations`: judges every checked-in
 // migration under `drizzle/` and exits non-zero naming the files that drop,
 // rename, retype or tighten without a `-- contracts <release>` first line,
-// and the journal entries whose `when` does not rise above the one before.
+// and the journal entries whose `when` does not rise above the one before or
+// whose `idx` is not their position.
 import { fileURLToPath } from "node:url";
 import { collectJournalOrderOffenders } from "./journal-order";
 import { collectOffenders } from "./migration-contracts";
@@ -29,14 +30,21 @@ function reportJournalOrderOffenders(): number {
     return 1;
   }
 
-  for (const offender of journal.value) {
+  const { order, index } = journal.value;
+  for (const offender of order) {
     process.stderr.write(
       `meta/_journal.json: ${offender.tag} has when ${String(offender.when)}, ` +
         `not above ${offender.previousTag}'s ${String(offender.previousWhen)}; ` +
         "drizzle skips it on a database already past the earlier entry\n",
     );
   }
-  return journal.value.length;
+  for (const offender of index) {
+    process.stderr.write(
+      `meta/_journal.json: ${offender.tag} has idx ${String(offender.idx)} ` +
+        `at position ${String(offender.expectedIdx)}; journal idx values count up from 0\n`,
+    );
+  }
+  return order.length + index.length;
 }
 
 function main(): number {
@@ -47,7 +55,7 @@ function main(): number {
   }
 
   process.stdout.write(
-    "migrations: every contract names its release and the journal rises\n",
+    "migrations: every contract names its release and the journal rises in sequence\n",
   );
   return 0;
 }
