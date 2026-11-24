@@ -83,6 +83,9 @@
     "house/no-conditional-spread": "error",
     // Re-export only from a barrel, and only files inside its own folder.
     "house/no-re-export": "error",
+    // A folder's main file is its index; a source file never takes the
+    // folder's name, outside a component's or hook's mirrored test.
+    "house/no-file-named-after-folder": "error",
     // Named exports only; the framework-required default exports are carved
     // out per-path in the overrides.
     "import/no-default-export": "error",

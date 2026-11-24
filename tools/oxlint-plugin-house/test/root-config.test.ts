@@ -262,6 +262,8 @@ const MATRIX_FILES = {
   "packages/brief-core/src/fallback.ts": SHOUT_CASE_COPY,
   "packages/brief-core/src/braceless.ts": BRACELESS_IF,
   "packages/brief-core/src/braced.ts": BRACED_IF,
+  "packages/brief-core/src/tenant/tenant.ts": NAMED_CONTROLLER,
+  "packages/brief-core/src/tenant/index.ts": NAMED_CONTROLLER,
 };
 
 let matrix: LintResult | undefined;
@@ -402,6 +404,20 @@ describe("braces on every body", () => {
     expect(rulesFor(lintMatrix(), "packages/brief-core/src/braced.ts")).toEqual(
       [],
     );
+  });
+});
+
+describe("file named after its folder", () => {
+  it("reports a main file carrying its folder's name", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/tenant/tenant.ts"),
+    ).toEqual(["house/no-file-named-after-folder@error"]);
+  });
+
+  it("passes the same file as the folder's index", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/tenant/index.ts"),
+    ).toEqual([]);
   });
 });
 

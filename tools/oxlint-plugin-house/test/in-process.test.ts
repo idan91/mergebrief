@@ -175,6 +175,50 @@ const CASES: readonly FixtureCase[] = [
     lines: readMarkedLines("no-shout-case-copy", "bad.tsx"),
     options: SHOUT_CASE_OPTIONS,
   },
+  {
+    rule: "no-file-named-after-folder",
+    name: "no-file-named-after-folder on a component",
+    bad: "bad-component/Menu/Menu.tsx",
+    good: "good-component/Menu/index.tsx",
+    alsoGood: [
+      "good-component-test/Button/Button.test.tsx",
+      "good-hook-test/useViewportShape/useViewportShape.test.tsx",
+    ],
+    lines: [1],
+  },
+  {
+    rule: "no-file-named-after-folder",
+    name: "no-file-named-after-folder on a domain file",
+    bad: "bad-domain/tenant/tenant.ts",
+    good: "good-domain/tenant/index.ts",
+    alsoGood: [
+      "good-concern-hook/reading/useReading.ts",
+      "good-concern-hook/mark-ready/useMarkReady.ts",
+    ],
+    lines: [1],
+  },
+  {
+    rule: "no-file-named-after-folder",
+    name: "no-file-named-after-folder across casings",
+    bad: "bad-casing/mark-ready/markReady.ts",
+    good: "good-concern-hook/mark-ready/useMarkReady.ts",
+    lines: [1],
+  },
+  {
+    rule: "no-file-named-after-folder",
+    name: "no-file-named-after-folder on a test outside a component",
+    bad: "bad-test/tenant/tenant.test.ts",
+    good: "good-test/tenant/index.test.ts",
+    alsoGood: ["good-task-tests/test/tracing/sampler.test.ts"],
+    lines: [1],
+  },
+  {
+    rule: "no-file-named-after-folder",
+    name: "no-file-named-after-folder on a hook folder entry",
+    bad: "bad-hook-folder/useViewportShape/useViewportShape.ts",
+    good: "good-hook-folder/useViewportShape/index.ts",
+    lines: [1],
+  },
 ];
 
 for (const {

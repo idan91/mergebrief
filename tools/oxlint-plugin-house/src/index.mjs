@@ -7,6 +7,7 @@ import { noBlankTarget } from "./rules/no-blank-target.mjs";
 import { noConditionalSpread } from "./rules/no-conditional-spread.mjs";
 import { noEmDash } from "./rules/no-em-dash.mjs";
 import { noEnum } from "./rules/no-enum.mjs";
+import { noFileNamedAfterFolder } from "./rules/no-file-named-after-folder.mjs";
 import { noHandBuiltPlural } from "./rules/no-hand-built-plural.mjs";
 import { noProcessEnv } from "./rules/no-process-env.mjs";
 import { noRenderFunction } from "./rules/no-render-function.mjs";
@@ -35,6 +36,7 @@ const plugin = {
     "types-const-maps": typesConstMaps,
     "no-re-export": noReExport,
     "no-shout-case-copy": noShoutCaseCopy,
+    "no-file-named-after-folder": noFileNamedAfterFolder,
   },
 };
 
