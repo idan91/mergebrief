@@ -43,13 +43,13 @@ its own.
   Read your own with `docker compose stats --no-stream`, once idle and once
   while a brief generates, and size the host from the peak.
 
-## Cloud deployment
+## Server deployment
 
-- [Hetzner and EC2 deployment guide](cloud-deployment.md): a pinned release
-  image on a VM, with the database on the VM, private RDS, or external
-  Neon/Supabase, plus HTTPS and validation.
-- [Provider research notes](cloud-provider-notes.md): official sources and
-  connection details behind that guide.
+- [Deploy on a server](server-deployment.md): a pinned release
+  image on a VPS or cloud VM, with bundled or managed Postgres, plus HTTPS
+  and validation.
+- [Managed Postgres provider notes](managed-postgres-notes.md): what the
+  guide's database requirements mean on Neon, Supabase and Amazon RDS.
 
 ## Reading order
 

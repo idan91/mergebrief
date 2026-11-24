@@ -14,7 +14,7 @@ live on the daemon filesystem.
 
 Use this track to evaluate Vercel compatibility. For a first complete
 self-host trial with the existing supported packaging, use
-[Hetzner or EC2](../../self-host/cloud-deployment.md).
+[the server guide](../../self-host/server-deployment.md).
 
 Before deploying, account for these differences:
 
@@ -174,7 +174,7 @@ Check that deployment protection does not block GitHub's webhook. Verify:
 3. Login succeeds on the stable hostname and cookies persist. Internal
    service routing preserves the Host/Origin assumptions used by the app.
 4. Activate the webhook and run the complete PR/generation/review checklist
-   in [the VM guide](../../self-host/cloud-deployment.md#6-verify-the-deployment).
+   in [the VM guide](../../self-host/server-deployment.md#6-verify-the-deployment).
 5. Let HTTP services idle, then repeat login and generation. Confirm cold
    starts and API periodic tasks do not break expected behavior.
 6. Test attachments and media near the app's configured bounds, plus long
@@ -222,7 +222,7 @@ Set project `PORT=3000`, `MERGEBRIEF_WEB_PORT=3000`, `MERGEBRIEF_API_PORT=3000`,
 - Daemons: production only; no inbound application traffic, persistent storage, autoscaling, or `vercel dev` execution. Project root cannot be a subfolder. Linux amd64; memory choices 1/2/4/8 GiB with 1/1/2/4 vCPUs. Default shutdown grace 30 seconds, configurable to 3,600. At most 100 daemons/project, 100 instances/daemon/region, and a default effective cap of 50 instances/project environment. Pro defaults to 16 vCPUs and 32 GiB/team. Hobby allows only 1/2 GiB instances and 5 CPU-hours plus 420 GB-hours/month; either exhaustion stops daemons. An always-on worker therefore needs a paid capacity assessment. Source: [daemon limits](https://vercel.com/docs/daemons/limits).
 - Daemons restart even after a successful exit, unlike Compose's `on-failure` policy. Do not add an HTTP liveness probe to the current worker without implementing a listener. Sources: [daemon lifecycle and probes](https://vercel.com/docs/daemons).
 - Services inherit Function limits. Published limits include 4.5 MB request/response payloads, 2 GB Hobby / 4 GB paid maximum memory, and bounded request duration. These need reconciling with MergeBrief attachments/media. The documented 1,800-second extended duration and 5 GB large-function beta name specific language runtimes; do not assume they apply to custom containers. Sources: [Services limits](https://vercel.com/docs/services/pricing), [Function limits](https://vercel.com/docs/functions/limitations).
-- Custom containers currently lack Secure Compute and Static IPs: do not present the private EC2/RDS networking recipe as directly reusable on Vercel. Images also face VCR limits: 2 GB/compressed layer, 15 GB total compressed image, and two million filesystem entries during optimization. Sources: [container restrictions](https://vercel.com/docs/functions/runtimes/container), [registry limits](https://vercel.com/docs/container-registry/limits-and-pricing).
+- Custom containers currently lack Secure Compute and Static IPs: do not present the private cloud database networking recipe as directly reusable on Vercel. Images also face VCR limits: 2 GB/compressed layer, 15 GB total compressed image, and two million filesystem entries during optimization. Sources: [container restrictions](https://vercel.com/docs/functions/runtimes/container), [registry limits](https://vercel.com/docs/container-registry/limits-and-pricing).
 
 ## Unresolved before calling this tested
 

@@ -250,7 +250,7 @@ worker's `LISTEN`/`NOTIFY` and the boot migrations' advisory lock both belong
 to one database session, which a transaction pooler does not keep. On Neon,
 take the host without `-pooler`; on Supabase, the direct host or the Session
 pooler on port 5432, not port 6543
-([provider notes](./cloud-provider-notes.md#neon-and-supabase-connection-selection)).
+([provider notes](./managed-postgres-notes.md)).
 A lock that lands on the wrong session shows up as a `migration lock:` warning,
 or as an exit 1 once the wait runs out; the line names the pooler either way.
 
