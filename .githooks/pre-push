@@ -4,7 +4,7 @@
 # base with origin/main. `git push --no-verify` skips this hook.
 set -u
 
-BRANCH_SHAPE='^(feature|fix|chore|docs|refactor|test)/BRIEF-[0-9]+/[0-9]+[a-z]?-[a-z0-9-]+$'
+BRANCH_SHAPE='^[a-z]+/BRIEF-[0-9]+/[0-9]+[a-z]?-[a-z0-9-]+$'
 THIS_REPOSITORY='idan91/(mergebrief|code-review)(\.git)?/?$'
 remote_url=${2:-}
 
@@ -35,7 +35,7 @@ check_branch() {
     return 0
   fi
   echo "pre-push: branch '$1' does not match <type>/BRIEF-<n>/<n>-<slug>" >&2
-  echo "  (type: feature, fix, chore, docs, refactor or test; main and assets/* are allowed)" >&2
+  echo "  (type is any lowercase word such as feat, fix or docs; main and assets/* are allowed)" >&2
   return 1
 }
 
@@ -62,6 +62,13 @@ lint_changed_files() {
   set -- "$base" "$1" -- '*.ts' '*.tsx' '*.mts' '*.cts' '*.js' '*.jsx' '*.mjs' '*.cjs'
   count=$(git diff -z --name-only --diff-filter=ACMR "$@" | tr -cd '\000' | wc -c)
   if [ "$count" -eq 0 ]; then
+    return 0
+  fi
+  # oxlint reads the files on disk, so it judges the push only when the tree
+  # holds exactly what is being pushed.
+  if ! git diff -z --name-only --diff-filter=ACMR "$@" |
+    GIT_LITERAL_PATHSPECS=1 xargs -0 git diff --quiet "$2" --; then
+    echo "pre-push: changed files have uncommitted edits; lint skipped (pnpm lint covers the commit)" >&2
     return 0
   fi
   git diff -z --name-only --diff-filter=ACMR "$@" |

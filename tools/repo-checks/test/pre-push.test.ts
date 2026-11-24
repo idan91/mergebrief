@@ -150,10 +150,23 @@ describe("prepare script", () => {
     const hooksPath = runGit(work, ["config", "core.hooksPath"]).trim();
 
     expect(hooksPath).toMatch(/\/\.git\/managed-hooks$/);
-    expect(readdirSync(hooksPath).toSorted()).toEqual([
-      "commit-msg",
-      "pre-push",
-    ]);
+    expect(readdirSync(hooksPath)).toEqual(
+      expect.arrayContaining(["commit-msg", "pre-push", "pre-commit"]),
+    );
+  });
+
+  it("keeps a hooks path someone else set, and says so", () => {
+    scratch = mkdtempSync(join(tmpdir(), "prepare-"));
+    runGit(work, ["config", "core.hooksPath", scratch]);
+
+    const run = spawnSync("/bin/sh", ["-c", readPrepareScript()], {
+      cwd: work,
+      encoding: "utf8",
+    });
+
+    expect(run.status).toBe(0);
+    expect(run.stderr).toContain("core.hooksPath");
+    expect(runGit(work, ["config", "core.hooksPath"]).trim()).toBe(scratch);
   });
 
   it("never runs hook code a checked-out ref carries", () => {
@@ -189,6 +202,15 @@ describe("pre-push branch names", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("t3/some-thread");
     expect(hasRemoteBranch("t3/some-thread")).toBe(false);
+  });
+
+  it("accepts any lowercase branch type, feat and prototype included", () => {
+    commitOnBranch("feat/BRIEF-7/1-new-thing", {
+      "src/a.ts": "export const a = 1;\n",
+    });
+
+    expect(push(["HEAD"]).status).toBe(0);
+    expect(push(["HEAD:refs/heads/prototype/BRIEF-7/2-sketch"]).status).toBe(0);
   });
 
   it("pushes a ticket branch, main and an assets branch", () => {
@@ -255,6 +277,19 @@ describe("pre-push lint", () => {
     expect(readLintedFiles()).toEqual([]);
   });
 
+  it("skips lint when the tree differs from the commit being pushed", () => {
+    commitOnBranch("fix/BRIEF-2/3-wip", {
+      "src/a.ts": "export const a = 1;\n",
+    });
+    writeTree(work, { "src/a.ts": "export const a = 2; // FAIL_LINT\n" });
+
+    const result = push(["HEAD"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("uncommitted");
+    expect(readLintedFiles()).toEqual([]);
+  });
+
   it("never runs a whole-repo lint when nothing lintable changed", () => {
     commitOnBranch("docs/BRIEF-3/1-words", { "docs/a.md": "# notes\n" });
 
@@ -264,6 +299,20 @@ describe("pre-push lint", () => {
 });
 
 describe("hook delegation", () => {
+  it("still runs a local pre-commit hook from the git directory", () => {
+    const localHook = join(work, ".git", "hooks", "pre-commit");
+    writeFileSync(localHook, "#!/bin/sh\nexit 1\n");
+    chmodSync(localHook, 0o755);
+    writeTree(work, { "src/c.ts": "export const c = 3;\n" });
+    runGit(work, ["add", "-A"]);
+
+    const run = spawnSync("git", ["commit", "-q", "-m", "blocked"], {
+      cwd: work,
+    });
+
+    expect(run.status).not.toBe(0);
+  });
+
   it("still runs a local commit-msg hook from the git directory", () => {
     const localHook = join(work, ".git", "hooks", "commit-msg");
     writeFileSync(localHook, '#!/bin/sh\nprintf "local\\n" >> "$1"\n');
