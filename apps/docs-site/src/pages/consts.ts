@@ -28,7 +28,7 @@ export const SELF_HOST_SECTIONS: readonly SelfHostSection[] = [
       "self-host/README.md",
       "self-host/compose.md",
       "self-host/github-app.md",
-      "self-host/cloud-deployment.md",
+      "self-host/server-deployment.md",
     ],
   },
   {

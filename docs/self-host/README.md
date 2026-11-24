@@ -13,7 +13,7 @@ Once it runs:
 | You want to | Follow |
 | --- | --- |
 | Try it on your own machine | [compose.md](./compose.md), with a tunnel so GitHub can reach you ([Try it locally through a tunnel](./compose.md#try-it-locally-through-a-tunnel)) |
-| Run it for a team on a VM with a domain | [cloud-deployment.md](./cloud-deployment.md): a Hetzner or EC2 VM, HTTPS, and the database on the VM or a managed one |
+| Run it for a team on a server with a domain | [server-deployment.md](./server-deployment.md): a VPS or cloud VM, HTTPS, and the database on the server or a managed one |
 
 Both run the same compose release, so you can move from the first to the second.
 
@@ -40,7 +40,7 @@ You're done when the App's comment on that pull request reads **Read the brief f
 
 - **Generations decide the worker's size.** Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`, two by default. An API provider holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
 - **Postgres grows with every push.** Each push to a pull request stores a new brief beside the old ones. Check the database's size after a week of use and plan the disk from that; on the bundled Postgres, `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_size_pretty(pg_database_size(current_database()));"'` prints it. What prunes itself and what does not: [data-and-scaling.md](./data-and-scaling.md#prune-closed-pull-requests).
-- **Memory and CPU per service are not measured yet.** Read your own with `docker compose stats --no-stream`, once idle and once while a brief generates, and size the host from the peak. The cloud guide gives a [starting size](./cloud-deployment.md#choose-the-deployment).
+- **Memory and CPU per service are not measured yet.** Read your own with `docker compose stats --no-stream`, once idle and once while a brief generates, and size the host from the peak. The server guide gives a [starting size](./server-deployment.md#choose-the-deployment).
 
 ## Reading order
 
@@ -51,7 +51,7 @@ Set up:
 1. This page: what you need and the quick start.
 2. [compose.md](./compose.md): get the release files, fill in `.env`, list who may sign in, start the stack and check it end to end.
 3. [github-app.md](./github-app.md): register the App, collect its credentials and install it.
-4. [cloud-deployment.md](./cloud-deployment.md): run it for a team on a Hetzner or EC2 VM with HTTPS and a database on the VM or a managed one.
+4. [server-deployment.md](./server-deployment.md): run it for a team on a VPS or cloud VM with HTTPS and a database on the server or a managed one.
 
 Configure:
 
