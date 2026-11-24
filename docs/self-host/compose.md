@@ -40,9 +40,48 @@ On a server, GitHub's webhooks and sign-in need an `https://` domain before you 
    sudo systemctl reload caddy
    ```
 
-**Check:** `curl -sI https://brief.example.com` prints a status line with `502` and no certificate error. The `502` is Caddy with no `web` behind it yet; it goes away once the stack runs. Your origin is `https://brief.example.com`.
+**Check:** `curl -sI https://brief.example.com` prints a status line with `502` and no certificate error. The `502` is Caddy with no `web` behind it yet; it goes away once the stack runs. Your origin is `https://brief.example.com`, with no trailing slash and no path: MergeBrief serves from the root of its host.
 
 Before anyone else uses the instance, also read [Terminate TLS at a reverse proxy](#2-terminate-tls-at-a-reverse-proxy) for the headers and settings a proxy needs.
+
+### Use an existing reverse proxy
+
+If the server already runs nginx or Traefik, point it at `127.0.0.1:3000` instead of installing Caddy. Whatever the proxy, give MergeBrief's host these settings:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| `Host` header | Forward the original | `web` answers 403 to a hostname that is not `PUBLIC_BASE_URL`'s |
+| Response timeout | At least 160 seconds | A review submit and an image upload wait up to 150 seconds for the api |
+| Request body size | At least 10 MB | An image upload sends one file of up to 10 MB; every other request is 1 MB at most |
+| Compression | Off | A proxy would compress pages the app leaves uncompressed on purpose ([why](#2-terminate-tls-at-a-reverse-proxy)) |
+| `Strict-Transport-Security` | Set it | The proxy owns TLS |
+
+nginx, a `server` block beside your other sites:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name brief.example.com;
+    # ssl_certificate and ssl_certificate_key, as your other sites set them
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    gzip off;
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_read_timeout 160s;
+        proxy_send_timeout 160s;
+    }
+}
+```
+
+Without these, nginx's defaults break two things: its 60-second read timeout cuts a long review submit with a `504`, and its 1 MB body limit refuses an image upload with a `413`. `gzip off` overrides the `gzip on` that many distributions' `nginx.conf` sets for every site. Then run `sudo nginx -t && sudo systemctl reload nginx`.
+
+Traefik forwards the original `Host` by default and sets no response timeout or body limit unless a middleware adds one. Keep any `compress` middleware off MergeBrief's router, and give a `buffering` middleware on it a `maxRequestBodyBytes` of at least 10 MB. Traefik v3 stops reading a request after 60 seconds by default: raise `transport.respondingTimeouts.readTimeout` to `160s` on the entry point that serves MergeBrief.
+
+**Check:** the same as for Caddy: `curl -sI https://brief.example.com` prints a `502` status line and no certificate error until the stack runs.
 
 ## Register the GitHub App
 
@@ -60,34 +99,37 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Open `.env` and replace each placeholder. The required block of the file then reads like this:
+Open `.env` and replace each placeholder in the required block, then uncomment `POSTGRES_PASSWORD` in the bundled Postgres block and set it. Filled in, those lines read like this, with `.env.example`'s own comments:
 
 ```dotenv
-# From the App's General tab
+# --- GitHub App (docs/self-host/github-app.md) -------------------------------
 GITHUB_APP_ID=123456
-# The whole .pem file, BEGIN and END lines included, inside single quotes
+# Set exactly one of the next two. Quote a multi-line inline value.
 GITHUB_APP_PRIVATE_KEY='-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA...
 -----END RSA PRIVATE KEY-----'
-# The value you gave the App's webhook Secret field
-GITHUB_WEBHOOK_SECRET=<openssl rand -hex 32 output>
+# At least 32 characters: openssl rand -hex 32
+GITHUB_WEBHOOK_SECRET=<the value in the App's Webhook secret field>
 GITHUB_OAUTH_CLIENT_ID=<Client ID>
 GITHUB_OAUTH_CLIENT_SECRET=<client secret>
 
-# Seals reviewers' GitHub tokens at rest. Back it up with the database.
+# --- Session key -------------------------------------------------------------
+# Seals reviewer tokens at rest. Base64 of 32 bytes: openssl rand -base64 32
 SESSION_KEY_V1=<openssl rand -base64 32 output>
 
-# The origin reviewers browse, the same one the App's URLs start with
+# --- Public origin -----------------------------------------------------------
 PUBLIC_BASE_URL=https://brief.example.com
 
-# Your model provider key
+# --- Model provider key ------------------------------------------------------
 ANTHROPIC_API_KEY=<your key>
 
-# Uncomment and set before the first start
+# --- Bundled Postgres (docs/self-host/compose.md) ----------------------------
 POSTGRES_PASSWORD=<openssl rand -hex 24 output>
 ```
 
-- **`POSTGRES_PASSWORD`**: set it before the first `up`. Postgres stores it only when it first creates its volume, so changing it later in `.env` alone breaks the connection ([Postgres credentials](#1-postgres-credentials)).
+- **`PUBLIC_BASE_URL`**: the origin alone, the same one the App's URLs start with, with no trailing slash and no path. MergeBrief serves from the root of its host; a subpath is unsupported.
+- **`POSTGRES_PASSWORD`**: set it before the first `up` on every instance that runs the bundled Postgres; an [external database](#external-postgres-managed-database) ignores it. Postgres stores it only when it first creates its volume, so changing it later in `.env` alone breaks the connection ([Postgres credentials](#1-postgres-credentials)).
+- **Not every placeholder stops boot.** `GITHUB_APP_ID`, `GITHUB_WEBHOOK_SECRET` and `SESSION_KEY_V1` refuse boot while they hold one. A placeholder left in the private key, the OAuth client id or secret, or the model key lets the stack start, and fails at the first request that needs it.
 - **Another provider** (`openai`, `openrouter`): set its key instead, and name the provider in `mergebrief.config.yaml` ([generators.md](./generators.md#the-config-file)).
 - **Leave out what does not apply.** Delete or comment a line rather than leaving it empty: some variables read empty differently from unset. Every variable is in [configuration.md](./configuration.md).
 
@@ -168,7 +210,7 @@ allowed:
 
 Ids, never logins. `allowed.users` adds single people, such as an outside reviewer ([Who can sign in](./security-model.md#who-can-sign-in)).
 
-The file must exist and stay readable by UID 1000, which is what the `chmod 644` is for. It holds variable names, never keys. Edits apply when `api` and `worker` restart.
+The file must exist and stay readable by UID 1000, which is what the `chmod 644` is for. It holds variable names, never keys. Once the stack runs, an edit to `operators` or `allowed` applies after `docker compose restart api` ([Apply a change](./configuration.md#apply-a-change)).
 
 ## Start the stack
 
@@ -219,6 +261,16 @@ If something stops short:
 | The pull request shows "Brief available on demand" | Its author is not on the repository's team ([Who triggers a brief](./github-app.md#who-triggers-a-brief)) |
 
 Before anyone else uses the instance, work through [Hardening before real exposure](#hardening-before-real-exposure).
+
+## Back up now
+
+The instance now holds what GitHub cannot give back: sign-ins, review sessions, drafts, and reviewers' GitHub tokens sealed under `SESSION_KEY_V1`. Back it up before you rely on it.
+
+1. **Copy the instance's files off the host,** into a password manager or an encrypted store: `.env`, which holds `SESSION_KEY_V1`, `mergebrief.config.yaml`, and `secrets/` and `docker-compose.override.yml` if you made them. A restored database reads its stored GitHub tokens only with the same session key.
+2. **Take a first dump** of the bundled database, and check that it opens: [Back up the bundled database](./backup-restore.md#back-up-the-bundled-database). On an external database, turn on the provider's snapshots instead.
+3. **Schedule the dump:** [Schedule backups](./backup-restore.md#schedule-backups).
+
+**Check:** the dump step prints `dump ok`, and the copies of `.env` and the config file open from wherever you stored them.
 
 ## Try it locally through a tunnel
 
@@ -273,8 +325,10 @@ TimeoutStopSec=240
 WantedBy=multi-user.target
 EOF
 sudo systemctl daemon-reload
-sudo systemctl enable docker mergebrief
+sudo systemctl enable --now docker mergebrief
 ```
+
+`--now` also starts the unit, which finds the stack already up, so it stops the stack cleanly at the next shutdown.
 
 **Check:** `systemctl cat mergebrief | grep WorkingDirectory` shows the instance folder. Then `sudo reboot`, reconnect, and run `docker compose ps -a` in that folder: `api` and `web` read `healthy`, `worker` reads `Up`, and so does `postgres` on the bundled database.
 
@@ -330,6 +384,7 @@ One folder, with no checkout of the repository and no build:
 - **`.env`**, your settings and secrets, started from the release's `env.example`.
 - **`mergebrief.config.yaml`**, the instance config, started from the release's `mergebrief.config.example.yaml`. Compose mounts it read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both.
 - **`docker-compose.override.yml`**, optional, for your own edits: [ports](#moving-a-host-port), volumes, secrets, resource limits. Compose merges it in on its own (through `COMPOSE_FILE` on an external database), and an upgrade never touches it.
+- **The `<folder>_postgres_data` volume**, outside the folder, where the bundled Postgres keeps every brief. Compose names the project, and so the volume, after the folder: from a renamed or moved folder with another name, `docker compose up` starts an empty instance beside the old volume. To keep the old one, set `COMPOSE_PROJECT_NAME=<old folder name>` in `.env`. `docker volume ls --filter name=postgres_data` lists it.
 
 `api`, `web` and `worker` run the same image, `ghcr.io/idan91/mergebrief:X.Y.Z`, with different commands, for `linux/amd64` and `linux/arm64`; a fourth command, `migrate`, applies pending migrations and exits. Postgres runs the official `postgres:17-alpine`. Running `docker compose build` from a checkout of the repository builds a `dev` image instead, which is for working on MergeBrief, not for running it ([CONTRIBUTING.md](../../CONTRIBUTING.md#development-setup)).
 
@@ -349,11 +404,16 @@ A value lives in one place only: the config file never holds a key, and `.env` n
 
 `api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase).
 
-The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself. Fetch it beside the default file and name both in `.env`, in this order, so every plain `docker compose` command reads them:
+The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself, and it belongs to the release of the `docker-compose.yml` beside it. Fetch that release's overlay; the first line reads the version `docker-compose.yml` pins:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.external-db.yml
+VERSION=$(sed -n 's|^ *image: ghcr.io/idan91/mergebrief:||p' docker-compose.yml | head -n 1)
+curl -fsSLo docker-compose.external-db.yml "https://github.com/idan91/mergebrief/releases/download/v$VERSION/docker-compose.external-db.yml"
 ```
+
+**Check:** `echo "$VERSION"` prints a version such as `0.3.0`, and `ls` shows `docker-compose.external-db.yml`. A source checkout pins `dev` and already holds the file, so it skips this step.
+
+Then name both files in `.env`, in this order, so every plain `docker compose` command reads them:
 
 ```dotenv
 COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
@@ -418,7 +478,7 @@ Surrounding whitespace in the file is trimmed. If both variables are set, the fi
 
 ### Restricted database roles (`MERGEBRIEF_AUTO_MIGRATE=false`)
 
-Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)).
+Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. Exit 1 is the code `restart: on-failure` restarts, so `api` and `worker` restart in a loop, logging the same refusal, until the migrations are applied; the next restart then boots. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)).
 
 ## Other platforms
 
@@ -450,7 +510,7 @@ The defaults suit a loopback-only, single-operator machine. Before you point a d
 
 ### 1. Postgres credentials
 
-Set `POSTGRES_PASSWORD`, and optionally `POSTGRES_USER` and `POSTGRES_DB`, in `.env` before the first boot. `api` and `worker` derive their `DATABASE_URL` from them.
+Set `POSTGRES_PASSWORD`, and optionally `POSTGRES_USER` and `POSTGRES_DB`, in `.env` before the first boot of every instance on the bundled database, as [Fill in `.env`](#fill-in-env) does. `api` and `worker` derive their `DATABASE_URL` from them.
 
 ```sh
 openssl rand -hex 24        # use the output as it is
@@ -459,16 +519,16 @@ openssl rand -hex 24        # use the output as it is
 > [!WARNING]
 > Postgres writes the role only when it first initializes the `postgres_data` volume. Changing `.env` afterwards leaves the old password in place and the services fail to connect. Fixing that means an `ALTER ROLE` inside the container, or deleting the volume and every brief in it ([secrets.md](./secrets.md#change-the-postgres-password)).
 
-Use hex as it is: the value is also put into a connection string that is percent-decoded, so a password with `@ : / ? #` or a `%` authenticates as a different string than the role was created with. The `mergebrief` default exists only for a loopback-only machine. Leave port 5432 on loopback; nothing outside the compose network needs it.
+Use hex as it is: the value is also put into a connection string that is percent-decoded, so a password with `@ : / ? #` or a `%` authenticates as a different string than the role was created with. Do not run on the `mergebrief` default: while the connection string carries it, `api` and `worker` warn at every boot. Leave port 5432 on loopback; nothing outside the compose network needs it.
 
 ### 2. Terminate TLS at a reverse proxy
 
-Nothing in the stack speaks TLS: a proxy in front of `web` does ([Put HTTPS in front on a server](#put-https-in-front-on-a-server)). Set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and run `docker compose up -d` to recreate the services that read it. It must match the App's callback and webhook origin. It is also the one origin a signed-in browser may send writes from: a POST with another `Origin` answers 403, so the value must be the origin reviewers browse, scheme and port included.
+Nothing in the stack speaks TLS: a proxy in front of `web` does ([Put HTTPS in front on a server](#put-https-in-front-on-a-server), and [Use an existing reverse proxy](#use-an-existing-reverse-proxy) for the settings nginx or Traefik needs). Set `PUBLIC_BASE_URL=https://brief.example.com` in `.env`, with no trailing slash or path, and run `docker compose up -d` to recreate the services that read it. It must match the App's callback and webhook origin. It is also the one origin a signed-in browser may send writes from: a POST with another `Origin` answers 403, so the value must be the origin reviewers browse, scheme and port included.
 
 - **Sign-in cookies are `__Host-` cookies with `Secure`.** A browser keeps them over `https://`, or `http://localhost`, and drops them over plain `http://` on any other hostname, so sign-in does not stick there.
 - **`web` serves only `PUBLIC_BASE_URL`'s hostname,** `localhost`, `*.localhost` and bare IP addresses, and answers any other `Host` with 403. Forward the original `Host`, and keep `X-Request-Id` if you correlate logs.
 - **The app sets its own security headers** (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Content-Security-Policy: frame-ancestors 'none'`). Add `Strict-Transport-Security` at the proxy, which owns TLS.
-- **Leave compression off at the proxy** (`encode`, `gzip`). The app compresses only answers its own pages or a cookieless client asked for, so a request another site starts cannot measure a private brief by its size; a proxy would compress those too.
+- **Leave compression off at the proxy** (Caddy's `encode`, nginx's `gzip`, Traefik's `compress`). The app compresses only answers its own pages or a cookieless client asked for, so a request another site starts cannot measure a private brief by its size; a proxy would compress those too.
 
 ### 3. The webhook secret is the only gate on the webhook route
 
@@ -483,14 +543,14 @@ Nothing in the stack speaks TLS: a proxy in front of `web` does ([Put HTTPS in f
 
 A proxy limit sheds a flood of forged deliveries before it reaches `api`. Scope it to the webhook path and size it for GitHub's bursts: closing or labelling many pull requests at once sends one delivery each, from a small pool of GitHub addresses. GitHub never retries a failed delivery itself; the worker asks it to resend what failed within three days ([troubleshooting.md](./troubleshooting.md#other-webhook-answers)), and you can redeliver from the App's **Advanced** tab.
 
-nginx:
+nginx, added to the `server` block from [Use an existing reverse proxy](#use-an-existing-reverse-proxy). One location never inherits from another, so the webhook location sets its own `Host` and `proxy_pass`:
 
 ```nginx
 # in the http {} block
 limit_req_zone $binary_remote_addr zone=github_webhook:10m rate=10r/s;
 
 server {
-    # ...listen, TLS, and your `location /` proxying to 127.0.0.1:3000...
+    # ...listen, TLS, and the location / block from Use an existing reverse proxy...
 
     location = /api/webhooks/github {
         limit_req zone=github_webhook burst=100 nodelay;

@@ -160,45 +160,22 @@ sudo docker compose version
 
 The commands below use `sudo docker`; membership in the docker group is root-equivalent and is not required. Install `curl` and `openssl` if missing. Apply Ubuntu security updates before opening the application. Docker-published ports can bypass UFW, so keep the shipped loopback bindings and enforce the cloud firewall too.
 
-Edit `/etc/caddy/Caddyfile`:
-
-```caddyfile
-brief.example.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-Validate and reload after DNS points at this host:
-
-```sh
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl reload caddy
-```
-
-Caddy obtains and renews HTTPS certificates. The application itself stays HTTP on loopback. A temporary 502 is expected until the web service starts. Do not put browser authentication in front of the GitHub webhook route. Before sustained public use, apply the webhook rate-limit guidance in [Compose hardening](compose.md#hardening-before-real-exposure): standard Caddy does not include a rate limiter.
+Once DNS points at this host, write the Caddyfile and reload Caddy with steps 3 and 4 of [Put HTTPS in front on a server](compose.md#put-https-in-front-on-a-server), and run its check. Caddy obtains and renews the certificate; the application stays HTTP on loopback. Do not put browser authentication in front of the GitHub webhook route. Before sustained public use, apply the webhook rate-limit guidance in [Compose hardening](compose.md#hardening-before-real-exposure): standard Caddy does not include a rate limiter.
 
 ## 3. Select an exact application version
 
-Download the assets of the release you intend to deploy, as in the [Compose installation guide](compose.md). The host holds one folder, with no checkout of the repository and no build. These commands fetch the newest release; for another one, replace `latest/download` with `download/vX.Y.Z` in every URL, from the [releases page](https://github.com/idan91/mergebrief/releases).
+The host holds one folder, with no checkout of the repository and no build. Make its parent, and keep new files private to you for the rest of this shell:
 
 ```sh
-mkdir -p ~/deploy/mergebrief
-cd ~/deploy/mergebrief
+mkdir -p ~/deploy && cd ~/deploy
 umask 077
-curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.yml
-curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/latest/download/env.example
-curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/latest/download/mergebrief.config.example.yaml
-cp .env.example .env
-cp mergebrief.config.example.yaml mergebrief.config.yaml
 ```
 
-For an external database (RDS, Neon or Supabase), also download the external-database overlay from the same release. Section 5B names it in `COMPOSE_FILE` after `docker-compose.yml`, and Compose then reads both, the overlay removing the bundled database:
+Then run [Get the release files](compose.md#get-the-release-files) from there, with its check. It creates `~/deploy/mergebrief`, where every later command runs.
 
-```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.external-db.yml
-```
+For an external database (RDS, Neon or Supabase), also fetch the overlay of the same release: the `curl` step of [External Postgres](compose.md#external-postgres-managed-database). Section 5B names it in `COMPOSE_FILE`.
 
-Each release's Compose files pin that release's exact image tag, such as `ghcr.io/idan91/mergebrief:1.4.0`, never `latest`. Do not edit them: an upgrade replaces them byte for byte. Your own settings go in `.env` and `docker-compose.override.yml`. Finish sections 4 and 5 before starting the services.
+Do not edit the Compose files: an upgrade replaces them byte for byte. Your own settings go in `.env` and `docker-compose.override.yml`. Finish sections 4 and 5 before starting the services.
 
 Contributors testing unpublished changes build from source instead: see the [appendix](#appendix-source-builds-for-contributors).
 
@@ -206,54 +183,19 @@ Contributors testing unpublished changes build from source instead: see the [app
 
 Register the GitHub App with `https://brief.example.com` as its origin, following [github-app.md](github-app.md) through [Install the App](github-app.md#install-the-app). Install it on a test repository. Keep the webhook secret you generated there and entered in the App's **Webhook secret** field: `.env` needs the same value. Deliveries fail until the stack runs; you redeliver one in section 6.
 
-Generate the session key in a trusted terminal, and do not capture the output in a shared terminal recording:
+Fill in `.env` on the VM with an editor, following [Fill in `.env`](compose.md#fill-in-env): it has the commands, the filled-in block with `POSTGRES_PASSWORD`, and what each value must look like. On a VM:
 
-```sh
-openssl rand -base64 32
-```
-
-Keep it in your secret backup too: after a database restore, the reviewer credentials stored in the database can only be read with the same key.
-
-Edit `.env` on the VM with your editor. Never paste secrets into issues, logs or shell command arguments. Fill in these variables:
-
-```dotenv
-GITHUB_APP_ID=<app-id>
-GITHUB_APP_PRIVATE_KEY='<complete-multiline-PEM>'
-# The same value as the App's Webhook secret field
-GITHUB_WEBHOOK_SECRET=<webhook-secret-from-the-app-form>
-GITHUB_OAUTH_CLIENT_ID=<client-id>
-GITHUB_OAUTH_CLIENT_SECRET=<client-secret>
-# The openssl rand -base64 32 output above
-SESSION_KEY_V1=<base64-key>
-PUBLIC_BASE_URL=https://brief.example.com
-ANTHROPIC_API_KEY=<provider-api-key>
-```
-
-Then keep the file private:
-
-```sh
-chmod 600 .env
-```
-
-Replace the PEM placeholder with the whole `.pem` file the App gave you, BEGIN and END lines included, inside the single quotes. The file is on your own computer: open it there and copy its contents. Another model provider needs its block in the config file ([generators.md](generators.md)), not only a different key.
+- **Generate the secrets in a trusted terminal,** and keep the output out of shared terminal recordings, issues, logs and command arguments. Keep the session key in your secret backup too: after a database restore, the reviewer credentials stored in the database can only be read with the same key.
+- **The private key is on your own computer.** Open the `.pem` file there and paste its contents, BEGIN and END lines included, inside the single quotes, or copy the file over as below.
+- **With an external database,** leave `POSTGRES_PASSWORD` out: the overlay removes the bundled Postgres.
+- **Another model provider** needs its block in the config file ([generators.md](generators.md)), not only a different key.
 
 ### Use a key file instead of the inline key
 
-To keep the key out of `.env`, copy the `.pem` file to the VM. On your own computer, using the login and `-i` key you connect with (`root@<server-public-ipv4>` on Hetzner, `ubuntu@<elastic-ip>` on EC2):
+Follow [Use a key file instead of the inline key](compose.md#use-a-key-file-instead-of-the-inline-key), with two differences on a VM:
 
-```sh
-ssh <login> 'mkdir -p ~/deploy/mergebrief/secrets && chmod 700 ~/deploy/mergebrief/secrets'
-scp ~/Downloads/<app-name>.<date>.private-key.pem <login>:~/deploy/mergebrief/secrets/github-app.pem
-```
-
-On the VM, from `~/deploy/mergebrief`, make it readable by the containers' user, UID 1000:
-
-```sh
-sudo chown 1000:1000 secrets/github-app.pem
-sudo chmod 400 secrets/github-app.pem
-```
-
-Then delete the `GITHUB_APP_PRIVATE_KEY=` line from `.env`, and add the `docker-compose.override.yml` entries and `GITHUB_APP_PRIVATE_KEY_PATH=/run/secrets/github-app.pem` from [Use a key file instead of the inline key](compose.md#use-a-key-file-instead-of-the-inline-key). With an external database, merge those entries into the override you create in section 5B.
+- **The `scp` target** is `<login>:~/deploy/mergebrief/secrets/github-app.pem`, where `<login>` is `root@<server-public-ipv4>` on Hetzner or `ubuntu@<elastic-ip>` on EC2, with the `-i` key you connect with.
+- **With an external database,** merge the override entries into the one you create in section 5B.
 
 ### List who may sign in
 
@@ -263,7 +205,11 @@ An instance starts closed: nobody can sign in until its config names them. Print
 gh api users/<your-login> --jq .id
 ```
 
-In the `mergebrief.config.yaml` you copied in section 3, replace the placeholder under `operators` with that id:
+On the VM, copy the example config, then replace the placeholder under `operators` with that id:
+
+```sh
+cp mergebrief.config.example.yaml mergebrief.config.yaml
+```
 
 ```yaml
 operators:
@@ -284,7 +230,7 @@ allowed:
 
 `docker-compose.yml` mounts the file read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both. The image does not contain your config, and Compose refuses to start either service while the file is missing.
 
-For a first deployment, also choose a low daily generation cap in that file, following [generator configuration](generators.md). This limits generation count, not token dollars; also use the model provider's spending controls.
+For a first deployment, also choose a low daily generation cap in that file ([Set the cap](spend-cap.md#set-the-cap)). This limits generation count, not token dollars; also use the model provider's spending controls.
 
 The `umask 077` from section 3 still applies in this shell, so a config file created here is unreadable by the containers' UID 1000. Open it up before starting the stack. It holds variable names, not keys:
 
@@ -294,21 +240,13 @@ chmod 644 mergebrief.config.yaml
 
 ## 5A. Database on the same VM
 
-Before the first boot, generate a separate hex database password:
+Before the first boot, check that `.env` sets `POSTGRES_PASSWORD`, as [Fill in `.env`](compose.md#fill-in-env) does:
 
 ```sh
-openssl rand -hex 24
+grep -c '^POSTGRES_PASSWORD=' .env
 ```
 
-Add the output to `.env`:
-
-```dotenv
-POSTGRES_USER=mergebrief
-POSTGRES_PASSWORD=<generated-hex-password>
-POSTGRES_DB=mergebrief
-```
-
-Leave `COMPOSE_FILE`, `DATABASE_URL` and `DATABASE_URL_FILE` unset. The shipped Compose file derives the internal connection string. Use hex as it is, without percent-encoding. Changing the variable later does not change the password of an already initialized Postgres role.
+It prints `1`. Leave `COMPOSE_FILE`, `DATABASE_URL` and `DATABASE_URL_FILE` unset: the shipped Compose file derives the internal connection string. Changing the password later in `.env` does not change it in an already initialized Postgres ([Postgres credentials](compose.md#1-postgres-credentials)).
 
 Run from `~/deploy/mergebrief`:
 
@@ -579,12 +517,7 @@ To move a running server with the database on the VM instead of starting a new o
 sudo docker compose down
 ```
 
-Never add `-v`: that deletes the Postgres volume. A folder installed for the database on the VM holds no external-database overlay, because section 3 downloads it only for an external database. Download it now, from the release this instance runs: the first command prints the version `docker-compose.yml` pins, and a pin of `1.4.0` is `v1.4.0` in the URL. A source build skips this step, because its checkout already holds the file.
-
-```sh
-grep 'image: ghcr.io/idan91/mergebrief' docker-compose.yml
-curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v1.4.0/docker-compose.external-db.yml
-```
+Never add `-v`: that deletes the Postgres volume. A folder installed for the database on the VM holds no external-database overlay, because section 3 fetches it only for an external database. Fetch it now with the `curl` step of [External Postgres](compose.md#external-postgres-managed-database), which reads the release this instance runs from `docker-compose.yml`. A source build skips this step, because its checkout already holds the file.
 
 Then follow your provider's steps and [Store the connection string](#store-the-connection-string), merging the override with the one you have.
 
@@ -651,32 +584,10 @@ Optionally, test recovery: run `sudo docker compose restart worker` while a brie
 
 ## 7. Start on boot
 
-A reboot leaves the stack down: `restart: on-failure` does not bring services back when Docker starts, and `postgres` has no restart policy. A systemd unit runs `docker compose up` once at boot ([what the unit does](compose.md#start-on-boot)).
-
-Write the unit from `~/deploy/mergebrief`, so `WorkingDirectory` gets this folder's path:
+A reboot leaves the stack down: `restart: on-failure` does not bring services back when Docker starts, and `postgres` has no restart policy. Install the systemd unit from [Start on boot](compose.md#start-on-boot), running its commands from the instance folder so `WorkingDirectory` gets this folder's path:
 
 ```sh
 cd ~/deploy/mergebrief
-sudo tee /etc/systemd/system/mergebrief.service > /dev/null <<EOF
-[Unit]
-Description=MergeBrief
-Requires=docker.service
-After=docker.service network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=$PWD
-ExecStart=/usr/bin/docker compose up -d --wait
-ExecStop=/usr/bin/docker compose stop
-TimeoutStopSec=240
-
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo systemctl daemon-reload
-sudo systemctl enable --now mergebrief
 ```
 
 **Check:** `systemctl cat mergebrief | grep WorkingDirectory` shows `/root/deploy/mergebrief` on Hetzner or `/home/ubuntu/deploy/mergebrief` on EC2. Then reboot:

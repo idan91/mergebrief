@@ -37,30 +37,14 @@ It doesn't hunt for bugs, score the PR or approve it. It organizes the review so
 
 ## Self-host
 
-You need three things first:
+MergeBrief runs as one Docker Compose release next to your own GitHub App and your own model key. You need:
 
 - Docker with Compose.
-- A GitHub App registered for your instance: [GitHub App setup](./docs/self-host/github-app.md).
+- A public HTTPS origin GitHub can reach: a domain on a server, or a tunnel on your own machine.
+- A GitHub App you register for your instance: [GitHub App setup](./docs/self-host/github-app.md).
 - A model key, for example from Anthropic, OpenAI or OpenRouter: [model backends](./docs/self-host/generators.md) lists every option.
 
-Fetch the release files:
-
-```bash
-mkdir mergebrief && cd mergebrief
-curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/latest/download/docker-compose.yml
-curl -fsSLo .env.example https://github.com/idan91/mergebrief/releases/latest/download/env.example
-curl -fsSLo mergebrief.config.example.yaml https://github.com/idan91/mergebrief/releases/latest/download/mergebrief.config.example.yaml
-cp .env.example .env
-cp mergebrief.config.example.yaml mergebrief.config.yaml
-```
-
-Edit both copies. `.env` takes the GitHub App credentials and your model key; `mergebrief.config.yaml` takes your GitHub user id under `operators`. The stack refuses to start while a placeholder is left in. Then start it:
-
-```bash
-docker compose up -d --wait
-```
-
-The web app runs on http://localhost:3000. An instance starts closed: nobody signs in until `mergebrief.config.yaml` lists them under `operators`. GitHub must reach your webhook for a push to start a brief, so an instance on localhost needs a public URL or a tunnel for that part. The [self-host guide](./docs/self-host/README.md) covers the GitHub App, sizing and hardening.
+The [quick start](./docs/self-host/README.md#quick-start) takes you from an empty folder to a brief on a real pull request, and the [self-host guide](./docs/self-host/README.md) covers sizing, hardening and operations.
 
 A coding agent can run the server steps for you if you point it at the [self-host guide](./docs/self-host/README.md). Register the GitHub App, set the DNS record and paste the secrets into `.env` yourself, so no credential passes through the agent.
 
