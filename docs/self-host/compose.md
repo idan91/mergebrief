@@ -79,7 +79,7 @@ server {
 
 Without these, nginx's defaults break two things: its 60-second read timeout cuts a long review submit with a `504`, and its 1 MB body limit refuses an image upload with a `413`. `gzip off` overrides the `gzip on` that many distributions' `nginx.conf` sets for every site. Then run `sudo nginx -t && sudo systemctl reload nginx`.
 
-Traefik forwards the original `Host` by default and sets no response timeout or body limit unless a middleware adds one. Keep any `compress` middleware off MergeBrief's router, and give a `buffering` middleware on it a `maxRequestBodyBytes` of at least 10 MB. Traefik v3 stops reading a request after 60 seconds by default: raise `transport.respondingTimeouts.readTimeout` to `160s` on the entry point that serves MergeBrief.
+Traefik forwards the original `Host` by default. It waits for MergeBrief's response headers without a time limit (`responseHeaderTimeout` defaults to `0s`) and sets no body limit unless a middleware adds one. Keep any `compress` middleware off MergeBrief's router, and give a `buffering` middleware on it a `maxRequestBodyBytes` of at least 10 MB. Traefik v3 stops reading a request after 60 seconds by default: raise `transport.respondingTimeouts.readTimeout` to `160s` on the entry point that serves MergeBrief.
 
 **Check:** the same as for Caddy: `curl -sI https://brief.example.com` prints a `502` status line and no certificate error until the stack runs.
 
