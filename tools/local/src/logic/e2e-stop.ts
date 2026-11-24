@@ -8,8 +8,13 @@ const E2E_PG_CONTAINER = "mergebrief-e2e-pg";
 const API_PID_FILE = /^api-pid-(\d+)$/;
 const CONTAINER_FILE_PREFIX = "pg-container-id-";
 const CONTAINER_ID = /^[0-9a-f]{12,64}$/;
-/** The harness starts the api with node; a reused pid running anything else is not ours. */
-const API_COMMAND = /\bnode\b/;
+/** The harness runs `node --import tsx <repo>/apps/api/src/main.ts`; a reused pid runs something else. */
+const API_COMMAND = /apps\/api\/src\/main\.ts/;
+/**
+ * A live playwright run: `playwright test` through a pnpm exec shim, or the node
+ * process the shim execs into (`@playwright/test/cli.js test`).
+ */
+const PLAYWRIGHT_RUN = "playwright test|playwright/cli\\.js test";
 
 function readTrimmed(path: string): string | undefined {
   try {
@@ -55,7 +60,9 @@ function stopOrphanRun(deps: E2eStopDeps, owner: number): string {
     apiPid > 1 &&
     deps.processes.isAlive(apiPid)
   ) {
-    const isApi = API_COMMAND.test(deps.processes.commandOf(apiPid) ?? "");
+    const isApi = API_COMMAND.test(
+      deps.processes.readCommandLine(apiPid) ?? "",
+    );
     if (!isApi) {
       parts.push(`pid ${apiPid} now runs something else, not signalled`);
     } else if (deps.processes.terminate(apiPid)) {
@@ -102,10 +109,11 @@ export function runE2eStop(deps: E2eStopDeps): string {
     "{{.Names}}",
   ]);
   const containerUp = running.stdout.trim() === E2E_PG_CONTAINER;
-  const claimed = lines.length > 0;
+  const claimed = deps.allArtifactsDirs.some((dir) =>
+    listOwnerPids(dir).some((owner) => deps.processes.isAlive(owner)),
+  );
   if (containerUp && !claimed) {
-    const playwrightRunning =
-      deps.pgrep(["-f", "playwright test"]).status === 0;
+    const playwrightRunning = deps.pgrep(["-f", PLAYWRIGHT_RUN]).status === 0;
     if (playwrightRunning) {
       lines.push(
         `${E2E_PG_CONTAINER} is up with no owning run, but a playwright process is running: left alone`,

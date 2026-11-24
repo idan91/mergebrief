@@ -4,6 +4,12 @@ import type { CommandRunner, HandoffDeps } from "../types";
 
 const WEB_INPUTS = ["apps/web/", "packages/"];
 const API_INPUTS = ["apps/api/", "packages/"];
+const LOCKFILE = "pnpm-lock.yaml";
+/** pnpm's copy of the lockfile it last installed from. */
+const INSTALLED_LOCKFILE = "node_modules/.pnpm/lock.yaml";
+/** The commit the web dist was last built from; gitignored with node_modules. */
+export const WEB_BUILD_STAMP =
+  "apps/web/node_modules/.cache/handoff/web-built-from";
 
 function runOrFail(
   run: CommandRunner,
@@ -18,6 +24,18 @@ function runOrFail(
     };
   }
   return { ok: true, value: outcome.stdout.trim() };
+}
+
+/** Changed paths, or undefined when git cannot diff the two commits. */
+function listChanged(
+  git: CommandRunner,
+  from: string,
+  to: string,
+): string[] | undefined {
+  const diff = runOrFail(git, ["diff", "--name-only", from, to], "git diff");
+  return diff.ok
+    ? diff.value.split("\n").filter((path) => path !== "")
+    : undefined;
 }
 
 function touches(
@@ -37,9 +55,19 @@ function describeNode(nodeVersion: string, pinned: string): string {
   return `node ${nodeVersion.trim()} is not .nvmrc's ${wanted}: run nvm use before pnpm dev`;
 }
 
+function isWebStale(deps: HandoffDeps, head: string): boolean {
+  const builtFrom = deps.files.read(WEB_BUILD_STAMP)?.trim();
+  if (builtFrom === undefined || builtFrom === "") {
+    return true;
+  }
+  const changed = listChanged(deps.git, builtFrom, head);
+  return changed === undefined || touches(changed, WEB_INPUTS);
+}
+
 /**
- * Moves the maintainer's checkout to `branch` and catches up what a branch
- * switch leaves stale: dependencies, the built web dist, and the dev api,
+ * Moves the maintainer's checkout to `branch` and catches up what is actually
+ * stale, read from disk rather than from the switch, so a rerun after a failed
+ * step finishes the job: dependencies, the built web dist, and the dev api,
  * which has no watch mode.
  */
 export function runHandoff(
@@ -65,11 +93,6 @@ export function runHandoff(
   }
 
   const before = runOrFail(git, ["rev-parse", "HEAD"], "git rev-parse");
-  const lockBefore = runOrFail(
-    git,
-    ["rev-parse", "HEAD:pnpm-lock.yaml"],
-    "git rev-parse",
-  );
   const switched = runOrFail(
     git,
     ["switch", "--end-of-options", branch],
@@ -79,49 +102,42 @@ export function runHandoff(
     return switched;
   }
   const after = runOrFail(git, ["rev-parse", "HEAD"], "git rev-parse");
-  const lockAfter = runOrFail(
-    git,
-    ["rev-parse", "HEAD:pnpm-lock.yaml"],
-    "git rev-parse",
-  );
-  if (!before.ok || !after.ok) {
+  const lines = [`switched to ${branch}`];
+  function failAfterSwitch(error: Error): Result<string, Error> {
     return {
       ok: false,
-      error: new Error("could not read HEAD around the switch"),
+      error: new Error(
+        `now on ${branch}, but ${error.message}; rerun pnpm checkout:handoff ${branch} to finish`,
+      ),
     };
   }
-  const diff = runOrFail(
-    git,
-    ["diff", "--name-only", before.value, after.value],
-    "git diff",
-  );
-  if (!diff.ok) {
-    return diff;
-  }
-  const changed = diff.value.split("\n").filter((path) => path !== "");
 
-  const lines = [`switched to ${branch}`];
-  const lockfileMoved =
-    !lockBefore.ok || !lockAfter.ok || lockBefore.value !== lockAfter.value;
-  if (lockfileMoved) {
+  const dependenciesStale =
+    deps.files.read(LOCKFILE) !== deps.files.read(INSTALLED_LOCKFILE);
+  if (dependenciesStale) {
     const installed = runOrFail(
       pnpm,
       ["install", "--frozen-lockfile"],
       "pnpm install",
     );
     if (!installed.ok) {
-      return installed;
+      return failAfterSwitch(installed.error);
     }
-    lines.push("lockfile changed: pnpm install --frozen-lockfile done");
+    lines.push("dependencies were stale: pnpm install --frozen-lockfile done");
   }
-  if (touches(changed, WEB_INPUTS)) {
+  if (after.ok && isWebStale(deps, after.value)) {
     const built = runOrFail(pnpm, ["-C", "apps/web", "build"], "web build");
     if (!built.ok) {
-      return built;
+      return failAfterSwitch(built.error);
     }
-    lines.push("web inputs changed: apps/web rebuilt");
+    deps.files.write(WEB_BUILD_STAMP, `${after.value}\n`);
+    lines.push("web dist was stale: apps/web rebuilt");
   }
-  if (touches(changed, API_INPUTS)) {
+  const apiChanged =
+    before.ok && after.ok
+      ? listChanged(git, before.value, after.value)
+      : undefined;
+  if (apiChanged === undefined || touches(apiChanged, API_INPUTS)) {
     lines.push("api inputs changed: restart pnpm dev, the api does not reload");
   }
   lines.push(describeNode(deps.nodeVersion, deps.pinnedNodeVersion));

@@ -1,8 +1,8 @@
 // The local tool's composition root: argv, the repo root, child processes and
 // signals enter here, and the exit code is the verdict.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runE2eStop } from "./logic/e2e-stop";
@@ -37,7 +37,7 @@ const processes: ProcessControl = {
       );
     }
   },
-  commandOf: (pid) => {
+  readCommandLine: (pid) => {
     const run = spawnSync("ps", ["-o", "command=", "-p", String(pid)], {
       encoding: "utf8",
     });
@@ -52,6 +52,34 @@ const processes: ProcessControl = {
   },
 };
 
+const ARTIFACTS = "apps/web/e2e/.artifacts";
+
+const files = {
+  read: (path: string) => {
+    try {
+      return readFileSync(join(REPO_ROOT, path), "utf8");
+    } catch {
+      return undefined;
+    }
+  },
+  write: (path: string, content: string) => {
+    mkdirSync(dirname(join(REPO_ROOT, path)), { recursive: true });
+    writeFileSync(join(REPO_ROOT, path), content);
+  },
+};
+
+/** Every worktree of this clone shares the one mergebrief-e2e-pg container name. */
+function listArtifactsDirs(): string[] {
+  const listed = makeRunner("git")(["worktree", "list", "--porcelain"]);
+  const roots = listed.stdout
+    .split("\n")
+    .filter((line) => line.startsWith("worktree "))
+    .map((line) => line.slice("worktree ".length));
+  return [...new Set([REPO_ROOT, ...roots])].map((root) =>
+    join(root, ARTIFACTS),
+  );
+}
+
 const [command, ...rest] = process.argv.slice(2);
 const branch = rest[0];
 
@@ -60,6 +88,7 @@ if (command === "handoff" && branch !== undefined && rest.length === 1) {
     {
       git: makeRunner("git"),
       pnpm: makeRunner("pnpm"),
+      files,
       nodeVersion: process.version,
       pinnedNodeVersion: readFileSync(join(REPO_ROOT, ".nvmrc"), "utf8"),
     },
@@ -73,7 +102,8 @@ if (command === "handoff" && branch !== undefined && rest.length === 1) {
   }
 } else if (command === "e2e-stop" && rest.length === 0) {
   const report = runE2eStop({
-    artifactsDir: join(REPO_ROOT, "apps/web/e2e/.artifacts"),
+    artifactsDir: join(REPO_ROOT, ARTIFACTS),
+    allArtifactsDirs: listArtifactsDirs(),
     docker: makeRunner("docker"),
     pgrep: makeRunner("pgrep"),
     processes,

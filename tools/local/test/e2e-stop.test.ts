@@ -11,6 +11,7 @@ const OK = (stdout = ""): CommandOutcome => ({ status: 0, stdout, stderr: "" });
 interface World {
   readonly alive: ReadonlySet<number>;
   readonly commands?: ReadonlyMap<number, string>;
+  readonly otherDirs?: readonly string[];
   readonly containerRunning?: boolean;
   readonly playwrightRunning?: boolean;
 }
@@ -26,17 +27,27 @@ function makeDeps(artifactsDir: string, world: World) {
     }
     return OK();
   };
-  const pgrep: CommandRunner = () =>
-    world.playwrightRunning === true
-      ? OK("123\n")
-      : { status: 1, stdout: "", stderr: "" };
+  function pgrep(args: readonly string[]): CommandOutcome {
+    // A pattern that misses real runs reads as "playwright running" here, so the
+    // unowned-container test fails if the matched process shape regresses.
+    if (args.at(-1) !== "playwright test|playwright/cli\\.js test") {
+      return OK();
+    }
+    if (world.playwrightRunning === true) {
+      return OK("123\n");
+    }
+    return { status: 1, stdout: "", stderr: "" };
+  }
   const deps: E2eStopDeps = {
     artifactsDir,
+    allArtifactsDirs: [artifactsDir, ...(world.otherDirs ?? [])],
     docker,
     pgrep,
     processes: {
       isAlive: (pid) => world.alive.has(pid),
-      commandOf: (pid) => world.commands?.get(pid) ?? "node dist/main.js",
+      readCommandLine: (pid) =>
+        world.commands?.get(pid) ??
+        "node --import /r/node_modules/tsx/dist/loader.mjs /r/apps/api/src/main.ts",
       terminate: (pid) => {
         terminated.push(pid);
         return true;
@@ -128,6 +139,19 @@ describe("runE2eStop", () => {
 
     expect(dockerCalls).toContain("stop mergebrief-e2e-pg");
     expect(result).toBe("mergebrief-e2e-pg had no owning run: stopped");
+  });
+
+  it("leaves the shared container to a live run in another worktree", () => {
+    const other = makeArtifacts({ "api-pid-700": "701" });
+    const { deps, dockerCalls } = makeDeps(makeArtifacts({}), {
+      alive: new Set([700]),
+      containerRunning: true,
+      otherDirs: [other],
+    });
+
+    runE2eStop(deps);
+
+    expect(dockerCalls.filter((call) => call.startsWith("stop"))).toEqual([]);
   });
 
   it("keeps an unowned container while some playwright runs", () => {
