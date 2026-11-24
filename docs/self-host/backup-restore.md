@@ -7,7 +7,7 @@ Run every command in the folder that holds `docker-compose.yml` and `.env` ([Wha
 ## What to back up
 
 - **The database.** Every pull request, brief, delta, reviewer session and draft, API token, stored GitHub token and audit row ([What a dump holds](#what-a-dump-holds)).
-- **The instance's files.** `.env`, `mergebrief.config.yaml`, and if you have them, `docker-compose.override.yml`, the `secrets/` folder and the App's private key file. Keep them in a password manager or an encrypted store. `.env` holds `SESSION_KEY_V1` and any later session key: a restored database needs the same keys to open the GitHub tokens it stores.
+- **The instance's files.** `.env`, `mergebrief.config.yaml`, and if you have them, `docker-compose.override.yml`, the `secrets/` folder and the App's private key file. Keep them in a password manager or an encrypted store. `.env` holds `SESSION_KEY_V1` and any later session key: a restored database needs the same keys to open the GitHub tokens it stores ([without them](./secrets.md#if-the-session-key-changed-or-was-lost)).
 
 A copy of the `postgres_data` volume's files taken while Postgres runs is not a consistent backup, and neither is a VM disk snapshot alone. Use `pg_dump`.
 
@@ -310,6 +310,17 @@ This moves a running instance's data from the bundled Postgres to a managed one.
 
 The old `postgres_data` volume stays on the host, unused. Keep it until you trust the new database.
 
+## Run SQL on an external database
+
+The pages' `psql` commands use `docker compose exec postgres`, which exists only with the bundled database. On an external one, run the same SQL through `psql` in `postgres:17-alpine`, reading the connection string from `secrets/database-url` as the dump does. Put each statement in its own `-c`:
+
+```sh
+DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL -e PGSSLROOTCERT=system \
+  postgres:17-alpine sh -c 'psql "$DATABASE_URL" -c "select version from instance_version"'
+```
+
+With a provider CA mounted for the services, replace `-e PGSSLROOTCERT=system` with the same `-v "$PWD/secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro"` mount the dump uses. **Check:** it prints the version row.
+
 ## Check a restore
 
 On the bundled database:
@@ -319,7 +330,7 @@ docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/readyz
 ```
 
-On an external database, run the same queries through `psql` in `postgres:17-alpine`, as the dump does:
+On an external database, run the same three queries the [external way](#run-sql-on-an-external-database):
 
 ```sh
 DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL -e PGSSLROOTCERT=system \
