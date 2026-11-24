@@ -42,7 +42,7 @@ Both kinds produce the same brief. A pasted pull request is not private to the r
    - The instance must be under its **daily cap** of started runs ([spend-cap.md](./self-host/spend-cap.md)).
 4. **The worker generates the brief** with the provider in the instance config, stores it, and posts the Entry comment. A large pull request is briefed in parts, in a separate pool of worker slots so it does not hold up ordinary pushes ([generators.md](./self-host/generators.md#worker-slots)).
 
-A push during a run stops that run as `superseded` and the newer head generates instead. A submitted review also queues a run, so the reviewer's next **delta brief** is ready before they come back.
+A push during a run stops that run as `superseded` and the newer head generates instead. One exception: a large pull request is briefed in parts, and once its run has grouped the changes and started on the parts, it finishes the brief for its own head and the newer head generates after it. A submitted review also queues a run, so the reviewer's next **delta brief** is ready before they come back.
 
 ## Retries and failures
 
