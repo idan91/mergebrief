@@ -1,6 +1,6 @@
-# apps/web mutations against external systems
+# apps/web mutations (enforced in review)
 
-Every mutation against GitHub (or any external system) follows these. Enforced in review.
+Every write a user action fires, to `apps/api` or GitHub, follows these.
 
 - **One write function, one hook.** A write is one named function over `request` plus one hook that owns pending, the re-entry guard, the announcement and the invalidation; a row action calls the same hook a bulk action does, with a one-row selection.
 - **Capture inputs at initiation.** Snapshot the ids/values the request ships at click time and, on success, mutate exactly that set. State added or edited mid-flight must never be marked as sent.

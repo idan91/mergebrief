@@ -1,10 +1,10 @@
 # apps/web data layer
 
-How a read or write reaches `apps/api`, and how JSON from the API or storage is parsed. The boundary itself (no server functions, no persistence) is in `apps/web/AGENTS.md`.
+A write a user action fires also follows `apps/web/docs/mutations.md`.
 
 ## Requests
 
-- One named function per operation over `request` / `requestText` in `data/request`, which read method and path from the contract's operation table. Components and query builders call the named function, never `request`.
+- One named function per operation over `data/request`'s `request` / `requestText`, which read method and path from the contract's operation table. Components and query builders call the named function, never `request`.
 - `data/apiFetch` is the transport underneath (isomorphic: SSR forwards the viewer's cookie to the API over HTTP, through the SAME authz gate). Only a route outside the table, or a caller that reads the raw response (the upload's `Retry-After`), calls it directly.
 - A `build*QueryOptions` builder infers its return, as a facade does: the inferred type carries the query-key tag `setQueryData` and `useQuery` read back.
 - A read returns `request(id, { params }, schema)` and throws `ApiError`. A write calls `request` in a `try` and maps the caught error through `readFailureKind` and a partial kind table with a `fallback`: a 401 comes back as the shared `WriteFailureKinds.UNAUTHORIZED` unless the table names it, and a network throw or 504 as `INDETERMINATE`.

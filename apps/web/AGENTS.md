@@ -4,11 +4,15 @@ The TanStack Start front end: the DB-backed read + submit surface, fed by `apps/
 
 ## Topic docs
 
-- **Data**: adding or changing an API read or write, a query builder, or a zod parser: read `apps/web/docs/data.md`.
-- **Mutations**: writing to GitHub or any external system, or mirroring an API rejection client-side: read `apps/web/docs/mutations.md`.
-- **Components**: building a component or hook, placing state, adding a `data-*` attribute, or touching the version notice: read `apps/web/docs/components.md`.
+Topic docs under `apps/web/docs/` bind as firmly as this file. In this file and its topic docs, `docs/dev/`, `docs/self-host/`, `docs/media/`, root files such as `DESIGN.md`, and paths starting `apps/` or `packages/` are the repo root's. Every other path is under `apps/web/`, often written without its `src/` prefix or leading folders; `git ls-files apps/web | grep <path>` finds it.
+
+Before editing a source file, run `git grep -n <file name without extension> -- apps/web/docs` (for an `index.ts` or `index.tsx`, its folder's name) and read every doc whose hits name your file. Also read any doc whose trigger below names your work:
+
+- **Data**: touching `data/request/` or a feature's `queries.ts` or `transport/`, adding or changing an API read or write, a query builder or a zod parser, or writing a route test that seeds the query cache: read `apps/web/docs/data.md`.
+- **Mutations**: touching `features/review/session/` or a feature's `writes.ts`, `mutations.ts` or `transport/`; adding or changing any write a user action fires, to `apps/api` or GitHub; a component, hook or store that shows a write's pending state or outcome, or a record the server owns; or mirroring an API rejection client-side: read `apps/web/docs/mutations.md`.
+- **Components**: writing or editing a component, a hook or any JSX, placing state, adding a `data-*` attribute, or touching the version notice: read `apps/web/docs/components.md`.
 - **Placement**: adding, moving or importing a file, or writing a test helper: read `apps/web/docs/placement.md`.
-- **Styling**: writing `.module.scss`, a token, or a brand asset: read `apps/web/docs/styling.md`.
+- **Styling**: writing or editing any `.scss` file, a token, or a brand asset: read `apps/web/docs/styling.md` and the root `DESIGN.md`.
 
 ## Composition root
 
@@ -20,10 +24,11 @@ The TanStack Start front end: the DB-backed read + submit surface, fed by `apps/
 
 ## Edge contracts
 
-- **apps/web runs no server functions for data.** A read or write the app needs is an `apps/api` route reached through a named function in `data/request`; a dev-only surface is a dev-only API route. Never reach persistence from a server function: that would be a second enforcement path. `src/server/` is app-wide infrastructure only (env, logger, API transport, health, the refused paths). Lint bans `createServerFn` in `apps/web/src`.
+- **apps/web runs no server functions for data.** A read or write the app needs is an `apps/api` route reached through a named function over `data/request`'s `request` / `requestText`; a dev-only surface is a dev-only API route. Never reach persistence from a server function: that would be a second enforcement path. `src/server/` is app-wide infrastructure only (env, logger, API transport, health, the refused paths). Lint bans `createServerFn` in `apps/web/src`.
+- **A read over `request` throws `ApiError`**, as TanStack Query expects; a write maps its failure to a kind (`apps/web/docs/data.md`).
 - **JSON from the API or storage parses through a zod schema** in the owning feature's `schemas.ts`.
 - **Error components render a curated mapper** (`briefErrorDetail` / `prBriefErrorDetail`), NEVER `error.message`: even an `ApiError`'s embeds the request path. Messages reflecting caller input (a pasted URL) are curated too: they land in a `role="alert"`.
-- Copy: every `.ts` and `.tsx` literal that is sentence-shaped or Capitalised lives in the catalog; the copy lint holds it in `all` mode, and `house/no-shout-case-copy` holds the SHOUT_CASE consts i18next skips. A component reads `useTranslation()`; a pure helper takes a `TFunction` first parameter; a data structure stores a `TranslationKey` and resolves at render. The wire carries a code, never a sentence.
+- Copy: every `.ts` and `.tsx` literal that is sentence-shaped or Capitalised lives in the `packages/i18n` catalog; the copy lint holds it in `all` mode, and `house/no-shout-case-copy` holds the SHOUT_CASE consts i18next skips. A component reads `useTranslation()`; a pure helper takes a `TFunction` first parameter; a data structure stores a `TranslationKey` and resolves at render. The wire carries a code, never a sentence.
 - `.oxlintrc.json` exempts the copy that stays English by shape: the receipt (`features/review/utils/receipt.ts`, frozen English shown in the submit flow and never posted to GitHub; its counts ride on the signature line), the review body `features/review/utils/submit.ts` posts to GitHub (the signature line and the fold preamble), head meta (`routes/__root.tsx`), and the dev fixtures (`features/brief/test-utils/fixtures.ts`, `features/inbox/test-utils.ts`, `**/characterization/**`). Repo-authored strings passed through verbatim (`criteria`/`implication`) stay English too.
 
 ## Logging
@@ -51,5 +56,7 @@ pnpm -C apps/web perf:fixture && pnpm -C apps/web perf:measure
 ```
 
 `build` is required because TanStack Start's `import-protection` plugin statically denies any CLIENT-graph edge reaching `@tanstack/react-start/server-only`, dynamic `import()` and unreachable `typeof window` branches included, and ONLY `build` fails such a graph (typecheck, test, and lint all pass it). Reach server-only code from an isomorphic module via `createIsomorphicFn().server(...)` with the import inside the branch (`data/apiFetch.ts`, `data/ssrWarnSink.ts` are the templates); a read that must stay synchronous may import statically when only that branch uses the import (`diff-view-storage.ts`).
+
+## Tests
 
 No vitest globals in this repo: `@testing-library/react` does NOT auto-cleanup: add `afterEach(cleanup)` or the previous test's DOM leaks into the next test's `screen` queries. Component/hook tests need the `// @vitest-environment jsdom` pragma.

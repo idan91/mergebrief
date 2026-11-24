@@ -1,7 +1,5 @@
 # apps/web styling
 
-The stylelint mechanics behind `DESIGN.md`: which properties read a token, the units, and how a disable is written. `pnpm -C apps/web lint` (stylelint) holds every rule marked as a stylelint rejection.
-
 ## Values
 
 - Zero raw colors/font-sizes/radii/shadows in `.module.scss`: semantic-scale tokens/mixins only (no value-named tokens). An off-scale value stays raw behind a line-scoped stylelint disable that names its reason, or earns a component-local token with a one-line justification. Every stylelint disable carries a `-- <reason>`; `reportDescriptionlessDisables` holds it.

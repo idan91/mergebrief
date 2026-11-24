@@ -1,7 +1,5 @@
 # apps/web file placement and imports
 
-Refines the root file-shape and import rules for apps/web's feature tree.
-
 ## Folders
 
 - Every folder answers at a glance: one visible MAIN entry, everything else in a visible support category. A feature root = `index.tsx` (THE entry: the component's JSX, or a curated re-export when it has co-located support files), plus `types.ts` and `components/` / `hooks/` / `utils/` / topic folders.
