@@ -34,7 +34,7 @@ The CLI relays raw values and is outside this rule. A field added in release N s
 
 ## Adding a wire error code
 
-The recipe lives in `apps/api/AGENTS.md`; step 1 happens here, in `src/errors.ts`, and `test/wire-pin.test.ts` is what fails if the catalog does not follow.
+The recipe lives in `apps/api/docs/error-codes.md`; step 1 happens here, in `src/errors.ts`, and `test/wire-pin.test.ts` is what fails if the catalog does not follow.
 
 `parseApiErrorBody` is the one reader of the wire error body: every client resolves a `{ error, code }` through it, never by probing the fields itself.
 
