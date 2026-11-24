@@ -59,11 +59,11 @@ Put the old value back and run `docker compose up -d`. If the old value is gone,
 
 `api` and `worker` both sign with it. GitHub accepts every private key the App holds, so the rotation has no gap.
 
-1. On the App's settings page, under **Private keys**, choose **Generate a private key**. The old key keeps working.
+1. On the App's settings page, open **Credentials** in the left sidebar, then **Key pairs**, and choose **New key**. Your browser downloads the new key as a PEM file. The old key keeps working.
 2. Put the new PEM in `GITHUB_APP_PRIVATE_KEY` in `.env`, or replace the file `GITHUB_APP_PRIVATE_KEY_PATH` names.
 3. Apply it: `docker compose up -d` for the inline key, `docker compose restart api worker` for a key file.
 4. **Check:** push a commit to a pull request in an installed repository and confirm its brief generates. Boot reads the key but never shows it to GitHub, so a key GitHub does not accept fails only at the first call that needs the App.
-5. Delete the old key on the same settings page.
+5. Delete the old key under **Key pairs**.
 
 ## Rotate the OAuth client secret
 

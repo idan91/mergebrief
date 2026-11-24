@@ -74,6 +74,8 @@ If an error says the instance "answered like an identity-provider proxy", your c
 
 Run these inside a clone of the repository: commands that take a pull request number pick the repository from the clone's `origin` remote. Elsewhere, add `-R owner/name`. The examples use pull request 7.
 
+The whole walkthrough, posting the review to GitHub included, needs an `external-write` token. A `private-write` token can do steps 1 to 8, and a `read` token steps 1 to 6 ([Create a token](#create-a-token)).
+
 1. **Find the pull request.** With no number, `pr` lists your Inbox: every repository you reach, plus the pull requests you pasted.
 
    ```sh
@@ -119,7 +121,7 @@ Run these inside a clone of the repository: commands that take a pull request nu
    grp-2	Update the tenant fixtures
    ```
 
-5. **Read how behaviour changes.** The [Product diff](../glossary.md) is the before and after of the pull request, one change per block.
+5. **Read how behaviour changes.** The [Product diff](../glossary.md#the-brief-and-what-is-in-it) is the before and after of the pull request, one change per block.
 
    ```sh
    mergebrief product-diff 7
@@ -139,7 +141,7 @@ Run these inside a clone of the repository: commands that take a pull request nu
    mergebrief diff 7 --group grp-1
    ```
 
-7. **Mark the group read.** This records every [chunk](../glossary.md) in the group as read on your session. It prints nothing.
+7. **Mark the group read.** This records every [chunk](../glossary.md#the-brief-and-what-is-in-it) in the group as read on your session. It prints nothing.
 
    ```sh
    mergebrief chunk-read 7 --group grp-1
@@ -242,27 +244,62 @@ Four rules make the CLI safe to script:
 - **Keep the token in a secret,** and give it to the CLI as `MERGEBRIEF_TOKEN`. It replaces the stored token of whichever profile the command resolves.
 - **Install a pinned version** rather than running `npx` inside the checkout ([Install](#install)).
 
-The CLI still needs a profile for the instance's URL. In CI, write one with no token in it, so the token never touches the runner's disk:
+In GitHub Actions:
+
+- **Use a `read` token** for a job that only reads briefs; nothing in the recipe below writes. A token acts as the person who created it, with their access to every repository and organization, so create it on an account whose reach you are happy for the workflow to have.
+- **Pull requests from forks get no secrets.** GitHub does not pass repository secrets to a `pull_request` workflow run from a fork, so `MERGEBRIEF_TOKEN` is empty there and the authentication check fails the job. Skip such runs with the `if:` below rather than switching to `pull_request_target`, which runs with secrets beside the fork's code.
+- **Node 24.** The runner's default Node may be older than the CLI supports.
+
+The CLI still needs a profile for the instance's URL. Write one with no token in it, so the token never touches the runner's disk. The job then waits for the pull request's brief, up to 15 minutes, before it reads it:
 
 ```yaml
-# .github/workflows/brief.yml (one job's steps)
-- name: Install the MergeBrief CLI
-  run: npm i -g mergebrief@1.4.0
-- name: Read the brief
-  env:
-    MERGEBRIEF_TOKEN: ${{ secrets.MERGEBRIEF_TOKEN }}
-    MERGEBRIEF_URL: https://mergebrief.your-org.example
-    PR_NUMBER: ${{ github.event.pull_request.number }}
-  run: |
-    mkdir -p ~/.config/mergebrief
-    printf '{"profiles":{"ci":{"baseUrl":"%s"}},"defaultProfile":"ci"}\n' "$MERGEBRIEF_URL" \
-      > ~/.config/mergebrief/config.json
-    chmod 600 ~/.config/mergebrief/config.json
-    mergebrief auth status --json | jq -e '.server.authenticated'
-    mergebrief -R "$GITHUB_REPOSITORY" product-diff "$PR_NUMBER" --json > product-diff.json
+# .github/workflows/brief.yml
+on: pull_request
+jobs:
+  brief:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install the MergeBrief CLI
+        run: npm i -g mergebrief@1.4.0
+      - name: Wait for the brief and read it
+        env:
+          MERGEBRIEF_TOKEN: ${{ secrets.MERGEBRIEF_TOKEN }}
+          MERGEBRIEF_URL: https://mergebrief.your-org.example
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p ~/.config/mergebrief
+          printf '{"profiles":{"ci":{"baseUrl":"%s"}},"defaultProfile":"ci"}\n' "$MERGEBRIEF_URL" \
+            > ~/.config/mergebrief/config.json
+          chmod 600 ~/.config/mergebrief/config.json
+          mergebrief auth status --json | jq -e '.server.authenticated'
+
+          deadline=$(( $(date +%s) + 900 ))
+          while :; do
+            meta=$(mergebrief -R "$GITHUB_REPOSITORY" pr "$PR_NUMBER" --json) || meta='{}'
+            ready=$(echo "$meta" | jq -r --arg sha "$HEAD_SHA" '.headSha == $sha and .briefAvailable == true')
+            if [ "$ready" = true ]; then
+              break
+            fi
+            status=$(echo "$meta" | jq -r --arg sha "$HEAD_SHA" 'if .headSha == $sha then .generation.status // "none" else "not-seen" end')
+            case "$status" in
+              failed|capped|awaiting-trigger)
+                echo "no brief: generation is $status"; exit 1 ;;
+            esac
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "no brief after 15 minutes: generation is $status"; exit 1
+            fi
+            sleep 20
+          done
+
+          mergebrief -R "$GITHUB_REPOSITORY" product-diff "$PR_NUMBER" --json > product-diff.json
 ```
 
-**Check:** the `jq -e` step fails the job unless the token authenticates.
+**Check:** the `jq -e` line fails the job unless the token authenticates, and the loop ends once the instance has a brief for this run's head commit: `headSha` matches and `briefAvailable` is `true`. Until the push reaches the instance, `pr` may answer for the previous head, or exit 4 for a pull request it has not seen yet; the loop keeps waiting through both. A `held` generation keeps waiting: if a trigger condition waits on this same CI run, the loop times out, so run the job without that condition or read the brief in a later job.
 
 A script that reads a brief which may not exist yet branches on the code:
 

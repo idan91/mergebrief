@@ -1,4 +1,4 @@
-# Observability
+# Logs, alerts and tracing
 
 Every MergeBrief process writes structured JSON to stdout, one line per event. There are no log files, no telemetry back to anyone, and no `/metrics` endpoint: you ship the log lines to your own stack, alert on a small set of named events, and count from the logs whatever you want to graph. Product terms such as held push and Entry comment are defined in the [glossary](../glossary.md). Traces are optional and off until you point the processes at an OTLP endpoint.
 
@@ -73,7 +73,7 @@ loki.write "default" {
 }
 ```
 
-Keep `service` as the only label: everything else is read from the JSON at query time. **Check:** in Grafana, `{service="api"}` returns lines.
+`http://loki:3100` resolves only when Loki runs on the same compose network as Alloy, for example as another service in `docker-compose.override.yml`. For a Loki elsewhere, put its own address in `url`. Keep `service` as the only label: everything else is read from the JSON at query time. **Check:** in Grafana, `{service="api"}` returns lines.
 
 Useful LogQL:
 
@@ -246,7 +246,7 @@ sum by (evt) (count_over_time({service=~"api|worker"} | json | evt != `` [1h]))
 
 In Datadog, generate a metric from logs on the same queries (count of `@evt:generation.succeeded`, a distribution of `@durationMs` for `@evt:generation.complete`). In CloudWatch, a metric filter takes a value from the line, such as `$.durationMs` for `{ $.evt = "generation.complete" }`.
 
-Today's started runs against the daily cap come from the API, not the logs: `mergebrief spend`, for an operator ([generators.md](./generators.md#daily-generation-cap)).
+Today's started runs against the daily cap come from the API, not the logs: `mergebrief spend`, for an operator ([spend-cap.md](./spend-cap.md#see-todays-count)).
 
 ## Health checks
 
@@ -286,6 +286,17 @@ To trace one push from GitHub's delivery to its brief:
 `prId` is the instance's internal pull request row id, not the GitHub pull request number. The same id (as `pull_request_id`) and `headSha` sit on the queue row and the `generation` rows, so you can join a log line to the database directly.
 
 With [tracing](#tracing) on, the same story is two linked traces: the delivery's, and the job's, which links back to it.
+
+## Read a failed generation's raw output
+
+When a model's answer fails the brief's schema, or is cut off at its output limit, the worker saves it as `<label>-<time>-<n>.failed.json` in `/app/apps/worker/out` inside the worker container, readable by the worker's user only. It is text about the pull request's code, with credential-shaped strings redacted. Copy the folder out to read it; with more than one worker, add `--index 2` and so on for each:
+
+```sh
+docker compose cp worker:/app/apps/worker/out ./worker-failures
+ls ./worker-failures
+```
+
+The folder is not a volume, so recreating the container empties it. Each worker deletes its own files once they are seven days old, when it starts and once a day. No setting changes that window.
 
 ## Tracing
 
@@ -342,27 +353,25 @@ Named spans mark the business steps, so a trace reads as the flow and a monitor 
 
 A `<store>.<method>` span is named for the method a caller reached and changes when that method is renamed, so it is outside the stable contract: key a monitor on a business-step name instead.
 
-Token counts come from the provider's own accounting. The API adapters, the claude CLI and the cursor CLI report them; codex reports none. A CLI provider reports once per run with the run's total, so for those two `mergebrief.provider_requests` counts CLI runs, not the API requests inside each. For Anthropic, OpenAI-compatible providers and the claude CLI the input total counts cache reads and writes, as the GenAI convention defines it; cursor's counts are exported as it reports them. With tracing on, an OpenAI-compatible provider is asked to include usage in its stream; one that rejects the option is asked again without it and reports no usage. With tracing off the request is unchanged.
+Token counts come from the provider's own accounting; codex reports none, and a CLI provider reports one total per run. With tracing on, an OpenAI-compatible provider is asked to include usage in its stream, and asked again without it if it rejects the option.
 
 ### Try tracing locally with Jaeger
 
-A throwaway Jaeger ships in the repository, not in a release, for trying tracing before you pick a backend. `docker-compose.tracing.yml` runs the trace viewer on `127.0.0.1:16686` and an OTLP/HTTP receiver on `4318`, and keeps traces in memory, so a restart clears them.
+`docker-compose.tracing.yml` runs a throwaway Jaeger for trying tracing before you pick a backend: the trace viewer on `127.0.0.1:16686` and an OTLP/HTTP receiver on `4318`, with traces kept in memory, so a restart clears them. It sits in the repository, not among a release's files, so fetch it at the tag of the release you run (`1.4.0` is `v1.4.0`):
 
-With the compose stack, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318` in `.env` and merge the file in:
+```sh
+curl -fsSLo docker-compose.tracing.yml https://raw.githubusercontent.com/idan91/mergebrief/v1.4.0/docker-compose.tracing.yml
+```
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318` in `.env`, then start the stack with the file merged in. Naming files with `-f` turns off the automatic load of `docker-compose.override.yml`, so add `-f docker-compose.override.yml` when you have one:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --wait
 ```
 
-With the processes on the host, run `pnpm app:host:prod`, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`, and run Jaeger alone:
+**Check:** open `http://127.0.0.1:16686`, push to a pull request, and find the `mergebrief-api` and `mergebrief-worker` services in the search form. On a remote server, reach the viewer through an SSH tunnel: `ssh -L 16686:127.0.0.1:16686 <user>@<host>`.
 
-```sh
-docker compose -f docker-compose.tracing.yml up -d
-```
-
-`pnpm app:host` serves the web tier through `vite dev`, which loads no tracing; the web tier traces only from `src/serve.ts`.
-
-**Check:** open `http://127.0.0.1:16686`, push to a pull request, and find the `mergebrief-api` and `mergebrief-worker` services in the search form.
+To stop it, remove the endpoint from `.env` and run `docker compose up -d --remove-orphans`.
 
 ## Reference
 

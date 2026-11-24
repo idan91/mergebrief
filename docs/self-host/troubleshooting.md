@@ -5,7 +5,7 @@ Find what you see in [the index](#find-your-symptom), then confirm the cause wit
 Three habits apply to every fix below:
 
 - **Read the last log line first.** `docker compose ps -a` shows what is down (without `-a` a stopped container is not listed), and `docker compose logs <service>` shows why. A process that refuses boot names the variable and the reason, never the value.
-- **Apply `.env` edits with `docker compose up -d`.** It recreates the services with the new environment; `docker compose restart` keeps the old one.
+- **Apply `.env` edits with `docker compose up -d`.** It recreates the services with the new environment; `docker compose restart` keeps the old one. A change to `mergebrief.config.yaml` alone needs only `docker compose restart api worker`, since the file is mounted and read at boot.
 - **Some causes log only at `debug`.** Set `LOG_LEVEL=debug` in `.env`, run `docker compose up -d`, reproduce, then set it back.
 
 ## Find your symptom
@@ -52,7 +52,12 @@ Three habits apply to every fix below:
 | "Brief available on demand", or "No brief for this push yet" | [No brief appears](#no-brief-appears) |
 | "Brief generation failed", or an Entry comment reading "No brief for `<sha>`: generation failed." | [A brief failed](#a-brief-failed) |
 | The brief opens but the pull request has no Entry comment | [No Entry comment appears](#no-entry-comment-appears) |
-| An amber warnings block, "Some brief text is longer than the length guidance", an unread ticket, or "too large to compare" | [The brief shows warnings](#the-brief-shows-warnings) |
+| An amber warnings block, "Some brief text is longer than the length guidance", an unread ticket, or "...was too large to compare" | [The brief shows warnings](#the-brief-shows-warnings) |
+
+### Other log lines
+
+| You see | Go to |
+| --- | --- |
 | `url-fallback-token.owner.fail` in the api or worker log | [GitHub refused the URL fallback token](#github-refused-the-url-fallback-token) |
 | No version notice, and `update.check.fail` in the api log | [The update check fails](#the-update-check-fails) |
 
@@ -84,13 +89,25 @@ Read the last line of `docker compose logs worker`:
 | --- | --- | --- |
 | `worker composition: invalid configuration` | A worker variable is missing or malformed; the line names it. | Fix it in `.env`, then `docker compose up -d`. |
 | `worker composition: invalid GitHub configuration` | A GitHub App variable is missing or malformed. | Same. |
-| `worker composition: invalid generator configuration` | The provider block refused, for example a missing key or a CLI provider in the shipped image ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)). | Fix the `generator:` block or its key variable. If the line says `config file: not readable (EACCES)`, UID 1000 cannot read the mounted file: `chmod 644 mergebrief.config.yaml`. |
-| `worker composition: invalid tracker configuration` or `worker composition: trackers` | A tracker in the instance config cannot be read, such as a `notion` entry whose token is unset ([trackers.md](./trackers.md#notion)), a `jira` entry whose `JIRA_EMAIL` or `JIRA_API_TOKEN` is unset, or a `jira` entry whose `site` is not a Jira site (the line says `no Jira site answers at`) ([trackers.md](./trackers.md#jira)). | Set the token or email, fix `site`, or remove the entry. |
-| `worker composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set ([observability.md](./observability.md#tracing)). | Fix the value, or unset the endpoint. |
-| `worker composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable. |
+| `worker composition: invalid generator configuration` | The provider block refused, for example a missing key or a CLI provider in the shipped image ([generators.md](./generators.md#subscription-cli-providers)). | Fix the `generator:` block, then `docker compose restart worker`; fix its key variable in `.env`, then `docker compose up -d`. If the line says `config file: not readable (EACCES)`, UID 1000 cannot read the mounted file: `chmod 644 mergebrief.config.yaml`. |
+| `worker composition: invalid tracker configuration` or `worker composition: trackers` | A tracker in the instance config cannot be read, such as a `notion` entry whose token is unset ([trackers.md](./trackers.md#connect-notion)), a `jira` entry whose `JIRA_EMAIL` or `JIRA_API_TOKEN` is unset, or a `jira` entry whose `site` is not a Jira site (the line says `no Jira site answers at`) ([trackers.md](./trackers.md#connect-jira)). | Set the token or email in `.env` and run `docker compose up -d`, or fix `site` or remove the entry and run `docker compose restart worker`. |
+| `worker composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set ([observability.md](./observability.md#tracing)). | Fix the value, or unset the endpoint, then `docker compose up -d`. |
+| `worker composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable, then `docker compose up -d`. |
 | `worker: stopped` | A plain stop, such as a host reboot. | `docker compose up -d`. To bring it back on its own after a reboot, see [Start on boot](./compose.md#start-on-boot). |
 
-`api` follows the same rule; its lines start with `api composition:`. [generators.md](./generators.md#when-something-degrades) has the same triage from the generation side.
+For `api`, read the last line of `docker compose logs api`:
+
+| Last line starts with | Cause | Fix |
+| --- | --- | --- |
+| `api composition: invalid configuration` | An api variable is missing or malformed, such as `PUBLIC_BASE_URL`, `MERGEBRIEF_API_HOST` or `MERGEBRIEF_API_PORT`; the line names it. | Fix it in `.env`, then `docker compose up -d`. |
+| `api composition: invalid GitHub configuration` | A GitHub App variable is missing or malformed. | Same. |
+| `api composition: invalid persistence configuration` | `DATABASE_URL`, `DATABASE_URL_FILE`, `DATABASE_POOL_MAX` or `MERGEBRIEF_AUTO_MIGRATE` is invalid, such as a non-loopback `DATABASE_URL` without `sslmode=verify-full` or `sslmode=disable`, or a file the DSN names that cannot be read. | Fix it in `.env` and run `docker compose up -d`, or fix the mounted file and run `docker compose restart api worker`. |
+| `api composition: SESSION_KEY_V1 is missing or invalid` (or the name `SESSION_KEY_REF` gives) | The session key is unset, not base64, or not 32 bytes. | Set it from `openssl rand -base64 32`, then `docker compose up -d`. On an instance with users, set the old value back instead ([If the session key changed or was lost](./secrets.md#if-the-session-key-changed-or-was-lost)). |
+| `api composition: invalid instance policy` | A block the api reads from `mergebrief.config.yaml` is invalid: `drafts`, `spend`, `operators`, `allowed`, `attachments`, `audit` or `updateCheck`. The line names the key. | Fix the file, then `docker compose restart api worker`. |
+| `api composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set. | Fix the value, or unset the endpoint, then `docker compose up -d`. |
+| `api composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable, then `docker compose up -d`. |
+
+A line `api composition: the instance config names nobody` does not stop the api, but every sign-in is refused until `operators` or `allowed` names someone ([Who can sign in](./security-model.md#who-can-sign-in)).
 
 ## A service keeps restarting
 
@@ -143,7 +160,7 @@ Read the last line of `docker compose logs worker`:
 
 ## A person is refused a brief or sign-in
 
-"This GitHub account isn't allowed on this instance" means the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([who may start a brief](./generators.md#who-may-start-a-brief)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts. Find the id with `gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then restart the api. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
+"This GitHub account isn't allowed on this instance" means the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([Who can sign in](./security-model.md#who-can-sign-in)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts. Find the id with `gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then run `docker compose restart api worker`. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
 
 ## Sign-in does not stick
 
@@ -236,14 +253,14 @@ Open the pull request in MergeBrief: the brief page says where the push stands.
 
 | The brief page says | Cause | Fix |
 | --- | --- | --- |
-| "No brief for this pull request yet" and "The next push (or a submitted review) is briefed as usual in a repository where the App is installed." | No job was queued. The worker is down, the account is not listed, or the delivery never arrived. | Check `docker compose ps -a` for a worker at `Exited (0)` ([A service exits with code 0](#a-service-exits-with-code-0)). If the api logs `webhook: ignored a delivery from an account this instance does not list`, add the logged id under [`allowed.accounts`](./generators.md#who-may-start-a-brief) and restart the api. Otherwise check **Recent Deliveries** on the App's **Advanced** tab. Then push again, or redeliver. |
+| "No brief for this pull request yet" and "The next push (or a submitted review) is briefed as usual in a repository where the App is installed." | No job was queued. The worker is down, the account is not listed, or the delivery never arrived. | Check `docker compose ps -a` for a worker at `Exited (0)` ([A service exits with code 0](#a-service-exits-with-code-0)). If the api logs `webhook: ignored a delivery from an account this instance does not list`, add the logged id under [`allowed.accounts`](./security-model.md#who-can-sign-in) and run `docker compose restart api worker`. Otherwise check **Recent Deliveries** on the App's **Advanced** tab. Then push again, or redeliver. |
 | "Brief available on demand" | The author is not on the repository's team, so the first brief waits for someone with push access. | That person clicks **Generate brief**. Later pushes generate as usual ([Who triggers a brief](./github-app.md#who-triggers-a-brief)). |
 | "No brief for this push yet", with a "Waiting on" or "Needs a change first" list | A [trigger condition](../repo-config/trigger-conditions.md) holds the push, such as a draft under `readyForReview`. The worker logs `generation.hold` with the condition `kinds`. | It generates by itself once every condition passes. To generate now, click **Generate brief**. |
 | "Can't check CI until this installation accepts MergeBrief's Checks and Commit statuses permissions", or the same for a bot | A `bots` or `ci` condition needs a permission the installation has not accepted. | Set the permissions and accept them on each installation ([github-app.md](./github-app.md#accept-the-checks-and-commit-statuses-permissions)), then push or click **Generate brief**. |
 | "Holding briefly in case more commits land." | The debounce, about 60 seconds after a push. | Wait. |
 | "Other briefs are generating. This one starts when a slot frees up." | Every worker slot is busy. | Wait, or add slots ([Add worker capacity](./data-and-scaling.md#add-worker-capacity)). |
-| "Daily generation cap reached." | The instance hit `spend.maxGenerationsPerDay`. The worker logs `spend.cap.trip`. | Raise the cap, or wait for the reset at 00:00 UTC and push again ([generators.md](./generators.md#daily-generation-cap)). |
-| "Too few runs were left to brief this pull request." or "This pull request is too large for this instance's daily cap." | A pull request briefed in parts needs more runs than the day has left, or than the cap allows at all. | Wait for the reset, or raise the cap ([The large pool](./generators.md#the-large-pool)). |
+| "Daily generation cap reached." | The instance hit `spend.maxGenerationsPerDay`. The worker logs `spend.cap.trip`. | Raise the cap, or wait for the reset at 00:00 UTC and push again ([spend-cap.md](./spend-cap.md)). |
+| "Too few runs were left to brief this pull request." or "This pull request is too large for this instance's daily cap." | A pull request briefed in parts needs more runs than the day has left, or than the cap allows at all. | Wait for the reset, or raise the cap ([Large pull requests](./spend-cap.md#large-pull-requests)). |
 | "Generation for this push stopped: its queued job used every attempt." | The job's retries ran out. The worker logs `job.retries.exhausted`. | Read the worker's earlier `job.fail` lines for that push to find the cause, fix it, then push again or regenerate. |
 | "Brief generation failed" | The run failed. | [A brief failed](#a-brief-failed). |
 
@@ -261,10 +278,10 @@ Every failure also logs `job.fail` in the worker, with the message `generate: pe
 | "The model provider could not be reached." | The provider answered 5xx, or the connection failed, through every retry. | Check the provider's status and the host's outbound route to it, then **Regenerate brief**. |
 | "The model declined to summarize this pull request." | The model refused. | Nothing on the instance changes this push: a rerun refuses the same way, so no button is offered. The next push is briefed as usual. |
 | "The model provider refused the request because the account reached a spend limit: ..." | `provider.error` with `kind: provider-spend-limit`. | Raise the limit on the provider's billing page, or wait for it to reset, then **Regenerate brief**. |
-| "The model returned output that could not be read as a brief." | The answer failed the brief's schema after salvage and one feedback retry. The raw answer is saved in the worker ([Read a failed generation's raw output](./data-and-scaling.md#read-a-failed-generations-raw-output)). | **Regenerate brief**. If it repeats, use a stronger `model:` ([generators.md](./generators.md#length-discipline-and-anchoring-degrade-on-weaker-models)). |
+| "The model returned output that could not be read as a brief." | The answer failed the brief's schema after salvage and one feedback retry. The raw answer is saved in the worker ([Read a failed generation's raw output](./observability.md#read-a-failed-generations-raw-output)). | **Regenerate brief**. If it repeats, use a stronger `model:` ([generators.md](./generators.md#brief-text-runs-long-on-a-weaker-model)). |
 | "Generation stopped: the output contained a value this instance treats as secret. Your operator has been told." | The model's output held the value of one of the worker's secret variables, so nothing was stored. The `job.fail` line reads `generation output contained the value of <VARIABLE> at <field>`, naming the variable, never the value. | Find where the value came from: the pull request, its description or a linked ticket. If it is there, it is exposed: rotate that secret ([secrets.md](./secrets.md)). A rerun of this push fails the same way. |
 | "The brief ran past the model's output length limit and was cut off before it finished. ..." | The answer reached the model's output token cap. The raw answer is saved, as for unreadable output. | A rerun is cut the same way, so no button is offered. The next push is briefed as usual. If it repeats across pull requests, try another `model:`. |
-| "Generator configuration is invalid: ..." | The worker's `generator:` block failed at run time; the text after the colon names the problem. | Fix the `generator:` block or its key variable, run `docker compose restart worker`, then **Regenerate brief** ([generators.md](./generators.md#the-config-file)). |
+| "Generator configuration is invalid: ..." | The worker's `generator:` block failed at run time; the text after the colon names the problem. | Fix the `generator:` block and run `docker compose restart worker`, or fix its key variable in `.env` and run `docker compose up -d`. Then **Regenerate brief** ([generators.md](./generators.md#switch-the-provider)). |
 | "GitHub denied access to this repository's content." | GitHub refused the content read: the App lacks **Contents: Read**, the repository left the installation, or, for a pasted pull request, the reviewer or the URL fallback token cannot read it. | Grant the permission and accept it on the installation ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these)), or add the repository back, then **Regenerate brief**. |
 | "The diff is too large to summarize. MergeBrief briefs a pull request only when it changes up to 3,000 files and GitHub serves its whole diff." | The pull request changes more than 3,000 files, or GitHub served its diff short. Past GitHub's diff limit the worker reads the compare API and accepts it only when it holds every changed file. | Split the pull request. |
 | "GitHub was unavailable while reading the pull request." | GitHub answered with an outage or a rate limit through every retry. | Check GitHub's status, then **Regenerate brief**. |
@@ -284,10 +301,10 @@ A failure that needs the operator first, such as credentials or configuration, a
 
 ## The brief shows warnings
 
-- **An amber `generationWarnings` block under the header:** salvage, the feedback retry or a served-model mismatch fired. The brief is still valid ([generators.md](./generators.md#when-something-degrades)).
-- **"Some brief text is longer than the length guidance":** the model overran the length caps. A stronger `model:` fixes it; configuration does not ([generators.md](./generators.md#length-discipline-and-anchoring-degrade-on-weaker-models)).
+- **An amber warnings block under the header:** salvage, the feedback retry or a served-model mismatch fired. The brief is still valid ([generators.md](./generators.md#when-something-degrades)).
+- **"Some brief text is longer than the length guidance":** the model overran the length caps. A stronger `model:` fixes it; configuration does not ([generators.md](./generators.md#brief-text-runs-long-on-a-weaker-model)).
 - **The ticket card says unread:** the card names one of five codes ([trackers.md](./trackers.md#when-the-ticket-is-unread)). The brief is produced from the diff either way.
-- **"Too large to compare" or "too large to summarize":** the push changed more than 300 files, GitHub would not serve the diff, its changed lines reached `generator.hugeSpanRatio`, or it exceeds one call's limits. The brief itself is complete ([generators.md](./generators.md#the-300-file-span-limit)).
+- **"The change since the previous brief was too large to compare" or "The change since your last review was too large to compare":** the push changed more than 300 files, GitHub would not serve the diff, its changed lines reached `generator.hugeSpanRatio`, or it exceeds one call's limits. The brief itself is complete ([generators.md](./generators.md#the-300-file-span-limit)).
 
 ## GitHub refused the URL fallback token
 
@@ -304,7 +321,7 @@ Related lines:
 | `info` `URL fallback token serves its owner only`, with `ownerId` | The lookup worked. `ownerId` is the one GitHub user id the token serves. | If that is not your id (`gh api users/<login> --jq .id`), the token was made on another account, such as a bot. Make it on your own. |
 | `warn` `URL fallback token owner lookup failed; the token serves nobody until a retry succeeds`, with `retryInMs` | GitHub did not answer the lookup. It retries in the background, from 30 seconds up to every 15 minutes. | Nothing, unless it keeps repeating; then check the host's route to `api.github.com`. |
 | `warn` `URL fallback token rejected by GitHub, check MERGEBRIEF_URL_FALLBACK_TOKEN` | The token stopped working after boot. A paste, or a read for a URL pull request, fell back to the reviewer's own denial. | Replace the token as above. |
-| `MERGEBRIEF_URL_BOX_TOKEN is no longer read: rename it to MERGEBRIEF_URL_FALLBACK_TOKEN.` | The variable's old name. | Rename it in `.env`, then `docker compose up -d` ([configuration.md](./configuration.md#variables-that-are-not-read)). |
+| `MERGEBRIEF_URL_BOX_TOKEN is no longer read: rename it to MERGEBRIEF_URL_FALLBACK_TOKEN.` | The variable's old name. | Rename it in `.env`, then `docker compose up -d` ([upgrade.md](./upgrade.md#renamed-and-removed-variables)). |
 
 ## The update check fails
 

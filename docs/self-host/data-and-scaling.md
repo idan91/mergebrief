@@ -88,17 +88,6 @@ docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
   order by pg_total_relation_size(c.oid) desc limit 10;"'
 ```
 
-## Read a failed generation's raw output
-
-When a model's answer fails the brief's schema, or is cut off at its output limit, the worker saves it as `<label>-<time>-<n>.failed.json` in `/app/apps/worker/out` inside the worker container, readable by the worker's user only. It is text about the pull request's code, with credential-shaped strings redacted. Copy the folder out to read it; with more than one worker, add `--index 2` and so on for each:
-
-```sh
-docker compose cp worker:/app/apps/worker/out ./worker-failures
-ls ./worker-failures
-```
-
-The folder is not a volume, so recreating the container empties it. Each worker deletes its own files once they are seven days old, when it starts and once a day. No setting changes that window.
-
 ## What else is deleted, and when
 
 - **Uninstalling the App or removing a repository from an installation** purges that installation's or repository's pull requests and briefs at once.
@@ -138,7 +127,7 @@ docker compose logs worker | grep 'listening for generate jobs'
 
 `ps` lists one `worker` container per `WORKER_COUNT`. Each worker's start line names its slots, such as `slots 2 + 1 large`. `docker compose up --scale worker=N` overrides `WORKER_COUNT` for that run only.
 
-Two workers are safe on one queue: graphile-worker claims a job with row locking, so no two runners take the same job. Each scheduled task (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`, `sweep-webhook-deliveries`, `sweep-generation-parts`, `reconcile-webhook-deliveries`) still runs once per tick, because only the runner that records the tick enqueues it. Two jobs for one pull request can overlap when a newer push lands: the running job checks the head every 20 seconds and stands down on a newer one, so the overlap is about one poll, longer while head reads fail. That costs spend, never correctness, and the daily cap stays exact.
+Several workers share one queue safely: no two take the same job, and each scheduled sweep still runs once per tick. When a newer push lands while a job runs, the two can overlap for about 20 seconds before the older one stands down; that costs spend, never correctness, and the daily cap stays exact.
 
 ## Run more than one api
 
@@ -159,7 +148,7 @@ Every replica serves every request: sessions, the audit log and the job queue li
 - **The update check:** each replica fetches `version.json` on its own schedule, so N replicas make N fetches an hour, log N `update.available` lines per release, and can answer `GET /api/version` differently for up to an hour after a release.
 - **Memory:** size each api container for its diff caches on top of its baseline, up to 128 MiB of diffs under 1 MB each plus up to 256 MiB of larger ones (64 MiB at most each, four per viewer, kept 10 minutes).
 
-`web` calls `http://api:3001`, and Docker's DNS answers that name with every replica in rotating order. Each new connection lands on the next replica, but requests sent back to back reuse one connection, so the spread is uneven. A replica that exits is skipped with no restart of `web`; one that is stuck but still accepts connections keeps receiving them until `web`'s upstream timeout answers 502. For an even spread and health-aware routing, put a load balancer in front of the apis and point `MERGEBRIEF_API_ORIGIN` at it. `web` is stateless too and scales the same way behind your proxy.
+`web` reaches the replicas through Docker's DNS, which spreads new connections unevenly and keeps sending to a replica that is stuck but still accepts connections. For an even spread and health-aware routing, put a load balancer in front of the apis and point `MERGEBRIEF_API_ORIGIN` at it. `web` is stateless too and scales the same way behind your proxy.
 
 ## Size the connection budget
 

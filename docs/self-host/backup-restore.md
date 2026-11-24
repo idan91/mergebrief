@@ -14,15 +14,16 @@ A copy of the `postgres_data` volume's files taken while Postgres runs is not a 
 ## Back up the bundled database
 
 ```sh
+umask 077
 DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \
   && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \
   && echo "dump ok: $DUMP"
 ```
 
-`--format=custom` is compressed, and `pg_restore` can restore it selectively. `pg_restore --list` reads only the archive's table of contents, so it proves the file opens; the `pg_dump` exit code proves the dump completed.
+`umask 077` makes the dump readable by you alone for the rest of this shell: it holds every pull request, brief and reviewer comment. `--format=custom` is compressed, and `pg_restore` can restore it selectively. `pg_restore --list` reads only the archive's table of contents, so it proves the file opens; the `pg_dump` exit code proves the dump completed.
 
-**Check:** the chain prints `dump ok` and the file name. Then copy the file off the host, for example to your own computer:
+**Check:** the chain prints `dump ok` and the file name, and `ls -l` shows the file as `-rw-------`. Then copy the file off the host, for example to your own computer:
 
 ```sh
 scp <user>@<host>:<instance-folder>/mergebrief-*.dump .
@@ -37,6 +38,7 @@ The dump runs `pg_dump` from the `postgres:17-alpine` image, which reads Postgre
 With a provider whose certificate chains to a public root, such as Neon:
 
 ```sh
+umask 077
 DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL -e PGSSLROOTCERT=system \
     postgres:17-alpine sh -c 'pg_dump --format=custom "$DATABASE_URL"' > "$DUMP" \
@@ -47,6 +49,7 @@ DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL -e PG
 With a provider CA mounted for the services, such as Supabase or RDS, mount it at the same path, so the `sslrootcert` in the connection string resolves:
 
 ```sh
+umask 077
 DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL \
     -v "$PWD/secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro" \
@@ -61,11 +64,16 @@ DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL \
 
 ## Schedule backups
 
-Save this as `backup.sh` in the instance folder. It dumps the bundled database into `backups/`, deletes a dump that does not open, and keeps 14 days:
+Save one of these scripts as `backup.sh` in the instance folder. Each dumps the database into `backups/`, deletes a dump that does not open, keeps 14 days on the host, and copies the new dump off the host. A dump left only on the host is lost with it.
+
+The copy line uses [rclone](https://rclone.org/), which reaches S3, Backblaze B2, Google Drive, SFTP and most other storage. Install it and create a remote named `offsite` with `sudo rclone config`, as root, since the script runs as root. With the AWS CLI instead, replace the line with `aws s3 cp "$dump" s3://<your-bucket>/mergebrief/`.
+
+**Bundled database:**
 
 ```sh
 #!/bin/sh
 set -eu
+umask 077
 cd "$(dirname "$0")"
 mkdir -p backups
 dump="backups/mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump"
@@ -75,17 +83,40 @@ if ! docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format
   exit 1
 fi
 find backups -name 'mergebrief-*.dump' -mtime +14 -delete
-# Copy "$dump" off this host here, with your backup tool.
+rclone copy "$dump" offsite:mergebrief-backups/
 ```
 
-On an external database, replace the `if` condition's two commands with the `docker run` pair from [Back up an external database](#back-up-an-external-database), writing to `"$dump"`.
+**External database**, reading the connection string from `secrets/database-url` as in [Back up an external database](#back-up-an-external-database):
+
+```sh
+#!/bin/sh
+set -eu
+umask 077
+cd "$(dirname "$0")"
+mkdir -p backups
+dump="backups/mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump"
+DATABASE_URL="$(cat secrets/database-url)"
+export DATABASE_URL
+if ! docker run --rm -e DATABASE_URL -e PGSSLROOTCERT=system \
+       postgres:17-alpine sh -c 'pg_dump --format=custom "$DATABASE_URL"' > "$dump" \
+  || ! docker run --rm -i postgres:17-alpine pg_restore --list < "$dump" > /dev/null; then
+  rm -f "$dump"
+  exit 1
+fi
+find backups -name 'mergebrief-*.dump' -mtime +14 -delete
+rclone copy "$dump" offsite:mergebrief-backups/
+```
+
+With a provider CA, replace `-e PGSSLROOTCERT=system` with `-v "$PWD/secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro"`.
+
+Run it once by hand:
 
 ```sh
 chmod 700 backup.sh
-sudo ./backup.sh && ls -l backups
+sudo ./backup.sh && ls -l backups && sudo rclone ls offsite:mergebrief-backups/
 ```
 
-**Check:** `backups/` holds one new `.dump` file.
+**Check:** `backups/` holds one new `.dump` file, readable by root alone, and the last command lists the same file name at the remote.
 
 Then run it daily, with a systemd timer or cron. `/opt/mergebrief` below is a placeholder: use the instance folder's path, which `pwd` prints.
 
@@ -125,7 +156,7 @@ sudo systemctl enable --now mergebrief-backup.timer
 15 3 * * * /opt/mergebrief/backup.sh >> /var/log/mergebrief-backup.log 2>&1
 ```
 
-**Check:** the next morning, `backups/` holds a new dump and the log holds no error.
+**Check:** the next morning, `backups/` holds a new dump, `sudo rclone ls offsite:mergebrief-backups/` lists it, and the log holds no error.
 
 ## Restore in place
 
@@ -164,16 +195,48 @@ Restore the provider's snapshot or point-in-time copy with the provider's tools,
 
 ## Restore to a new host
 
-1. **On the old host, note the version, then stop the app** so nothing is written after the dump:
+Use this to move an instance, or to rebuild it after the old host is gone. Anything written after the dump you restore is lost.
+
+1. **Prepare the new host.** It needs Docker Engine with Docker Compose 2.24.4 or newer (`docker compose version` prints it) and an empty folder for the instance ([Prerequisites](./README.md#prerequisites)). Run every later command in that folder.
+
+2. **Get a dump and the version it came from.**
+
+   - **The old host still runs:** stop the app so nothing is written after the dump, note its version, then dump:
+
+     ```sh
+     docker compose exec api printenv SERVER_VERSION
+     docker compose stop api web worker
+     umask 077
+     DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
+     docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \
+       && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \
+       && echo "dump ok: $DUMP"
+     ```
+
+   - **The old host is gone:** take the newest dump from your off-host copy. The dump records the version that last wrote it, in the `instance_version` table; read it on the new host:
+
+     ```sh
+     DUMP=mergebrief-20260803T091500Z.dump
+     docker run --rm -i postgres:17-alpine pg_restore --data-only --table=instance_version --file=- < "$DUMP" | grep -A1 '^COPY'
+     ```
+
+     The line after `COPY public.instance_version` reads `t`, the version such as `1.4.0`, and a timestamp. If you cannot read it, use the newest release in step 4: a dump restores under the same or a newer release ([What a dump holds](#what-a-dump-holds)).
+
+   On an external database the data stays where it is: skip the dump here and the restore in step 5, read the version with `select version from instance_version` ([Check a restore](#check-a-restore)), and keep any old stack stopped, since two stacks on one database would take the same jobs.
+
+3. **Copy the files to the new host:** the dump, `.env`, `mergebrief.config.yaml`, and if you have them `docker-compose.override.yml`, the `secrets/` folder and the App's private key file. Then give each file the owner the containers read it as, UID 1000:
 
    ```sh
-   docker compose exec api printenv SERVER_VERSION
-   docker compose stop api web worker
+   chmod 600 .env
+   chmod 644 mergebrief.config.yaml
+   chmod 700 secrets
+   sudo chown 1000:1000 secrets/github-app.pem secrets/database-url
+   sudo chmod 400 secrets/github-app.pem secrets/database-url
    ```
 
-2. **Dump the bundled database** ([Back up the bundled database](#back-up-the-bundled-database)). On an external database the data stays where it is: skip the dump and the restore below, and keep the old stack stopped, since two stacks on one database would take the same jobs.
-3. **Copy the files to the new host:** the dump, `.env`, `mergebrief.config.yaml`, and if you have them `docker-compose.override.yml`, `secrets/` and the private key file. On the new host, run `chmod 600 .env`.
-4. **Fetch the same release's files** into that folder, with the version from step 1. On an external database, fetch `docker-compose.external-db.yml` too:
+   Name the files you have: the key file is the one `GITHUB_APP_PRIVATE_KEY_PATH` names, and `secrets/database-url` exists only on an external database. `secrets/provider-ca.pem` stays `644`.
+
+4. **Fetch that release's files** into the folder, with the version from step 2. On an external database, fetch `docker-compose.external-db.yml` too:
 
    ```sh
    curl -fsSLo docker-compose.yml https://github.com/idan91/mergebrief/releases/download/vX.Y.Z/docker-compose.yml
@@ -195,7 +258,7 @@ Restore the provider's snapshot or point-in-time copy with the provider's tools,
 7. **Check** with [Check a restore](#check-a-restore), then redeliver a webhook and sign in ([Check the App](./github-app.md#check-the-app)).
 8. **Make it last:** [start on boot](./compose.md#start-on-boot) and [schedule backups](#schedule-backups) on the new host.
 
-Keep the old host stopped. Once the new host passes its checks, remove the old one's containers and data with `docker compose down --volumes --rmi all` there, then delete its copies of `.env` and the other files. Leave the App, its installations and the attachment branches alone: they now serve the new host, so the rest of [Uninstall](./uninstall.md) does not apply.
+If the old host still exists, keep it stopped. Once the new host passes its checks, remove the old one's containers and data with `docker compose down --volumes --rmi all` there, then delete its copies of `.env` and the other files. Leave the App, its installations and the attachment branches alone: they now serve the new host, so the rest of [Uninstall](./uninstall.md) does not apply.
 
 ## Move to an external database
 
@@ -208,11 +271,18 @@ This moves a running instance's data from the bundled Postgres to a managed one.
    curl -fsSLo docker-compose.external-db.yml https://github.com/idan91/mergebrief/releases/download/v1.4.0/docker-compose.external-db.yml
    ```
 
-2. **Stop the app and dump** ([Back up the bundled database](#back-up-the-bundled-database)):
+2. **Stop the app and dump:**
 
    ```sh
    docker compose stop api web worker
+   umask 077
+   DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
+   docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \
+     && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \
+     && echo "dump ok: $DUMP"
    ```
+
+   Keep this shell open: step 5 reads `$DUMP`.
 
 3. **Stop the bundled database** before you change `.env`. Leave out `-v`, which would delete the volume:
 
@@ -224,7 +294,6 @@ This moves a running instance's data from the bundled Postgres to a managed one.
 5. **Restore into it.** `--no-owner --no-privileges` gives every object to the role in the connection string, since the bundled database's `mergebrief` role does not exist there. With a provider CA, add the `-v` mount from [Back up an external database](#back-up-an-external-database) and drop `-e PGSSLROOTCERT=system`:
 
    ```sh
-   DUMP=mergebrief-20260803T091500Z.dump
    DATABASE_URL="$(cat secrets/database-url)" docker run --rm -i -e DATABASE_URL -e PGSSLROOTCERT=system \
      postgres:17-alpine sh -c 'pg_restore --no-owner --no-privileges -d "$DATABASE_URL"' < "$DUMP"
    ```
@@ -254,7 +323,7 @@ On an external database, run the same queries through `psql` in `postgres:17-alp
 
 ```sh
 DATABASE_URL="$(cat secrets/database-url)" docker run --rm -e DATABASE_URL -e PGSSLROOTCERT=system \
-  postgres:17-alpine sh -c 'psql "$DATABASE_URL" -c "select count(*) from pull_request" -c "select count(*) from brief"'
+  postgres:17-alpine sh -c 'psql "$DATABASE_URL" -c "select count(*) from pull_request" -c "select count(*) from brief" -c "select version from instance_version"'
 ```
 
 The counts match what you expect, and `/readyz` prints `200`: the web tier answers 200 only when the api's own readiness check reaches the database. Then open a pull request you know had a brief and confirm it renders.

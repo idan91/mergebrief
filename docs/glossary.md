@@ -8,6 +8,8 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Revision.** The number of a brief within its pull request: the first brief is revision 1, the brief for a later push is revision 2, and so on. It counts briefs, not pushes, and it is the same for every reviewer. The CLI's `--revision <n>` takes it ([cli.md](./self-host/cli.md#which-revision-a-command-reads)).
 
+**Span.** The two commits a brief or a diff covers, written `base..head` (`93f1a2c..4c0a9be`): the pull request's base and the head the brief was written for. Brief details and `mergebrief pr <n>` print it. Between two pushes, the revision span is the pull request's own change from one head to the next, which a rebase or base merge does not inflate ([Pushes, rebases and force pushes](./self-host/generators.md#pushes-rebases-and-force-pushes)).
+
 **Change group.** A set of changes that together do one thing, such as "fix the cross-tenant leak". It carries a summary and a category (`bugfix`, `pure-move`, `lib-bump` and so on). The changes no group claims form one last group, the unattributed remainder.
 
 **Chunk.** A run of changed lines that belong to one change group and one kind of content (`implementation`, `test`, `config` and so on). A chunk can be smaller than a git hunk, and one file's chunks can sit in different groups. It is the unit you mark as read.
@@ -30,6 +32,10 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 ## Reviewing
 
+**Home.** The page at `/`. Signed in, it holds the box to paste a pull request URL and your Inbox. Signed out, it is the sign-in page.
+
+**Inbox.** The list on Home, labelled "Briefs": every pull request you reach across the App's installations, plus the ones you pasted, each with your review state. `mergebrief pr` with no number prints it.
+
 **Review session.** Your private work on one brief: draft comments, read marks, dispositions, category overrides and the outcome you chose. Nobody else sees it, and nothing reaches GitHub until you submit. A newer brief starts a new session, which carries your work over at its first write.
 
 **Draft comment.** A comment held in your review session. Drafts post to GitHub together when you submit.
@@ -44,6 +50,10 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Generation.** MergeBrief's record of producing the brief for one push: pending, running, held, or finished (succeeded, failed, superseded, capped, awaiting trigger).
 
+**Superseded.** A generation a newer push replaced before it finished. Nothing is wrong: the newer push gets its own brief.
+
+**Salvage.** A repair the worker makes to a model answer instead of failing it, such as dropping one invalid category tag. A salvaged brief is valid and lists the repair in its warnings block ([When something degrades](./self-host/generators.md#when-something-degrades)).
+
 **Trigger.** What starts a brief: every push to an open pull request, drafts included, about 60 seconds after the first push of a burst ([How MergeBrief works](./architecture.md#when-a-brief-is-generated)).
 
 **Trigger condition.** A rule a push must meet before it generates a brief, such as "ready for review" or "CI passed". An operator sets them for the instance and a repository sets its own ([trigger-conditions.md](./repo-config/trigger-conditions.md)).
@@ -54,7 +64,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Awaiting trigger.** A pull request from an author who is not trusted. The page and the Entry comment say **Brief available on demand**, and nothing runs until someone with push access starts the first brief from MergeBrief. That click is the trigger approval: from then on every push generates as usual ([github-app.md](./self-host/github-app.md#who-triggers-a-brief)).
 
-**Daily cap.** The most generation runs the instance starts in one UTC day, across every repository: 300 unless the instance config says otherwise ([generators.md](./self-host/generators.md#daily-generation-cap)).
+**Daily cap.** The most generation runs the instance starts in one UTC day, across every repository: 300 unless the instance config says otherwise ([spend-cap.md](./self-host/spend-cap.md)).
 
 **Slot.** One generation a worker process runs at a time. The worker has a normal pool of slots and a large pool for pull requests that take several model calls ([generators.md](./self-host/generators.md#worker-slots)).
 
@@ -62,14 +72,12 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Instance.** One running MergeBrief: the api, the web tier and the worker over one Postgres database.
 
-**Operator.** A person who runs the instance. In the app, a GitHub user whose numeric id the instance config lists under `operators`; an operator can read instance-wide state such as today's generation count. The role grants no access to any repository ([generators.md](./self-host/generators.md#operators)).
+**Operator.** A person who runs the instance. In the app, a GitHub user whose numeric id the instance config lists under `operators`; an operator can read instance-wide state such as today's generation count. The role grants no access to any repository ([Who can sign in](./self-host/security-model.md#who-can-sign-in)).
 
 **Installation.** One install of your GitHub App on one organization or user account. A pull request from an installed repository reaches MergeBrief through the App's webhooks.
 
-**URL pull request.** A pull request a reviewer added by pasting its URL on Home, for a repository the App is not installed on. It is read with that reviewer's own GitHub token, gets no Entry comment, and MergeBrief never writes to GitHub for it.
+**Pasted pull request.** A pull request a reviewer added by pasting its URL on Home, for a repository the App is not installed on; also called a URL pull request. It is read with that reviewer's own GitHub token, gets no Entry comment, and MergeBrief never writes to GitHub for it.
 
 **Instance config.** `mergebrief.config.yaml`: the operator's settings, such as the model provider, the daily cap, who may sign in and instance-wide trigger conditions ([configuration.md](./self-host/configuration.md#instance-config-mergebriefconfigyaml)).
 
 **Repo config.** The `.mergebrief/` folder a repository commits on its default branch: `settings.yaml`, `policy.yaml` and `instructions.md` ([Configure your repository](./repo-config/README.md)).
-
-**Skew.** The CLI and the server it talks to run different releases. The CLI warns when they differ by a major version ([cli.md](./self-host/cli.md#versions)).
