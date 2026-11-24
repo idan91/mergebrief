@@ -6,7 +6,7 @@ This page walks GitHub's registration form from top to bottom, then collects the
 
 ## Before you start
 
-You need the origin reviewers will browse, with no trailing slash. It becomes `PUBLIC_BASE_URL` in `.env`, and three App fields are built from it:
+You need the origin reviewers will browse, with no trailing slash and no path: MergeBrief serves from the root of its host, and a subpath is unsupported. It becomes `PUBLIC_BASE_URL` in `.env`, and three App fields are built from it:
 
 | Where you run it | `PUBLIC_BASE_URL` |
 | --- | --- |
@@ -25,8 +25,10 @@ openssl rand -hex 32
 
 ### Open the registration form
 
+Register the App under the account that owns the repositories you want briefed. For an organization's repositories, that is the organization:
+
 - For an App your organization owns (recommended): `https://github.com/organizations/<org>/settings/apps/new`. You need to be an owner of the organization, or a GitHub App manager in it.
-- For an App on your personal account: `https://github.com/settings/apps/new`.
+- For an App on your personal account: `https://github.com/settings/apps/new`. Use it only for repositories on your own account: with **Only on this account**, below, it cannot be installed on any organization ([Who can install and sign in](#who-can-install-and-sign-in)).
 
 Both open GitHub's **Register new GitHub App** form. The same form is under **Settings**, **Developer settings**, **GitHub Apps**, **New GitHub App**.
 
@@ -191,7 +193,7 @@ A bot author is decided by the repository's `trustedBots` list in `.mergebrief/s
 GitHub's **Where can this GitHub App be installed?** setting decides more than the install page:
 
 - **Only on this account, owned by an organization:** only that organization can install it, and only its members can sign in through it.
-- **Only on this account, owned by a person:** only that person's account can install it.
+- **Only on this account, owned by a person:** only that person's account can install it. It cannot be installed on an organization, not even one that person owns, so it cannot brief an organization's repositories. To brief those, register the App under the organization.
 - **Any account:** anyone can install it and sign in through it.
 
 The instance answers to its own list either way ([Who can sign in](./security-model.md#who-can-sign-in)): an install lets nobody in and starts no brief until the account is listed, so a stranger's install on an **Any account** App spends nothing.

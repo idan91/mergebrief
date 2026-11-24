@@ -1,6 +1,6 @@
 # `instructions.md` template
 
-Copy this into `.mergebrief/instructions.md` on your default branch and replace the examples with your repository's. Every section is optional: delete the ones you don't need. Each heading matches one thing instructions can change; [Instructions](./instructions.md) explains each one, what instructions cannot change, and the 16 KB limit.
+Copy this into `.mergebrief/instructions.md` on your default branch and replace the examples with your repository's. Every section is optional: delete the ones you don't need. Each heading matches one thing instructions can change; [Instructions](./instructions.md) explains each one, what instructions cannot change, and the size limit.
 
 ```markdown
 ## Grouping

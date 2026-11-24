@@ -50,7 +50,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Generation.** MergeBrief's record of producing the brief for one push: pending, running, held, or finished (succeeded, failed, superseded, capped, awaiting trigger).
 
-**Superseded.** A generation a newer push replaced before it finished. Nothing is wrong: the newer push gets its own brief.
+**Superseded.** A generation a newer push replaced before it finished. Nothing is wrong: the newer push gets its own brief. A run briefing a large pull request in parts is never superseded once it has grouped the changes and started on the parts: it finishes the brief for its own head first ([When a brief is generated](./architecture.md#when-a-brief-is-generated)).
 
 **Salvage.** A repair the worker makes to a model answer instead of failing it, such as dropping one invalid category tag. A salvaged brief is valid and lists the repair in its warnings block ([When something degrades](./self-host/generators.md#when-something-degrades)).
 

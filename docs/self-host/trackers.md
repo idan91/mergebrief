@@ -21,6 +21,8 @@ trackers:
     siblingRepos: true # default false
 ```
 
+Only the worker reads `trackers` ([Apply a change](./configuration.md#apply-a-change)):
+
 ```sh
 docker compose restart worker
 ```
@@ -99,7 +101,7 @@ Then [add it to the instance](#add-the-credentials-and-boards-to-the-instance).
    docker compose up -d
    ```
 
-   `up -d` recreates the services with the new `.env`, and they read the config file as they start. If you changed only `mergebrief.config.yaml`, `docker compose restart worker` is enough.
+   `up -d` recreates the services with the new `.env`, and they read the config file as they start. If you changed only `mergebrief.config.yaml`, `docker compose restart worker` is enough ([Apply a change](./configuration.md#apply-a-change)).
 
 4. **Check the worker started.** `docker compose ps -a` shows `worker` as `Up`. A worker at `Exited (0)` names the problem on the last line of `docker compose logs worker`: an unset variable, a `site` where no Jira site answers, or a duplicate key ([A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0)).
 
@@ -190,7 +192,7 @@ GitHub Issues are read with the credential the job already holds:
 
 ### Links in the description
 
-Beside the primary ticket, the worker fetches up to five other `http` or `https` links from the visible pull request description as context. Each page is cut at 20,000 characters, and all of them together at `linkFetch.maxTotalChars` (40,000 by default). An HTML page loses its comments and its `head`, `script`, `style`, `template` and `noscript` elements first.
+Beside the primary ticket, the worker fetches up to five other `http` or `https` links from the visible pull request description as context. Each page's text is capped, and so is all of it together; both limits, and what an HTML page loses first, are in [`linkFetch`](./configuration.md#linkfetch).
 
 The worker skips a link with credentials in it, a port other than 80 or 443, a `localhost` or `.local` host, and any private, link-local, reserved, multicast, documentation or cloud-metadata address. A host name resolves through DNS directly, never `/etc/hosts`, and is checked again at connect time against every address it resolves to. Redirects are not followed, link fetches never use a proxy, and only a text body (`text/*`, JSON or XML) without a content encoding is read. The instance's `linkFetch` block turns link fetches off or limits them to listed hosts ([configuration.md](./configuration.md#linkfetch)).
 

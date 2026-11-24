@@ -1,6 +1,6 @@
 # Settings: `settings.yaml`
 
-`.mergebrief/settings.yaml` holds your repository's workflow settings: which pushes get a brief, whether the Entry comment posts on drafts, where your tickets live, and which bots' pull requests generate without a click. The file is at most 4 KB, starts with `version: 1`, and takes only the keys below. Any other key, or a bad value under any key, rejects the whole file ([How MergeBrief reads the files](./README.md#how-mergebrief-reads-the-files)).
+`.mergebrief/settings.yaml` holds your repository's workflow settings: which pushes get a brief, whether the Entry comment posts on drafts, where your tickets live, and which bots' pull requests generate without a click. The file starts with `version: 1`, stays within its [size limit](./README.md#the-three-files), and takes only the keys below. Any other key, or a bad value under any key, rejects the whole file ([How MergeBrief reads the files](./README.md#how-mergebrief-reads-the-files)).
 
 ```yaml
 version: 1

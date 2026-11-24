@@ -2,7 +2,7 @@
 
 Every brief marks each chunk of a change with **risk attributes**: facts a reviewer should know, such as `touches-auth` or `no-tests`. MergeBrief ships a fixed set of them ([Built-in attributes](#built-in-attributes)). `.mergebrief/policy.yaml` lets your repository add its own, scoped to the paths where they matter, and quiet built-in ones that are noise for you.
 
-An attribute is a fact, never a verdict: there is no severity, tier or weight, and a key for one rejects the file. The file is at most 32 KB and starts with `version: 1`.
+An attribute is a fact, never a verdict: there is no severity, tier or weight, and a key for one rejects the file. The file starts with `version: 1` and stays within its [size limit](./README.md#the-three-files).
 
 To confirm the file applied, see [Check that your config applied](./README.md#check-that-your-config-applied).
 

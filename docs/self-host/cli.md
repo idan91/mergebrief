@@ -66,9 +66,15 @@ profile default → https://mergebrief.your-org.example
 token: configured · authenticated · server 1.4.0 · cli 1.4.0 · latest 1.4.0
 ```
 
-`authenticated` means the token works. `auth status` always exits 0, even when the server is unreachable or the token is dead, so read the line, or `server.reachable` and `server.authenticated` in `auth status --json`.
+`authenticated` means the token works. `auth status` exits 0 even when the server is unreachable or the token is dead, so read the line, or `server.reachable` and `server.authenticated` in `auth status --json`. It exits 2 only when it cannot pick a profile: none is stored, `--profile` or `MERGEBRIEF_PROFILE` names one that is not, or `MERGEBRIEF_TOKEN` is set in a clone whose owner routes to a profile other than the default ([profiles](#several-instances-profiles)).
 
 If an error says the instance "answered like an identity-provider proxy", your company's sign-in proxy is catching the CLI's requests. See [Behind an identity-aware proxy](#behind-an-identity-aware-proxy).
+
+### Sign out
+
+There is no `auth logout`. To sign a machine out, delete its profile from `~/.config/mergebrief/config.json`, or the whole file, then revoke the token in the browser under `/settings`, **API tokens**. Deleting the file alone leaves the token valid wherever else it was copied.
+
+**Check:** `mergebrief auth status` exits 2 with `no profile resolved; run: mergebrief auth login`.
 
 ## Review a pull request from the terminal
 
@@ -180,7 +186,18 @@ The whole walkthrough, posting the review to GitHub included, needs an `external
     mergebrief delta 7 --json
     ```
 
-    It answers `{"available":true,...}` with the changes, or `{"available":false,"reason":"..."}`, both with exit 0. `reason` is `no-checkpoint` until you have submitted a review here, `pending` while that delta is still generating, and `unchanged` when the new pushes left the pull request's own changes as they were.
+    It answers `{"available":true,...}` with the changes, or `{"available":false,"reason":"..."}`, both with exit 0. `reason` is one of:
+
+| `reason` | Why there is no delta |
+| --- | --- |
+| `no-checkpoint` | You have not submitted a review on this pull request here yet. |
+| `pending` | The comparison from your last review is still generating. |
+| `unchanged` | The new pushes left the pull request's own changes as they were. |
+| `delta-not-generated` | The comparison exists but no delta brief is stored for it: it is still generating, or it was skipped as too large for one model call or cut off at the output limit. |
+| `span-too-large` | GitHub would not serve the diff between the commit you reviewed and the head, so there is no comparison at all. |
+| `baseline-unavailable` | No comparison exists and none is generating, for example because a force push rewrote away the commit you reviewed. |
+
+`delta-not-generated` and `span-too-large` still leave the brief for the new head: read it with `mergebrief groups 7`.
 
 To put an image in a comment, `mergebrief draft attach 7 screenshot.png` uploads a PNG, JPEG, GIF or WebP file to the repository's `mergebrief/attachments` branch and prints its URL; `--draft <id>` also appends it to that draft. It needs an `external-write` token ([attachments.md](./attachments.md)).
 
@@ -234,6 +251,30 @@ held: Waiting for CI: build, test still running (this repository's setting); Nee
 | `generation.status` is `failed` | `mergebrief generation 7` shows the stored `errorCode`. `mergebrief generate 7` reruns it when a rerun can help ([troubleshooting.md](./troubleshooting.md)). |
 
 In `--json`, the unmet conditions are `generation.unmetConditions`. `generation.unmetConditionsPartial: true` means the server could not read every stored condition, so the list is not the whole reason.
+
+### When submit or generate refuses
+
+These refusals exit 5. The error line is the text below followed by the HTTP status, such as `(HTTP 409)`; the code in the first column is what the server sent.
+
+| Code | Error line starts with | From | What to do |
+| --- | --- | --- | --- |
+| `draft-anchor-orphaned` | `this review holds a comment whose anchor no longer points at any code` | `submit` | One of your drafts points at code this revision no longer has. Find it with the command under this table. Moving or deleting a draft needs the browser (`draft reanchor` and `draft delete` answer `human-only` to a token): open the pull request in MergeBrief, re-place or delete it, then submit again. |
+| `pending-review-held` | `an unsubmitted review of yours is open on GitHub for this pull request` | `submit` | A pending review of yours, with comments in it, already sits on GitHub, and only one is allowed. Submit or discard it on the pull request's **Files changed** tab on GitHub, then submit again. |
+| `pr-changed-since-read` | `pull request changed since it was read` | `submit`, `draft`, `chunk-read`, `reclassify`, `outcome` | You moved to a newer revision elsewhere, such as in the browser, so this one no longer takes writes. Run `mergebrief session 7` to move, re-read what changed, then write again. |
+| `pr-rewritten-since-read` | `pull request was rewritten since it was read` | `submit` | A force push removed the commit your review was on. Run `mergebrief session 7` to move to the newest revision, check your drafts, then submit again. |
+| `draft-publish-pending` | `this comment is being posted to github` | `submit` | An earlier attempt is still posting one of these drafts. Wait a moment, then submit again. |
+| `draft-publish-in-doubt` | `this comment may have reached github, which could not be confirmed` | `submit` | An earlier attempt never confirmed whether a draft reached GitHub. Look on the pull request on GitHub: if the comment is there, delete the draft in MergeBrief's browser view; if not, use **Post now** on it there, which checks GitHub before it posts. Then submit again. |
+| `draft-limit-reached` | `this review already holds as many unposted comments as it can carry` | `draft create` | One review holds at most 64 unposted drafts. Submit, or delete some in the browser, before adding another. |
+| `account-not-allowed` | `this github account is not allowed on this instance` | `generate` | Your GitHub account is not on the instance's list. Ask the operator ([Who can sign in](./security-model.md#who-can-sign-in)). |
+| `operator-only` | `only an operator of this instance can read this` | `spend` | Only an operator listed in the instance config can run it. |
+| `generation-running` | `a brief is already generating for this push` | `generate <number>` | Wait. `mergebrief pr 7 --json` shows `generation.status` leave `running`. |
+| `generation-not-regenerable` | `this push's brief cannot be regenerated` | `generate <number>` | Nothing on this head can be rerun: the pull request is closed or merged, a brief is already stored, or the failure is one a rerun repeats. `mergebrief generation 7` shows which. A new push gets its own run. |
+
+To list your drafts that no longer point at code:
+
+```sh
+mergebrief session 7 --json | jq '.draftComments[] | select(.anchorStatus == "orphaned") | {id, filePath}'
+```
 
 ## Use it in CI and from agents
 

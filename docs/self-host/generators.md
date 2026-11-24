@@ -2,10 +2,7 @@
 
 MergeBrief writes each brief with one model, chosen in the `generator:` block of `mergebrief.config.yaml`. With no block it uses Anthropic's Claude Opus 5.5 and the key in `ANTHROPIC_API_KEY`. This page shows how to keep that default, switch the model, switch to OpenAI or OpenRouter, route through a gateway, and check which model wrote a brief.
 
-Run every command in the folder that holds `docker-compose.yml`, `.env` and `mergebrief.config.yaml`. Two rules decide how a change takes effect:
-
-- **After a `.env` change, run `docker compose up -d`.** It recreates `api` and `worker` with the new environment. `docker compose restart` keeps the old one.
-- **After a change to `mergebrief.config.yaml` alone, run `docker compose restart worker`.** Compose mounts the file, so a restart reads it again. Only the worker reads the `generator:` block.
+Run every command in the folder that holds `docker-compose.yml`, `.env` and `mergebrief.config.yaml`. Only the worker reads the `generator:` block, so a change to it alone takes `docker compose restart worker`. A key changed in `.env` takes `docker compose up -d` instead, since a restart keeps the old environment. [Apply a change](./configuration.md#apply-a-change) says what every other change needs.
 
 The key never goes in `mergebrief.config.yaml`: the file names the variable that holds it, and the value stays in `.env`.
 
@@ -44,7 +41,7 @@ Briefs already written keep their text, and the next push re-uses the groups it 
 
 ## Switch the provider
 
-Each provider reads its key from its own variable. Put the `generator:` block in `mergebrief.config.yaml` and the key in `.env`, then run `docker compose up -d`, which applies both. You can leave `ANTHROPIC_API_KEY` in `.env`; nothing reads it once another provider is set.
+Each provider reads its key from its own variable. Put the `generator:` block in `mergebrief.config.yaml` and the key in `.env`, then run `docker compose up -d`. A new key recreates the worker, which then reads the config file too; if the key was already in `.env`, also run `docker compose restart worker`. You can leave `ANTHROPIC_API_KEY` in `.env`; nothing reads it once another provider is set.
 
 ### OpenAI
 
@@ -251,7 +248,7 @@ An API provider holds one response stream per slot, so the limits that matter ar
 
 ### The large pool
 
-A pull request GitHub reports with more than 120 changed files, or whose changed lines exceed one call's input (about 11,900 lines), is briefed in parts: a grouping call, then detail calls, up to `generator.detailConcurrency` of them at once (default 8). The worker moves such a run to the large pool before anything is spent, so its one default slot runs large pull requests one after another while ordinary pushes keep their own slots. A second large slot costs up to `detailConcurrency` more streams at the provider: on a provider rate limit, lower `detailConcurrency` before you add a large slot.
+A diff over 400k input tokens or 120 hunks is briefed in parts: a grouping call, then detail calls, up to `generator.detailConcurrency` of them at once. That decision is made once the diff is read. Before reading it, the worker predicts the same decision from GitHub's counts, a changed file standing for a hunk and about 11,900 changed lines for 400k tokens: a pull request with more than 120 changed files or more changed lines than that moves to the large pool before anything is spent. Its one default slot runs large pull requests one after another while ordinary pushes keep their own slots. A run the prediction missed is still briefed in parts, in the slot it started in. A second large slot costs up to `detailConcurrency` more streams at the provider: on a provider rate limit, lower `detailConcurrency` before you add a large slot.
 
 A large run counts one run against the daily cap when it starts and one more for each part ([What counts](./spend-cap.md#what-counts)).
 

@@ -1,6 +1,6 @@
 # Cap daily generation spend
 
-The daily cap limits how many generation runs the instance starts in one UTC day, across every repository it serves. It is on by default at 300 runs a day. It is what stands between a burst of webhooks and your model provider bill, since the webhook route has no rate limit of its own. Only the operator sets it: no repository file can raise or lower it.
+The daily cap limits how many generation runs the instance starts in one UTC day, across every repository it serves. It is on by default ([the default](./configuration.md#drafts-spend-operators-allowed)). It is what stands between a burst of webhooks and your model provider bill, since the webhook route has no rate limit of its own. Only the operator sets it: no repository file can raise or lower it.
 
 The cap counts runs, not money. It is a ceiling on what you are willing to spend in a day, not an invoice; set a spend limit at your provider too.
 
@@ -14,7 +14,7 @@ spend:
   maxGenerationsPerDay: 50
 ```
 
-The value is a positive whole number, or `unlimited` to run with no cap. Then restart the two services that read it:
+The value is a positive whole number, or `unlimited` to run with no cap. Then restart the two services that read it ([Apply a change](./configuration.md#apply-a-change)):
 
 ```sh
 docker compose restart api worker

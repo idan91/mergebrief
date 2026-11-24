@@ -1,9 +1,6 @@
 # Rotate secrets
 
-Every secret lives in `.env`, or in a file a `.env` variable names, and `api` and `worker` read it once, at boot. How a change takes effect depends on where the secret sits:
-
-- **A value in `.env`:** run `docker compose up -d`. It recreates each service whose environment changed. `docker compose restart` keeps the old environment, so it does not pick up the change.
-- **A file**, such as the one `GITHUB_APP_PRIVATE_KEY_PATH` or `DATABASE_URL_FILE` names: compose cannot see a file's contents change, so run `docker compose restart api worker`.
+Every secret lives in `.env`, or in a file a `.env` variable names, and `api` and `worker` read it once, at boot. A value in `.env` takes effect with `docker compose up -d` ([Apply a change](./configuration.md#apply-a-change)). A file, such as the one `GITHUB_APP_PRIVATE_KEY_PATH` or `DATABASE_URL_FILE` names, takes `docker compose restart api worker`, because compose cannot see a file's contents change.
 
 `web` holds none of these secrets and never needs a restart for them. Run every command in the folder that holds `docker-compose.yml` and `.env`.
 
@@ -39,21 +36,22 @@ The session key encrypts each signed-in user's stored GitHub tokens. Rotate it u
    docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from github_grant where key_ref = '\''SESSION_KEY_V1'\''"'
    ```
 
-   On an external database, run the same query through `psql` in `postgres:17-alpine`, as [Check a restore](./backup-restore.md#check-a-restore) does.
+   On an external database, run the same query the [external way](./backup-restore.md#run-sql-on-an-external-database).
 
 4. **Remove `SESSION_KEY_V1`** from `.env` once the count is 0, then run `docker compose up -d`.
 
-**Check:** sign in from a private window. Removing a key while the count is above 0 makes every request of those users that needs GitHub answer 500, with `token.decrypt.fail` in the api log, until you set it back. Nobody is signed out.
+**Check:** sign in from a private window. Removing a key while the count is above 0 breaks those users' GitHub calls until you set it back ([below](#if-the-session-key-changed-or-was-lost)).
 
 ### If the session key changed or was lost
 
-Changing `SESSION_KEY_V1` in place, or losing it, breaks every stored token sealed under that name:
+Changing `SESSION_KEY_V1` in place, losing it, or removing any `SESSION_KEY_*` a stored token still names breaks every token sealed under that name. So does a ciphertext moved into another row, column or `key_ref` ([How GitHub tokens are stored](#how-github-tokens-are-stored)). What happens:
 
-- Every request from those users that needs GitHub answers 500, and the api logs `token.decrypt.fail`. Their sessions and API tokens stay valid; only the GitHub side fails.
+- Every request from those users that needs GitHub answers 500, and the api logs `token.decrypt.fail` at `error`. An access token fails at the user's next GitHub call, a refresh token when the access token next needs one.
+- Nobody is signed out: their sessions and API tokens stay valid, and only the GitHub side fails, until the key matches again, the user signs out, or the session expires.
 - Generating a pasted pull request for one of them fails until they sign in again.
 - The worker's hourly sweep cannot revoke their tokens at GitHub. It logs `grant.revoke.fail` with `code: credential-unreadable` and deletes the stored token anyway; GitHub expires it on its own.
 
-Put the old value back and run `docker compose up -d`. If the old value is gone, each user recovers by signing out and in again, which seals a new token under the current key. An API token stays bound to the sign-in it was created from, so each user also revokes their old API tokens in `/settings` and creates new ones.
+**Fix:** put the old value back under its old name and run `docker compose up -d`. If the old value is gone, each user recovers by signing out and in again, which seals a new token under the current key. An API token stays bound to the sign-in it was created from, so each user also revokes their old API tokens in `/settings` and creates new ones. **Check:** the user's next GitHub-backed request answers, and no new `token.decrypt.fail` line names their `reviewerId`.
 
 ## Rotate the GitHub App private key
 
@@ -89,7 +87,7 @@ The App holds one webhook secret, so GitHub and MergeBrief change together. Deli
 2. Set it as the App's **Webhook secret** on GitHub, then at once set `GITHUB_WEBHOOK_SECRET` in `.env` and run `docker compose up -d`. Only `api` verifies deliveries, but `worker` parses the same variable, and both are recreated.
 3. **Check:** on the App's **Advanced** tab, redeliver the newest delivery under **Recent Deliveries**. It answers `200`.
 
-The worker resends what failed in between, up to 20 every 15 minutes, starting within about 30 minutes ([Other webhook answers](./troubleshooting.md#other-webhook-answers)). To do it sooner, redeliver those from the **Advanced** tab. A `webhook.verify.fail` rate that stays up after the rotation means one side did not move.
+The worker resends the deliveries that failed in between ([how and when](./troubleshooting.md#other-webhook-answers)). To do it sooner, redeliver those from the **Advanced** tab. A `webhook.verify.fail` rate that stays up after the rotation means one side did not move.
 
 ## Change the Postgres password
 
@@ -144,6 +142,39 @@ On an external database, change the password at the provider, then update `DATAB
 3. **Check:** `docker compose logs api worker | grep 'URL fallback token'` shows `URL fallback token serves its owner only` from each. A `url-fallback-token.owner.fail` line instead means GitHub refused the token ([troubleshooting.md](./troubleshooting.md#github-refused-the-url-fallback-token)).
 4. Delete the old token on GitHub, under **Settings**, **Developer settings**, **Personal access tokens**.
 
+## Rotate the model provider key
+
+Only the worker holds the key. It reads it from the variable `generator.apiKeyEnv` names in `mergebrief.config.yaml`, or, with none named, from `ANTHROPIC_API_KEY` for `anthropic`, `OPENAI_API_KEY` for `openai` and `OPENROUTER_API_KEY` for `openrouter`. A CLI provider signs in its own way ([Subscription CLI providers](./generators.md#subscription-cli-providers)).
+
+1. Create a new key in the provider's console. Keep the old one live.
+2. Set the new key in `.env` under the same variable, then run `docker compose up -d`.
+3. **Check:** `docker compose ps -a worker` shows it running, not `Exited (0)`. Then push a commit to a pull request, or click **Regenerate brief** on a failed one, and confirm the brief generates. `openrouter`, and `openai` without a `baseUrl`, check the key at boot, so a refused key stops the worker with `invalid generator configuration`; `anthropic` first uses it for a brief, where a refused key logs `provider.error` with `kind: auth`.
+4. Revoke the old key in the provider's console.
+
+## Rotate a tracker token
+
+Only the worker reads the tracker credentials, at boot: `NOTION_TOKEN` for Notion, `JIRA_EMAIL` and `JIRA_API_TOKEN` for Jira, or the variables an entry's `tokenEnv` and `emailEnv` name ([trackers.md](./trackers.md#add-the-credentials-and-boards-to-the-instance)).
+
+1. Create the new token: in the Notion integration's settings, or on Atlassian's API token page with only the `read:jira-work` scope ([trackers.md](./trackers.md#2-create-an-api-token-with-one-scope)). If the service replaces the old token at once, ticket reads fail until step 2 lands.
+2. Set it in `.env` and run `docker compose up -d`.
+3. **Check:** for Jira, `docker compose logs worker | grep jira.token.check` shows no line with `outcome: refused` ([Jira refused the token at boot](./troubleshooting.md#jira-refused-the-token-at-boot)). For either, push to a pull request whose title names a ticket and confirm its brief reads it ([Check that a ticket is read](./trackers.md#check-that-a-ticket-is-read)).
+4. Revoke the old token in Notion or Atlassian.
+
+## Rotate an OTLP header credential
+
+A tracing backend's key belongs in a collector or agent beside the stack, as the [observability recipes](./observability.md#wire-your-stack) set up. There, rotate it in the collector's own file, such as `.env.otelcol`, and recreate that service:
+
+```sh
+docker compose up -d otel-collector
+```
+
+If `api` and `worker` send the credential themselves in `OTEL_EXPORTER_OTLP_HEADERS` or `OTEL_EXPORTER_OTLP_TRACES_HEADERS`:
+
+1. Create the new credential at the backend, keeping the old one live.
+2. Set the header value in `.env` (`key=value`, the value percent-encoded), then run `docker compose up -d`.
+3. **Check:** `docker compose logs api worker | grep 'tracing on'` shows a line from each, then push a commit and find its new traces in the backend. A malformed header refuses boot while an endpoint is set.
+4. Revoke the old credential at the backend.
+
 ## How GitHub tokens are stored
 
 The only secret MergeBrief stores is each signed-in user's GitHub access and refresh token pair, on its `github_grant` row. Session cookies and API tokens are stored as SHA-256 hashes, so a database copy cannot replay them, and no other column is encrypted.
@@ -152,6 +183,6 @@ The pair is encrypted with AES-256-GCM under the key in a `SESSION_KEY_*` variab
 
 `SESSION_KEY_REF` names the variable new tokens are sealed under, `SESSION_KEY_V1` by default. It holds a name, never a key: a value that is not a variable name refuses boot ([configuration.md](./configuration.md#github-app-and-sign-in)).
 
-One rule covers every stored token the key cannot open, whatever the cause: a key that changed or was removed, or a ciphertext moved into the wrong row, column or `key_ref`. The request that needs it answers 500, the session is kept, and the api logs `token.decrypt.fail` at `error`. An access token fails at the user's next GitHub call, a refresh token when the access token next needs one, and either keeps failing until the key matches again, the user signs out, or the session expires. If user A's encrypted token is copied into user B's row, B's GitHub-backed requests answer 500 and A's token is never sent.
+A token the key cannot open fails the same way whatever the cause ([If the session key changed or was lost](#if-the-session-key-changed-or-was-lost)). If user A's encrypted token is copied into user B's row, B's GitHub-backed requests answer 500 and A's token is never sent.
 
 The binding stops ciphertext moving between rows. It does not stop someone who can write to the database from inserting a session or API token row, or repointing an existing one, at user A's grant: that row then acts as A. Guard database write access as closely as the key.

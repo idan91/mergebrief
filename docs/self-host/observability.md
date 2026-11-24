@@ -10,9 +10,9 @@ Every MergeBrief process writes structured JSON to stdout, one line per event. T
    | Alert on | Rule | What it means |
    | --- | --- | --- |
    | `job.retries.exhausted` | Any occurrence | A push's brief gave up for good. This is the worker alert. |
-   | `provider.error` with `status` 401 or 403, or `kind: provider-spend-limit` | Any occurrence | The model provider refused the key, or its account hit a spend limit. No brief generates until you fix it. |
+   | `provider.error` with `kind` `auth` or `provider-spend-limit` | Any occurrence | The model provider refused the key, or its account hit a spend limit. No brief generates until you fix it. |
    | `webhook.dispatch.fail` | Any occurrence | A correctly signed GitHub delivery failed to save or queue. |
-   | `token.decrypt.fail` | Any occurrence | The session key cannot open stored GitHub tokens, so every request that needs GitHub answers 500. |
+   | `token.decrypt.fail` | Any occurrence | The session key cannot open stored GitHub tokens ([what fails](./secrets.md#if-the-session-key-changed-or-was-lost)). |
    | `webhook.verify.fail` | A sustained rate, never a single hit | After a secret rotation, one side kept the old webhook secret. Single hits are internet scanners. |
 
 3. **Check** that lines arrive and parse:
@@ -98,7 +98,7 @@ groups:
         expr: sum(count_over_time({service="worker"} | json | evt = `job.retries.exhausted` [15m])) > 0
         labels: { severity: critical }
       - alert: ProviderAuthBroken
-        expr: sum(count_over_time({service="worker"} | json | evt = `provider.error` | status =~ `401|403` [15m])) > 0
+        expr: sum(count_over_time({service="worker"} | json | evt = `provider.error` | kind = `auth` [15m])) > 0
         labels: { severity: critical }
       - alert: ProviderSpendLimitReached
         expr: sum(count_over_time({service="worker"} | json | evt = `provider.error` | kind = `provider-spend-limit` [15m])) > 0
@@ -120,7 +120,7 @@ groups:
 Point the Agent's Docker log collection at the compose services; the JSON lines parse on their own. Two settings matter: map `level` with the log status remapper (the values are strings, not numbers), and add a facet on `evt`. Then create monitors on:
 
 - `@evt:job.retries.exhausted`, any occurrence
-- `@evt:provider.error @status:(401 OR 403)`, any occurrence
+- `@evt:provider.error @kind:auth`, any occurrence
 - `@evt:provider.error @kind:provider-spend-limit`, any occurrence
 - `@evt:webhook.dispatch.fail`, any occurrence
 - `@evt:token.decrypt.fail`, any occurrence
@@ -258,7 +258,7 @@ Today's started runs against the daily cap come from the API, not the logs: `mer
 | `GET /readyz` | 200 when one `SELECT 1` reaches Postgres, else 503 `{"ok":false}` | 200 when the api's own `/readyz` answers within 2 seconds, else 503 |
 
 - **Restart policies and container health checks use `/healthz` only.** A database blip should take the instance out of the load balancer through `/readyz`, never restart it.
-- **The worker has no HTTP surface.** Compose restarts it after a crash (`restart: on-failure`), while a configuration error exits 0 and stays down. Watch for `Exited (0)` in `docker compose ps -a`; the last line of `docker compose logs worker` names the reason. The queue-level signal is `job.retries.exhausted`.
+- **The worker has no HTTP surface.** Compose restarts it after a crash (`restart: on-failure`), while a configuration error exits 0 and stays down. Watch for `Exited (0)` in `docker compose ps -a`; the last line of `docker compose logs worker` names the reason ([A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0)). The queue-level signal is `job.retries.exhausted`.
 - **`/api/version` is not a health check.** It needs a session or token, and it is how the CLI checks it can sign in. It also carries `latest`, the newest release the update check has seen ([Turn off or mirror the update check](./upgrade.md#turn-off-or-mirror-the-update-check)).
 
 **Check** from the host:
@@ -307,7 +307,7 @@ Tracing is off by default. Set an OTLP/HTTP endpoint in `.env`, and the api, the
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 ```
 
-Run `docker compose up -d`, which recreates the services with the new environment; `docker compose restart` keeps the old one. **Check:** each process logs `tracing on` at boot. With no endpoint set, a process loads no OpenTelemetry SDK at all.
+Run `docker compose up -d` ([Apply a change](./configuration.md#apply-a-change)). **Check:** each process logs `tracing on` at boot. With no endpoint set, a process loads no OpenTelemetry SDK at all.
 
 Every `OTEL_*` variable MergeBrief reads, with its default and what a bad value does, is in [configuration.md](./configuration.md#logging-and-tracing). Two choices matter here:
 
@@ -403,25 +403,26 @@ These `evt` names are a stable contract: a rename, removal or field change gets 
 | `webhook.delivery.duplicate` | debug | api | `deliveryId`, `reqId` | No | A pull request, review, check run or status delivery whose signature was already processed in the last 72 hours was skipped. A manual redelivery of a successful delivery lands here. |
 | `job.fail` | error | worker | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | Yes | One attempt of a job failed. |
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | Yes, the worker alert | The queue gave up on the job, or the push spent its claims and its brief ends `failed` as `attempts-exhausted`. From a `sync-entry` job it means the Entry comment may not match the brief's state. |
-| `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401, 403 and spend limit: yes. Sustained 429 or 5xx: degraded | 401 or 403: credentials or config are broken. `kind: provider-spend-limit` (no `status`): the provider account hit a spend limit. |
-| `token.refresh.fail` | error | api | `reqId`, `reviewerId`, `kind` | Yes | A session or API token could not rotate its GitHub credentials. `kind` names GitHub's OAuth error (or `expiration-not-enabled`) when GitHub refused the App's own credentials or settings: fix the App, and the session is kept. `kind: seal-failed`: GitHub rotated but the session key could not seal the new pair. |
-| `token.decrypt.fail` | error | api | `reqId`, `reviewerId` | Yes | The session key cannot open a stored GitHub token. The session is kept, and every request that needs GitHub answers 500 until the key matches the one that sealed it. A ciphertext moved from another row or column fails the same way ([How GitHub tokens are stored](./secrets.md#how-github-tokens-are-stored)). |
-| `token.refresh.unavailable` | warn | api | `reqId`, `reviewerId`, `refreshTokenPossiblyConsumed` | Sustained rate | GitHub did not answer a token rotation within 10 seconds or answered with an outage, or another refresh held the same grant for over 2 seconds. Sessions and tokens are kept and the request answers 502. `refreshTokenPossiblyConsumed: true` means GitHub may have rotated before the call failed, so a later `token.refresh.fail` for the same reviewer can trace back to it. |
+| `provider.error` | error | worker | `provider`, `kind`, job bindings | `auth` and `provider-spend-limit`: yes. Sustained `provider-transient` or `timeout`: degraded | One attempt's call to the model provider failed; `kind` says how ([below](#provider-error-kinds)). |
+| `token.refresh.fail` with `kind` | error | api | `reqId`, `reviewerId`, `kind` | Yes | A session or API token could not rotate its GitHub credentials, for a reason the operator fixes; the session is kept and the request answers 500. `kind` is GitHub's OAuth error token, or `expiration-not-enabled`, when GitHub refused the App's own credentials or settings: fix the App. `kind: seal-failed`: GitHub rotated but the session key could not seal the new pair ([GitHub token refresh fails](./troubleshooting.md#github-token-refresh-fails)). |
+| `token.refresh.fail` without `kind` | error | api | `reqId`, `reviewerId` | Sustained rate | Not an App fault. GitHub refused that user's refresh token, so the grant is retired: its sessions end, its API tokens are revoked, and that user signs in again. Also logged when an API token expired or was revoked while its request refreshed. |
+| `token.decrypt.fail` | error | api | `reqId`, `reviewerId` | Yes | The session key cannot open a stored GitHub token ([what fails and how to recover](./secrets.md#if-the-session-key-changed-or-was-lost)). |
+| `token.refresh.unavailable` | warn | api | `reqId`, `reviewerId`, `refreshTokenPossiblyConsumed` | Sustained rate | GitHub did not answer a token rotation within 10 seconds or answered with an outage, or another refresh held the same grant for over 2 seconds. Sessions and tokens are kept and the request answers 502. `refreshTokenPossiblyConsumed: true` means GitHub may have rotated before the call failed, so a later `token.refresh.fail` for the same reviewer can trace back to it ([GitHub token refresh fails](./troubleshooting.md#github-token-refresh-fails)). |
 | `authorization.revoked` | info | api | `deliveryId`, `reqId`, `reviewerId`, `sessions`, `tokens`, `grants` | No | A user revoked the App on github.com, and every session, API token and grant they held here was deleted. |
-| `grant.revoke.fail` | warn | api, worker | `reqId` (api only), `grantId`, `code` | Sustained rate | GitHub refused or did not answer a token revoke after a sign-out, an API token revoke or the hourly sweep, so that GitHub token may stay valid until it expires. `code` is `token-delete-failed` (422, 5xx or no answer), or `credential-unreadable` when the session key cannot open the stored token or the worker runs without `SESSION_KEY_V1`. A 404 is not logged: GitHub answers it for a token it already invalidated and for a wrong client secret, so a drifted secret shows as `token.refresh.fail` instead. |
+| `grant.revoke.fail` | warn | api, worker | `reqId` (api only), `grantId`, `code` | Sustained rate | GitHub refused or did not answer a token revoke, so that GitHub token may stay valid until it expires. The revoke follows a sign-out, an API token revoke, the hourly sweep, or a token rotation that found the account no longer allowed on the instance and retired its grant. `code` is `token-delete-failed` (422, 5xx or no answer), or `credential-unreadable` when the session key cannot open the stored token or the worker runs without `SESSION_KEY_V1`. A 404 is not logged: GitHub answers it for a token it already invalidated and for a wrong client secret, so a drifted secret shows as `token.refresh.fail` instead. |
 | `url-fallback-token.owner.fail` | error | api, worker | `status`, `code` | Yes | GitHub refused `MERGEBRIEF_URL_FALLBACK_TOKEN` at boot (401, a 403 that is not a rate limit, or 404), so it serves nobody until it is replaced and the process restarts. |
-| `audit.fail` | error | api | `reqId`, `operation`, `err` | Yes | The action completed but its audit row was not written. |
+| `audit.fail` | error | api | `reqId`, `operation`, `err` | Yes | The action completed but its audit row was not written ([An audit row is missing](./troubleshooting.md#an-audit-row-is-missing)). |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc`, plus `needed` and `left` for a large run | Sustained rate | The daily cap is working as configured, but an instance stuck at it produces no briefs until 00:00 UTC. |
 | `generation.enqueue` | info | api | `deliveryId`, `reqId`, `repoId`, `prNumber`, `prId`, `headSha` | No | A delivery added or replaced the pull request's job. The line that joins a delivery to the worker's `prId` and `headSha`. |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | No | A run started; `waitMs` is how long it queued. |
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | No | One model call finished; nothing else records how long a generation took. `outcome` is `succeeded`, `failed`, or `skipped` for a delta call cut at its output cap that stored a skip record. |
 | `generation.succeeded` | info | worker | `prId`, `headSha`, `prNumber`, `briefId` | No | The run finished; `briefId` is the brief it stored. |
 | `generation.hold` | info | worker | `prId`, `headSha`, `kinds` | No | A trigger condition held the push before any claim; `kinds` lists the unmet condition kinds. It spends nothing and generates once its conditions pass, or on a Generate click. |
-| `artifact.check.fail` | warn | worker | `kind`, `issueCount`, `firstPath`, job bindings | Sustained rate | A generated brief, delta brief or revision narrative failed its stored-shape check and was written anyway. `kind` takes the same values as on `generation.complete`; no body content rides the line. |
+| `artifact.check.fail` | warn | worker | `kind`, `issueCount`, `firstPath`, job bindings | Sustained rate | A generated brief, delta brief or revision narrative failed its stored-shape check and was written anyway. `kind` takes the same values as on `generation.complete`; no body content rides the line ([A brief failed its write check](./troubleshooting.md#a-brief-failed-its-write-check)). |
 | `generator.tool-access` | warn | worker | `provider` | No | Once at boot when the generator is `codex` or `cursor`, naming what that CLI can still reach ([generators.md](./generators.md#what-stays-open)). |
 | `generator.plain-http` | warn | worker | `host` | No | Once at boot when `generator.baseUrl` is plain `http://` to a host other than the worker's own, so the API key and the code travel unencrypted. |
 | `link-fetch.public` | warn | worker | none | No | Once at boot while `linkFetch.mode` is `public`, the default: the worker fetches any public link a description holds. `off` or `allowlist` silences it. |
-| `jira.token.check` | warn; error when `outcome: refused` | worker | `outcome`, `site` | `refused`: yes | At most once at boot, when a `jira` context source is configured. `refused`: Atlassian refused the email and API token, so every Jira read reports `no-credential` until both are right and the worker restarts. `broader`: the token can do more than read issues; replace it with one scoped to `read:jira-work` only. No line does not prove the token is scoped right. |
+| `jira.token.check` | warn; error when `outcome: refused` | worker | `outcome`, `site` | `refused`: yes | At most once at boot, when a `jira` context source is configured. `refused`: Atlassian refused the email and API token, so every Jira read reports `no-credential` until both are right and the worker restarts. `broader`: the token can do more than read issues; replace it with one scoped to `read:jira-work` only. No line does not prove the token is scoped right ([Jira refused the token at boot](./troubleshooting.md#jira-refused-the-token-at-boot)). |
 | `update.available` | info; warn when `security` | api | `current`, `latest`, `breaking`, `security`, `releaseNotesUrl` | When `security` is true | Once when `latest` is first newer than the running version, and once at boot while behind. |
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | No | The network blocks github.com or the release file is malformed; `/api/version` carries no fresh `checkedAt`. |
 | `db.version.upgrade` | info | api, worker | `from`, `to` | No | The one-row `instance_version` table moved forward at boot. |
@@ -429,6 +430,23 @@ These `evt` names are a stable contract: a rename, removal or field change gets 
 | `api.access` | info; debug for a 2xx `GET /api/version` | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | No | The access log: one line per request, numeric ids only, never a token or cookie. |
 
 On `api.access`, `decision` is the auth gate's outcome and `status` is what the handler returned; they differ when a handler fails after the gate allowed the request. `operation` names the product operation the request reached, and joins the line to the audit row that request wrote. The browser polls `GET /api/version` once a minute per visible tab, which is why its 2xx lines are `debug`.
+
+### Provider error kinds
+
+`provider.error` carries `kind`, never the HTTP status: key alerts on `kind`. A push that retries logs one line per failed attempt. What the brief page then shows for each is in [A brief failed](./troubleshooting.md#a-brief-failed).
+
+| `kind` | What failed |
+| --- | --- |
+| `auth` | The provider refused the key (401 or 403). |
+| `provider-spend-limit` | The provider account reached a spend limit. |
+| `config` | The provider refused the request or the model (400 or 404), or answered with a redirect, which is never followed. |
+| `cli-missing` | A CLI provider's command is not installed in the worker. |
+| `provider-transient` | A 408, 429 or 5xx, or a failed connection, after the provider SDK's own retries. |
+| `timeout` | The call ran past its time limit. |
+| `schema-floor` | The answer failed the brief's schema after salvage and one feedback retry. |
+| `refusal` | The model declined to answer. |
+| `output-cut` | The answer reached its output token cap. |
+| `opaque` | Anything the adapter could not classify. |
 
 ### Log rotation
 

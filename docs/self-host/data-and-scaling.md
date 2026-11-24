@@ -1,6 +1,6 @@
 # Data, retention and scaling
 
-What the database keeps and how to prune it, how to read the audit log, and how to add worker and api capacity without running Postgres out of connections. Run every command in the folder that holds `docker-compose.yml` and `.env`. The `psql` commands use the bundled database; on an external one, run the same SQL through `psql` in `postgres:17-alpine`, as [Check a restore](./backup-restore.md#check-a-restore) does.
+What the database keeps and how to prune it, how to read the audit log, and how to add worker and api capacity without running Postgres out of connections. Run every command in the folder that holds `docker-compose.yml` and `.env`. The `psql` commands use the bundled database; on an external one, run the same SQL the [external way](./backup-restore.md#run-sql-on-an-external-database).
 
 ## Prune closed pull requests
 
@@ -28,7 +28,7 @@ Briefs and their sidecars accumulate per pull request revision, and by default n
 docker compose logs worker | grep 'pull request retention'
 ```
 
-It reads `pull request retention 90d`. Unset, it reads `unset (rows kept forever)`.
+It reads `pull request retention 90d`. Unset, it reads `unset (rows kept forever)`. The sweep runs daily at 03:47 UTC; once it has deleted something, `docker compose logs worker | grep sweep-pull-requests` shows `sweep-pull-requests: deleted N pull requests past retention` ([When each sweep runs](#when-each-sweep-runs)).
 
 The window counts from the close on GitHub, not from the brief. A reopened pull request leaves the window. A pasted pull request that closed before the window is briefed, then erased by the next sweep. Each sweep writes one audit row per installation or owner, per batch of 500, with the count.
 
@@ -41,7 +41,7 @@ retention:
   auditDays: 365
 ```
 
-Then `docker compose restart worker`. **Check:** the worker's start line reads `audit retention 365d`.
+Then `docker compose restart worker`. **Check:** the worker's start line reads `audit retention 365d`. The sweep runs daily at 03:17 UTC and logs `sweep-audit: erased N audit rows past retention` when it deletes something.
 
 Nothing on the web tier can trigger the sweep; it runs only inside the worker.
 
@@ -70,7 +70,7 @@ Before you write your own query:
 ### Erase one person's audit rows
 
 > [!WARNING]
-> This deletes the rows for good. Replace `12345` with the person's GitHub user id (`gh api users/<login> --jq .id`).
+> This deletes the rows for good. Replace `12345` with the person's GitHub user id ([find it](./security-model.md#who-can-sign-in)).
 
 ```sh
 docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "delete from audit_log where actor_id = 12345;"'
@@ -94,6 +94,28 @@ docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
 - **A repository admin can delete one pull request's briefs** from Home, and **a reviewer can delete a pull request they pasted**. Either takes the same set as the retention sweep, and the purge's audit row names who asked.
 - **Reviewer text** sits unencrypted in the database, so a database copy can read it. A draft comment's body is stored from the moment it is drafted and kept after it is posted. A reviewer can delete a comment they have not posted, but a push copies unposted comments into the new head's session, and deleting the copy leaves the earlier session's row. A risk's dismissal reason or note goes with its brief or pull request, and reopening the risk deletes it from that session. Without `retention.pullRequestDays`, all of it stays.
 - **Sign-in credentials prune themselves.** Every hour the worker deletes expired sessions, then each stored GitHub token no session and no live API token still uses, and asks GitHub to revoke it. Those revokes are best-effort and stop after 30 seconds per sweep; a token the sweep does not reach stays valid at GitHub until it expires, and the worker logs how many it skipped. A revoked or expired API token stays listed in settings as revoked for 30 days, then the same sweep deletes it. Signing out and revoking the App on github.com delete at once.
+- **Saved parts of large briefs.** A pull request briefed in parts stores each finished part, so a retry resumes instead of paying again. The brief's write deletes them. Parts no run came back for, such as a superseded, capped or failed run's, go once the newest part is over a week old, unless a run still holds that head.
+- **Webhook signatures.** The api records the signature of each processed pull request, review, check run and status delivery, to skip a repeat within 72 hours. Older records are deleted every hour.
+- **Raw output of failed generations.** Each worker deletes its own saved files once they are seven days old ([Read a failed generation's raw output](./observability.md#read-a-failed-generations-raw-output)).
+
+## When each sweep runs
+
+The worker runs every sweep itself, on a fixed schedule in UTC. With several workers, each scheduled sweep still runs once per tick. No setting moves the schedule. A sweep logs at `info` only when it deleted something, so no line means nothing was due:
+
+| Sweep | Runs (UTC) | Deletes | Its line |
+| --- | --- | --- | --- |
+| `sweep-sessions` | Hourly at :41 | Expired sessions, unused GitHub tokens, API tokens 30 days past revoke or expiry | `sweep-sessions: N expired sessions and N tokens deleted, N grants orphaned` |
+| `sweep-webhook-deliveries` | Hourly at :23 | Delivery signatures older than 72 hours | `sweep-webhook-deliveries: deleted N webhook deliveries past the dedup window` |
+| `sweep-audit` | Daily at 03:17 | Audit rows past `retention.auditDays`; nothing when unset | `sweep-audit: erased N audit rows past retention` |
+| `sweep-pull-requests` | Daily at 03:47 | Pull requests closed past `retention.pullRequestDays`; nothing when unset | `sweep-pull-requests: deleted N pull requests past retention` |
+| `sweep-generation-parts` | Daily at 04:29 | Saved parts of large briefs whose newest part is over a week old | `sweep-generation-parts: deleted N stored parts of idle spans` |
+| Failure dumps | At each worker's start, then every 24 hours | That worker's raw-output files older than seven days | `failure dump sweep: deleted N failure dumps older than 7 days` |
+
+**Check** that a sweep ran, for example the pull request one:
+
+```sh
+docker compose logs worker | grep sweep-pull-requests
+```
 
 ## Add worker capacity
 
@@ -127,7 +149,7 @@ docker compose logs worker | grep 'listening for generate jobs'
 
 `ps` lists one `worker` container per `WORKER_COUNT`. Each worker's start line names its slots, such as `slots 2 + 1 large`. `docker compose up --scale worker=N` overrides `WORKER_COUNT` for that run only.
 
-Several workers share one queue safely: no two take the same job, and each scheduled sweep still runs once per tick. When a newer push lands while a job runs, the two can overlap for about 20 seconds before the older one stands down; that costs spend, never correctness, and the daily cap stays exact.
+Several workers share one queue safely: no two take the same job, and each scheduled sweep still runs once per tick. When a newer push lands while a job runs, the two can overlap for about 20 seconds before the older one stands down; that costs spend, never correctness, and the daily cap stays exact. A run briefing a large pull request in parts does not stand down once it has grouped the changes and started on the parts: it finishes the brief for its own head ([How MergeBrief works](../architecture.md#when-a-brief-is-generated)).
 
 ## Run more than one api
 

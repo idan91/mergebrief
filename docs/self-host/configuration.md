@@ -9,9 +9,37 @@ Every setting MergeBrief reads, in one place. There are four surfaces:
 
 This page says what each setting accepts. The how-to pages ([compose.md](./compose.md), [generators.md](./generators.md), [upgrade.md](./upgrade.md), [secrets.md](./secrets.md), [data-and-scaling.md](./data-and-scaling.md), [observability.md](./observability.md)) say when to change one.
 
+## Apply a change
+
+Run these in the folder that holds `docker-compose.yml`. What applies a change depends on the file you changed:
+
+| You changed | Run | Why |
+| --- | --- | --- |
+| `.env` | `docker compose up -d` | It recreates each service whose environment changed. `docker compose restart` keeps the environment the container was created with, so the old value stays. |
+| `mergebrief.config.yaml` | `docker compose restart` and the services that read the block, from the table below | Compose mounts the file, so a restarted process reads it again. A bad value refuses that service's boot. |
+| A repository's `.mergebrief/` files | Nothing | They are read from the default branch per generation, so a change applies from the next generation after it merges ([Configure your repository](../repo-config/README.md)). |
+
+| Block in `mergebrief.config.yaml` | Restart |
+| --- | --- |
+| `generator`, `contextSources`, `trackers`, `triggerConditions`, `linkFetch`, `retention` | `docker compose restart worker` |
+| `drafts`, `operators`, `allowed`, `attachments`, `audit`, `updateCheck` | `docker compose restart api` |
+| `spend` | `docker compose restart api worker` |
+
+`docker compose restart api worker` is always safe. After changing both files, run `docker compose up -d` first, then the restart the config change needs: `up -d` leaves a service alone when its environment did not change.
+
+**Check:** `docker compose ps -a` shows `api` and `web` as `healthy` and `worker` as `Up`. A service at `Exited (0)` refused the change, and the last line of its log names the variable or key ([A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0)).
+
+## Which value wins
+
+- **Compose's `environment:` over `.env`.** For `api` and `worker`, a variable the default compose file sets under `environment:` wins over the same name in `.env`: `DATABASE_URL`, `PUBLIC_BASE_URL`, `MERGEBRIEF_API_HOST`, `MERGEBRIEF_API_PORT` and `MERGEBRIEF_CONFIG` ([What compose passes to each service](#what-compose-passes-to-each-service)). `PUBLIC_BASE_URL` still comes from `.env`, because compose interpolates it into that block.
+- **The config file's path is fixed under compose.** `docker-compose.yml` sets `MERGEBRIEF_CONFIG=/app/mergebrief.config.yaml` and mounts the file beside it there, so `MERGEBRIEF_CONFIG` in `.env` never reaches a container. To use a file elsewhere, change the mount's source in `docker-compose.override.yml` ([The config file](./generators.md#the-config-file)).
+- **`DATABASE_URL_FILE` over `DATABASE_URL`,** with a warning at boot when both are set.
+- **A variable that moved into the config file refuses boot** while it is still set, or logs a warning, naming its replacement; the old value is never read ([Renamed and removed variables](./upgrade.md#renamed-and-removed-variables)).
+- **A repository's file over the instance's, per setting.** A repository's `triggerConditions` merge over the instance's per kind, and its `trackers` list replaces the instance's whole. The provider, model, spend cap and sign-in lists are the instance's alone ([What a repository controls](./repo-config.md#what-a-repository-controls-and-what-you-keep)).
+
 ## How values are read
 
-- **A bad value refuses boot.** A process that reads a variable checks it before it does anything else, logs the variable's name and the reason (never the value), and exits. `api` and `worker` exit 0 on a config error so compose's `restart: on-failure` leaves them down; `web` and `migrate` exit 1, so `web` restarts until the value is fixed. The one exception is `MERGEBRIEF_API_ORIGIN`, which `web` checks on its first request instead.
+- **A bad value refuses boot.** A process that reads a variable checks it before it does anything else, logs the variable's name and the reason, and exits. A secret's value is never logged; a few variables that hold no secret, such as `LOG_LEVEL`, quote the value they refused. `api` and `worker` exit 0 on a config error so compose's `restart: on-failure` leaves them down; `web` and `migrate` exit 1, so `web` restarts until the value is fixed. The one exception is `MERGEBRIEF_API_ORIGIN`, which `web` checks on its first request instead.
 - **Empty is not always unset.** Compose passes `${VAR:-}` through as an empty string. Most variables treat empty as unset; the exceptions are named in the tables and listed in [Empty values](#empty-values). The safe habit is the one [compose.md](./compose.md) gives: leave a variable out entirely when it does not apply.
 - **Booleans** differ by variable. `MERGEBRIEF_AUTO_MIGRATE` accepts `true`, `1`, `yes`, `on` and `false`, `0`, `no`, `off`, in any case; any other token refuses boot. `OTEL_SDK_DISABLED` is on only for `true`, in any case; any other value leaves tracing on. The build-time `ENABLE_*` variables are on for `true` or `1`.
 - **Credentials are named, not inlined, in the config file.** Keys such as `generator.apiKeyEnv` and `contextSources[].tokenEnv` hold the NAME of an environment variable (uppercase letters, digits and underscores). The value stays in the environment.
@@ -69,7 +97,7 @@ Columns: **Read by** names every process that parses the variable, so a bad valu
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `PUBLIC_BASE_URL` | api, worker, web | compose: `http://localhost:3000` | api, worker: yes | The origin reviewers browse, matching the GitHub App's OAuth callback origin. An absolute `http` or `https` URL with no credentials in it, or `api` and `worker` refuse boot. `api` builds the OAuth callback from it and accepts a state-changing browser request only from its origin; `worker` builds the Entry comment's links from it; `web` adds its hostname to the hosts it serves, builds the share image's absolute URL from it, and refuses boot on a value that does not parse. Unset or empty in `web` serves `localhost` names and bare IPs only. |
+| `PUBLIC_BASE_URL` | api, worker, web | compose: `http://localhost:3000` | api, worker: yes | The origin reviewers browse, matching the GitHub App's OAuth callback origin. An absolute `http` or `https` URL with no credentials in it, or `api` and `worker` refuse boot. Write the origin alone, with no trailing slash and no path: `api` appends `/api/auth/github/callback` to the value as written, so `https://brief.example.com/` sends GitHub a callback with `//` that does not match the App's. MergeBrief serves from the root of its host; a subpath is unsupported. `api` builds the OAuth callback from it and accepts a state-changing browser request only from its origin; `worker` builds the Entry comment's links from it; `web` adds its hostname to the hosts it serves, builds the share image's absolute URL from it, and refuses boot on a value that does not parse. Unset or empty in `web` serves `localhost` names and bare IPs only. |
 | `MERGEBRIEF_API_HOST` | api | `127.0.0.1` | no | The address the API listens on. Compose sets `0.0.0.0` so `web` can reach it. Empty refuses boot. |
 | `MERGEBRIEF_API_PORT` | api | `3001` | no | The API's port, digits only, 0 to 65535. Compose sets `3001`. Empty refuses boot. |
 | `MERGEBRIEF_API_ORIGIN` | web | `http://127.0.0.1:3001` | no | Where `web` proxies `/api/*` and sends its server-side reads: an absolute `http` or `https` URL, reduced to its origin. Compose sets `http://api:3001`. Empty takes the default. Checked on the first request, not at boot: a bad value lets `web` start and pass its healthcheck, then fails every proxied and server-rendered request. |
@@ -120,6 +148,16 @@ In compose, `api` and `worker` get every `OTEL_*` variable in `.env`. `web` gets
 | `SERVER_VERSION` | api, worker, migrate | the release version, stamped at image build; `dev` for a source build | The version recorded in `instance_version` and sent in the `MergeBrief-Version` header. Unset or empty means `dev`, which never checks for releases. An override must be printable ASCII without spaces, or boot refuses. |
 | `MERGEBRIEF_RUNTIME` | api, worker | `compose-worker` | Marks the shipped image. `worker` refuses the harness CLI providers (`claude-code`, `codex`, `cursor`) under it; a check-only boot names `docker compose run --rm api migrate` as the fix; `api` turns off `MERGEBRIEF_OUT_DIR`. |
 
+### Source checkout only
+
+These do nothing in the shipped image. They matter only when you run MergeBrief's processes on the host or build it yourself.
+
+| Variable | What it does |
+| --- | --- |
+| `MERGEBRIEF_OUT_DIR` | A folder of locally generated briefs `api` serves to a signed-in session. Off under `MERGEBRIEF_RUNTIME=compose-worker` or `NODE_ENV=production` ([CONTRIBUTING.md](../../CONTRIBUTING.md#environment-in-a-source-checkout)). |
+| `CURSOR_API_KEY`, and the login variables of the other CLI providers | Read by the `claude-code`, `codex` and `cursor` providers, which run only as host processes ([Subscription CLI providers: contributor notes](../dev/harness-cli-providers.md#environment-a-cli-receives)). |
+| `ENABLE_LANGUAGE_SELECTION` and any other `ENABLE_*` | Read when the web bundle is built, so a pulled image ignores them ([CONTRIBUTING.md](../../CONTRIBUTING.md#environment-in-a-source-checkout)). |
+
 ### Compose file variables
 
 `docker-compose.yml` interpolates these from `.env`; no process reads them under these names.
@@ -138,8 +176,8 @@ A service's `environment:` value wins over the same variable in `.env`.
 | Service | From `.env` | Set by the default compose file |
 | --- | --- | --- |
 | `postgres` | nothing directly | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, interpolated from `.env` |
-| `api` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL`, `MERGEBRIEF_API_HOST=0.0.0.0`, `MERGEBRIEF_API_PORT=3001` |
-| `worker` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL` |
+| `api` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL`, `MERGEBRIEF_API_HOST=0.0.0.0`, `MERGEBRIEF_API_PORT=3001`, `MERGEBRIEF_CONFIG=/app/mergebrief.config.yaml` |
+| `worker` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL`, `MERGEBRIEF_CONFIG=/app/mergebrief.config.yaml` |
 | `web` | nothing (no `env_file`) | `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN=http://api:3001`, and the six `OTEL_*` variables named [above](#logging-and-tracing), interpolated from `.env` |
 
 `docker-compose.external-db.yml`, layered on the default file, removes the `postgres` service and derives nothing: `api` and `worker` take `DATABASE_URL`, `DATABASE_URL_FILE` and `MERGEBRIEF_AUTO_MIGRATE` from the shell running compose when set there, else from `.env`. With or without the overlay `DATABASE_URL_FILE` wins over `DATABASE_URL`, so setting it under the default file moves the services off the bundled database.
@@ -177,7 +215,7 @@ A variable set to an empty string reads as unset, with these exceptions:
 
 ## Instance config (`mergebrief.config.yaml`)
 
-A process reads `mergebrief.config.yaml` from its workspace root, or the file `MERGEBRIEF_CONFIG` names. No file runs the defaults below; an empty file does the same. Those defaults name no Operator, so nobody can sign in until the file lists one. The image carries no config file: `docker-compose.yml` mounts the one beside it into `api` and `worker` ([The config file](./generators.md#the-config-file)). Edits apply on restart. A credential is never a value here: the file names the variable that holds it.
+A process reads `mergebrief.config.yaml` from its workspace root, or the file `MERGEBRIEF_CONFIG` names. No file runs the defaults below; an empty file does the same. Those defaults name no Operator, so nobody can sign in until the file lists one. The image carries no config file: `docker-compose.yml` mounts the one beside it into `api` and `worker` ([The config file](./generators.md#the-config-file)). Edits apply when the services that read the block restart ([Apply a change](#apply-a-change)). A credential is never a value here: the file names the variable that holds it.
 
 ### Root keys
 
@@ -207,7 +245,7 @@ Any other root key refuses boot in `worker`. `api` reads only `drafts`, `spend`,
 | Key | Providers | Default | Accepts |
 | --- | --- | --- | --- |
 | `provider` | all | required in the block; `anthropic` when the `generator` block is absent | `anthropic`, `claude-code`, `codex`, `cursor`, `openai`, `openrouter`. |
-| `model` | all | `anthropic`, `claude-code`: `claude-opus-5-5`; `codex`, `cursor`: the CLI's configured default | A non-empty model id. Required for `openai` and `openrouter` (an OpenRouter slug such as `anthropic/claude-opus-4.8`). For `cursor`, an id from `cursor-agent --list-models`; an id with `[` refuses boot. Where each provider lists its ids: [Model names by provider](./generators.md#model-names-by-provider). |
+| `model` | all | `anthropic`, `claude-code`: `claude-opus-5-5`; `codex`, `cursor`: the CLI's configured default | A non-empty model id. Required for `openai` and `openrouter` (an OpenRouter slug such as `anthropic/claude-sonnet-5.5`). For `cursor`, an id from `cursor-agent --list-models`; an id with `[` refuses boot. Where each provider lists its ids: [Model names by provider](./generators.md#model-names-by-provider). |
 | `effort` | all | `medium` | `low`, `medium` or `high`. |
 | `fullRegeneration` | all | `never` | `never` (each revision anchors to the previous brief), `on-model-swap` (a fresh brief when the provider or model changed), `always` (every revision from scratch). |
 | `forceMultiCall` | all | `false` | `true` runs every brief as a multi-call run (a grouping call over an outline, then detail calls per batch of hunks), the path a diff over 400k input tokens or 120 hunks takes on its own. A diagnostic switch; it costs more calls per brief. |
@@ -266,6 +304,29 @@ The same block a repository writes in its `settings.yaml`, with the same kinds (
 | `retention.auditDays` | unset (keep forever) | Days the daily sweep keeps audit rows: a whole number of at least 30. |
 | `audit.privateWrites` | `true` | `false` stops `api` recording writes that stay inside the instance; writes that reach GitHub and every denial are recorded either way. |
 
+To stop recording private writes:
+
+```yaml
+# mergebrief.config.yaml
+audit:
+  privateWrites: false
+```
+
+```sh
+docker compose restart api
+```
+
+**Check:** archive a pull request on Home, which is a write that stays inside the instance, then read the newest private-write row. Its `occurred_at` is older than the archive:
+
+```sh
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
+  select occurred_at, operation from audit_log
+  where classification = '\''private-write'\''
+  order by occurred_at desc limit 1;"'
+```
+
+With `privateWrites: true`, the same query shows an `archive-pull` row from that moment. The audit log's columns are in [Query the audit log](./data-and-scaling.md#query-the-audit-log).
+
 ### `attachments`
 
 | Key | Default | Accepts |
@@ -292,7 +353,10 @@ The worker fetches up to five links from a PR description as context ([trackers.
 | `linkFetch.hosts` | | `allowlist` only, and required there: exact lowercase host names such as `docs.example.com`, with no scheme, port, path or wildcard. Write an international name in its `xn--` form. Each subdomain needs its own entry. A listed host still passes every address and port check. |
 | `linkFetch.maxTotalChars` | `40000` | A whole number above zero: the most linked-page text one prompt carries. Links fill it in the order the description lists them. The link that crosses it is cut, and later links are left out. Each page is also cut at 20,000 characters on its own, an HTML page after its comments, `head`, scripts, styles, templates and `noscript` blocks are dropped. The primary ticket has its own limit and does not count. |
 
+To fetch links from your own documentation hosts only:
+
 ```yaml
+# mergebrief.config.yaml
 linkFetch:
   mode: allowlist
   hosts:
@@ -300,17 +364,31 @@ linkFetch:
     - wiki.example.com
 ```
 
+```sh
+docker compose restart worker
+```
+
+**Check:** the worker's start line ends with the mode:
+
+```sh
+docker compose logs worker | grep 'listening for generate jobs' | tail -n 1
+```
+
+It ends `link fetch allowlist`. While the mode is `public`, the worker also logs a warning at boot that it fetches any public link.
+
 The address checks refuse private, loopback, link-local and reserved ranges, but they cannot tell an internal service on a routable address from the public internet: a service on a public IPv4 address or a cloud IPv6 range answers like any website, and the text it returns reaches the prompt and can be quoted in the brief. If the worker can reach such services, restrict its egress at the network: a network policy, security group or firewall rule that lets the worker reach only GitHub, the model provider, your ticket trackers and the hosts you want linked. Link fetches ignore `HTTP_PROXY` and `NODE_USE_ENV_PROXY`, so a forward proxy works here only as a gateway the network routes the worker through. `linkFetch` with `off` or `allowlist` is the in-app control; the network policy is the one that holds.
 
 ## Repo-local files (`.mergebrief/`)
 
 A repository configures its own briefs with files on its default branch, read fresh per generation. An invalid or over-budget file is dropped whole and the brief says so; it never stops the instance. [Configure your repository](../repo-config/README.md) is the code owner's guide, with a template for `instructions.md`; [repo-config.md](./repo-config.md) covers the operator's side.
 
-| File | Size limit | Keys |
+| File | What it sets | Keys and limits |
 | --- | --- | --- |
-| `instructions.md` | 16 KB | Free text within the documented instruction classes. |
-| `settings.yaml` | 4 KB | `version: 1` (required), `entryCommentOnDrafts` (default `true`), `tracker` or `trackers` (one of the two; same entry shape as the instance `trackers`), `trustedBots` (up to 32 GitHub logins). |
-| `policy.yaml` | 32 KB | `version: 1` (required), `attributes` (required; up to 20 custom risk attributes, each with `criteria` and optional `implication` and `paths`), `deEmphasize` (optional; never a floor attribute). |
+| `settings.yaml` | Trigger conditions, the Entry comment on drafts, trackers, trusted bots | [Settings](../repo-config/settings.md#keys) |
+| `policy.yaml` | Custom risk attributes and quieted built-in ones | [Risk policy](../repo-config/policy.md) |
+| `instructions.md` | Free text to the model | [Instructions](../repo-config/instructions.md) |
+
+Each file's size limit is in [The three files](../repo-config/README.md#the-three-files).
 
 ## CLI
 
