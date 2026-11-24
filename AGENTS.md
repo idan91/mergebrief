@@ -28,13 +28,7 @@ Every rule in both binds as written, casing, schema placement, package edges and
 
 ## Coding standards
 
-`docs/dev/coding-standards.md` holds the judgment and style rules. To review, read it whole. To implement, read a section before the work it names:
-
-- **File shape**: adding, splitting or renaming a file or folder, or placing a Zod schema.
-- **Types and values**: declaring a type or a vocabulary map, changing a stored shape, or choosing how a function reports absence or failure.
-- **Functions and naming**: writing a function or introducing a name.
-- **Copy, logging and comments**: writing user-facing copy, a log line, a comment or a test title.
-- **Review conduct**: reviewing a diff or replying to a review comment.
+`docs/dev/coding-standards.md` holds the code-level rules: file shape, types and values, functions and naming, copy, logging and comments, and review conduct. Read it whole before the first code edit of a task and before any review. Most of its rules have no gate (one-letter locals, magic numbers, named return types, absence and failure, call nesting), so review is the only check.
 
 ## Gates
 
@@ -46,6 +40,7 @@ Every rule in both binds as written, casing, schema placement, package edges and
 - Coverage floors ride inside each member's own `pnpm -C <member> test`; root `pnpm test` runs only `tools/categorizer`. Every tested member's vitest config (apps/web's `vite.config.ts`) commits a lines threshold; 75% is the standard. A package still under it carries a temporary floor plus a catch-up ticket. Never lower a floor to absorb a drop. A `v8 ignore` comment needs a stated reason and is reviewed like a lint-disable.
 - Generation-surface changes run the eval harness. The surface: `packages/brief-core/src/generation/prompt/`, the output schema, validators and salvage, the anchored plan and stitch in `packages/brief-core/src/anchoring/` with the diff parsers in `packages/brief-core/src/diff/` that decide them, repo-config injection, and output-affecting adapter defaults. Agents never invoke the harness; they prepare the case selection and its justification, and a human runs and spends. Scoped by default: one `pnpm -C tools/categorizer eval --case <id>` run per case whose properties could plausibly move, never a list, with the report in the PR body. Full suite for prompt-wide or model-bump changes. `--rebaseline` on main only when the surface legitimately moved. Convention gate, never CI. Mechanics in `tools/categorizer/eval/README.md`.
 - Never search with a glob that can match a real env file; target `.env.example` and source files explicitly. A filename-list grep still reads contents, and real env files hold live keys. `tools/categorizer/.env` is gitignored; deny your agent reads of it.
+- Error messages never carry secrets, tokens or connection strings, and a secret in a log rides as a structured field, redacted by path, never interpolated into `msg`.
 
 ## Unattended runs
 

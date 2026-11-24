@@ -1,7 +1,5 @@
 # Coding standards
 
-The judgment and style rules for the whole workspace. Root `AGENTS.md` holds the workspace layout, package edges, gates and hard constraints, and states how every rule in both files binds.
-
 Three rules here are judgment calls instead of fixed answers: when to split support out of a file, which support filename to use or whether to colocate instead, and which verb a function name starts with. Make the call, say why in the PR description, and expect a reviewer who disagrees to argue it there.
 
 ## File shape
@@ -31,7 +29,7 @@ Three rules here are judgment calls instead of fixed answers: when to split supp
 - Absence: `undefined` means absent. `null` appears only where a wire or DB shape carries it, converted at the boundary. Parse failure and refusal return `Result`. A function never returns both `null` and `undefined`. Loose `== null` is banned; `eqeqeq` holds it.
 - An exported function whose return is an object shape, or a union of shapes, annotates it with a named type declared separately; `T`, `T[]`, `Promise<T>` and `T | undefined` over a primitive or an already-named `T` stay inline. Internals infer.
 - `prop?: T | undefined` is deliberate under `exactOptionalPropertyTypes`. Plain `?:` by default; add `| undefined` only where a caller forwards a maybe-value.
-- Expected failures return `Result`; `throw` is for programmer and infra errors. Five edge contracts throw on purpose and each is named in its member's `AGENTS.md`: api's `ApiError` classes at the HTTP layer, the generator's `generate()` after construction returned `Result`, the worker's transient job failures so graphile retries, persistence's `ScopeViolationError` for a row outside the caller's scope, and docs-site's link rule and anchor check so a bad link fails the VitePress build. Error messages never carry secrets, tokens or connection strings.
+- Expected failures return `Result`; `throw` is for programmer and infra errors. Six edge contracts throw on purpose and each is named in its member's `AGENTS.md`: api's `ApiError` classes at the HTTP layer, the generator's `generate()` after construction returned `Result`, the worker's transient job failures so graphile retries, persistence's `ScopeViolationError` for a row outside the caller's scope, apps/web's reads over `request`, which throw `ApiError` as TanStack Query expects, and docs-site's link rule and anchor check so a bad link fails the VitePress build.
 - Magic numbers become a named const or token. No one-letter locals.
 
 ## Functions and naming
@@ -52,7 +50,7 @@ Three rules here are judgment calls instead of fixed answers: when to split supp
 ## Copy, logging and comments
 
 - User-facing copy lives in the `packages/i18n` catalog, never hard-coded in components or route handlers. A new wire error code follows the recipe in `apps/api/AGENTS.md`; its `errors.<code>` template rides the same change. A SHOUT_CASE const holds a technical value or a catalog key, never English a user reads; a label map maps a vocabulary to catalog keys, and the component resolves them with `t()`. The artifact noun is lowercase "brief" mid-sentence in user-facing copy; the product is "MergeBrief".
-- Logging goes through the `packages/logging` boundary: no bare `console.*` in `apps/api`, `apps/worker` or server-side apps/web code. Secrets ride as structured fields, redacted by path, never interpolated into `msg`.
+- Logging goes through the `packages/logging` boundary: no bare `console.*` in `apps/api`, `apps/worker` or server-side apps/web code.
 - Every log line earns its level: `error` is operator-actionable now; `warn` is degraded or suspicious, alertable on sustained rate; `info` is a terse operational signal; otherwise `debug` or delete the line. First-class `evt` names come only from the taxonomy table in `docs/self-host/observability.md`.
 - Default to no comment. A comment earns its place only by stating a constraint the code cannot show, concisely, at the owner it constrains: a real invariant, a status contract, an ordering guarantee, a browser bug. A rationale essay, a provenance block, or a restatement of the line below it does not, and those get deleted rather than shortened, because a one-line restatement is still a line between the reader and the code. Two rules hold the volume, catching different failures: `house/comment-run` caps one block at eight content lines, and `house/comment-density` caps a file at 40% comment, which is the shape a file takes when every statement gets its own one-liner. A block that genuinely earns more takes a scoped `oxlint-disable` with its reason. Comments carry no em-dash.
 - A test title names the behaviour in at most 70 characters, no em-dash, no parenthetical, `describe` included.
