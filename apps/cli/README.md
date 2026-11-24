@@ -6,7 +6,7 @@ loop from a terminal, for people and for coding agents.
 
 The CLI talks to a MergeBrief instance you host; it does nothing on its own.
 Start with the [self-host guide](https://github.com/idan91/mergebrief/tree/main/docs/self-host),
-then the [CLI guide](https://github.com/idan91/mergebrief/blob/main/docs/self-host/cli.md).
+then the [CLI guide](https://github.com/idan91/mergebrief/blob/main/docs/use/cli.md).
 Coding agents use the [`mergebrief` skill](https://github.com/idan91/mergebrief/tree/main/skills/mergebrief).
 
 Always-latest is safe: the output contract is additive within a major (see
@@ -24,7 +24,7 @@ below). Pinning is supported but never required for compatibility.
    Agents and CI: run `npx mergebrief` in place of `mergebrief`, but not inside
    a checkout of untrusted code, such as a pull request's head. If the shell
    answers `command not found`, npm's global bin directory is not on `PATH`.
-   [Install](../../docs/self-host/cli.md#install) covers both.
+   [Install](https://github.com/idan91/mergebrief/blob/main/docs/use/cli.md#install) covers both.
 2. **Create a token** in the web app: sign in, open `/settings`, name the
    token, pick its scope, and choose an expiry.
    The token is shown **exactly once**; treat it like a password. The CLI
@@ -67,7 +67,7 @@ npx skills add idan91/mergebrief --skill mergebrief -a <your-agent>
 
 ## Output contract and exit codes
 
-Exit 0 means stdout is the documented JSON (the raw diff for `diff`, or empty for a command whose success has no body); any other exit means stdout is empty and stderr is one line. Within a major version fields are only added. The full contract and the exit code table, with the next move for each code, are in the [CLI guide](https://github.com/idan91/mergebrief/blob/main/docs/self-host/cli.md#reference).
+Exit 0 means stdout is the documented JSON (the raw diff for `diff`, or empty for a command whose success has no body); any other exit means stdout is empty and stderr is one line. Within a major version fields are only added. The full contract and the exit code table, with the next move for each code, are in the [CLI guide](https://github.com/idan91/mergebrief/blob/main/docs/use/cli.md#reference).
 
 ## Commands
 
@@ -429,7 +429,7 @@ headers, owners and cached repo list, since those belong to the old instance.
 empty name, or one with a path separator or a control character.
 
 Token creation, CI setup and the identity-aware proxy escape hatch:
-[`docs/self-host/cli.md`](../../docs/self-host/cli.md).
+[`docs/use/cli.md`](https://github.com/idan91/mergebrief/blob/main/docs/use/cli.md).
 
 ## Flag appendix (generated)
 

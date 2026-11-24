@@ -2115,13 +2115,17 @@
     }
   },
   "docsSite": {
-    "description": "Install, configure and run MergeBrief on your own infrastructure.",
+    "description": "Run MergeBrief on your own infrastructure, review pull requests with it, and configure it per repository.",
     "sidebar": {
       "selfHosting": "Self-hosting",
       "repoConfig": "Repo config",
       "use": "Use MergeBrief",
       "reference": "Reference",
-      "releases": "Releases"
+      "releases": "Releases",
+      "setUp": "Set up",
+      "configure": "Configure",
+      "secure": "Secure",
+      "operate": "Operate"
     },
     "chrome": {
       "outlineLabel": "On this page",

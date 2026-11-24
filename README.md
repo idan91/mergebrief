@@ -13,7 +13,7 @@
   <a href="https://demo.mergebrief.com">Demo</a> ·
   <a href="https://docs.mergebrief.com">Docs</a> ·
   <a href="./docs/self-host/README.md">Self-host</a> ·
-  <a href="./docs/self-host/cli.md">CLI</a>
+  <a href="./docs/use/cli.md">CLI</a>
 </p>
 
 <p align="center">
@@ -62,7 +62,7 @@ To let a coding agent review through MergeBrief, install the [skill](./skills/me
 npx skills add idan91/mergebrief --skill mergebrief
 ```
 
-The [CLI guide](./docs/self-host/cli.md) covers tokens and setup.
+The [CLI guide](./docs/use/cli.md) covers tokens and setup.
 
 ## Guides
 

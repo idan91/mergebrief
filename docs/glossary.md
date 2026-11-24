@@ -6,7 +6,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Brief.** What MergeBrief writes for a pull request: a summary, the changes grouped by intent, and the risks a reviewer should look at first. One brief covers the whole pull request, base to head, at one commit, and every reviewer reads the same one. It is computed in the background after a push ([How MergeBrief works](./architecture.md)).
 
-**Revision.** The number of a brief within its pull request: the first brief is revision 1, the brief for a later push is revision 2, and so on. It counts briefs, not pushes, and it is the same for every reviewer. The CLI's `--revision <n>` takes it ([cli.md](./self-host/cli.md#which-revision-a-command-reads)).
+**Revision.** The number of a brief within its pull request: the first brief is revision 1, the brief for a later push is revision 2, and so on. It counts briefs, not pushes, and it is the same for every reviewer. The CLI's `--revision <n>` takes it ([cli.md](./use/cli.md#which-revision-a-command-reads)).
 
 **Span.** The two commits a brief or a diff covers, written `base..head` (`93f1a2c..4c0a9be`): the pull request's base and the head the brief was written for. Brief details and `mergebrief pr <n>` print it. Between two pushes, the revision span is the pull request's own change from one head to the next, which a rebase or base merge does not inflate ([Pushes, rebases and force pushes](./self-host/generators.md#pushes-rebases-and-force-pushes)).
 
@@ -14,7 +14,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Chunk.** A run of changed lines that belong to one change group and one kind of content (`implementation`, `test`, `config` and so on). A chunk can be smaller than a git hunk, and one file's chunks can sit in different groups. It is the unit you mark as read.
 
-**Risk surface.** Factual attributes MergeBrief attaches to a chunk, such as `touches-auth`, `no-tests` or `adds-secret`. They describe the change, never judge it. The full list is [risk-surface.md](./vocabulary/risk-surface.md); a repository can add its own ([policy.md](./repo-config/policy.md)).
+**Risk surface.** Factual attributes MergeBrief attaches to a chunk, such as `touches-auth`, `no-tests` or `adds-secret`. They describe the change, never judge it. The full list is [Risk flags](./use/risk-flags.md); a repository can add its own ([policy.md](./repo-config/policy.md)).
 
 **Flag.** One risk surface attribute firing on one chunk: an item that asks for a reviewer's attention.
 
@@ -22,7 +22,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Intent check.** A section of the brief that compares what the pull request says it does (its title, description and primary ticket) with what the diff does. It lists what was done, what was stated but is missing, and what was done but not stated. When the stated intent is too broad to compare, it says so instead of guessing. It is the model's reading, never a verdict.
 
-**Product diff.** A section of the brief that says how the product behaves before the pull request and after it, as at most eight changes. A brief generated in parts reports it as not available, because no single call read the whole diff. `mergebrief product-diff` prints it ([cli.md](./self-host/cli.md#commands)).
+**Product diff.** A section of the brief that says how the product behaves before the pull request and after it, as at most eight changes. A brief generated in parts reports it as not available, because no single call read the whole diff. `mergebrief product-diff` prints it ([cli.md](./use/cli.md#commands)).
 
 **Primary ticket.** The one ticket a pull request names, read from your tracker for the intent check ([trackers.md](./self-host/trackers.md)).
 
@@ -58,7 +58,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Trigger condition.** A rule a push must meet before it generates a brief, such as "ready for review" or "CI passed". An operator sets them for the instance and a repository sets its own ([trigger-conditions.md](./repo-config/trigger-conditions.md)).
 
-**Held push.** A push whose trigger conditions are not met. Nothing runs and nothing is spent. It generates by itself once every condition passes, or at once when someone with push access clicks Generate. The pull request page shows "No brief for this push yet", and `mergebrief pr <n>` prints a `held:` line naming each unmet condition ([cli.md](./self-host/cli.md#when-the-brief-is-not-ready)).
+**Held push.** A push whose trigger conditions are not met. Nothing runs and nothing is spent. It generates by itself once every condition passes, or at once when someone with push access clicks Generate. The pull request page shows "No brief for this push yet", and `mergebrief pr <n>` prints a `held:` line naming each unmet condition ([cli.md](./use/cli.md#when-the-brief-is-not-ready)).
 
 **Trusted author.** An author whose pushes generate a brief without anyone's go-ahead: someone on the repository's team, or a bot the repository lists in `trustedBots`.
 

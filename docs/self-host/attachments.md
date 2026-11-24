@@ -20,7 +20,7 @@ Any signed-in reader of the repository can then attach; the commit is the App's,
 2. Once it uploads, the comment holds a link to the image.
 3. On GitHub, the repository's branch list shows `mergebrief/attachments`, holding one `<uuid>.png` (or `.jpg`, `.gif`, `.webp`) commit per image.
 
-From the terminal, `mergebrief draft attach 7 screenshot.png` uploads a file and prints its URL; it needs an `external-write` token ([cli.md](./cli.md#commands)).
+From the terminal, `mergebrief draft attach 7 screenshot.png` uploads a file and prints its URL; it needs an `external-write` token ([cli.md](../use/cli.md#commands)).
 
 ## What lands where
 

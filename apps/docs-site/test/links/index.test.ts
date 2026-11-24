@@ -9,20 +9,26 @@ import { makeTree } from "../helpers";
 const REPO = makeTree({
   "CONTEXT.md": "# Context\n",
   "mergebrief.config.example.yaml": "generators: []\n",
+  "docs/README.md": "# MergeBrief documentation\n",
   "docs/self-host/README.md": "# Self-hosting MergeBrief\n",
   "docs/self-host/compose.md": "# Compose\n\n## Verifying / troubleshooting\n",
   "docs/vocabulary/risk-surface.md":
     "# Risk surface\n\n## Parked candidates\n\n## Über uns\n",
 });
 const SRC_DIR = path.join(REPO, "docs");
-const HOME = path.join(SRC_DIR, "self-host/README.md");
+const HOME = path.join(SRC_DIR, "README.md");
+const SELF_HOST_README = path.join(SRC_DIR, "self-host/README.md");
 const COMPOSE = path.join(SRC_DIR, "self-host/compose.md");
 const BLOB = "https://github.com/idan91/mergebrief/blob";
 
 const CONTEXT: LinkContext = {
   repoRoot: REPO,
   srcDir: SRC_DIR,
-  sitePages: new Set(["self-host/README.md", "self-host/compose.md"]),
+  sitePages: new Set([
+    "README.md",
+    "self-host/README.md",
+    "self-host/compose.md",
+  ]),
   ref: "v0.1.0",
 };
 
@@ -33,9 +39,10 @@ describe("resolveLink", () => {
       "compose.md#verifying--troubleshooting",
       "/self-host/compose.md#verifying--troubleshooting",
     ],
-    ["./README.md", "/index.md"],
+    ["./README.md", "/self-host/README.md"],
+    ["../README.md", "/index.md"],
   ])("points %s at its site page", (href, expected) => {
-    expect(resolveLink(href, HOME, CONTEXT)).toEqual({
+    expect(resolveLink(href, SELF_HOST_README, CONTEXT)).toEqual({
       ok: true,
       value: expected,
     });
@@ -127,7 +134,7 @@ async function renderWithRule(
 describe("createLinkRule", () => {
   it("resolves from realPath on the page pass, whatever relativePath says", async () => {
     const html = await renderWithRule(
-      "[c](./compose.md#verifying--troubleshooting)",
+      "[c](./self-host/compose.md#verifying--troubleshooting)",
       {
         realPath: HOME,
         path: path.join(SRC_DIR, "index.md"),

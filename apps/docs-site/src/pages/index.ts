@@ -80,7 +80,7 @@ export function readReleaseVersion(relativePath: string): string | undefined {
   return path.posix.basename(relativePath, MARKDOWN_EXTENSION);
 }
 
-/** `self-host/README.md` builds as the home page; every other page keeps its path. */
+/** The home page builds as the site root; every other page keeps its path. */
 export function toSiteFile(source: string): string {
   return source === HOME_PAGE_SOURCE ? HOME_PAGE_TARGET : source;
 }

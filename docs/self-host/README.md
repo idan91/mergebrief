@@ -44,7 +44,14 @@ You're done when the App's comment on that pull request reads **Read the brief f
 
 ## Reading order
 
-The pages follow the site's sidebar. After the quick start, read the configuration pages once; the operating pages when the task comes up.
+The pages follow the site's sidebar, in four phases. Set up once, read the Configure and Secure pages before you invite a team, and open the Operate pages when the task comes up.
+
+Set up:
+
+1. This page: what you need and the quick start.
+2. [compose.md](./compose.md): get the release files, fill in `.env`, list who may sign in, start the stack and check it end to end.
+3. [github-app.md](./github-app.md): register the App, collect its credentials and install it.
+4. [cloud-deployment.md](./cloud-deployment.md): run it for a team on a Hetzner or EC2 VM with HTTPS and a database on the VM or a managed one.
 
 Configure:
 
@@ -54,19 +61,22 @@ Configure:
 4. [repo-config.md](./repo-config.md): what a repository's own `.mergebrief/` files can change, and the conditions you set for every repository. Code owners read [Configure your repository](../repo-config/README.md).
 5. [trackers.md](./trackers.md): where the primary ticket is read from, and what the worker fetches from links in a pull request description.
 6. [attachments.md](./attachments.md): the one push the App makes, for images in review comments.
-7. [security-model.md](./security-model.md): who can sign in and how to list them, what each user can see, the trust boundaries, and every outbound destination with its off switch.
+
+Secure:
+
+1. [security-model.md](./security-model.md): who can sign in and how to list them, what each user can see, the trust boundaries, and every outbound destination with its off switch.
+2. [secrets.md](./secrets.md): rotate the session key, the App's key and secrets, the Postgres password, the model provider key, tracker tokens and OTLP credentials.
 
 Operate:
 
 1. [observability.md](./observability.md): the log line, the `evt` names to alert on, health endpoints and tracing.
 2. [upgrade.md](./upgrade.md): upgrade to a new release, check the version you run, and roll back.
 3. [backup-restore.md](./backup-restore.md): schedule backups before you need one, and restore in place or onto a new host.
-4. [secrets.md](./secrets.md): rotate the session key, the App's key and secrets, the Postgres password, the model provider key, tracker tokens and OTLP credentials.
-5. [data-and-scaling.md](./data-and-scaling.md): retention, the audit log, and adding worker or api capacity.
-6. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
-7. [uninstall.md](./uninstall.md): remove an instance from GitHub and the host.
+4. [data-and-scaling.md](./data-and-scaling.md): retention, the audit log, and adding worker or api capacity.
+5. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
+6. [uninstall.md](./uninstall.md): remove an instance from GitHub and the host.
 
 Elsewhere:
 
-- [cli.md](./cli.md): reviewing from a terminal, a script, CI or a coding agent with the `mergebrief` CLI.
+- [The `mergebrief` CLI](../use/cli.md): reviewing from a terminal, a script, CI or a coding agent.
 - [How MergeBrief works](../architecture.md) and the [glossary](../glossary.md): what happens between a push and a brief, and what each term means.

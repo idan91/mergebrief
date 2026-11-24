@@ -42,7 +42,7 @@ If your company has an identity provider such as Okta, you can decide who reache
 | Every other `/api/*` | Open | The CLI and agents. The API checks a session or token on every request |
 | Everything else | Behind the identity provider | The browser: pages and assets |
 
-- **The CLI never calls `/api/auth/*`.** If its requests reach the identity provider, it gets a login page and reports that the instance "answered like an identity-provider proxy". A proxy that accepts static headers can be satisfied from the CLI's profile instead ([cli.md](./cli.md#behind-an-identity-aware-proxy)).
+- **The CLI never calls `/api/auth/*`.** If its requests reach the identity provider, it gets a login page and reports that the instance "answered like an identity-provider proxy". A proxy that accepts static headers can be satisfied from the CLI's profile instead ([cli.md](../use/cli.md#behind-an-identity-aware-proxy)).
 - **Health checks:** the compose checks do not pass through the proxy. Open `/healthz` and `/readyz` only for a monitor outside it.
 - **An open browser tab** calls `/api/auth/*` too, so it needs a reload once the identity provider's session expires.
 - **Leave compression off** at the proxy, for the same reason as in step 2 above.
@@ -148,7 +148,7 @@ Apart from the per-reviewer [attachment upload quota](./attachments.md#limit-upl
 - **Session cookie.** `__Host-mergebrief_session` is `HttpOnly`, `Secure`, `SameSite=Lax` and `Path=/`. It carries a random value, and the database keeps only its SHA-256 hash. A session expires when its GitHub refresh token does, and each token refresh moves that date forward.
 - **Sign out everywhere** deletes every browser session you hold. It does not touch your API tokens: each keeps working until you revoke it or it expires.
 - **Same-origin writes.** A cookie request that changes state must prove it came from this instance: it carries `Sec-Fetch-Site: same-origin`, or an `Origin` equal to `PUBLIC_BASE_URL`'s origin. Anything else answers 403.
-- **API tokens.** An API token starts with `mergebrief_`, is stored as a SHA-256 hash, and carries the scope chosen when it was created. The `/api/auth/*` routes ignore it, so a stolen token cannot create another token or sign its owner out ([cli.md](./cli.md#create-a-token)).
+- **API tokens.** An API token starts with `mergebrief_`, is stored as a SHA-256 hash, and carries the scope chosen when it was created. The `/api/auth/*` routes ignore it, so a stolen token cannot create another token or sign its owner out ([cli.md](../use/cli.md#create-a-token)).
 - **The CLI's copy.** The CLI stores its token in plain text in `~/.config/mergebrief/config.json` (under `$XDG_CONFIG_HOME` when set), a file only its owner can read (mode `0600`).
 - **GitHub tokens.** Each user's access and refresh token pair is the one secret MergeBrief stores, encrypted under the session key ([How GitHub tokens are stored](./secrets.md#how-github-tokens-are-stored)). A user who revokes the App on github.com loses every session, API token and stored GitHub token here ([github-app.md](./github-app.md#reviewer-sign-in)).
 
@@ -230,4 +230,4 @@ The table covers the instance's own processes. A reviewer's browser also loads:
 
 A file kept in Git LFS counts against its owner's bandwidth, so an author who points an image at their own repository can see that it was fetched, though not by whom.
 
-The `mergebrief` CLI asks the npm registry for its newest version unless `MERGEBRIEF_NO_VERSION_WARNING` is set ([cli.md](./cli.md#versions)).
+The `mergebrief` CLI asks the npm registry for its newest version unless `MERGEBRIEF_NO_VERSION_WARNING` is set ([cli.md](../use/cli.md#versions)).

@@ -2,7 +2,7 @@ import type { createI18n } from "i18n";
 import type { DefaultTheme } from "vitepress";
 
 import type { AlertLabels } from "./alerts";
-import type { SidebarLabels } from "./pages/types";
+import { type SidebarLabels, SelfHostPhases } from "./pages/types";
 
 type Translate = ReturnType<typeof createI18n>["t"];
 
@@ -38,6 +38,12 @@ export function readSiteLabels(t: Translate): SiteLabels {
       use: t("docsSite.sidebar.use"),
       reference: t("docsSite.sidebar.reference"),
       releases: t("docsSite.sidebar.releases"),
+      selfHostPhases: {
+        [SelfHostPhases.SET_UP]: t("docsSite.sidebar.setUp"),
+        [SelfHostPhases.CONFIGURE]: t("docsSite.sidebar.configure"),
+        [SelfHostPhases.SECURE]: t("docsSite.sidebar.secure"),
+        [SelfHostPhases.OPERATE]: t("docsSite.sidebar.operate"),
+      },
     },
     chrome: readChromeLabels(t),
     search: readSearchLabels(t),

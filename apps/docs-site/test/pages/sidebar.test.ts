@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import { buildSidebar, compareReleaseVersions } from "../../src/pages/sidebar";
-import type { SidebarLabels, SitePage } from "../../src/pages/types";
+import {
+  type SidebarLabels,
+  type SitePage,
+  SelfHostPhases,
+} from "../../src/pages/types";
 
 const PAGES: SitePage[] = [
+  { source: "README.md", link: "/", title: "MergeBrief documentation" },
   {
     source: "api-changelog.md",
     link: "/api-changelog",
     title: "API changelog",
   },
-  { source: "architecture.md", link: "/architecture", title: "Architecture" },
+  {
+    source: "architecture.md",
+    link: "/architecture",
+    title: "How MergeBrief works",
+  },
+  { source: "glossary.md", link: "/glossary", title: "Glossary" },
   {
     source: "releases/0.1.0-rc.1.md",
     link: "/releases/0.1.0-rc.1",
@@ -24,19 +34,20 @@ const PAGES: SitePage[] = [
   },
   {
     source: "self-host/README.md",
-    link: "/",
+    link: "/self-host/README",
     title: "Self-hosting MergeBrief",
+  },
+  {
+    source: "self-host/secrets.md",
+    link: "/self-host/secrets",
+    title: "Rotate secrets",
   },
   {
     source: "self-host/attachments.md",
     link: "/self-host/attachments",
     title: "Attachments",
   },
-  {
-    source: "self-host/cli.md",
-    link: "/self-host/cli",
-    title: "The mergebrief CLI",
-  },
+  { source: "use/cli.md", link: "/use/cli", title: "The mergebrief CLI" },
 ];
 
 const LABELS: SidebarLabels = {
@@ -45,16 +56,45 @@ const LABELS: SidebarLabels = {
   use: "label:use",
   reference: "label:reference",
   releases: "label:releases",
+  selfHostPhases: {
+    [SelfHostPhases.SET_UP]: "label:setUp",
+    [SelfHostPhases.CONFIGURE]: "label:configure",
+    [SelfHostPhases.SECURE]: "label:secure",
+    [SelfHostPhases.OPERATE]: "label:operate",
+  },
 };
 
+function stubPages(sources: readonly string[]): SitePage[] {
+  return sources.map((source) => ({ source, link: "/page", title: source }));
+}
+
 describe("buildSidebar", () => {
-  it("groups pages by folder, the CLI under use, releases newest first", () => {
+  it("groups pages by folder, use first, the home page in no group", () => {
     expect(buildSidebar(PAGES, LABELS)).toEqual([
+      {
+        text: "label:use",
+        items: [{ text: "The mergebrief CLI", link: "/use/cli" }],
+      },
       {
         text: "label:selfHosting",
         items: [
-          { text: "Self-hosting MergeBrief", link: "/" },
-          { text: "Attachments", link: "/self-host/attachments" },
+          {
+            text: "label:setUp",
+            collapsed: false,
+            items: [
+              { text: "Self-hosting MergeBrief", link: "/self-host/README" },
+            ],
+          },
+          {
+            text: "label:configure",
+            collapsed: true,
+            items: [{ text: "Attachments", link: "/self-host/attachments" }],
+          },
+          {
+            text: "label:secure",
+            collapsed: true,
+            items: [{ text: "Rotate secrets", link: "/self-host/secrets" }],
+          },
         ],
       },
       {
@@ -62,14 +102,11 @@ describe("buildSidebar", () => {
         items: [{ text: "Risk policy", link: "/repo-config/policy" }],
       },
       {
-        text: "label:use",
-        items: [{ text: "The mergebrief CLI", link: "/self-host/cli" }],
-      },
-      {
         text: "label:reference",
         items: [
+          { text: "Glossary", link: "/glossary" },
+          { text: "How MergeBrief works", link: "/architecture" },
           { text: "API changelog", link: "/api-changelog" },
-          { text: "Architecture", link: "/architecture" },
         ],
       },
       {
@@ -83,8 +120,21 @@ describe("buildSidebar", () => {
     ]);
   });
 
+  it("orders use pages for reading, unlisted pages last", () => {
+    const [group] = buildSidebar(
+      stubPages(["use/zeta.md", "use/cli.md", "use/reviewing.md"]),
+      LABELS,
+    );
+
+    expect(group?.items.map((item) => item.text)).toEqual([
+      "use/reviewing.md",
+      "use/cli.md",
+      "use/zeta.md",
+    ]);
+  });
+
   it("orders repo config pages for reading, unlisted pages last", () => {
-    const repoConfigPages: SitePage[] = [
+    const repoConfigPages = stubPages([
       "repo-config/faq.md",
       "repo-config/policy.md",
       "repo-config/instructions-template.md",
@@ -92,7 +142,7 @@ describe("buildSidebar", () => {
       "repo-config/trigger-conditions.md",
       "repo-config/settings.md",
       "repo-config/instructions.md",
-    ].map((source) => ({ source, link: "/repo-config/page", title: source }));
+    ]);
 
     const [group] = buildSidebar(repoConfigPages, LABELS);
 
@@ -107,33 +157,58 @@ describe("buildSidebar", () => {
     ]);
   });
 
-  it("orders self-hosting pages for reading, unlisted pages last", () => {
-    const selfHostPages: SitePage[] = [
+  it("splits self-hosting into phases in reading order, unlisted pages last", () => {
+    const selfHostPages = stubPages([
       "self-host/uninstall.md",
-      "self-host/glossary.md",
+      "self-host/zeta.md",
       "self-host/upgrade.md",
       "self-host/compose.md",
-      "self-host/troubleshooting.md",
+      "self-host/glossary.md",
       "self-host/README.md",
       "self-host/backup-restore.md",
-    ].map((source) => ({ source, link: "/self-host/page", title: source }));
+    ]);
 
     const [group] = buildSidebar(selfHostPages, LABELS);
 
+    expect(group?.items).toEqual([
+      {
+        text: "label:setUp",
+        collapsed: false,
+        items: [
+          { text: "self-host/README.md", link: "/page" },
+          { text: "self-host/compose.md", link: "/page" },
+        ],
+      },
+      {
+        text: "label:operate",
+        collapsed: true,
+        items: [
+          { text: "self-host/upgrade.md", link: "/page" },
+          { text: "self-host/backup-restore.md", link: "/page" },
+          { text: "self-host/uninstall.md", link: "/page" },
+        ],
+      },
+      { text: "self-host/glossary.md", link: "/page" },
+      { text: "self-host/zeta.md", link: "/page" },
+    ]);
+  });
+
+  it("orders reference pages for reading, unlisted pages last", () => {
+    const [group] = buildSidebar(
+      stubPages(["api-changelog.md", "vision.md", "architecture.md"]),
+      LABELS,
+    );
+
     expect(group?.items.map((item) => item.text)).toEqual([
-      "self-host/README.md",
-      "self-host/compose.md",
-      "self-host/upgrade.md",
-      "self-host/backup-restore.md",
-      "self-host/troubleshooting.md",
-      "self-host/uninstall.md",
-      "self-host/glossary.md",
+      "architecture.md",
+      "api-changelog.md",
+      "vision.md",
     ]);
   });
 
   it("drops a group with no pages", () => {
     expect(
-      buildSidebar(PAGES.slice(0, 2), LABELS).map((group) => group.text),
+      buildSidebar(PAGES.slice(0, 4), LABELS).map((group) => group.text),
     ).toEqual(["label:reference"]);
   });
 });
