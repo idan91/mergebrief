@@ -335,7 +335,7 @@ sudo systemctl enable --now docker mergebrief
 - **`worker` has no health check**, so a `worker` that exits a moment after it starts leaves the unit active, with webhooks answering and no brief appearing. `docker compose ps -a` catches it ([A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0)). An error in `api` or `web` shows as failed in `systemctl status mergebrief`. The unit has no `Restart=`.
 - **`TimeoutStopSec`** covers the stop grace periods in `docker-compose.yml`, so systemd does not cut a drain at shutdown.
 - **To keep an instance down across reboots**, run `sudo systemctl disable mergebrief`. A plain `docker compose stop` lasts only until the next boot.
-- **Deliveries GitHub sent while the stack was down** are resent by the worker, up to 20 every 15 minutes, starting within about 30 minutes. To do it sooner, redeliver them from the App's **Advanced** tab, within 3 days.
+- **Deliveries GitHub sent while the stack was down** are resent by the worker; [Other webhook answers](./troubleshooting.md#other-webhook-answers) says when, and how to redeliver sooner.
 
 ## What runs
 

@@ -61,7 +61,7 @@ Operate:
 1. [observability.md](./observability.md): the log line, the `evt` names to alert on, health endpoints and tracing.
 2. [upgrade.md](./upgrade.md): upgrade to a new release, check the version you run, and roll back.
 3. [backup-restore.md](./backup-restore.md): schedule backups before you need one, and restore in place or onto a new host.
-4. [secrets.md](./secrets.md): rotate the session key, the App's key and secrets, and the Postgres password.
+4. [secrets.md](./secrets.md): rotate the session key, the App's key and secrets, the Postgres password, the model provider key, tracker tokens and OTLP credentials.
 5. [data-and-scaling.md](./data-and-scaling.md): retention, the audit log, and adding worker or api capacity.
 6. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
 7. [uninstall.md](./uninstall.md): remove an instance from GitHub and the host.
