@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runE2eStop } from "../src/logic/e2e-stop";
+import { PLAYWRIGHT_RUN, runE2eStop } from "../src/logic/e2e-stop";
 import type { CommandOutcome, CommandRunner, E2eStopDeps } from "../src/types";
 
 const OK = (stdout = ""): CommandOutcome => ({ status: 0, stdout, stderr: "" });
@@ -30,7 +30,7 @@ function makeDeps(artifactsDir: string, world: World) {
   function pgrep(args: readonly string[]): CommandOutcome {
     // A pattern that misses real runs reads as "playwright running" here, so the
     // unowned-container test fails if the matched process shape regresses.
-    if (args.at(-1) !== "playwright test|playwright/cli\\.js test") {
+    if (args.at(-1) !== PLAYWRIGHT_RUN) {
       return OK();
     }
     if (world.playwrightRunning === true) {
@@ -64,6 +64,20 @@ function makeArtifacts(files: Record<string, string>): string {
   }
   return dir;
 }
+
+describe("PLAYWRIGHT_RUN", () => {
+  it("matches the command lines a live suite actually has", () => {
+    const pattern = new RegExp(PLAYWRIGHT_RUN);
+    const live = [
+      "node /r/apps/web/node_modules/.bin/../@playwright/test/cli.js test",
+      "node /r/node_modules/@playwright/test/cli.js test --config playwright.perf.config.ts",
+      "/bin/sh /r/apps/web/node_modules/.bin/playwright test",
+    ];
+
+    expect(live.filter((line) => !pattern.test(line))).toEqual([]);
+    expect(pattern.test("node /r/apps/api/src/main.ts")).toBe(false);
+  });
+});
 
 describe("runE2eStop", () => {
   it("stops the api and container of a run whose playwright died", () => {

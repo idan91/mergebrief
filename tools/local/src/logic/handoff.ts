@@ -6,6 +6,7 @@ const WEB_INPUTS = ["apps/web/", "packages/"];
 const API_INPUTS = ["apps/api/", "packages/"];
 const LOCKFILE = "pnpm-lock.yaml";
 const COMMIT_SHA = /^[0-9a-f]{40,64}$/;
+const RESTART_HINT = "restart pnpm dev, the api does not reload";
 /** pnpm's copy of the lockfile it last installed from. */
 const INSTALLED_LOCKFILE = "node_modules/.pnpm/lock.yaml";
 /** The commit the web dist was last built from; gitignored with node_modules. */
@@ -108,11 +109,19 @@ export function runHandoff(
   }
   const after = runOrFail(git, ["rev-parse", "HEAD"], "git rev-parse");
   const lines = [`switched to ${branch}`];
+  const apiChanged =
+    before.ok && after.ok
+      ? listChanged(git, before.value, after.value)
+      : undefined;
+  const restartApi =
+    apiChanged === undefined || touches(apiChanged, API_INPUTS);
+  // A rerun sees no switch, so the restart hint rides on the failure too.
   function failAfterSwitch(error: Error): Result<string, Error> {
+    const restart = restartApi ? `; then ${RESTART_HINT}` : "";
     return {
       ok: false,
       error: new Error(
-        `now on ${branch}, but ${error.message}; rerun pnpm checkout:handoff ${branch} to finish`,
+        `now on ${branch}, but ${error.message}; rerun pnpm checkout:handoff ${branch} to finish${restart}`,
       ),
     };
   }
@@ -138,12 +147,8 @@ export function runHandoff(
     deps.files.write(WEB_BUILD_STAMP, `${after.value}\n`);
     lines.push("web dist was stale: apps/web rebuilt");
   }
-  const apiChanged =
-    before.ok && after.ok
-      ? listChanged(git, before.value, after.value)
-      : undefined;
-  if (apiChanged === undefined || touches(apiChanged, API_INPUTS)) {
-    lines.push("api inputs changed: restart pnpm dev, the api does not reload");
+  if (restartApi) {
+    lines.push(`api inputs changed: ${RESTART_HINT}`);
   }
   lines.push(describeNode(deps.nodeVersion, deps.pinnedNodeVersion));
   return { ok: true, value: lines.join("\n") };

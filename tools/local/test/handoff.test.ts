@@ -199,7 +199,9 @@ describe("runHandoff", () => {
   });
 
   it("says where the checkout is when a step after the switch fails", () => {
-    const { git } = makeGit({});
+    const { git } = makeGit({
+      diffs: { [`${OLD}..${NEW}`]: ["apps/api/src/a.ts"] },
+    });
     const pnpm = makePnpm("install --frozen-lockfile");
     const { store } = makeFiles({
       ...IN_SYNC,
@@ -209,7 +211,7 @@ describe("runHandoff", () => {
     const result = runHandoff(makeDeps(git, pnpm.pnpm, store), "feat/x");
 
     expect(result.ok ? "" : result.error.message).toBe(
-      "now on feat/x, but pnpm install failed: ERR_PNPM_FETCH; rerun pnpm checkout:handoff feat/x to finish",
+      "now on feat/x, but pnpm install failed: ERR_PNPM_FETCH; rerun pnpm checkout:handoff feat/x to finish; then restart pnpm dev, the api does not reload",
     );
   });
 

@@ -12,9 +12,9 @@ const CONTAINER_ID = /^[0-9a-f]{12,64}$/;
 const API_COMMAND = /apps\/api\/src\/main\.ts/;
 /**
  * A live playwright run: `playwright test` through a pnpm exec shim, or the node
- * process the shim execs into (`@playwright/test/cli.js test`).
+ * process pnpm's `.bin/playwright` shim execs into (`node .../@playwright/test/cli.js test`).
  */
-const PLAYWRIGHT_RUN = "playwright test|playwright/cli\\.js test";
+export const PLAYWRIGHT_RUN = "playwright test|@playwright/test/cli\\.js test";
 
 function readTrimmed(path: string): string | undefined {
   try {
