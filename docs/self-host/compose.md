@@ -405,7 +405,7 @@ docker compose exec postgres \
   after a superseding push; `failed` carries a sanitized reason; `capped`
   means the instance hit its daily generation cap and the run was skipped; see
   [generators.md](./generators.md#daily-generation-cap)). `held` means a
-  [trigger condition](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)
+  [trigger condition](../repo-config/trigger-conditions.md)
   is unmet; the head generates by itself once every condition passes, or on a
   Generate click. `awaiting-trigger` means the run waits until a collaborator
   approves the pull request's runs.

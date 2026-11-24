@@ -76,8 +76,9 @@ its own.
 
 Read these when a repository or a reviewer needs them:
 
-- [repo-config.md](./repo-config.md): what a repository's own `.mergebrief/`
-  files can change about its briefs.
+- [Configure your repository](../repo-config/README.md): what a repository's
+  own `.mergebrief/` files can change about its briefs, for its maintainers.
+  [repo-config.md](./repo-config.md) is the operator's side.
 - [trackers.md](./trackers.md): where the primary ticket is read from, and
   what the worker fetches from links in a pull request description.
 - [attachments.md](./attachments.md): the one push the App makes, for images

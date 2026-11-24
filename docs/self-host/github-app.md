@@ -13,7 +13,7 @@ This doc is the canonical setup reference for both contributors and self-hosters
 | **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
 | **Issues** | Read-only | Reads the issue a pull request names as its ticket ([trackers.md](./trackers.md#github-issues)). |
-| **Checks** | Read-only | Reads the check runs on a held push for the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates), and lets the App subscribe to **Check run**. |
+| **Checks** | Read-only | Reads the check runs on a held push for the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md), and lets the App subscribe to **Check run**. |
 | **Commit statuses** | Read-only | Reads the commit statuses on a held push for the same two conditions, and lets the App subscribe to **Status**. |
 
 | Organization permission | Access | Why |
@@ -55,7 +55,7 @@ On the registration "what events would you like to subscribe to?" screen, check 
 
 - **Pull request**: the trigger for brief generation (open + every push/synchronize), for an
   author on the team; see [Who triggers a brief](#who-triggers-a-brief).
-  The same event carries the actions that change what a [trigger condition](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) reads: a draft flip, a label added or removed, a review requested or withdrawn, and a title or base edit. A review request or a base edit queues a full generation, which checks the conditions itself; each of the others checks a held push again. None needs an extra checkbox.
+  The same event carries the actions that change what a [trigger condition](../repo-config/trigger-conditions.md) reads: a draft flip, a label added or removed, a review requested or withdrawn, and a title or base edit. A review request or a base edit queues a full generation, which checks the conditions itself; each of the others checks a held push again. None needs an extra checkbox.
 - **Pull request review**: a reviewer submitting → queues a regeneration, and advances
   their Checkpoint when the reviewer is on the team. On a private (not internal) repository every
   reviewer counts. On a public or internal repository the owner, organization members and
@@ -86,7 +86,7 @@ A release that reads something new from GitHub needs a permission or an event th
 
 ### Accept the Checks and Commit statuses permissions
 
-The release that added the `bots` and `ci` [trigger conditions](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates) reads check runs and commit statuses. On an App registered before it:
+The release that added the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md) reads check runs and commit statuses. On an App registered before it:
 
 1. In the App's settings, set **Checks** and **Commit statuses** to **Read-only**.
 2. Under events, subscribe to **Check run** and **Status**. Each checkbox appears once its permission is set.
@@ -94,7 +94,7 @@ The release that added the `bots` and `ci` [trigger conditions](./repo-config.md
 
 Until an installation accepts, a `ci` condition holds a push as missing the permission whenever it has a check to read; a `ci: required` on a base with no required check still passes. A `bots` condition holds Unblocked, CodeRabbit, Claude or Greptile as missing the permission while they have not reported. Their check runs and statuses cannot be read then, so only a pull request review from the bot, which needs neither permission, lifts that hold, and only for `finished` and `approved`. The brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
 
-`claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted, even after Claude reviews. Every other verdict on those four bots, and every `ci` check, needs both, so an App granted only one of the two holds them as above, except that a run or status through the source it can read also settles a bot, and a run from the App a ruleset pins a check to decides that check without the status read. Any other `ci` check that passes, or reports nothing, on the source the App can read holds as missing while the other source is unreadable, and the held push then shows the line asking for the permission in place of those checks. A check that failed or is still running on the readable source shows as failed or running beside that line ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)).
+`claude: clean` reads check runs only, so it needs Checks alone and holds as missing the permission until Checks is accepted, even after Claude reviews. Every other verdict on those four bots, and every `ci` check, needs both, so an App granted only one of the two holds them as above, except that a run or status through the source it can read also settles a bot, and a run from the App a ruleset pins a check to decides that check without the status read. Any other `ci` check that passes, or reports nothing, on the source the App can read holds as missing while the other source is unreadable, and the held push then shows the line asking for the permission in place of those checks. A check that failed or is still running on the readable source shows as failed or running beside that line ([What a `ci` condition counts](../repo-config/trigger-conditions.md#what-a-ci-condition-counts)).
 
 Accepting the permissions wakes nothing by itself: a push already held as missing them is checked again on the next commit status or finished check run GitHub reports on it, or the next review submitted on its pull request. A Generate click generates that push without checking it, and the next push is a new head, checked on its own. A check run GitHub creates unfinished wakes nothing until it finishes.
 
@@ -170,7 +170,7 @@ from their next push. A later event whose read fails leaves a head that already
 triggered as it is.
 
 A bot author is decided separately, by the repository's `trustedBots` list in
-`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A push that passes this check can
+`.mergebrief/settings.yaml` ([Settings](../repo-config/settings.md#let-a-bots-pull-requests-generate-without-a-click)). A push that passes this check can
 still be held by an unmet trigger condition; anyone with push access can generate it now from the
 PR's page in MergeBrief or with `mergebrief generate <number>`.
 

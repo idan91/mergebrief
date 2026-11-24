@@ -331,7 +331,7 @@ The harness providers are refused in the shipped image
 
 | Key | Default | Accepts |
 | --- | --- | --- |
-| `drafts.generate` | removed | Refuses boot. Hold drafts with `triggerConditions.readyForReview: on` ([repo-config.md](./repo-config.md#related-instance-block-drafts-operator-side)). |
+| `drafts.generate` | removed | Refuses boot. Hold drafts with `triggerConditions.readyForReview: on` ([Hold drafts until they are ready for review](../repo-config/trigger-conditions.md#hold-drafts-until-they-are-ready-for-review)). |
 | `drafts.debounceSeconds` | unset (the normal window) | A positive number of seconds: the debounce for a draft's regenerations. |
 | `spend.maxGenerationsPerDay` | `300` | A positive whole number, or `unlimited` for no cap ([Daily generation cap](./generators.md#daily-generation-cap)). |
 | `operators` | empty list | A list of up to 100 GitHub user ids, positive whole numbers, never logins. A bare `operators:` with no list refuses boot ([Operators](./generators.md#operators)). |
@@ -341,7 +341,7 @@ The harness providers are refused in the shipped image
 ### `triggerConditions`
 
 The same block a repository writes in its `settings.yaml`, with the same
-kinds ([repo-config.md](./repo-config.md#triggerconditions-what-a-push-must-meet-before-it-generates)),
+kinds ([Trigger conditions](../repo-config/trigger-conditions.md)),
 except `paths`, which only a repository sets. A repository's block merges
 over this one per kind: a kind it sets replaces this one, a kind it leaves
 out is inherited, and `off` drops one kind or the whole block. Only
@@ -427,9 +427,9 @@ that holds.
 A repository configures its own briefs with files on its default branch,
 read fresh per generation. An invalid or over-budget file is dropped whole
 and the brief says so; it never stops the instance.
-[repo-config.md](./repo-config.md) is the full reference;
-[`docs/repo-config/`](../repo-config/authoring.md) holds the authoring guide
-and a template for `instructions.md`.
+[Configure your repository](../repo-config/README.md) is the code owner's
+guide, with a template for `instructions.md`; [repo-config.md](./repo-config.md)
+covers the operator's side.
 
 | File | Size limit | Keys |
 | --- | --- | --- |

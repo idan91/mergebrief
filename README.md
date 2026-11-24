@@ -86,7 +86,7 @@ The [CLI guide](./docs/self-host/cli.md) covers tokens and setup.
 - [GitHub App setup](./docs/self-host/github-app.md)
 - [Configuration](./docs/self-host/configuration.md)
 - [Model backends](./docs/self-host/generators.md)
-- [Per-repo config](./docs/self-host/repo-config.md)
+- [Per-repo config](./docs/repo-config/README.md)
 - [Upgrades, backup and retention](./docs/self-host/operations.md)
 - [Security model](./docs/self-host/security-model.md)
 - [Architecture](./docs/architecture.md)

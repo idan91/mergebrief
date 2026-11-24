@@ -7,6 +7,16 @@ export const SITE_PAGE_GLOBS = [
   "releases/*.md",
 ] as const;
 
+/** The Repo config group's reading order; a page left off follows them, by path. */
+export const REPO_CONFIG_PAGE_ORDER: readonly string[] = [
+  "repo-config/README.md",
+  "repo-config/settings.md",
+  "repo-config/trigger-conditions.md",
+  "repo-config/policy.md",
+  "repo-config/instructions.md",
+  "repo-config/instructions-template.md",
+];
+
 export const HOME_PAGE_SOURCE = "self-host/README.md";
 export const HOME_PAGE_TARGET = "index.md";
 export const RELEASES_FOLDER = "releases/";
