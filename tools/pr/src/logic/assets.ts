@@ -87,6 +87,13 @@ function validate(
     return { ok: false, error: new Error("no files given") };
   }
   for (const file of files) {
+    // mktree reads one entry per line, and ls-tree quotes a name starting with `"`.
+    if (/[\n"]/.test(basename(file))) {
+      return {
+        ok: false,
+        error: new Error(`${file} has a newline or quote in its name`),
+      };
+    }
     if (!MEDIA_EXTENSIONS.has(extname(file).toLowerCase())) {
       return {
         ok: false,

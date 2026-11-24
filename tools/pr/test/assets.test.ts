@@ -114,6 +114,18 @@ describe("runAssets", () => {
     expect(readRemote(box.remote, ["branch", "--list", "assets/*"])).toBe("");
   });
 
+  it("refuses a file name that would break the tree listing", () => {
+    const box = makeSandbox();
+
+    const result = runAssets(
+      { git: box.git, gh: makeGh(false), slug: SLUG },
+      "BRIEF-476",
+      [writeImage(box.work, "a\nb.png", "png")],
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
   it("refuses a ticket id that is not KEY-number", () => {
     const box = makeSandbox();
 
