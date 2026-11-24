@@ -155,7 +155,7 @@ docker compose up -d --wait
 
 ### Renamed and removed variables
 
-A variable an older release read and a newer one renamed or moved into `mergebrief.config.yaml` refuses boot, or logs a warning, naming its replacement. Remove it from `.env`, set the replacement, then run `docker compose up -d` after a `.env` change or `docker compose restart api worker` after a config file change.
+A variable an older release read and a newer one renamed or moved into `mergebrief.config.yaml` refuses boot, or logs a warning, naming its replacement. Remove it from `.env`, set the replacement, then apply both files: `docker compose up -d`, then `docker compose restart api worker` ([Apply a change](./configuration.md#apply-a-change)).
 
 | Variable | What happens | Replace it with |
 | --- | --- | --- |
@@ -220,7 +220,7 @@ updateCheck:
   # url: https://mirror.example.com/version.json
 ```
 
-Then restart the api, which reads the file at boot:
+Then restart the api, which reads the block at boot ([Apply a change](./configuration.md#apply-a-change)):
 
 ```sh
 docker compose restart api

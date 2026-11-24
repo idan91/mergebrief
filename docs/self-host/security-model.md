@@ -64,19 +64,21 @@ allowed:
     - 12345678  # organizations or personal accounts whose installations count
 ```
 
-Find a person's id with `gh api users/<login> --jq .id`, or in their avatar URL (`avatars.githubusercontent.com/u/<id>`), and an organization's with `gh api orgs/<org> --jq .id`. List ids, never logins: GitHub frees a login when its owner renames, and whoever registers it next would inherit the access. Then restart the services that read the lists:
+Find a person's id with `gh api users/<login> --jq .id`, or in their avatar URL (`avatars.githubusercontent.com/u/<id>`), and an organization's with `gh api orgs/<org> --jq .id`. List ids, never logins: GitHub frees a login when its owner renames, and whoever registers it next would inherit the access. Then restart the api, which reads the lists ([Apply a change](./configuration.md#apply-a-change)):
 
 ```sh
-docker compose restart api worker
+docker compose restart api
 ```
 
 **Check:** the person signs in. A refused account sees "This GitHub account isn't allowed on this instance. Ask whoever runs it for access.", and the api logs `info` `sign-in refused: the account is not allowed on this instance` with the account's `reviewerId`.
 
 | Named by | Who that lets in |
 | --- | --- |
-| `operators` | Those people, and anyone in an installation of the App on their personal accounts, which includes collaborators on those repositories. Up to 100 ids. |
-| `allowed.users` | Those people, whatever they can install. Up to 1000 ids. |
-| `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts. Up to 1000 ids. |
+| `operators` | Those people, and anyone in an installation of the App on their personal accounts, which includes collaborators on those repositories. |
+| `allowed.users` | Those people, whatever they can install. |
+| `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts. |
+
+How many ids each list holds is in [configuration.md](./configuration.md#drafts-spend-operators-allowed).
 
 - **What counts as "in an installation"** is GitHub's answer: the installations a person has explicit access to, through ownership, as a collaborator or through organization membership. Reading a public repository does not count, and neither does a suspended installation. An installation made at enterprise level never matches, so list each organization.
 - **Empty and bare blocks.** Omitting `operators`, or writing `operators: []`, means nobody is an operator. A bare `operators:` with nothing under it, a bare `allowed:`, or an `allowed:` that names neither list refuses boot. An instance whose config names nobody logs `the instance config names nobody` at boot and refuses every sign-in.
@@ -202,7 +204,7 @@ Logs go to stdout. Nothing reports back to the MergeBrief project: the update ch
 | Jira (`api.atlassian.com`) | worker | The account email and API token, the site's cloud id and the issue key of the one ticket a pull request names. At boot, one request that asks what the token can do. Installed repositories only ([trackers.md](./trackers.md#jira)) | Remove the `jira` entries from `contextSources:` and `trackers:` |
 | Jira site (the configured `site`, `/_edge/tenant_info`) | worker | A plain `GET` with no credential, to look up the site's cloud id: once per worker process at boot, and again after a failed lookup or a cloud id Atlassian no longer knows ([trackers.md](./trackers.md#what-the-worker-asks-atlassian)) | Remove the `jira` entries from `contextSources:` and `trackers:` |
 | The OTLP endpoint you configure | api, worker, web | Trace spans, listed [below](#what-a-trace-carries) | Off by default. Leave both endpoint variables unset, or set `OTEL_SDK_DISABLED=true` |
-| Links in a pull request description | worker | A plain `GET` to up to five http(s) links, with no credentials and no redirects followed. Up to 20,000 characters of each answer go to the model ([trackers.md](./trackers.md#links-in-the-description)) | `linkFetch.mode: off`, or `allowlist` to name the hosts ([configuration.md](./configuration.md#linkfetch)). The worker warns at boot while the mode is `public`, the default |
+| Links in a pull request description | worker | A plain `GET` to up to five http(s) links, with no credentials and no redirects followed. Each answer's text, capped, goes to the model ([trackers.md](./trackers.md#links-in-the-description)) | `linkFetch.mode: off`, or `allowlist` to name the hosts ([configuration.md](./configuration.md#linkfetch)). The worker warns at boot while the mode is `public`, the default |
 
 ### What the model provider receives
 

@@ -15,7 +15,23 @@ A broken instance file refuses boot. A broken repository file only degrades that
 
 ## Set conditions for every repository
 
-Write a `triggerConditions:` block in `mergebrief.config.yaml`. It takes the same kinds and recipes as a repository's ([Trigger conditions](../repo-config/trigger-conditions.md)) except `paths`, and a bad block refuses `worker` boot ([configuration.md](./configuration.md#triggerconditions)). A held push names each unmet condition as the instance's or the repository's, so authors know whom to ask.
+Write a `triggerConditions:` block in `mergebrief.config.yaml`. It takes the same kinds and recipes as a repository's ([Trigger conditions](../repo-config/trigger-conditions.md)) except `paths`. For example, to hold every draft until it is marked ready for review:
+
+```yaml
+# mergebrief.config.yaml
+triggerConditions:
+  readyForReview: on
+```
+
+Only the worker reads the block:
+
+```sh
+docker compose restart worker
+```
+
+A bad block refuses `worker` boot, and the last line of `docker compose logs worker` names it ([configuration.md](./configuration.md#triggerconditions)).
+
+**Check:** push to a draft pull request in a repository whose own `settings.yaml` does not switch the condition off. MergeBrief shows **No brief for this push yet**, and the held push lists `readyForReview` as an **Instance** condition. A held push names each unmet condition as the instance's or the repository's, so authors know whom to ask.
 
 ## Damp draft regeneration
 
@@ -26,6 +42,14 @@ The `drafts` block in `mergebrief.config.yaml` lengthens the wait before a draft
 drafts:
   debounceSeconds: 900
 ```
+
+Only the api reads the block, when a push arrives:
+
+```sh
+docker compose restart api
+```
+
+**Check:** push twice to a draft pull request that already has a brief. The App's Entry comment changes to **Brief is generating for this push…** about 15 minutes after the first push, not about a minute after it.
 
 Unset, a draft waits the normal 60 seconds like any pull request. With a window set, a draft's first push in a burst fixes the start time, and later pushes inside the window only move the head the run will brief, so the window bounds how late a run starts rather than pushing it back on every push. A draft's first brief always uses the normal window, and marking a pull request ready for review queues it on a short window of about 10 seconds, so the brief is fresh when the reviewer arrives.
 

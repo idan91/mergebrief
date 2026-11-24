@@ -30,25 +30,27 @@ From the terminal, `mergebrief draft attach 7 screenshot.png` uploads a file and
 
 ## Limit uploads per reviewer
 
-Reading a repository is enough to attach, and the push is the App's, so each reviewer is limited: 10 files or 30 MB per 10 minutes by default. Change the limits in `mergebrief.config.yaml`:
+Reading a repository is enough to attach, and the push is the App's, so each reviewer may attach only so many files and megabytes per window ([defaults](./configuration.md#attachments)). Change the limits in `mergebrief.config.yaml`, for example to a smaller budget:
 
 ```yaml
 # mergebrief.config.yaml
 attachments:
-  quotaFiles: 10           # files per reviewer per window
-  quotaMb: 30              # megabytes per reviewer per window, at least 10
+  quotaFiles: 5            # files per reviewer per window
+  quotaMb: 20              # megabytes per reviewer per window, at least 10
   quotaWindowMinutes: 10   # the window starts at the reviewer's first upload
 ```
 
+Only the api reads the block ([Apply a change](./configuration.md#apply-a-change)):
+
 ```sh
-docker compose restart api worker
+docker compose restart api
 ```
 
-Each key is a positive whole number, and an omitted key keeps its default; anything else refuses boot. Past either limit the composer says "You have attached as many images as this server allows for now", the API answers `429 attachment-limit-reached` with a `Retry-After` header, and `mergebrief draft attach` exits 7. Every attempt that reaches GitHub counts, a failed push included, and a reviewer's browser session and API tokens share one count. The count lives in the api process: a restart clears it, and each api replica counts on its own ([data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api)).
+Each key is a positive whole number, and an omitted key keeps its default; anything else refuses `api` boot, naming the key on the last line of `docker compose logs api`. Past either limit the composer says "You have attached as many images as this server allows for now", the API answers `429 attachment-limit-reached` with a `Retry-After` header, and `mergebrief draft attach` exits 7. Every attempt that reaches GitHub counts, a failed push included, and a reviewer's browser session and API tokens share one count. The count lives in the api process: a restart clears it, and each api replica counts on its own ([data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api)).
 
 ## Limit the size of images and videos shown
 
-A brief shows images and videos from the pull request's description and its repository. The API streams the largest one it will show, 100 MB by default:
+A brief shows images and videos from the pull request's description and its repository. `mediaMaxMb` sets the largest one the API streams ([default](./configuration.md#attachments)):
 
 ```yaml
 # mergebrief.config.yaml
@@ -57,7 +59,7 @@ attachments:
 ```
 
 ```sh
-docker compose restart api worker
+docker compose restart api
 ```
 
 `mediaMaxMb` sits in the same `attachments` block as the upload limits. It is judged on the file's full size: a larger file answers `413 media-too-large`, and the page shows that it could not load, with an **Open on GitHub** link.

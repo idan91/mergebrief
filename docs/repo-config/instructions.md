@@ -37,7 +37,7 @@ Rewording does not get around these. If you want a new fact about a change, such
 
 ## Size limit
 
-The file is at most 16 KB. A larger file is rejected whole and the brief generates without it; it is never cut short. At 80% of the limit or more, the file still applies and the Repo config chip warns you. MergeBrief reads this one file; there are no per-directory instruction files.
+The file has a [size limit](./README.md#the-three-files). A larger file is rejected whole and the brief generates without it; it is never cut short. At 80% of the limit or more, the file still applies and the Repo config chip warns you. MergeBrief reads this one file; there are no per-directory instruction files.
 
 ## The exact text the model reads
 
