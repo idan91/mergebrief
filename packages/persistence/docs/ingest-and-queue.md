@@ -4,6 +4,7 @@
 
 The transactional webhook→upsert→enqueue boundary.
 
+- Every trigger and approval takes the pull request's row lock before the head's generation row (`generation.md`).
 - A trigger with no GitHub time, such as a review, naming a head that has a row and is not current counts for the current head. Naming a head with no row it keeps, since that push may have been lost, unless the review came before the current head's trigger.
 - `requeueGenerateJob`: the worker's re-enqueue of the job a live claim turned away.
 - `routeToLargePool`: moves a running job to the large pool's task under the same key (`generate-large`, or `recover-generation-large` for a recovery run), and stands down when an unlocked job already waits there.
@@ -15,7 +16,7 @@ The transactional webhook→upsert→enqueue boundary.
 
 ## `stores/condition-stamps.ts`
 
-Reads the PR row's sticky trigger-condition stamps, null as absent (`readConditionStamps`): `review_requested_met_at`, and `paths_met_at` CHECK-paired with `paths_met_digest`, the digest of the globs that matched. The tenant repository writes them: `stampReviewRequestedMet` only over a null stamp, `stampPathsMet` only over another digest, both scope-fenced through the guarded row write and returning the row, written or as it was.
+Reads the PR row's sticky trigger-condition stamps, null as absent (`readConditionStamps`): `review_requested_met_at`, and `paths_met_at` CHECK-paired with `paths_met_digest`, the digest of the globs that matched. The tenant repository (`stores/tenant.ts`) writes them: `stampReviewRequestedMet` only over a null stamp, `stampPathsMet` only over another digest, both scope-fenced through the guarded row write and returning the row, written or as it was.
 
 ## `stores/queue.ts`
 

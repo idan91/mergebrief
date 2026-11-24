@@ -1,7 +1,5 @@
 # Sweeps and retention
 
-Every sweep here is an unscoped read named in `../AGENTS.md`; this file holds what each one deletes and how it batches.
-
 ## Retention (`src/stores/purge.ts`)
 
 - `sweepAuditLog`: the audit log's only removal, instance-wide, unset by default, refusing any window under the 30-day floor.
