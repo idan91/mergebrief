@@ -1,0 +1,24 @@
+{
+  "name": "local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local checkout chores: hand the maintainer's checkout to a branch with installs and builds caught up, and stop an e2e run whose owner died.",
+  "license": "FSL-1.1-ALv2",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "handoff": "tsx src/main.ts handoff",
+    "e2e-stop": "tsx src/main.ts e2e-stop"
+  },
+  "dependencies": {
+    "types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}
