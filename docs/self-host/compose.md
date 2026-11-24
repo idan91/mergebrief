@@ -2,7 +2,7 @@
 
 Follow these sections in order, from an empty folder to a running instance that briefs a real pull request. Compose starts four services from one release: Postgres, the api, the web tier in front of it, and the worker that generates briefs. You need what [Prerequisites](./README.md#prerequisites) lists.
 
-On a cloud VM, follow the [cloud deployment guide](./cloud-deployment.md) instead: it runs the same steps with the VM, HTTPS and database around them.
+On a server, follow the [server deployment guide](./server-deployment.md) instead: it runs the same steps with the server, HTTPS and database around them.
 
 ## Get the release files
 
@@ -19,7 +19,7 @@ These fetch the newest release. For another one, replace `latest/download` with 
 
 ## Put HTTPS in front on a server
 
-Skip this step on your own machine: start the tunnel instead ([Try it locally through a tunnel](#try-it-locally-through-a-tunnel)). On a cloud VM, the [cloud deployment guide](./cloud-deployment.md#2-install-docker-and-https) covers this step.
+Skip this step on your own machine: start the tunnel instead ([Try it locally through a tunnel](#try-it-locally-through-a-tunnel)). On a server, the [server deployment guide](./server-deployment.md#2-install-docker-and-https) covers this step.
 
 On a server, GitHub's webhooks and sign-in need an `https://` domain before you register the App. Nothing in the stack speaks TLS, so put a reverse proxy in front of `web`, which listens on `127.0.0.1:3000`. Caddy gets and renews a Let's Encrypt certificate on its own:
 
@@ -424,7 +424,7 @@ While a tunnel is up, the instance is on the internet with whatever secrets it h
 
 ## External Postgres (managed database)
 
-`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase).
+`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Setup steps, with Neon, Supabase and RDS specifics, are in the [server deployment guide](./server-deployment.md#5b-managed-database).
 
 The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself, and it belongs to the release of the `docker-compose.yml` beside it. Fetch that release's overlay; the first line reads the version `docker-compose.yml` pins:
 

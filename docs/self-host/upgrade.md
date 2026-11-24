@@ -61,7 +61,7 @@ Under `MERGEBRIEF_AUTO_MIGRATE=false`, use [the next section](#upgrade-with-a-re
 
 3. **Check** as for [the bundled database](#upgrade-on-the-bundled-database), without the `instance_version` query.
 
-On a VM set up by the [cloud guide](./cloud-deployment.md#9-upgrade-to-a-new-release), run these from a root shell, as that section says.
+On a server set up by the [server guide](./server-deployment.md#9-upgrade-to-a-new-release), run these from a root shell, as that section says.
 
 ## Upgrade with a restricted database role
 
