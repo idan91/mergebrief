@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "A tree-wide check inside pnpm lint that every server config key is documented in .env.example.",
+  "description": "A tree-wide check inside pnpm lint that every server config key is in .env.example, plus the tests for the repo-local git hooks.",
   "license": "FSL-1.1-ALv2",
   "scripts": {
     "typecheck": "tsc --noEmit",
