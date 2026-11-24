@@ -1,6 +1,6 @@
 # Self-hosting with docker compose
 
-This page takes you from an empty folder to a running instance that briefs a real pull request. Compose starts four services from one release: Postgres, the api, the web tier in front of it, and the worker that generates briefs. You need what [Prerequisites](./README.md#prerequisites) lists.
+Follow these sections in order, from an empty folder to a running instance that briefs a real pull request. Compose starts four services from one release: Postgres, the api, the web tier in front of it, and the worker that generates briefs. You need what [Prerequisites](./README.md#prerequisites) lists.
 
 On a cloud VM, follow the [cloud deployment guide](./cloud-deployment.md) instead: it runs the same steps with the VM, HTTPS and database around them.
 
@@ -83,14 +83,35 @@ Traefik forwards the original `Host` by default. It waits for MergeBrief's respo
 
 **Check:** the same as for Caddy: `curl -sI https://brief.example.com` prints a `502` status line and no certificate error until the stack runs.
 
+## Try it locally through a tunnel
+
+GitHub delivers webhooks only to a public URL. On your own machine, a tunnel gives `localhost:3000` one. These steps use [ngrok](https://ngrok.com); any tunnel that forwards HTTPS to a local port works.
+
+1. Sign up at ngrok, install it, and connect it to your account once, with the authtoken from ngrok's dashboard:
+
+   ```sh
+   ngrok config add-authtoken <your-authtoken>
+   ```
+
+2. Start the tunnel before you register the App, and keep it running:
+
+   ```sh
+   ngrok http 3000
+   ```
+
+3. Copy the `https://` forwarding URL it prints, such as `https://abc123.ngrok-free.app`.
+4. Use it as the origin when you [register the App](./github-app.md#before-you-start), and as `PUBLIC_BASE_URL` in `.env`.
+5. Start the stack and run [Check it end to end](#check-it-end-to-end) against that URL.
+
+On ngrok's free plan, a browser opening the URL first sees ngrok's warning page: click **Visit Site** to continue. GitHub's webhook deliveries do not get that page.
+
+A free ngrok URL changes each time ngrok restarts. When it does, put the new URL in `PUBLIC_BASE_URL`, in the App's **Homepage URL**, **Callback URL** and **Webhook URL**, then run `docker compose up -d` to recreate the services with it. ngrok's inspector at `http://127.0.0.1:4040` lists every delivery and can replay one.
+
+While the tunnel is up, the instance is on the internet: stop it when you are not testing ([A tunnel is production exposure](#4-a-tunnel-is-production-exposure)).
+
 ## Register the GitHub App
 
-Decide the origin reviewers will browse first:
-
-- On a server, your `https://` domain from [Put HTTPS in front on a server](#put-https-in-front-on-a-server).
-- On your own machine, a tunnel's URL. Start it now: [Try it locally through a tunnel](#try-it-locally-through-a-tunnel).
-
-Then follow [github-app.md](./github-app.md) through [Install the App](./github-app.md#install-the-app). Come back with the App ID, Client ID, client secret, private key file and webhook secret.
+Follow [github-app.md](./github-app.md) through [Install the App](./github-app.md#install-the-app), with the origin reviewers will browse: on a server, your `https://` domain from [Put HTTPS in front on a server](#put-https-in-front-on-a-server); on your own machine, the URL of the tunnel from [Try it locally through a tunnel](#try-it-locally-through-a-tunnel), started before you register. Come back with the App ID, Client ID, client secret, private key file and webhook secret.
 
 ## Fill in `.env`
 
@@ -272,33 +293,6 @@ The instance now holds what GitHub cannot give back: sign-ins, review sessions, 
 
 **Check:** the dump step prints `dump ok`, and the copies of `.env` and the config file open from wherever you stored them.
 
-## Try it locally through a tunnel
-
-GitHub delivers webhooks only to a public URL. On your own machine, a tunnel gives `localhost:3000` one. These steps use [ngrok](https://ngrok.com); any tunnel that forwards HTTPS to a local port works.
-
-1. Sign up at ngrok, install it, and connect it to your account once, with the authtoken from ngrok's dashboard:
-
-   ```sh
-   ngrok config add-authtoken <your-authtoken>
-   ```
-
-2. Start the tunnel before you register the App, and keep it running:
-
-   ```sh
-   ngrok http 3000
-   ```
-
-3. Copy the `https://` forwarding URL it prints, such as `https://abc123.ngrok-free.app`.
-4. Use it as the origin when you [register the App](./github-app.md#before-you-start), and as `PUBLIC_BASE_URL` in `.env`.
-5. Start the stack and run [Check it end to end](#check-it-end-to-end) against that URL.
-
-On ngrok's free plan, a browser opening the URL first sees ngrok's warning page: click **Visit Site** to continue. GitHub's webhook deliveries do not get that page.
-
-A free ngrok URL changes each time ngrok restarts. When it does, put the new URL in `PUBLIC_BASE_URL`, in the App's **Homepage URL**, **Callback URL** and **Webhook URL**, then run `docker compose up -d` to recreate the services with it. ngrok's inspector at `http://127.0.0.1:4040` lists every delivery and can replay one.
-
-While the tunnel is up, the instance is on the internet: stop it when you are not testing ([A tunnel is production exposure](#4-a-tunnel-is-production-exposure)).
-
-
 ## Start on boot
 
 A reboot leaves the stack down: `restart: on-failure` brings `api`, `web` and `worker` back after a nonzero exit, not when Docker starts, and `postgres` has no restart policy. Do not switch to `unless-stopped`: a configuration error exits 0 so the service stays down, and that policy would restart it into the same error forever.
@@ -337,176 +331,9 @@ sudo systemctl enable --now docker mergebrief
 - **To keep an instance down across reboots**, run `sudo systemctl disable mergebrief`. A plain `docker compose stop` lasts only until the next boot.
 - **Deliveries GitHub sent while the stack was down** are resent by the worker; [Other webhook answers](./troubleshooting.md#other-webhook-answers) says when, and how to redeliver sooner.
 
-## What runs
-
-| Service | What it does | Port |
-| --- | --- | --- |
-| `postgres` | Store, job queue and locks, in one Postgres 17 | `127.0.0.1:5432` |
-| `api` | Webhooks, sign-in and every read; holds the credentials and the database | compose network only |
-| `web` | The web app; proxies `/api/*` to `api` and holds no credentials | `127.0.0.1:3000` |
-| `worker` | Generates briefs from the job queue | none |
-
-- **Ports bind to loopback only.** Put a reverse proxy, or a tunnel for a trial, in front of `web` for anything reachable from outside. `web` reaches `api` at `http://api:3001`, a name that covers every api replica ([Run more than one api](./data-and-scaling.md#run-more-than-one-api)).
-- **Restarts.** `api`, `web` and `worker` restart after a nonzero exit (`restart: on-failure`). A configuration error in `api` or `worker` exits 0 and stays down, so it does not restart-loop; `web` exits 1 on a bad value and restarts until it is fixed. `postgres` has no restart policy. None of them start again after a reboot by themselves ([Start on boot](#start-on-boot)).
-- **How a push becomes a brief:** [How MergeBrief works](../architecture.md).
-- **Migrations run at boot** in `api` and `worker`, under one Postgres advisory lock: one process applies them and the others wait. A process waiting past 5 minutes exits 1, logging a `migration lock:` warning every 30 seconds until then. A restricted database role can turn this off ([below](#restricted-database-roles-mergebrief_auto_migratefalse)).
-
-### Moving a host port
-
-`docker-compose.yml` fixes the host side of both published ports, and an upgrade replaces that file, so a move goes in `docker-compose.override.yml`. Compose appends an override's `ports:` to the list it merges into, which leaves the old port bound too; the `!override` tag replaces the list:
-
-```yaml
-# docker-compose.override.yml
-services:
-  web:
-    ports: !override
-      - "127.0.0.1:3461:3000"
-  postgres:
-    ports: !override
-      - "127.0.0.1:5433:5432"
-```
-
-`!override` needs Docker Compose 2.24.4 or newer. Change only the host port, the number after `127.0.0.1`, and list only the services you move. On an external database leave out `postgres`, since the overlay removed it and naming it again fails every compose command, and add the override to `COMPOSE_FILE` ([below](#external-postgres-managed-database)).
-
-**Check:** each moved service lists one published port. Avoid `docker compose config` for this: it prints the resolved environment, secrets included.
-
-```sh
-docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
-```
-
-With no proxy in front, moving `web` moves the origin reviewers browse: set `PUBLIC_BASE_URL=http://localhost:3461` and change the App's callback URL to match. Behind a proxy, `PUBLIC_BASE_URL` stays the public origin and the proxy's upstream moves instead.
-
-## What the host holds
-
-One folder, with no checkout of the repository and no build:
-
-- **`docker-compose.yml`**, a release asset. It pins that release's exact image, such as `ghcr.io/idan91/mergebrief:1.4.0`, and an upgrade replaces it, so never edit it. Never point it at the moving `latest` tag either: the next pull would upgrade the instance without the [upgrade steps](./upgrade.md#upgrade-on-the-bundled-database).
-- **`.env`**, your settings and secrets, started from the release's `env.example`.
-- **`mergebrief.config.yaml`**, the instance config, started from the release's `mergebrief.config.example.yaml`. Compose mounts it read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both.
-- **`docker-compose.override.yml`**, optional, for your own edits: [ports](#moving-a-host-port), volumes, secrets, resource limits. Compose merges it in on its own (through `COMPOSE_FILE` on an external database), and an upgrade never touches it.
-- **The `<folder>_postgres_data` volume**, outside the folder, where the bundled Postgres keeps every brief. Compose names the project, and so the volume, after the folder: from a renamed or moved folder with another name, `docker compose up` starts an empty instance beside the old volume. To keep the old one, set `COMPOSE_PROJECT_NAME=<old folder name>` in `.env`. `docker volume ls --filter name=postgres_data` lists it.
-
-`api`, `web` and `worker` run the same image, `ghcr.io/idan91/mergebrief:X.Y.Z`, with different commands, for `linux/amd64` and `linux/arm64`; a fourth command, `migrate`, applies pending migrations and exits. Postgres runs the official `postgres:17-alpine`. Running `docker compose build` from a checkout of the repository builds a `dev` image instead, which is for working on MergeBrief, not for running it ([CONTRIBUTING.md](../../CONTRIBUTING.md#development-setup)).
-
-Tracing is off until `.env` names an OTLP endpoint ([observability.md](./observability.md#tracing)).
-
-## Where a setting goes
-
-| Put it in | What goes there |
-| --- | --- |
-| `.env` | Secrets and credentials, the database connection, `PUBLIC_BASE_URL`, and capacity: `WORKER_COUNT`, `WORKER_CONCURRENCY`, `WORKER_LARGE_CONCURRENCY`, `API_COUNT` |
-| `mergebrief.config.yaml` | Who may sign in (`operators`, `allowed`), the provider and model (`generator`), and the daily generation cap (`spend.maxGenerationsPerDay`) |
-| A repository's `.mergebrief/` folder | That repository's own settings, set by its code owners ([Configure your repository](../repo-config/README.md)) |
-
-A value lives in one place only: the config file never holds a key, and `.env` never holds policy. `docker compose up --scale worker=N` overrides `WORKER_COUNT` for that run, and `DATABASE_URL_FILE` wins over `DATABASE_URL`.
-
-## External Postgres (managed database)
-
-`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase).
-
-The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself, and it belongs to the release of the `docker-compose.yml` beside it. Fetch that release's overlay; the first line reads the version `docker-compose.yml` pins:
-
-```sh
-VERSION=$(sed -n 's|^ *image: ghcr.io/idan91/mergebrief:||p' docker-compose.yml | head -n 1)
-curl -fsSLo docker-compose.external-db.yml "https://github.com/idan91/mergebrief/releases/download/v$VERSION/docker-compose.external-db.yml"
-```
-
-**Check:** `echo "$VERSION"` prints a version such as `0.3.0`, and `ls` shows `docker-compose.external-db.yml`. A source checkout pins `dev` and already holds the file, so it skips this step.
-
-Then name both files in `.env`, in this order, so every plain `docker compose` command reads them:
-
-```dotenv
-COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
-DATABASE_URL=postgres://app:<password>@db.provider.example:5432/mergebrief?sslmode=verify-full
-```
-
-Then `docker compose up -d --wait`.
-
-- **`COMPOSE_FILE` turns off the automatic override file.** Once you have `docker-compose.override.yml`, append it: `COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml`. Every file listed must exist, or each compose command fails.
-- **Use a direct or session-mode connection, never a transaction pooler.** The worker's `LISTEN`/`NOTIFY` and the migrations' advisory lock need one database session. On Neon, take the host without `-pooler`; on Supabase, the direct host or the Session pooler on port 5432, not port 6543. A lock on the wrong session shows as a `migration lock:` warning, then an exit 1, naming the pooler.
-- **Backups are the provider's.** The `docker compose exec postgres` backup in [backup-restore.md](./backup-restore.md#back-up-the-bundled-database) has nothing to run in; use the provider's snapshots.
-
-### TLS: verify-full or disable (`sslmode` in the DSN)
-
-A `DATABASE_URL` whose host is not loopback boots only on `sslmode=verify-full` or `sslmode=disable`:
-
-| DSN parameter | Meaning |
-| --- | --- |
-| `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked. Use this when the provider issues from its own CA |
-| `sslmode=verify-full` | TLS, verified against Node's bundled Mozilla roots, not the OS store. Works when the provider's chain ends in a public CA |
-| `sslmode=disable` | Plaintext, for a private network only |
-
-Boot refuses `require`, `prefer`, `verify-ca`, `no-verify` and any other value, and `uselibpqcompat=true` beside anything but `verify-full`, because libpq tools read `require` as "encrypt but do not verify". A DSN copied from a provider dashboard with `sslmode=require` refuses boot: change it to `verify-full`.
-
-For a provider CA (RDS, Supabase), download its bundle to `./secrets/provider-ca.pem`, mount it into `api` and `worker` (the `volumes:` entries in the example below), and point the DSN at the mounted path:
-
-```dotenv
-DATABASE_URL=postgres://app:<password>@db.xxx.rds.amazonaws.com:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
-```
-
-A missing or unreadable `sslrootcert` file refuses boot, naming the path.
-
-### The DSN as a secret file (`DATABASE_URL_FILE`)
-
-An env var shows in `docker inspect`; a compose secret does not. To keep the DSN in a file:
-
-1. Put the DSN on one line in `./secrets/database-url`, readable by UID 1000 (`sudo chown 1000:1000 secrets/database-url && sudo chmod 400 secrets/database-url`).
-2. Hand it to `api` and `worker` in `docker-compose.override.yml`:
-
-   ```yaml
-   services:
-     api:
-       secrets:
-         - database-url
-       volumes:
-         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-     worker:
-       secrets:
-         - database-url
-       volumes:
-         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-   secrets:
-     database-url:
-       file: ./secrets/database-url
-   ```
-
-   Drop the `volumes:` entries when the provider's CA is publicly trusted.
-
-3. Set `DATABASE_URL_FILE=/run/secrets/database-url` in `.env` in place of `DATABASE_URL`.
-
-Surrounding whitespace in the file is trimmed. If both variables are set, the file wins and boot logs a warning naming the shadowed `DATABASE_URL`.
-
-### Restricted database roles (`MERGEBRIEF_AUTO_MIGRATE=false`)
-
-Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. Exit 1 is the code `restart: on-failure` restarts, so `api` and `worker` restart in a loop, logging the same refusal, until the migrations are applied; the next restart then boots. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)).
-
-## Other platforms
-
-Compose, with the bundled or an external Postgres, is the one supported way to run MergeBrief. The image runs under another orchestrator in principle, but that is untested. If you do, start `ghcr.io/idan91/mergebrief:X.Y.Z` as the three services `docker-compose.yml` defines, with its commands and environment, pin the exact tag, and roll out [one release at a time](./upgrade.md#how-migrations-run).
-
-## Check what the worker is doing
-
-`api` and `web` each answer `GET /healthz` (static liveness, which the compose health checks use) and `GET /readyz`. `api`'s `/readyz` runs one `SELECT 1`; `web`'s answers with `api`'s, so from outside an unreachable api and an unreachable database look the same. Logs are JSON on stdout, rotated at `10m` times 3 per service; events, correlation and alerting are in [observability.md](./observability.md).
-
-```sh
-docker compose ps -a              # api and web healthy, worker up
-docker compose logs -f worker     # job pickup and generation progress
-docker compose exec postgres \
-  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "select kind, status, phase, error_code from generation order by updated_at desc limit 5;"'
-```
-
-- **`generation.status`** walks `pending`, `running`, `succeeded`. `superseded` means a newer push replaced the run. `failed` carries a sanitized reason in `error_code`. `capped` means the instance hit its [daily generation cap](./spend-cap.md). `held` means a [trigger condition](../repo-config/trigger-conditions.md) is unmet; the head generates once every condition passes, or on a Generate click. `awaiting-trigger` means the run waits until someone with push access approves the pull request's runs.
-- **A configuration error** stops `api` or `worker` at boot, and `docker compose logs api` or `logs worker` names the rejected variable. `curl -i localhost:3000/api/version` answering `401` means both tiers are up and the api parsed its environment; `503` means the api is down.
-- **Two Postgres lines are expected once on a first boot:** `ERROR:  relation "graphile_worker.migrations" does not exist` (the job queue probing an empty database) and `FATAL:  the database system is shutting down` (the image restarting after it initializes). Either one repeating is not normal: read `docker compose logs api worker`.
-- **Retries.** The worker retries transient failures with backoff. A permanent condition, such as GitHub's "diff too large", is recorded as `failed` without a retry.
-- **`up` fails looking for a Dockerfile:** the image pull was denied or the registry was unreachable, and Compose fell back to building from source, which a release folder cannot do. Run `docker compose pull` and read its error.
-
 ## Hardening before real exposure
 
 The defaults suit a loopback-only, single-operator machine. Before you point a domain at an instance, or leave a tunnel up, work through this section.
-
-`MERGEBRIEF_URL_FALLBACK_TOKEN` is optional, and most instances leave it unset. It is a GitHub token MergeBrief tries when a reviewer pastes a private pull request from a repository the App is not installed on ([configuration.md](./configuration.md#github-app-and-sign-in)). If you set it, it serves only the GitHub account that owns it, so make it on your own account, never a bot's. GitHub refusing it logs `url-fallback-token.owner.fail` with the fix. Once a brief is open on the token, diff and file reads are limited to the commits MergeBrief recorded for that pull request, but any file at one of those commits is readable.
 
 ### 1. Postgres credentials
 
@@ -590,5 +417,174 @@ A refused request gets 429 with `Retry-After`. Behind another load balancer, key
 ### 4. A tunnel is production exposure
 
 While a tunnel is up, the instance is on the internet with whatever secrets it has. Stop tunnels when you are not testing, and use a domain and the proxy above for anything long-lived.
+
+### 5. Make the URL fallback token on your own account
+
+`MERGEBRIEF_URL_FALLBACK_TOKEN` is optional, and most instances leave it unset. It is a GitHub token MergeBrief tries when a reviewer pastes a private pull request from a repository the App is not installed on ([configuration.md](./configuration.md#github-app-and-sign-in)). If you set it, it serves only the GitHub account that owns it, so make it on your own account, never a bot's. GitHub refusing it logs `url-fallback-token.owner.fail` with the fix. Once a brief is open on the token, diff and file reads are limited to the commits MergeBrief recorded for that pull request, but any file at one of those commits is readable.
+
+## External Postgres (managed database)
+
+`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase).
+
+The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself, and it belongs to the release of the `docker-compose.yml` beside it. Fetch that release's overlay; the first line reads the version `docker-compose.yml` pins:
+
+```sh
+VERSION=$(sed -n 's|^ *image: ghcr.io/idan91/mergebrief:||p' docker-compose.yml | head -n 1)
+curl -fsSLo docker-compose.external-db.yml "https://github.com/idan91/mergebrief/releases/download/v$VERSION/docker-compose.external-db.yml"
+```
+
+**Check:** `echo "$VERSION"` prints a version such as `0.3.0`, and `ls` shows `docker-compose.external-db.yml`. A source checkout pins `dev` and already holds the file, so it skips this step.
+
+Then name both files in `.env`, in this order, so every plain `docker compose` command reads them:
+
+```dotenv
+COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml
+DATABASE_URL=postgres://app:<password>@db.provider.example:5432/mergebrief?sslmode=verify-full
+```
+
+Then `docker compose up -d --wait`.
+
+- **`COMPOSE_FILE` turns off the automatic override file.** Once you have `docker-compose.override.yml`, append it: `COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml`. Every file listed must exist, or each compose command fails.
+- **Use a direct or session-mode connection, never a transaction pooler.** The worker's `LISTEN`/`NOTIFY` and the migrations' advisory lock need one database session. On Neon, take the host without `-pooler`; on Supabase, the direct host or the Session pooler on port 5432, not port 6543. A lock on the wrong session shows as a `migration lock:` warning, then an exit 1, naming the pooler.
+- **Backups are the provider's.** The `docker compose exec postgres` backup in [backup-restore.md](./backup-restore.md#back-up-the-bundled-database) has nothing to run in; use the provider's snapshots.
+
+### TLS: verify-full or disable (`sslmode` in the DSN)
+
+A `DATABASE_URL` whose host is not loopback boots only on `sslmode=verify-full` or `sslmode=disable`:
+
+| DSN parameter | Meaning |
+| --- | --- |
+| `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked. Use this when the provider issues from its own CA |
+| `sslmode=verify-full` | TLS, verified against Node's bundled Mozilla roots, not the OS store. Works when the provider's chain ends in a public CA |
+| `sslmode=disable` | Plaintext, for a private network only |
+
+Boot refuses `require`, `prefer`, `verify-ca`, `no-verify` and any other value, and `uselibpqcompat=true` beside anything but `verify-full`, because libpq tools read `require` as "encrypt but do not verify". A DSN copied from a provider dashboard with `sslmode=require` refuses boot: change it to `verify-full`.
+
+For a provider CA (RDS, Supabase), download its bundle to `./secrets/provider-ca.pem`, mount it into `api` and `worker` (the `volumes:` entries in the example below), and point the DSN at the mounted path:
+
+```dotenv
+DATABASE_URL=postgres://app:<password>@db.xxx.rds.amazonaws.com:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
+```
+
+A missing or unreadable `sslrootcert` file refuses boot, naming the path.
+
+### The DSN as a secret file (`DATABASE_URL_FILE`)
+
+An env var shows in `docker inspect`; a compose secret does not. To keep the DSN in a file:
+
+1. Put the DSN on one line in `./secrets/database-url`, readable by UID 1000 (`sudo chown 1000:1000 secrets/database-url && sudo chmod 400 secrets/database-url`).
+2. Hand it to `api` and `worker` in `docker-compose.override.yml`:
+
+   ```yaml
+   services:
+     api:
+       secrets:
+         - database-url
+       volumes:
+         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+     worker:
+       secrets:
+         - database-url
+       volumes:
+         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+   secrets:
+     database-url:
+       file: ./secrets/database-url
+   ```
+
+   Drop the `volumes:` entries when the provider's CA is publicly trusted.
+
+3. Set `DATABASE_URL_FILE=/run/secrets/database-url` in `.env` in place of `DATABASE_URL`.
+
+Surrounding whitespace in the file is trimmed. If both variables are set, the file wins and boot logs a warning naming the shadowed `DATABASE_URL`.
+
+### Restricted database roles (`MERGEBRIEF_AUTO_MIGRATE=false`)
+
+Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. Exit 1 is the code `restart: on-failure` restarts, so `api` and `worker` restart in a loop, logging the same refusal, until the migrations are applied; the next restart then boots. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)).
+
+## Check what the worker is doing
+
+`api` and `web` each answer `GET /healthz` (static liveness, which the compose health checks use) and `GET /readyz`. `api`'s `/readyz` runs one `SELECT 1`; `web`'s answers with `api`'s, so from outside an unreachable api and an unreachable database look the same. Logs are JSON on stdout, rotated at `10m` times 3 per service; events, correlation and alerting are in [observability.md](./observability.md).
+
+```sh
+docker compose ps -a              # api and web healthy, worker up
+docker compose logs -f worker     # job pickup and generation progress
+docker compose exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "select kind, status, phase, error_code from generation order by updated_at desc limit 5;"'
+```
+
+- **`generation.status`** walks `pending`, `running`, `succeeded`. `superseded` means a newer push replaced the run. `failed` carries a sanitized reason in `error_code`. `capped` means the instance hit its [daily generation cap](./spend-cap.md). `held` means a [trigger condition](../repo-config/trigger-conditions.md) is unmet; the head generates once every condition passes, or on a Generate click. `awaiting-trigger` means the run waits until someone with push access approves the pull request's runs.
+- **A configuration error** stops `api` or `worker` at boot, and `docker compose logs api` or `logs worker` names the rejected variable. `curl -i localhost:3000/api/version` answering `401` means both tiers are up and the api parsed its environment; `503` means the api is down.
+- **Two Postgres lines are expected once on a first boot:** `ERROR:  relation "graphile_worker.migrations" does not exist` (the job queue probing an empty database) and `FATAL:  the database system is shutting down` (the image restarting after it initializes). Either one repeating is not normal: read `docker compose logs api worker`.
+- **Retries.** The worker retries transient failures with backoff. A permanent condition, such as GitHub's "diff too large", is recorded as `failed` without a retry.
+- **`up` fails looking for a Dockerfile:** the image pull was denied or the registry was unreachable, and Compose fell back to building from source, which a release folder cannot do. Run `docker compose pull` and read its error.
+
+## What runs
+
+| Service | What it does | Port |
+| --- | --- | --- |
+| `postgres` | Store, job queue and locks, in one Postgres 17 | `127.0.0.1:5432` |
+| `api` | Webhooks, sign-in and every read; holds the credentials and the database | compose network only |
+| `web` | The web app; proxies `/api/*` to `api` and holds no credentials | `127.0.0.1:3000` |
+| `worker` | Generates briefs from the job queue | none |
+
+- **Ports bind to loopback only.** Put a reverse proxy, or a tunnel for a trial, in front of `web` for anything reachable from outside. `web` reaches `api` at `http://api:3001`, a name that covers every api replica ([Run more than one api](./data-and-scaling.md#run-more-than-one-api)).
+- **Restarts.** `api`, `web` and `worker` restart after a nonzero exit (`restart: on-failure`). A configuration error in `api` or `worker` exits 0 and stays down, so it does not restart-loop; `web` exits 1 on a bad value and restarts until it is fixed. `postgres` has no restart policy. None of them start again after a reboot by themselves ([Start on boot](#start-on-boot)).
+- **How a push becomes a brief:** [How MergeBrief works](../architecture.md).
+- **Migrations run at boot** in `api` and `worker`, under one Postgres advisory lock: one process applies them and the others wait. A process waiting past 5 minutes exits 1, logging a `migration lock:` warning every 30 seconds until then. A restricted database role can turn this off ([Restricted database roles](#restricted-database-roles-mergebrief_auto_migratefalse)).
+
+### Moving a host port
+
+`docker-compose.yml` fixes the host side of both published ports, and an upgrade replaces that file, so a move goes in `docker-compose.override.yml`. Compose appends an override's `ports:` to the list it merges into, which leaves the old port bound too; the `!override` tag replaces the list:
+
+```yaml
+# docker-compose.override.yml
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:3461:3000"
+  postgres:
+    ports: !override
+      - "127.0.0.1:5433:5432"
+```
+
+`!override` needs Docker Compose 2.24.4 or newer. Change only the host port, the number after `127.0.0.1`, and list only the services you move. On an external database leave out `postgres`, since the overlay removed it and naming it again fails every compose command, and add the override to `COMPOSE_FILE` ([External Postgres](#external-postgres-managed-database)).
+
+**Check:** each moved service lists one published port. Avoid `docker compose config` for this: it prints the resolved environment, secrets included.
+
+```sh
+docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
+```
+
+With no proxy in front, moving `web` moves the origin reviewers browse: set `PUBLIC_BASE_URL=http://localhost:3461` and change the App's callback URL to match. Behind a proxy, `PUBLIC_BASE_URL` stays the public origin and the proxy's upstream moves instead.
+
+## What the host holds
+
+One folder, with no checkout of the repository and no build:
+
+- **`docker-compose.yml`**, a release asset. It pins that release's exact image, such as `ghcr.io/idan91/mergebrief:1.4.0`, and an upgrade replaces it, so never edit it. Never point it at the moving `latest` tag either: the next pull would upgrade the instance without the [upgrade steps](./upgrade.md#upgrade-on-the-bundled-database).
+- **`.env`**, your settings and secrets, started from the release's `env.example`.
+- **`mergebrief.config.yaml`**, the instance config, started from the release's `mergebrief.config.example.yaml`. Compose mounts it read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both.
+- **`docker-compose.override.yml`**, optional, for your own edits: [ports](#moving-a-host-port), volumes, secrets, resource limits. Compose merges it in on its own (through `COMPOSE_FILE` on an external database), and an upgrade never touches it.
+- **The `<folder>_postgres_data` volume**, outside the folder, where the bundled Postgres keeps every brief. Compose names the project, and so the volume, after the folder: from a renamed or moved folder with another name, `docker compose up` starts an empty instance beside the old volume. To keep the old one, set `COMPOSE_PROJECT_NAME=<old folder name>` in `.env`. `docker volume ls --filter name=postgres_data` lists it.
+
+`api`, `web` and `worker` run the same image, `ghcr.io/idan91/mergebrief:X.Y.Z`, with different commands, for `linux/amd64` and `linux/arm64`; a fourth command, `migrate`, applies pending migrations and exits. Postgres runs the official `postgres:17-alpine`. Running `docker compose build` from a checkout of the repository builds a `dev` image instead, which is for working on MergeBrief, not for running it ([CONTRIBUTING.md](../../CONTRIBUTING.md#development-setup)).
+
+Tracing is off until `.env` names an OTLP endpoint ([observability.md](./observability.md#tracing)).
+
+## Where a setting goes
+
+| Put it in | What goes there |
+| --- | --- |
+| `.env` | Secrets and credentials, the database connection, `PUBLIC_BASE_URL`, and capacity: `WORKER_COUNT`, `WORKER_CONCURRENCY`, `WORKER_LARGE_CONCURRENCY`, `API_COUNT` |
+| `mergebrief.config.yaml` | Who may sign in (`operators`, `allowed`), the provider and model (`generator`), and the daily generation cap (`spend.maxGenerationsPerDay`) |
+| A repository's `.mergebrief/` folder | That repository's own settings, set by its code owners ([Configure your repository](../repo-config/README.md)) |
+
+A value lives in one place only: the config file never holds a key, and `.env` never holds policy. `docker compose up --scale worker=N` overrides `WORKER_COUNT` for that run, and `DATABASE_URL_FILE` wins over `DATABASE_URL`.
+
+## Other platforms
+
+Compose, with the bundled or an external Postgres, is the one supported way to run MergeBrief. The image runs under another orchestrator in principle, but that is untested. If you do, start `ghcr.io/idan91/mergebrief:X.Y.Z` as the three services `docker-compose.yml` defines, with its commands and environment, pin the exact tag, and roll out [one release at a time](./upgrade.md#how-migrations-run).
 
 Upgrades are in [upgrade.md](./upgrade.md), backups and restores in [backup-restore.md](./backup-restore.md).

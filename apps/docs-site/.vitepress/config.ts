@@ -18,6 +18,7 @@ import {
 } from "../src/pages";
 import { HOME_PAGE_SOURCE, HOME_PAGE_TARGET } from "../src/pages/consts";
 import { buildSidebar } from "../src/pages/sidebar";
+import { createSearchRender } from "../src/search";
 import { CODE_THEMES, createSyntaxContrastTransformer } from "../src/syntax";
 import { createVueResolvePlugin } from "../src/vue-resolve";
 
@@ -73,7 +74,13 @@ const config: UserConfig<DefaultTheme.Config> = {
       { icon: "github", link: PUBLIC_REPO_URL, ariaLabel: "GitHub" },
     ],
     sidebar: buildSidebar(readSitePages(srcDir), labels.sidebar),
-    search: { provider: "local", options: { translations: labels.search } },
+    search: {
+      provider: "local",
+      options: {
+        translations: labels.search,
+        _render: createSearchRender(labels.sidebar),
+      },
+    },
   },
   vite: {
     publicDir: path.join(memberDir, "public"),

@@ -2,7 +2,7 @@
 
 MergeBrief reads pull requests, posts its Entry comment (the one comment that links a pull request to its brief) and signs reviewers in through a GitHub App you register yourself. There is no shared App: each instance has its own.
 
-This page walks GitHub's registration form from top to bottom, then collects the credentials and installs the App. It takes about 15 minutes. The reference sections at the end explain each setting.
+Registering, collecting the credentials and installing take about 15 minutes. The [Reference](#reference) sections at the end explain each setting.
 
 ## Before you start
 

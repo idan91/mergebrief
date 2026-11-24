@@ -30,7 +30,7 @@ From the terminal, `mergebrief draft attach 7 screenshot.png` uploads a file and
 
 ## Limit uploads per reviewer
 
-Reading a repository is enough to attach, and the push is the App's, so each reviewer may attach only so many files and megabytes per window ([defaults](./configuration.md#attachments)). Change the limits in `mergebrief.config.yaml`, for example to a smaller budget:
+Each reviewer may attach only so many files and megabytes per window ([defaults](./configuration.md#attachments)). Change the limits in `mergebrief.config.yaml`, for example to a smaller budget:
 
 ```yaml
 # mergebrief.config.yaml
@@ -46,7 +46,7 @@ Only the api reads the block ([Apply a change](./configuration.md#apply-a-change
 docker compose restart api
 ```
 
-Each key is a positive whole number, and an omitted key keeps its default; anything else refuses `api` boot, naming the key on the last line of `docker compose logs api`. Past either limit the composer says "You have attached as many images as this server allows for now", the API answers `429 attachment-limit-reached` with a `Retry-After` header, and `mergebrief draft attach` exits 7. Every attempt that reaches GitHub counts, a failed push included, and a reviewer's browser session and API tokens share one count. The count lives in the api process: a restart clears it, and each api replica counts on its own ([data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api)).
+The limit exists because reading a repository is enough to attach, and the push is the App's. Each key is a positive whole number, and an omitted key keeps its default; anything else refuses `api` boot, naming the key on the last line of `docker compose logs api`. Past either limit the composer says "You have attached as many images as this server allows for now", the API answers `429 attachment-limit-reached` with a `Retry-After` header, and `mergebrief draft attach` exits 7. Every attempt that reaches GitHub counts, a failed push included, and a reviewer's browser session and API tokens share one count. The count lives in the api process: a restart clears it, and each api replica counts on its own ([data-and-scaling.md](./data-and-scaling.md#run-more-than-one-api)).
 
 ## Limit the size of images and videos shown
 

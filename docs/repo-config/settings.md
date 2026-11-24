@@ -1,6 +1,6 @@
 # Settings: `settings.yaml`
 
-`.mergebrief/settings.yaml` holds your repository's workflow settings: which pushes get a brief, whether the Entry comment posts on drafts, where your tickets live, and which bots' pull requests generate without a click. The file starts with `version: 1`, stays within its [size limit](./README.md#the-three-files), and takes only the keys below. Any other key, or a bad value under any key, rejects the whole file ([How MergeBrief reads the files](./README.md#how-mergebrief-reads-the-files)).
+`.mergebrief/settings.yaml` holds your repository's workflow settings: which pushes get a brief, whether the Entry comment posts on drafts, where your tickets live, and which bots' pull requests generate without a click.
 
 ```yaml
 version: 1
@@ -13,7 +13,7 @@ triggerConditions:
   readyForReview: on
 ```
 
-Each task below ends with a way to see it worked. To confirm the file applied at all, see [Check that your config applied](./README.md#check-that-your-config-applied).
+The file starts with `version: 1`, stays within its [size limit](./README.md#the-three-files), and takes only the [keys](#keys) below. Any other key, or a bad value under any key, rejects the whole file ([How MergeBrief reads the files](./README.md#how-mergebrief-reads-the-files)). To confirm the file applied, see [Check that your config applied](./README.md#check-that-your-config-applied).
 
 ## Trigger conditions
 
@@ -21,22 +21,20 @@ Each task below ends with a way to see it worked. To confirm the file applied at
 
 ## Keep the Entry comment off drafts
 
-The Entry comment is the comment MergeBrief posts on a pull request with a link to its brief. By default it posts on drafts too. To keep drafts quiet until they are ready:
-
 ```yaml
 version: 1
 entryCommentOnDrafts: false
 ```
 
-The comment then posts when the pull request is marked ready for review, and an Entry comment already on a draft is removed on the next run. When the settings file cannot be fetched, the comment stays off drafts for that run and nothing is removed.
+The Entry comment is the comment MergeBrief posts on a pull request with a link to its brief. By default it posts on drafts too. With `false`, it posts when the pull request is marked ready for review, and an Entry comment already on a draft is removed on the next run.
 
-This key gates the comment only: drafts still generate briefs. To hold their generation too, add [`readyForReview: on`](./trigger-conditions.md#hold-drafts-until-they-are-ready-for-review).
+This key gates the comment only: drafts still generate briefs. To hold their generation too, add [`readyForReview: on`](./trigger-conditions.md#hold-drafts-until-they-are-ready-for-review). When the settings file cannot be fetched, the comment stays off drafts for that run and nothing is removed.
 
 To check: open a draft pull request. It gets no Entry comment; marking it ready for review posts one.
 
 ## Connect your ticket tracker
 
-The brief's Intent check compares a pull request with its **primary ticket**, the one ticket it names in its title, branch name or description. This block tells MergeBrief which trackers your repository uses. A Notion board or Jira site also needs a credential the operator sets up on the instance; see [trackers.md](../self-host/trackers.md) for each tracker's setup.
+List the trackers your repository uses, so the brief's Intent check can compare a pull request with its **primary ticket**: the one ticket it names in its title, branch name or description. A Notion board or Jira site also needs a credential the operator sets up on the instance; see [trackers.md](../self-host/trackers.md) for each tracker's setup.
 
 ### One Notion board
 
@@ -92,8 +90,6 @@ A pull request reads issues in its own repository and in `issuesRepo`, so whoeve
 
 ## Let a bot's pull requests generate without a click
 
-A pull request opened by a bot gets a brief by itself only when the bot's login is listed here.
-
 ```yaml
 version: 1
 trustedBots:
@@ -101,6 +97,8 @@ trustedBots:
   - dependabot[bot]
   - Copilot
 ```
+
+A pull request opened by a bot gets a brief by itself only when the bot's login is listed here.
 
 - Write the login exactly as GitHub shows it on the pull request. A GitHub App bot carries the `[bot]` suffix (`renovate[bot]`, not `renovate`), and GitHub's Copilot coding agent is plain `Copilot`.
 - Write one login per `- ` line as above. The one-line form `trustedBots: [renovate[bot]]` is not valid YAML and rejects the file; quote each login if you want it on one line (`["renovate[bot]"]`).

@@ -4,38 +4,14 @@ An upgrade replaces `docker-compose.yml` with the new release's file, pulls that
 
 The commands below move an instance from 1.4.0 to 1.6.0. Replace `v1.6.0` with the release you are moving to; its GitHub Release page prints the same commands with its tag filled in. Run every command in the folder that holds `docker-compose.yml` and `.env` ([What the host holds](./compose.md#what-the-host-holds)).
 
-## Learn that a release exists
-
-- **The version notice.** Every signed-in user sees a band under the header on Home and on the brief page: "MergeBrief 1.6.0 is available. This instance runs 1.4.0." with a **Release notes** link. When a release between yours and the newest is a [breaking release](#breaking-releases), the band adds "This upgrade needs an extra step; the release notes say which."
-- **Dismissing it is per user, per release.** The band goes away for you; a dot on your avatar and a "MergeBrief 1.6.0 is available" row in the account menu, above Settings, stay until the instance runs that release. The dot clears the first time you open the menu. A newer release brings the band back.
-- **A security release cannot be dismissed.** The band turns amber with a warning icon, leads with "MergeBrief 1.6.0 fixes a security issue.", and stays until the instance runs the fixing release or newer.
-- **The api log.** One `update.available` line when a newer release first appears, and once after each boot while the instance is behind: `info`, or `warn` when a release in the gap fixes a vulnerability. Alert on the `warn` ([observability.md](./observability.md#event-vocabulary)).
-- **`mergebrief auth status`** shows the server's version beside the newest release it knows of ([cli.md](../use/cli.md#versions)).
-- **GitHub.** On the repository page, **Watch**, then **Custom**, then **Releases** emails you on every release. A feed reader can follow `https://github.com/idan91/mergebrief/releases.atom`.
-
-All but the last come from [the update check](#turn-off-or-mirror-the-update-check). With it off, only GitHub tells you.
+Pick the path for your database: [bundled](#upgrade-on-the-bundled-database), [external](#upgrade-on-an-external-database), or [a restricted role](#upgrade-with-a-restricted-database-role) under `MERGEBRIEF_AUTO_MIGRATE=false`. To go back, see [Roll back](#roll-back).
 
 ## Before you upgrade
 
-1. **Read the notes of every release between yours and the target**, not only the newest. Each GitHub Release body opens with the upgrade commands for that release.
+1. **Read the notes of every release between yours and the target**, not only the newest ([Check the version you run](#check-the-version-you-run)). Each GitHub Release body opens with the upgrade commands for that release.
 2. **Check whether any release in the gap is breaking.** The notice says an extra step is needed. From a terminal signed in to the instance, `mergebrief auth status --json | jq .server.breaking` prints `true` when a release in the gap is breaking and `false` when none is; `null` means the instance is up to date or its [update check](#turn-off-or-mirror-the-update-check) has not answered. A breaking release's notes list extra steps; do them in order, on top of the upgrade ([Breaking releases](#breaking-releases)).
 3. **Skim [`docs/api-changelog.md`](../api-changelog.md)** if anything scripts against `/api/*` or the log's `evt` names.
 4. **Check `mergebrief.config.yaml` against the new release.** Config is never migrated for you, and an unknown key refuses boot ([configuration.md](./configuration.md#instance-config-mergebriefconfigyaml)).
-
-## Check the version you run
-
-```sh
-docker compose ps --format 'table {{.Service}}\t{{.Image}}'
-docker compose exec api printenv SERVER_VERSION
-```
-
-The first lists the image each running container started from, such as `ghcr.io/idan91/mergebrief:1.4.0`. The second prints the version the api reports, such as `1.4.0`. A source build prints `dev`.
-
-On the bundled database, this prints the version that last booted against the data:
-
-```sh
-docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select version from instance_version"'
-```
 
 ## Upgrade on the bundled database
 
@@ -70,6 +46,8 @@ If `up` ends with `dependency failed to start` instead, the last line of `docker
 
 ## Upgrade on an external database
 
+Under `MERGEBRIEF_AUTO_MIGRATE=false`, use [the next section](#upgrade-with-a-restricted-database-role) instead: this chain would start a release that exits until someone applies its migrations.
+
 1. **Back up.** Take your provider's snapshot, or a dump ([Back up an external database](./backup-restore.md#back-up-an-external-database)).
 2. **Upgrade.** Fetch both compose files, since the overlay belongs to the file it sits on, then pull, stop and start:
 
@@ -82,8 +60,6 @@ If `up` ends with `dependency failed to start` instead, the last line of `docker
    ```
 
 3. **Check** as for [the bundled database](#upgrade-on-the-bundled-database), without the `instance_version` query.
-
-Under `MERGEBRIEF_AUTO_MIGRATE=false`, use [the next section](#upgrade-with-a-restricted-database-role) instead: this chain would start a release that exits until someone applies its migrations.
 
 On a VM set up by the [cloud guide](./cloud-deployment.md#9-upgrade-to-a-new-release), run these from a root shell, as that section says.
 
@@ -208,6 +184,32 @@ The shipped compose file pins the Postgres major, 17 today. It moves only in a M
 4. **Check** with [Check a restore](./backup-restore.md#check-a-restore).
 
 On an external database, use the provider's major-version upgrade instead. The supported floor is Postgres 16.
+
+## Learn that a release exists
+
+- **The version notice.** Every signed-in user sees a band under the header on Home and on the brief page: "MergeBrief 1.6.0 is available. This instance runs 1.4.0." with a **Release notes** link. When a release between yours and the newest is a [breaking release](#breaking-releases), the band adds "This upgrade needs an extra step; the release notes say which."
+- **Dismissing it is per user, per release.** The band goes away for you; a dot on your avatar and a "MergeBrief 1.6.0 is available" row in the account menu, above Settings, stay until the instance runs that release. The dot clears the first time you open the menu. A newer release brings the band back.
+- **A security release cannot be dismissed.** The band turns amber with a warning icon, leads with "MergeBrief 1.6.0 fixes a security issue.", and stays until the instance runs the fixing release or newer.
+- **The api log.** One `update.available` line when a newer release first appears, and once after each boot while the instance is behind: `info`, or `warn` when a release in the gap fixes a vulnerability. Alert on the `warn` ([observability.md](./observability.md#event-vocabulary)).
+- **`mergebrief auth status`** shows the server's version beside the newest release it knows of ([cli.md](../use/cli.md#versions)).
+- **GitHub.** On the repository page, **Watch**, then **Custom**, then **Releases** emails you on every release. A feed reader can follow `https://github.com/idan91/mergebrief/releases.atom`.
+
+All but the last come from [the update check](#turn-off-or-mirror-the-update-check). With it off, only GitHub tells you.
+
+## Check the version you run
+
+```sh
+docker compose ps --format 'table {{.Service}}\t{{.Image}}'
+docker compose exec api printenv SERVER_VERSION
+```
+
+The first lists the image each running container started from, such as `ghcr.io/idan91/mergebrief:1.4.0`. The second prints the version the api reports, such as `1.4.0`. A source build prints `dev`.
+
+On the bundled database, this prints the version that last booted against the data:
+
+```sh
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select version from instance_version"'
+```
 
 ## Turn off or mirror the update check
 

@@ -1,6 +1,6 @@
 # Security model
 
-What an instance trusts, who can reach what, and every place it sends data. Product terms are defined in the [glossary](../glossary.md). Start with the checklist: each step links the page that walks you through it. The rest of the page explains the model those steps protect.
+What an instance trusts, who can reach what, and every place it sends data. Product terms are defined in the [glossary](../glossary.md).
 
 ## Before you expose it
 
@@ -93,6 +93,24 @@ Sign-in runs through your own GitHub App ([github-app.md](./github-app.md#review
 
 Signed out, a visitor sees one sign-in page. Without a session every `/api` route answers 401, apart from the webhook, the sign-in redirect and its callback, and sign-out. `/healthz` and `/readyz` answer without a session and carry no data ([observability.md](./observability.md#health-checks)).
 
+## If an account or token leaks
+
+Do all three steps. Each one closes a different door.
+
+1. **Sign out everywhere.** In MergeBrief, open the account menu, choose **Sign out**, then **Everywhere**. This ends every browser session.
+2. **Revoke every API token.** Open `/settings` on your instance and choose **Revoke** on each token under **API tokens**. Sign-out does not reach them.
+3. **Revoke the App's authorization on github.com.** Go to GitHub's **Settings → Applications → Authorized GitHub Apps** and revoke your MergeBrief App. GitHub tells MergeBrief, which then deletes every session, API token and stored GitHub token you held.
+
+To check a leaked token is dead, paste it at the prompt and call the API with it. A revoked token answers `401`; a live one answers `200`:
+
+```sh
+read -rs LEAKED_TOKEN
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $LEAKED_TOKEN" \
+  https://mergebrief.your-org.example/api/version
+unset LEAKED_TOKEN
+```
+
 ## What each user can see
 
 A reviewer's own GitHub access decides every read. [How MergeBrief works](../architecture.md#who-can-read-what) explains it in plain terms; the detail per kind of user follows.
@@ -151,24 +169,6 @@ Apart from the per-reviewer [attachment upload quota](./attachments.md#limit-upl
 - **API tokens.** An API token starts with `mergebrief_`, is stored as a SHA-256 hash, and carries the scope chosen when it was created. The `/api/auth/*` routes ignore it, so a stolen token cannot create another token or sign its owner out ([cli.md](../use/cli.md#create-a-token)).
 - **The CLI's copy.** The CLI stores its token in plain text in `~/.config/mergebrief/config.json` (under `$XDG_CONFIG_HOME` when set), a file only its owner can read (mode `0600`).
 - **GitHub tokens.** Each user's access and refresh token pair is the one secret MergeBrief stores, encrypted under the session key ([How GitHub tokens are stored](./secrets.md#how-github-tokens-are-stored)). A user who revokes the App on github.com loses every session, API token and stored GitHub token here ([github-app.md](./github-app.md#reviewer-sign-in)).
-
-### If an account or token leaks
-
-Do all three steps. Each one closes a different door.
-
-1. **Sign out everywhere.** In MergeBrief, open the account menu, choose **Sign out**, then **Everywhere**. This ends every browser session.
-2. **Revoke every API token.** Open `/settings` on your instance and choose **Revoke** on each token under **API tokens**. Sign-out does not reach them.
-3. **Revoke the App's authorization on github.com.** Go to GitHub's **Settings → Applications → Authorized GitHub Apps** and revoke your MergeBrief App. GitHub tells MergeBrief, which then deletes every session, API token and stored GitHub token you held.
-
-To check a leaked token is dead, paste it at the prompt and call the API with it. A revoked token answers `401`; a live one answers `200`:
-
-```sh
-read -rs LEAKED_TOKEN
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H "Authorization: Bearer $LEAKED_TOKEN" \
-  https://mergebrief.your-org.example/api/version
-unset LEAKED_TOKEN
-```
 
 ### The worker
 

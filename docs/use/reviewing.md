@@ -1,8 +1,16 @@
 # Review a pull request
 
-This page is for reviewers. It walks through the MergeBrief web app: finding a pull request, reading its brief, deciding on risk flags, commenting, and submitting your review to GitHub. Words in bold are the labels you see on screen. The [glossary](../glossary.md) defines the product's terms.
+You read a pull request's brief in the MergeBrief web app, decide its risk flags, draft comments, and submit one review to GitHub under your account. Your review work stays private until you submit it.
 
-Your review work stays private until you submit it. A few actions write to GitHub at once, and this page says so where they come up: replying to a thread, resolving one, attaching an image, and the actions on your own draft pull request.
+The usual path:
+
+1. Open your instance, click **Sign in with GitHub**, and open a pull request from your Inbox on Home ([Find a pull request](#find-a-pull-request-on-home)).
+2. Read the brief group by group, and tick **Viewed** on each chunk you read ([Read a brief](#read-a-brief)).
+3. Address or dismiss each flag in the group's **Risk surface** list ([Act on risk flags](#act-on-risk-flags)).
+4. Leave draft comments on the diff ([Comment](#comment)).
+5. Click **Submit**, choose **Comment**, **Approve** or **Request changes**, and click **Submit review** ([Submit your review](#submit-your-review)).
+
+A few actions write to GitHub at once instead of waiting for submit, and this page says so where they come up: replying to a thread, resolving one, attaching an image, and the actions on your own draft pull request. Words in bold are the labels you see on screen. The [glossary](../glossary.md) defines the product's terms.
 
 ## Sign in
 
@@ -270,6 +278,8 @@ When GitHub has commits the brief you are reading does not cover, a **Newer comm
 
 The review posts to GitHub under your account, with your drafts as its inline comments. You see "Review posted to GitHub under your account."
 
+GitHub does not let you approve or request changes on your own pull request. On your own, choose **Comment**.
+
 ### Before you submit
 
 The list groups what is still open:
@@ -298,8 +308,6 @@ The verdict and the words are yours. The signature line only states counts.
 ### Submit against an older revision
 
 When the pull request got new commits after the brief you read, the dialog warns that your comments anchor to the revision you reviewed and may show as outdated on GitHub. Tick **Submit against the reviewed revision anyway** to go ahead, or close the dialog and move to the newer brief first.
-
-GitHub does not let you approve or request changes on your own pull request. On your own, choose **Comment**.
 
 ## Self-review your own draft
 

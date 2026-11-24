@@ -2,8 +2,6 @@
 
 This guide runs a pinned MergeBrief release on a fresh Ubuntu 24.04 LTS VM with a real domain, from creating the VM to a brief on a real pull request. Replace `brief.example.com` and every `<placeholder>` before you run a command.
 
-The Hetzner deployments have been run end to end, the external-database one on Neon. The Supabase steps and the EC2 deployments follow the providers' documentation and have not been run end to end yet.
-
 ## Choose the deployment
 
 | VM | Database | Pick it when |
@@ -13,6 +11,8 @@ The Hetzner deployments have been run end to end, the external-database one on N
 | AWS EC2 | Postgres on the same instance | You want the same installation inside AWS |
 | AWS EC2 | Private RDS PostgreSQL | You want AWS private networking and a managed database |
 | AWS EC2 | Neon or Supabase | You want a managed database outside AWS |
+
+The Hetzner deployments have been run end to end, the external-database one on Neon. The Supabase steps and the EC2 deployments follow the providers' documentation and have not been run end to end yet.
 
 Give each instance its own database, hostname and GitHub App. Two instances on one database would consume the same jobs. Changing `DATABASE_URL` copies no data; moving a deployment is a backup and restore ([Restore to a new host](backup-restore.md#restore-to-a-new-host)).
 
@@ -42,6 +42,8 @@ Use these choices on Hetzner's **Create a server** screen, whichever database yo
 
 Read the price in the console's final summary, which changes with location, type, backups and VAT. The external database and model usage are separate charges.
 
+With the database on the VM, the named Docker volume stores Postgres on the included root disk. With an external database, the provider stores the data. Hetzner's [server backups](https://docs.hetzner.com/cloud/servers/backups-snapshots/overview/) cover the server disk, not separately attached Hetzner Volumes or an external database. Keep the backup steps later in this guide either way.
+
 #### Add the SSH key from your computer
 
 If you already have a suitable SSH key, paste its **public** `.pub` file into **Add SSH key**. Otherwise, run these on your own computer, not on the server. Use a new filename and do not overwrite an existing key:
@@ -61,7 +63,7 @@ Replace the placeholder with the address shown by Hetzner. Verify the host key f
 
 #### Create and attach the firewall
 
-Open **Firewalls** in another tab, create `mergebrief-test`, then return to the creation form and select it (refresh if necessary). Confirm it is attached to the server.
+Open **Firewalls** in another tab and create `mergebrief-test` with these rules:
 
 | Direction | Protocol / port | Source |
 | --- | --- | --- |
@@ -70,34 +72,33 @@ Open **Firewalls** in another tab, create `mergebrief-test`, then return to the 
 | Inbound | TCP 443 | Any IPv4 (`0.0.0.0/0`) and any IPv6 (`::/0`) |
 | Inbound | ICMP | Any IPv4 and IPv6, for diagnostics and network error signaling |
 
-To find the address for the SSH rule, open a terminal on your computer and run:
+On Hetzner's **Create Firewall** screen:
 
-```sh
-curl -4 https://icanhazip.com
-```
+1. Find your public IPv4 for the SSH rule. Run this in a terminal on your own computer, not on the Hetzner server, on the same network and with the same VPN connection you will use for SSH: the rule needs the address you connect **from**.
 
-This prints your current public IPv4 address. Run it on the same network and with the same VPN connection you will use for SSH. Run it locally, not on the Hetzner server: the rule needs the address you connect **from**.
+   ```sh
+   curl -4 https://icanhazip.com
+   ```
 
-For example, if the output were `203.0.113.10`, you would enter `203.0.113.10/32`. Use your actual output, not this example. The `/32` suffix means "allow this exact IPv4 address." Do not use your computer's local `192.168.*` address or the Hetzner server's IP.
+   If it prints `203.0.113.10`, you enter `203.0.113.10/32`. Use your actual output, not this example. The `/32` suffix means "allow this exact IPv4 address." Do not use your computer's local `192.168.*` address or the Hetzner server's IP.
 
-In the first inbound rule on Hetzner's **Create Firewall** screen:
+2. In the first inbound rule:
 
-1. Set the description to `SSH from my network`.
-2. Remove **both** source chips: **Any IPv4** and **Any IPv6**.
-3. Enter your public IPv4 with `/32` appended, then press Enter to add it.
-4. Keep **Protocol: TCP** and **Port: 22**. Leave **Port range** empty.
+   1. Set the description to `SSH from my network`.
+   2. Remove **both** source chips: **Any IPv4** and **Any IPv6**.
+   3. Enter your public IPv4 with `/32` appended, then press Enter to add it.
+   4. Keep **Protocol: TCP** and **Port: 22**. Leave **Port range** empty.
 
-If your public IP changes after switching Wi-Fi, reconnecting your router or changing VPN, run the command again and update this rule in Hetzner's console. The firewall does not prevent you from accessing Hetzner's website to change the rule. With this IPv4-only SSH rule, connect using the server's public IPv4 as shown in the SSH command above.
+3. Keep the existing **ICMP** rule with **Any IPv4** and **Any IPv6**.
+4. Click **Add rule** twice to create separate **TCP 80** and **TCP 443** rules, each with **Any IPv4** and **Any IPv6**. Leave both port-range fields empty; do not create a range from 80 through 443.
+5. Leave **Outbound rules** empty for a first deployment. **Labels** can stay blank; set **Name** to `mergebrief-test`.
+6. Under **Apply to → Select Resources**, select the MergeBrief server if it already exists. Otherwise, create the firewall, then return to the server creation form and select it (refresh if necessary).
+7. Confirm the firewall is attached to the server: creating a firewall without applying it does not protect the server.
 
-Keep the existing **ICMP** rule with **Any IPv4** and **Any IPv6**. Its port field is disabled because ICMP carries network diagnostics and error messages rather than connecting to an application port. It does not grant terminal access.
-
-Click **Add rule** twice to create separate **TCP 80** and **TCP 443** rules, each with **Any IPv4** and **Any IPv6**. Leave both port-range fields empty; do not create a range from 80 through 443. Port 80 supports HTTP redirects and certificate validation; port 443 serves encrypted application traffic, GitHub login callbacks and webhooks. Allowing either through the firewall does not bypass SSH keys or MergeBrief authentication.
-
-Leave **Outbound rules** empty. Under **Apply to → Select Resources**, select the MergeBrief server if it already exists. Otherwise, create the firewall and select it in the server creation form. **Labels** can stay blank; set **Name** to `mergebrief-test`. Confirm the firewall is attached: creating a firewall without applying it does not protect the server.
-
-Do not add inbound 3000, 3001 or 5432, even for an external database: that is an outbound connection the application opens. Leave outbound rules empty for a first deployment, permitting package downloads, DNS, GitHub and model HTTPS, and the database connection. An attached Hetzner Firewall blocks unmatched inbound traffic and allows outbound traffic when no outbound rules exist ([firewall semantics](https://docs.hetzner.com/cloud/firewalls/overview/)).
-
-With the database on the VM, the named Docker volume stores Postgres on the included root disk. With an external database, the provider stores the data. Hetzner's [server backups](https://docs.hetzner.com/cloud/servers/backups-snapshots/overview/) cover the server disk, not separately attached Hetzner Volumes or an external database. Keep the backup steps later in this guide either way.
+- **If your public IP changes** after switching Wi-Fi, reconnecting your router or changing VPN, run the `curl` command again and update the SSH rule in Hetzner's console. The firewall does not prevent you from accessing Hetzner's website to change the rule. With this IPv4-only SSH rule, connect using the server's public IPv4 as shown in the SSH command above.
+- **ICMP's port field is disabled** because ICMP carries network diagnostics and error messages rather than connecting to an application port. It does not grant terminal access.
+- **Port 80** supports HTTP redirects and certificate validation; **port 443** serves encrypted application traffic, GitHub login callbacks and webhooks. Allowing either through the firewall does not bypass SSH keys or MergeBrief authentication.
+- **Do not add inbound 3000, 3001 or 5432**, even for an external database: that is an outbound connection the application opens. Empty outbound rules permit package downloads, DNS, GitHub and model HTTPS, and the database connection: an attached Hetzner Firewall blocks unmatched inbound traffic and allows outbound traffic when no outbound rules exist ([firewall semantics](https://docs.hetzner.com/cloud/firewalls/overview/)).
 
 After creation, point `brief.example.com`'s A record at the public IPv4. Add an AAAA record only after testing inbound IPv6. Having IPv6 enabled does not require publishing AAAA. Docker containers also need working outbound IPv6 before they can use an IPv6-only database endpoint; host connectivity alone does not establish this. Continue with section 2.
 
@@ -205,10 +206,11 @@ An instance starts closed: nobody can sign in until its config names them. Print
 gh api users/<your-login> --jq .id
 ```
 
-On the VM, copy the example config, then replace the placeholder under `operators` with that id:
+On the VM, copy the example config and open it up to the containers' UID 1000: the `umask 077` from section 3 still applies in this shell, so a config file created here is unreadable by them. It holds variable names, not keys. Then replace the placeholder under `operators` with that id:
 
 ```sh
 cp mergebrief.config.example.yaml mergebrief.config.yaml
+chmod 644 mergebrief.config.yaml
 ```
 
 ```yaml
@@ -231,12 +233,6 @@ allowed:
 `docker-compose.yml` mounts the file read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both. The image does not contain your config, and Compose refuses to start either service while the file is missing.
 
 For a first deployment, also choose a low daily generation cap in that file ([Set the cap](spend-cap.md#set-the-cap)). This limits generation count, not token dollars; also use the model provider's spending controls.
-
-The `umask 077` from section 3 still applies in this shell, so a config file created here is unreadable by the containers' UID 1000. Open it up before starting the stack. It holds variable names, not keys:
-
-```sh
-chmod 644 mergebrief.config.yaml
-```
 
 ## 5A. Database on the same VM
 

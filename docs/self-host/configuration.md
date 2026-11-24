@@ -2,10 +2,10 @@
 
 Every setting MergeBrief reads, in one place. There are four surfaces:
 
-- **Environment variables**, read by the `api`, `web`, `worker` and `migrate` processes at boot. Secrets, capacity and addresses live here.
-- **The instance config file**, `mergebrief.config.yaml`, read from the workspace root or from the path `MERGEBRIEF_CONFIG` gives. Provider, model, spend and instance policy live here.
-- **Repo-local files** under `.mergebrief/` in each repository, read from the default branch per generation.
-- **The CLI's own environment and `config.json`** on the machine that runs `mergebrief`.
+- **[Environment variables](#environment-variables)**, read by the `api`, `web`, `worker` and `migrate` processes at boot. Secrets, capacity and addresses live here.
+- **[The instance config file](#instance-config-mergebriefconfigyaml)**, `mergebrief.config.yaml`, read from the workspace root or from the path `MERGEBRIEF_CONFIG` gives. Provider, model, spend and instance policy live here.
+- **[Repo-local files](#repo-local-files-mergebrief)** under `.mergebrief/` in each repository, read from the default branch per generation.
+- **[The CLI's own environment and `config.json`](#cli)** on the machine that runs `mergebrief`.
 
 This page says what each setting accepts. The how-to pages ([compose.md](./compose.md), [generators.md](./generators.md), [upgrade.md](./upgrade.md), [secrets.md](./secrets.md), [data-and-scaling.md](./data-and-scaling.md), [observability.md](./observability.md)) say when to change one.
 

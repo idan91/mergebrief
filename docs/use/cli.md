@@ -1,10 +1,16 @@
 # The `mergebrief` CLI
 
-`mergebrief` reads and reviews briefs from a terminal, a script, a CI job or a coding agent. It talks to your instance's API with a token you create in the web app, so it can do what you can do in the browser, up to the token's scope. Each section below is a task; the [reference](#reference) at the end lists every command, the output contract and the exit codes. Product terms such as revision, held push and chunk are defined in the [glossary](../glossary.md).
+`mergebrief` reads and reviews briefs from a terminal, a script, a CI job or a coding agent. It talks to your instance's API with a token you create in the web app, so it can do what you can do in the browser, up to the token's scope.
 
-You need a running instance ([compose.md](../self-host/compose.md)) that you can sign in to.
+With a token from **API tokens** under `/settings` ([Create a token](#create-a-token)), three commands get you to your Inbox:
 
-The CLI is the supported integration surface. The `/api` routes it calls are not documented for direct use, so build a script or an agent on the CLI and its [output contract](#output-contract).
+```sh
+npm i -g mergebrief
+mergebrief auth login --base-url https://mergebrief.your-org.example
+mergebrief pr
+```
+
+`auth login` asks for the token. You need a running instance ([compose.md](../self-host/compose.md)) that you can sign in to. The [reference](#reference) at the end lists every command, the output contract and the exit codes. Product terms such as revision, held push and chunk are defined in the [glossary](../glossary.md).
 
 ## Install
 
@@ -280,20 +286,14 @@ mergebrief session 7 --json | jq '.draftComments[] | select(.anchorStatus == "or
 
 ## Use it in CI and from agents
 
-Four rules make the CLI safe to script:
+The CLI is the supported integration surface. The `/api` routes it calls are not documented for direct use, so build a script or an agent on the CLI and its [output contract](#output-contract). Four rules make the CLI safe to script:
 
 - **Pass `--json`.** On exit 0, stdout is the documented JSON and nothing else. Terminal output is for people and can change.
 - **Branch on the exit code, never on stderr text.** On a non-zero exit, stdout is empty and stderr is one line ([Exit codes](#exit-codes)).
 - **Keep the token in a secret,** and give it to the CLI as `MERGEBRIEF_TOKEN`. It replaces the stored token of whichever profile the command resolves.
 - **Install a pinned version** rather than running `npx` inside the checkout ([Install](#install)).
 
-In GitHub Actions:
-
-- **Use a `read` token** for a job that only reads briefs; nothing in the recipe below writes. A token acts as the person who created it, with their access to every repository and organization, so create it on an account whose reach you are happy for the workflow to have.
-- **Pull requests from forks get no secrets.** GitHub does not pass repository secrets to a `pull_request` workflow run from a fork, so `MERGEBRIEF_TOKEN` is empty there and the authentication check fails the job. Skip such runs with the `if:` below rather than switching to `pull_request_target`, which runs with secrets beside the fork's code.
-- **Node 24.** The runner's default Node may be older than the CLI supports.
-
-The CLI still needs a profile for the instance's URL. Write one with no token in it, so the token never touches the runner's disk. The job then waits for the pull request's brief, up to 15 minutes, before it reads it:
+In GitHub Actions, this job waits for the pull request's brief, up to 15 minutes, then reads it. The CLI still needs a profile for the instance's URL, so the job writes one with no token in it, and the token never touches the runner's disk:
 
 ```yaml
 # .github/workflows/brief.yml
@@ -343,6 +343,12 @@ jobs:
 ```
 
 **Check:** the `jq -e` line fails the job unless the token authenticates, and the loop ends once the instance has a brief for this run's head commit: `headSha` matches and `briefAvailable` is `true`. Until the push reaches the instance, `pr` may answer for the previous head, or exit 4 for a pull request it has not seen yet; the loop keeps waiting through both. A `held` generation keeps waiting: if a trigger condition waits on this same CI run, the loop times out, so run the job without that condition or read the brief in a later job.
+
+What the recipe relies on:
+
+- **Use a `read` token** for a job that only reads briefs; nothing in the recipe writes. A token acts as the person who created it, with their access to every repository and organization, so create it on an account whose reach you are happy for the workflow to have.
+- **Pull requests from forks get no secrets.** GitHub does not pass repository secrets to a `pull_request` workflow run from a fork, so `MERGEBRIEF_TOKEN` is empty there and the authentication check fails the job. Skip such runs with the job's `if:` rather than switching to `pull_request_target`, which runs with secrets beside the fork's code.
+- **Node 24.** The runner's default Node may be older than the CLI supports.
 
 A script that reads a brief which may not exist yet branches on the code:
 

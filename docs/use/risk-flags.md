@@ -2,7 +2,33 @@
 
 A risk flag is one risk attribute firing on one chunk of a brief. It states a fact about the change, such as "this chunk touches auth code". It never says the change is wrong. You decide that, and you record the decision by addressing the flag with evidence or dismissing it with a reason ([Act on risk flags](./reviewing.md#act-on-risk-flags)).
 
-This page lists every built-in attribute: what it means, how to check it fast, and whether it is a floor attribute.
+## Find an attribute
+
+Each built-in attribute below says what it means, how to check it fast, and whether it is a [floor attribute](#floor-attributes).
+
+| Attribute | Key | Floor |
+| --- | --- | --- |
+| [No tests](#no-tests) | `no-tests` | no |
+| [No types](#no-types) | `no-types` | no |
+| [Legacy area](#legacy-area) | `legacy-area` | no |
+| [Dense logic](#dense-logic) | `dense-logic` | no |
+| [Touches auth](#touches-auth) | `touches-auth` | yes |
+| [Mutates state](#mutates-state) | `mutates-state` | no |
+| [Removes validation](#removes-validation) | `removes-validation` | yes |
+| [Relaxes permissions](#relaxes-permissions) | `relaxes-permissions` | yes |
+| [Widens error handling](#widens-error-handling) | `widens-error-handling` | no |
+| [Adds feature flag](#adds-feature-flag) | `adds-feature-flag` | no |
+| [New dependency](#new-dependency) | `new-dependency` | no |
+| [New abstraction](#new-abstraction) | `new-abstraction` | no |
+| [Comment contradicts code](#comment-contradicts-code) | `comment-contradicts-code` | no |
+| [Adds a secret](#adds-a-secret) | `adds-secret` | yes |
+| [Changes package source](#changes-package-source) | `changes-package-source` | yes |
+| [External I/O](#external-io) | `external-io` | no |
+| [Cross-service](#cross-service) | `cross-service` | no |
+| [Schema-adjacent](#schema-adjacent) | `schema-adjacent` | no |
+| [Hot path](#hot-path) | `hot-path` | no |
+| [Widely imported](#widely-imported) | `widely-imported` | no |
+| [Release imminent](#release-imminent) | `release-imminent` | no |
 
 ## Read a flag
 

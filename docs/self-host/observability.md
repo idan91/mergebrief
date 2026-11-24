@@ -314,46 +314,7 @@ Every `OTEL_*` variable MergeBrief reads, with its default and what a bad value 
 - **Leave `OTEL_SERVICE_NAME` unset.** The processes name themselves `mergebrief-web`, `mergebrief-api` and `mergebrief-worker`.
 - **Keep vendor keys in a collector.** Compose never passes the OTLP headers to the web tier, so point it at a collector or agent you run beside the stack, as the recipes above do, and let that hold the key.
 
-The web tier decides its own sampling: it continues a caller's trace id but ignores the caller's sampled flag. Under a ratio sampler that trace id still steers the decision, so a client can push its own requests in or out of the sample; that costs you volume, never data.
-
-### What a trace holds
-
-- **One trace per web request.** It starts at the web tier, continuing a `traceparent` your reverse proxy sends, and follows the proxied call and every page render's reads into the api, down to each Postgres query.
-- **One trace per job.** A worker job opens its own trace (`process generate`, `process recover-generation`, `process generate-large`, `process recover-generation-large`, `process sync-entry`, the scheduled sweeps and `process reconcile-webhook-deliveries`) with the job's queries and its calls to GitHub and the model provider. It links to the trace that queued it: a delivery, a request such as a regenerate, or the job that re-queued it. Scheduled tasks start unlinked. It is a link, not a parent, because a later push replaces a queued job and one job may serve several deliveries.
-- **Not traced:** `/healthz`, `/readyz`, the web tier's static assets, and background calls outside any request or job.
-- **Redacted:** URL query strings (the sign-in callback carries its code there), and the user agent and client address the HTTP instrumentation reads from headers.
-- **Never recorded:** any request header but the host, cookies, SQL parameter values, and the text of a job's error. A failed query's span keeps Postgres's error message, which can quote a value.
-
-Named spans mark the business steps, so a trace reads as the flow and a monitor can key on a step. The names below are stable: a rename is a breaking change, the same as an `evt` name. Their attributes are ids, counts and decision tokens, never content.
-
-| Span | Process | What it covers | Attributes |
-| --- | --- | --- | --- |
-| `<METHOD> <route>` | api | The request, named by its matched route, such as `POST /api/webhooks/github` | `http.route` |
-| `<METHOD> /api/*`, `<METHOD> /*` | web | A proxied call, a page render | `http.route` |
-| `<operation id>` | api | One product operation, such as `read-brief` or `submit-review`, with its gate and handler | `mergebrief.operation` |
-| `webhook.verify` | api | The delivery's signature check | `mergebrief.verified` |
-| `webhook.dispatch` | api | The event's writes | `mergebrief.webhook.kind`, `mergebrief.webhook.action` |
-| `generation.trigger` | api | The ingest transaction and its enqueue | `mergebrief.applied`, `mergebrief.queued`, `mergebrief.covered_by_brief`, `mergebrief.pr_id` |
-| `authz.session` | api | The cookie or token lookup | `mergebrief.credential` |
-| `authz.repo` | api | The repository access check | `mergebrief.cache_hit` |
-| `authz.installation` | api | Which installation holds the repository | |
-| `pr.load` | api | The pull request row an operation reads | `mergebrief.found` |
-| `github.publish_review`, `github.publish_comment` | api | A review or comment written to GitHub | `mergebrief.drafts` |
-| `generation.open` | worker | The run's guards and first GitHub read | `mergebrief.opened` |
-| `generation.decide` | worker | The run's decision | `mergebrief.decision` |
-| `generation.claim` | worker | The daily-cap claim | `mergebrief.claim` |
-| `generation.inputs` | worker | The files, diff and config | |
-| `brief.generate` | worker | The brief | |
-| `entry.ready` | worker | The ready Entry comment | |
-| `generation.revision` | worker | Revision marks and narrative | |
-| `generation.deltas` | worker | The checkpoint deltas | `mergebrief.deltas_written` |
-| `generation.finish` | worker | The settled row | |
-| `chat <model>` | worker | One generation, its provider retries summed | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`, `mergebrief.generation.kind`, `mergebrief.generation.effort`, `mergebrief.provider_requests` |
-| `<store>.<method>` | api, worker | One persistence call, such as `briefs.listForPullRequest`; its queries nest under it | |
-
-A `<store>.<method>` span is named for the method a caller reached and changes when that method is renamed, so it is outside the stable contract: key a monitor on a business-step name instead.
-
-Token counts come from the provider's own accounting; codex reports none, and a CLI provider reports one total per run. With tracing on, an OpenAI-compatible provider is asked to include usage in its stream, and asked again without it if it rejects the option.
+What each trace covers and what it never records is under [What a trace holds](#what-a-trace-holds).
 
 ### Try tracing locally with Jaeger
 
@@ -447,6 +408,47 @@ On `api.access`, `decision` is the auth gate's outcome and `status` is what the 
 | `refusal` | The model declined to answer. |
 | `output-cut` | The answer reached its output token cap. |
 | `opaque` | Anything the adapter could not classify. |
+
+### What a trace holds
+
+- **One trace per web request.** It starts at the web tier, continuing a `traceparent` your reverse proxy sends, and follows the proxied call and every page render's reads into the api, down to each Postgres query.
+- **One trace per job.** A worker job opens its own trace (`process generate`, `process recover-generation`, `process generate-large`, `process recover-generation-large`, `process sync-entry`, the scheduled sweeps and `process reconcile-webhook-deliveries`) with the job's queries and its calls to GitHub and the model provider. It links to the trace that queued it: a delivery, a request such as a regenerate, or the job that re-queued it. Scheduled tasks start unlinked. It is a link, not a parent, because a later push replaces a queued job and one job may serve several deliveries.
+- **Not traced:** `/healthz`, `/readyz`, the web tier's static assets, and background calls outside any request or job.
+- **Redacted:** URL query strings (the sign-in callback carries its code there), and the user agent and client address the HTTP instrumentation reads from headers.
+- **Never recorded:** any request header but the host, cookies, SQL parameter values, and the text of a job's error. A failed query's span keeps Postgres's error message, which can quote a value.
+
+The web tier decides its own sampling: it continues a caller's trace id but ignores the caller's sampled flag. Under a ratio sampler that trace id still steers the decision, so a client can push its own requests in or out of the sample; that costs you volume, never data.
+
+Named spans mark the business steps, so a trace reads as the flow and a monitor can key on a step. The names below are stable: a rename is a breaking change, the same as an `evt` name. Their attributes are ids, counts and decision tokens, never content.
+
+| Span | Process | What it covers | Attributes |
+| --- | --- | --- | --- |
+| `<METHOD> <route>` | api | The request, named by its matched route, such as `POST /api/webhooks/github` | `http.route` |
+| `<METHOD> /api/*`, `<METHOD> /*` | web | A proxied call, a page render | `http.route` |
+| `<operation id>` | api | One product operation, such as `read-brief` or `submit-review`, with its gate and handler | `mergebrief.operation` |
+| `webhook.verify` | api | The delivery's signature check | `mergebrief.verified` |
+| `webhook.dispatch` | api | The event's writes | `mergebrief.webhook.kind`, `mergebrief.webhook.action` |
+| `generation.trigger` | api | The ingest transaction and its enqueue | `mergebrief.applied`, `mergebrief.queued`, `mergebrief.covered_by_brief`, `mergebrief.pr_id` |
+| `authz.session` | api | The cookie or token lookup | `mergebrief.credential` |
+| `authz.repo` | api | The repository access check | `mergebrief.cache_hit` |
+| `authz.installation` | api | Which installation holds the repository | |
+| `pr.load` | api | The pull request row an operation reads | `mergebrief.found` |
+| `github.publish_review`, `github.publish_comment` | api | A review or comment written to GitHub | `mergebrief.drafts` |
+| `generation.open` | worker | The run's guards and first GitHub read | `mergebrief.opened` |
+| `generation.decide` | worker | The run's decision | `mergebrief.decision` |
+| `generation.claim` | worker | The daily-cap claim | `mergebrief.claim` |
+| `generation.inputs` | worker | The files, diff and config | |
+| `brief.generate` | worker | The brief | |
+| `entry.ready` | worker | The ready Entry comment | |
+| `generation.revision` | worker | Revision marks and narrative | |
+| `generation.deltas` | worker | The checkpoint deltas | `mergebrief.deltas_written` |
+| `generation.finish` | worker | The settled row | |
+| `chat <model>` | worker | One generation, its provider retries summed | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`, `mergebrief.generation.kind`, `mergebrief.generation.effort`, `mergebrief.provider_requests` |
+| `<store>.<method>` | api, worker | One persistence call, such as `briefs.listForPullRequest`; its queries nest under it | |
+
+A `<store>.<method>` span is named for the method a caller reached and changes when that method is renamed, so it is outside the stable contract: key a monitor on a business-step name instead.
+
+Token counts come from the provider's own accounting; codex reports none, and a CLI provider reports one total per run. With tracing on, an OpenAI-compatible provider is asked to include usage in its stream, and asked again without it if it rejects the option.
 
 ### Log rotation
 

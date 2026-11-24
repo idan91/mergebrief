@@ -1,48 +1,46 @@
 # Trigger conditions
 
-Trigger conditions choose which pushes get a brief. By default every push to an open pull request generates a brief. A `triggerConditions:` block in `.mergebrief/settings.yaml` makes a push wait until it meets conditions you choose: the pull request is out of draft, CI passed, a review bot finished, a label is on it, and so on. A push that misses a condition is **held**: nothing runs and nothing is spent until it passes, or until someone with push access presses Generate.
+A `triggerConditions:` block in `.mergebrief/settings.yaml` makes a push wait for its brief until it meets the conditions you list. Without one, every push to an open pull request gets a brief.
+
+The setup most teams want, no brief for drafts and none until required CI passes:
+
+```yaml
+version: 1
+triggerConditions:
+  readyForReview: on
+  ci: required
+```
+
+Merge it to the default branch and it applies from the next push. A push that misses a condition is **held**: nothing runs and nothing is spent until it passes, or until someone with push access presses **Generate brief**. Every condition you list must pass; put alternatives in [`any:`](#accept-any-one-of-several-conditions).
 
 The rest of `settings.yaml` is on [Settings](./settings.md). The instance's operator can set conditions for every repository too; [yours merge over theirs](#how-the-instances-conditions-merge-with-yours).
 
-## Check a recipe
+## Pick a condition
 
-Every recipe below is a whole `settings.yaml`. To try one:
-
-1. Put it in `.mergebrief/settings.yaml` (add the block to the file you already have) and merge it to the default branch. MergeBrief reads the file from the default branch only, so the pull request that adds it is not held by it.
-2. Push to a pull request that misses the condition.
-3. Open the pull request in MergeBrief. Instead of a brief it shows **No brief for this push yet**, and lists each unmet condition marked **Repository** (yours) or **Instance** (the operator's). The Entry comment on GitHub lists the same reasons.
-4. Meet the condition. The push generates by itself.
-
-If the push generates at once instead, the file was probably rejected: open the last brief's details (the `i` button in its header) and look at the Repo config section ([Check that your config applied](./README.md#check-that-your-config-applied)).
-
-## Wait until the pull request is ready and CI passed
-
-The setup most teams want: no brief for drafts, and none until the checks your base branch requires have passed.
-
-```yaml
-version: 1
-triggerConditions:
-  readyForReview: on
-  ci: required
-```
-
-Both must pass, so a push waits for whichever comes last. The two recipes below explain each condition on its own.
+| To brief only when | Add under `triggerConditions:` | Recipe |
+| --- | --- | --- |
+| The pull request is out of draft | `readyForReview: on` | [Hold drafts](#hold-drafts-until-they-are-ready-for-review) |
+| The base branch's required checks passed | `ci: required` | [Required CI](#wait-for-required-ci) |
+| Checks you name passed | `ci: { checks: [build, test] }` | [Named checks](#wait-for-named-checks) |
+| It is big enough, or small enough | `size: { changedLines: { min: 200 } }` | [Size](#brief-only-pull-requests-above-a-size) |
+| It changes certain paths | `paths: [services/billing/**]` | [Paths](#brief-only-changes-to-some-paths) |
+| A review bot gave its verdict | `bots: { coderabbit: approved }` | [Review bot](#wait-for-a-review-bot) |
+| Someone requested a review | `reviewRequested: on` | [Review requested](#wait-until-someone-requests-a-review) |
+| It carries a label, or a word in its title | `labels: [needs-brief]` | [Label](#brief-only-pull-requests-with-a-label) |
+| It targets a given branch | `baseBranches: [main]` | [Stacked pull requests](#hold-stacked-pull-requests-until-they-target-main) |
+| Someone asks | `never: on` | [Manual only](#brief-only-when-someone-asks) |
 
 ## Hold drafts until they are ready for review
 
-Draft pull requests wait. Marking one ready for review generates its latest push.
-
 ```yaml
 version: 1
 triggerConditions:
   readyForReview: on
 ```
 
-A held draft shows **Needs this pull request marked ready for review**. Whether the Entry comment posts on drafts is a separate setting, [`entryCommentOnDrafts`](./settings.md#keep-the-entry-comment-off-drafts).
+Marking a draft ready for review generates its latest push. A held draft shows **Needs this pull request marked ready for review**. Whether the Entry comment posts on drafts is a separate setting, [`entryCommentOnDrafts`](./settings.md#keep-the-entry-comment-off-drafts).
 
 ## Wait for required CI
-
-A push waits until the checks your base branch requires have passed on it.
 
 ```yaml
 version: 1
@@ -50,13 +48,11 @@ triggerConditions:
   ci: required
 ```
 
-`required` reads the base branch's **rulesets** only. On a branch protected by classic branch protection, or with no required check, or in a private repository on GitHub Free, nothing counts as required and the condition passes at once. There, [name the checks](#wait-for-named-checks) instead.
+A push waits until the checks its base branch requires have passed. `required` reads the branch's **rulesets** only: with classic branch protection, with no required check, or in a private repository on GitHub Free, nothing is required and the push passes at once. There, [name the checks](#wait-for-named-checks) instead.
 
 A held push shows **Waiting for CI: build still running**, **CI failed: build**, or **Waiting for CI: build has not reported on this push**.
 
 ## Wait for named checks
-
-A push waits until each named check has passed on it, whatever the branch requires.
 
 ```yaml
 version: 1
@@ -65,11 +61,9 @@ triggerConditions:
     checks: [build, test]
 ```
 
-Write each name exactly as the check run or commit status reports it, case included. A GitHub Actions job reports its job name (`build`), not the `CI / build (pull_request)` line the pull request's checks list shows. A check that never reports holds the push until someone presses Generate. How a check passes is under [What a `ci` condition counts](#what-a-ci-condition-counts).
+A push waits until each named check has passed, whatever the branch requires. Write each name as the check reports it, case included: a GitHub Actions job reports its job name (`build`), not the `CI / build (pull_request)` line the checks list shows. A check that never reports holds the push until someone presses Generate. How a check passes is under [What a `ci` condition counts](#what-a-ci-condition-counts).
 
 ## Brief only pull requests above a size
-
-Small pull requests get no brief by themselves; someone with push access can still press Generate.
 
 ```yaml
 version: 1
@@ -78,7 +72,7 @@ triggerConditions:
     changedLines: { min: 200 }
 ```
 
-`changedLines` is additions plus deletions across the whole pull request, as GitHub counts them. You can bound `additions` and `deletions` the same way, and set `min`, `max` or both on each; both bounds are inclusive. A held push shows **120 changed lines, under the 200 minimum**.
+`changedLines` is additions plus deletions across the whole pull request, as GitHub counts them. `additions` and `deletions` take bounds the same way; `min` and `max` are inclusive, and you can set either or both. A held push shows **120 changed lines, under the 200 minimum**.
 
 To skip very large pull requests instead, set a maximum:
 
@@ -94,8 +88,6 @@ triggerConditions:
 
 ## Brief only changes to some paths
 
-A push generates only when the pull request changes a file under one of these paths.
-
 ```yaml
 version: 1
 triggerConditions:
@@ -104,11 +96,9 @@ triggerConditions:
     - packages/api/**
 ```
 
-Globs are anchored at the repository root and case-sensitive. `**` spans directories, `*` stays inside one directory, so `*.sql` matches only SQL files at the root and `**/*.sql` matches them anywhere ([Glob patterns](./policy.md#glob-patterns)). Only a repository sets `paths`; the instance config refuses it. A held push shows **Changes no file matching one of** and your globs. See [What a `paths` condition sees](#what-a-paths-condition-sees) for renames and very large pull requests.
+A push generates only when the pull request changes a file under one of these paths. Globs start at the repository root and are case-sensitive: `**` spans directories and `*` stays inside one, so `*.sql` matches SQL files at the root only and `**/*.sql` matches them anywhere ([Glob patterns](./policy.md#glob-patterns)). Only a repository sets `paths`; the instance config refuses it. Renames and very large pull requests are under [What a `paths` condition sees](#what-a-paths-condition-sees).
 
 ## Wait for a review bot
-
-A push waits until a review bot has given its verdict on it, so the brief can sit beside the bot's review.
 
 ```yaml
 version: 1
@@ -117,7 +107,7 @@ triggerConditions:
     coderabbit: approved
 ```
 
-Each bot takes `finished`, `approved` or `clean`:
+A push waits until the bot has given its verdict on it, so the brief sits beside the bot's review. Each bot takes `finished`, `approved` or `clean`:
 
 | Bot key | Bot | `finished` | `approved` | `clean` |
 | --- | --- | --- | --- | --- |
@@ -127,11 +117,9 @@ Each bot takes `finished`, `approved` or `clean`:
 | `claude` | Claude Code Review | yes | no | yes |
 | `copilot` | Copilot | yes | no | no |
 
-List several bots to wait for all of them. Each bot must be set to review every push, or later pushes stay held: see [What a `bots` condition waits on](#what-a-bots-condition-waits-on) for each bot's setting and the GitHub App permissions it needs. A held push shows **Waiting for CodeRabbit to finish** or **CodeRabbit finished without approving**.
+List several bots to wait for all of them. Each bot must be set to review every push, or later pushes stay held: [What a `bots` condition waits on](#what-a-bots-condition-waits-on) has each bot's setting and the GitHub App permissions it needs. A held push shows **Waiting for CodeRabbit to finish** or **CodeRabbit finished without approving**.
 
 ## Wait until someone requests a review
-
-A push waits until a review is requested from a person or a team, so work in progress is not briefed.
 
 ```yaml
 version: 1
@@ -139,11 +127,9 @@ triggerConditions:
   reviewRequested: on
 ```
 
-Once met it stays met for the rest of the pull request. A review from someone on the repository's team also meets it ([Who counts for `reviewRequested`](#who-counts-for-reviewrequested)). A held push shows **Needs a review requested from someone**.
+A push waits until a review is requested from a person or a team, so work in progress is not briefed. A review from someone on the repository's team also counts ([Who counts for `reviewRequested`](#who-counts-for-reviewrequested)). Once met, it stays met for the rest of the pull request. A held push shows **Needs a review requested from someone**.
 
 ## Brief only pull requests with a label
-
-A push generates only when the pull request carries one of these labels. Adding the label later generates the latest push.
 
 ```yaml
 version: 1
@@ -151,7 +137,9 @@ triggerConditions:
   labels: [needs-brief]
 ```
 
-Case is ignored, as GitHub ignores it in label names. A held push shows **Needs the label needs-brief**. To match a word in the title instead, use `titleKeywords`:
+A push generates only when the pull request carries one of the labels, ignoring case. Adding the label later generates the latest push. A held push shows **Needs the label needs-brief**.
+
+To match a word in the title instead:
 
 ```yaml
 version: 1
@@ -159,11 +147,9 @@ triggerConditions:
   titleKeywords: [brief, review-me]
 ```
 
-A keyword matches as a whole word, ignoring case: `wip` matches `[WIP] Add widgets` but not `Wipe the cache`. A phrase matches as written, and a keyword in a script written without spaces, such as Chinese, Japanese or Thai, matches anywhere in the title.
+A keyword matches a whole word, ignoring case: `wip` matches `[WIP] Add widgets` but not `Wipe the cache`.
 
 ## Brief only when someone asks
-
-No push generates by itself. Someone with push access presses Generate on each one they want.
 
 ```yaml
 version: 1
@@ -171,11 +157,9 @@ triggerConditions:
   never: on
 ```
 
-`never` stands alone: a block that sets it with any other condition is rejected. A held push shows **Generates only when someone presses Generate**.
+No push generates by itself; someone with push access presses Generate on each one they want. `never` stands alone: a block that sets it with any other condition is rejected. A held push shows **Generates only when someone presses Generate**.
 
 ## Hold stacked pull requests until they target main
-
-In a stack, each pull request targets the one below it. This holds every pull request that does not target `main` directly, so a stacked one generates once it is retargeted.
 
 ```yaml
 version: 1
@@ -183,7 +167,7 @@ triggerConditions:
   baseBranches: [main]
 ```
 
-Branch names match exactly, case included. A held push shows **Targets feature/login, not main**.
+In a stack, each pull request targets the one below it. This holds every pull request that does not target `main` directly, so a stacked one generates once it is retargeted. Branch names match exactly, case included. A held push shows **Targets feature/login, not main**.
 
 ## Turn off the instance's conditions
 
@@ -202,11 +186,9 @@ triggerConditions:
   size: off
 ```
 
-A kind you set replaces the instance's, so you only need `off` for a kind you want gone. See [How the instance's conditions merge with yours](#how-the-instances-conditions-merge-with-yours).
+A kind you set replaces the instance's, so you only need `off` for a kind you want gone ([How the instance's conditions merge with yours](#how-the-instances-conditions-merge-with-yours)).
 
 ## Accept any one of several conditions
-
-Conditions outside `any:` must all pass. Inside `any:`, one passing member is enough. This generates a pull request that is labelled `needs-brief` or changes at least 500 lines, and in either case is out of draft:
 
 ```yaml
 version: 1
@@ -218,11 +200,9 @@ triggerConditions:
       changedLines: { min: 500 }
 ```
 
-An `any:` group names at least two kinds. A held push shows **Needs one of these:** followed by each member's reason.
+Conditions outside `any:` must all pass; inside it, one is enough. This briefs a pull request that is out of draft and either labelled `needs-brief` or at least 500 lines. An `any:` group names at least two kinds. A held push shows **Needs one of these:** followed by each member's reason.
 
 ## Combine conditions
-
-Every condition you list is required, unless it sits inside `any:`. A condition says what a push needs, never what excuses it: there is no "except" or "unless" form. To brief everything but one kind of pull request, require what the others have, as in [Hold stacked pull requests until they target main](#hold-stacked-pull-requests-until-they-target-main).
 
 ```yaml
 version: 1
@@ -235,10 +215,18 @@ triggerConditions:
   labels: [needs-brief]
 ```
 
-This push generates only when the pull request is out of draft, and changes at most 1,500 lines, and Unblocked finished on it, and it carries `needs-brief`.
+Every condition outside `any:` is required. This push generates only when the pull request is out of draft, changes at most 1,500 lines, Unblocked finished on it, and it carries `needs-brief`. There is no "except" or "unless" form: to brief everything but one kind of pull request, require what the others have, as in [Hold stacked pull requests until they target main](#hold-stacked-pull-requests-until-they-target-main).
 
 > [!WARNING]
 > Each line narrows the set. With this block, a labelled pull request over 1,500 lines never generates by itself, and neither does an unlabelled one of any size. Put alternatives in `any:`.
+
+## Check that it works
+
+1. Merge `.mergebrief/settings.yaml` to the default branch. MergeBrief reads it from there only, so the pull request that adds it is not held by it.
+2. Push to a pull request that misses a condition. Its page in MergeBrief shows **No brief for this push yet** and lists each unmet condition, marked **Repository** (yours) or **Instance** (the operator's). The Entry comment on GitHub lists the same.
+3. Meet the condition. The push generates by itself.
+
+If the push generates at once instead, the file was probably rejected: open the last brief's details (the `i` button in its header) and look at the Repo config section ([Check that your config applied](./README.md#check-that-your-config-applied)).
 
 ## Skip the wait on one pull request
 
@@ -260,7 +248,7 @@ Anyone with push access can generate a held push from the pull request's page in
 | `ci` | `required`, or `{ checks: [names] }` | The checks pass by GitHub's merge rule on this push ([What a `ci` condition counts](#what-a-ci-condition-counts)). |
 | `paths` | A list of globs ([Glob patterns](./policy.md#glob-patterns)) | A changed file matches one, case as written ([What a `paths` condition sees](#what-a-paths-condition-sees)). This file only; the instance config refuses it. |
 | `labels` | A list of label names | The pull request carries one of them, ignoring case. |
-| `titleKeywords` | A list of words | The title contains one of them as a whole word, ignoring case. |
+| `titleKeywords` | A list of words | The title contains one of them as a whole word, ignoring case. A phrase matches as written, and a word in a script written without spaces, such as Chinese, Japanese or Thai, matches anywhere in the title. |
 | `baseBranches` | A list of branch names | The pull request targets one of them directly, exact name and case. |
 | `never` | `on` | Never: every push waits for a Generate click. It stands alone. |
 | `any` | A map of two or more of the kinds above, `never` excepted | One of them is met. |

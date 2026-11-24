@@ -1,10 +1,18 @@
 # Choose a model provider
 
-MergeBrief writes each brief with one model, chosen in the `generator:` block of `mergebrief.config.yaml`. With no block it uses Anthropic's Claude Opus 5.5 and the key in `ANTHROPIC_API_KEY`. This page shows how to keep that default, switch the model, switch to OpenAI or OpenRouter, route through a gateway, and check which model wrote a brief.
+MergeBrief writes each brief with one model, chosen in the `generator:` block of `mergebrief.config.yaml`. With no block it uses Anthropic's Claude Opus 5.5 and the key in `ANTHROPIC_API_KEY`.
 
-Run every command in the folder that holds `docker-compose.yml`, `.env` and `mergebrief.config.yaml`. Only the worker reads the `generator:` block, so a change to it alone takes `docker compose restart worker`. A key changed in `.env` takes `docker compose up -d` instead, since a restart keeps the old environment. [Apply a change](./configuration.md#apply-a-change) says what every other change needs.
+| To | Set | Section |
+| --- | --- | --- |
+| Keep the default | `ANTHROPIC_API_KEY` in `.env`, no `generator:` block | [Use the default](#use-the-default) |
+| Use another model | `model:` | [Switch the model](#switch-the-model) |
+| Use OpenAI or OpenRouter | `provider: openai` or `provider: openrouter`, and its key | [Switch the provider](#switch-the-provider) |
+| Go through a company gateway or your own server | `baseUrl:` | [Route through a gateway](#route-through-a-gateway-or-your-own-server) |
+| Change the reasoning effort | `effort:` | [Set the reasoning effort](#set-the-reasoning-effort) |
+| Run a vendor CLI under your subscription | `provider: claude-code`, `codex` or `cursor`, host only | [Subscription CLI providers](#subscription-cli-providers) |
+| See which model wrote a brief | nothing: read the brief's details | [Check which model wrote a brief](#check-which-model-wrote-a-brief) |
 
-The key never goes in `mergebrief.config.yaml`: the file names the variable that holds it, and the value stays in `.env`.
+Run every command in the folder that holds `docker-compose.yml`, `.env` and `mergebrief.config.yaml`. Only the worker reads the `generator:` block, so a change to it alone takes `docker compose restart worker`. A key changed in `.env` takes `docker compose up -d` instead, since a restart keeps the old environment. [Apply a change](./configuration.md#apply-a-change) says what every other change needs. The key never goes in `mergebrief.config.yaml`: the file names the variable that holds it, and the value stays in `.env`.
 
 ## Use the default
 
@@ -22,7 +30,7 @@ Then [check which model wrote a brief](#check-which-model-wrote-a-brief).
 
 ## Switch the model
 
-Name the model's id under `generator:`. Claude Sonnet 5.5 costs less per token than the default ([Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing)), and a weaker model can write longer, less stable text ([Brief text runs long on a weaker model](#brief-text-runs-long-on-a-weaker-model)):
+Name the model's id under `generator:`:
 
 ```yaml
 # mergebrief.config.yaml
@@ -35,7 +43,7 @@ generator:
 docker compose restart worker
 ```
 
-The id is not the display name: "Claude Sonnet 5.5" is `claude-sonnet-5-5`. [Model names by provider](#model-names-by-provider) says where each provider lists its ids and what a wrong one does.
+Claude Sonnet 5.5 costs less per token than the default ([Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing)), and a weaker model can write longer, less stable text ([Brief text runs long on a weaker model](#brief-text-runs-long-on-a-weaker-model)). The id is not the display name: "Claude Sonnet 5.5" is `claude-sonnet-5-5`. [Model names by provider](#model-names-by-provider) says where each provider lists its ids and what a wrong one does.
 
 Briefs already written keep their text, and the next push re-uses the groups it did not touch. To have the first push after a model change write a whole new brief, add `fullRegeneration: on-model-swap` to the block ([configuration.md](./configuration.md#generator)).
 

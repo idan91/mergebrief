@@ -1,6 +1,6 @@
 # How MergeBrief works
 
-What happens between a push and a brief, for the person who runs an instance: which processes run, how pull requests arrive, when a brief is generated and retried, what the App posts on GitHub, and who can read what. Terms in bold are defined in the [glossary](./glossary.md). Contributors find the package layers, queue internals and scope rules in [`docs/dev/architecture.md`](./dev/architecture.md).
+A push reaches the api as a GitHub webhook, the api queues a job in Postgres, and the worker turns the job into a brief with your model provider. This page follows that path for the person who runs an instance. Terms in bold are defined in the [glossary](./glossary.md). Contributors find the package layers, queue internals and scope rules in [`docs/dev/architecture.md`](./dev/architecture.md).
 
 ## What runs
 

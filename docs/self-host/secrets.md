@@ -1,10 +1,19 @@
 # Rotate secrets
 
-Every secret lives in `.env`, or in a file a `.env` variable names, and `api` and `worker` read it once, at boot. A value in `.env` takes effect with `docker compose up -d` ([Apply a change](./configuration.md#apply-a-change)). A file, such as the one `GITHUB_APP_PRIVATE_KEY_PATH` or `DATABASE_URL_FILE` names, takes `docker compose restart api worker`, because compose cannot see a file's contents change.
+Every secret lives in `.env`, or in a file a `.env` variable names, and `api` and `worker` read it once, at boot. A value in `.env` takes effect with `docker compose up -d` ([Apply a change](./configuration.md#apply-a-change)). A file, such as the one `GITHUB_APP_PRIVATE_KEY_PATH` or `DATABASE_URL_FILE` names, takes `docker compose restart api worker`, because compose cannot see a file's contents change. `web` holds none of these secrets and never needs a restart for them. Run every command in the folder that holds `docker-compose.yml` and `.env`.
 
-`web` holds none of these secrets and never needs a restart for them. Run every command in the folder that holds `docker-compose.yml` and `.env`.
-
-If an account or a MergeBrief API token leaks, rather than an instance secret, follow [If an account or token leaks](./security-model.md#if-an-account-or-token-leaks).
+| Secret | Variable | Steps |
+| --- | --- | --- |
+| Session key | `SESSION_KEY_V1`, `SESSION_KEY_REF` | [Rotate the session key](#rotate-the-session-key) |
+| GitHub App private key | `GITHUB_APP_PRIVATE_KEY` or `GITHUB_APP_PRIVATE_KEY_PATH` | [Rotate the GitHub App private key](#rotate-the-github-app-private-key) |
+| OAuth client secret | `GITHUB_OAUTH_CLIENT_SECRET` | [Rotate the OAuth client secret](#rotate-the-oauth-client-secret) |
+| Webhook secret | `GITHUB_WEBHOOK_SECRET` | [Rotate the webhook secret](#rotate-the-webhook-secret) |
+| Postgres password | `POSTGRES_PASSWORD`, or `DATABASE_URL` on an external database | [Change the Postgres password](#change-the-postgres-password) |
+| URL fallback token | `MERGEBRIEF_URL_FALLBACK_TOKEN` | [Replace the URL fallback token](#replace-the-url-fallback-token) |
+| Model provider key | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, or the one `generator.apiKeyEnv` names | [Rotate the model provider key](#rotate-the-model-provider-key) |
+| Tracker token | `NOTION_TOKEN`, `JIRA_EMAIL`, `JIRA_API_TOKEN` | [Rotate a tracker token](#rotate-a-tracker-token) |
+| OTLP header credential | the collector's own file, or `OTEL_EXPORTER_OTLP_HEADERS` and `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | [Rotate an OTLP header credential](#rotate-an-otlp-header-credential) |
+| A user's account or MergeBrief API token, not an instance secret | none | [If an account or token leaks](./security-model.md#if-an-account-or-token-leaks) |
 
 ## Rotate the session key
 

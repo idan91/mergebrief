@@ -89,6 +89,28 @@ export function buildSidebar(
   return groups;
 }
 
+/** The sidebar headings above a page, outermost first: its group, then its Self-hosting phase. The home page has none. */
+export function readPageTrail(source: string, labels: SidebarLabels): string[] {
+  if (source === HOME_PAGE_SOURCE) {
+    return [];
+  }
+
+  const rule = GROUP_RULES.find((candidate) => candidate.holds(source));
+  if (rule === undefined) {
+    return [];
+  }
+
+  const trail = [labels[rule.label]];
+  const section = rule.sections?.find((candidate) =>
+    candidate.pages.includes(source),
+  );
+  if (section !== undefined) {
+    trail.push(labels.selfHostPhases[section.phase]);
+  }
+
+  return trail;
+}
+
 function toSidebarLink(page: SitePage): DefaultTheme.SidebarItem {
   return { text: page.title, link: page.link };
 }
