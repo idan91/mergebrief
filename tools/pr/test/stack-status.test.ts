@@ -132,7 +132,7 @@ describe("runStackStatus", () => {
     );
     expect(result.ok && result.value.needsAttention).toBe(true);
     expect(git.calls).toContain(
-      "fetch -q origin main chore/T-1/1-a chore/T-1/2-b",
+      "fetch -q --end-of-options origin main chore/T-1/1-a chore/T-1/2-b",
     );
   });
 

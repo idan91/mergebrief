@@ -27,9 +27,11 @@ export function parseRepoSlug(remoteUrl: string): Result<RepoSlug, Error> {
   const owner = match?.[1];
   const name = match?.[2];
   if (owner === undefined || name === undefined) {
+    // An https remote can embed a token; never echo it.
+    const shown = remoteUrl.trim().replace(/\/\/[^@/]+@/, "//***@");
     return {
       ok: false,
-      error: new Error(`origin is not a GitHub remote: ${remoteUrl.trim()}`),
+      error: new Error(`origin is not a GitHub remote: ${shown}`),
     };
   }
   return { ok: true, value: { owner, name } };

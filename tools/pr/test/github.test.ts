@@ -46,6 +46,12 @@ describe("parseRepoSlug", () => {
   it("refuses a remote that is not GitHub", () => {
     expect(parseRepoSlug("git@gitlab.com:a/b.git").ok).toBe(false);
   });
+
+  it("keeps an embedded token out of the error", () => {
+    const result = parseRepoSlug("https://bot:ghp_secret@gitlab.com/a/b.git");
+
+    expect(result.ok ? "" : result.error.message).not.toContain("ghp_secret");
+  });
 });
 
 describe("parseStackResponse", () => {

@@ -23,7 +23,9 @@ export function fetchBranches(
   if (branches.length === 0) {
     return true;
   }
-  return git(["fetch", "-q", "origin", ...branches]).status === 0;
+  return (
+    git(["fetch", "-q", "--end-of-options", "origin", ...branches]).status === 0
+  );
 }
 
 /** `undefined` when git could not answer, never a guess. */
