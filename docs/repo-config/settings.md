@@ -48,7 +48,7 @@ tracker:
   databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 ```
 
-`keyPrefix` is the key prefix your tickets use (`ACME-12`): a letter, then up to 19 letters, digits or underscores. `databaseId` is the board's database id or data source id, with or without dashes ([Notion setup](../self-host/trackers.md#4-point-the-repo-at-the-board)).
+`keyPrefix` is the key prefix your tickets use (`ACME-12`): a letter, then up to 19 letters, digits or underscores. `databaseId` is the board's database id or data source id, with or without dashes ([Find the board's ids](../self-host/trackers.md#3-find-the-boards-ids)).
 
 ### Several boards, Jira or GitHub Issues
 
@@ -70,7 +70,7 @@ trackers:
 ```
 
 - A `notion` entry needs `keyPrefix` and `databaseId`.
-- A `jira` entry lists 1 to 50 project keys, and reads only where the instance config names the Jira site ([Jira setup](../self-host/trackers.md#jira)).
+- A `jira` entry lists 1 to 50 project keys, and reads only where the instance config names the Jira site ([Connect Jira](../self-host/trackers.md#connect-jira)).
 - A `github` entry takes an optional `issuesRepo`, the `owner/name` repository where a bare `#N` resolves.
 - At most 8 entries, one `github` entry and one `jira` entry. A prefix or project key appears once across the list, compared without case.
 - A file carries `tracker:` or `trackers:`, never both.

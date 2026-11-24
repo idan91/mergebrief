@@ -7,8 +7,8 @@ import type { ReleaseNotes } from "../src/types";
 import { makeNotesDir, makeNotesFile } from "./helpers";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
-const OPERATIONS_DOC = join(REPO_ROOT, "docs/self-host/operations.md");
-const UPGRADE_HEADING = "### The upgrade step";
+const UPGRADE_DOC = join(REPO_ROOT, "docs/self-host/upgrade.md");
+const UPGRADE_HEADING = "## Upgrade on the bundled database";
 const BODY = "## Highlights\n\nNotes.\n";
 
 function readNotes(name: string, text: string): ReleaseNotes {
@@ -20,9 +20,9 @@ function readNotes(name: string, text: string): ReleaseNotes {
   return notes;
 }
 
-/** The fenced sh block under the upgrade-step heading in operations.md. */
+/** The fenced sh block under the bundled-database upgrade heading in upgrade.md. */
 function readDocumentedChain(): string {
-  const lines = readFileSync(OPERATIONS_DOC, "utf8").split("\n");
+  const lines = readFileSync(UPGRADE_DOC, "utf8").split("\n");
   const heading = lines.indexOf(UPGRADE_HEADING);
   expect(heading).toBeGreaterThan(-1);
   const open = lines.indexOf("```sh", heading);
@@ -50,10 +50,12 @@ describe("the Release body", () => {
     );
 
     expect(body).toContain(
-      "https://github.com/idan91/mergebrief/blob/v0.2.0/docs/self-host/operations.md#the-upgrade-step",
+      "https://github.com/idan91/mergebrief/blob/v0.2.0/docs/self-host/upgrade.md#upgrade-on-the-bundled-database",
     );
-    expect(body).toContain("#backup");
-    expect(body).toContain("#rolling-back");
+    expect(body).toContain(
+      "https://github.com/idan91/mergebrief/blob/v0.2.0/docs/self-host/backup-restore.md#back-up-the-bundled-database",
+    );
+    expect(body).toContain("upgrade.md#roll-back");
     expect(body.endsWith(`\n${BODY}`)).toBe(true);
   });
 

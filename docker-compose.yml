@@ -63,7 +63,7 @@ services:
     # Postgres; boot migrations take an advisory lock); web reaches them by
     # service name, which gives failover when one exits, not an even split,
     # and a write can read stale for a minute from another replica
-    # (docs/self-host/operations.md, "Running more than one api").
+    # (docs/self-host/data-and-scaling.md, "Run more than one api").
     # `docker compose up --scale api=N` wins over this for that run. No
     # container_name and no ports, so scaling needs nothing else.
     deploy:

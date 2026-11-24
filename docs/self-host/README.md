@@ -21,7 +21,7 @@ Both run the same compose release, so you can move from the first to the second.
 
 - **Docker Engine with Docker Compose 2.24.4 or newer.** The compose files use features older releases reject. Check with `docker compose version`. The image runs on `linux/amd64` and `linux/arm64`.
 - **A GitHub account that can register an App.** For an organization's App, you need to be an owner or a GitHub App manager there. There is no shared hosted App ([github-app.md](./github-app.md)).
-- **A model provider API key.** The default provider reads `ANTHROPIC_API_KEY`; `openai` and `openrouter` read their own ([generators.md](./generators.md)). The subscription CLI providers (`claude-code`, `codex`, `cursor`) do not run in the image ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)).
+- **A model provider API key.** The default provider reads `ANTHROPIC_API_KEY`; `openai` and `openrouter` read their own ([generators.md](./generators.md)). The subscription CLI providers (`claude-code`, `codex`, `cursor`) do not run in the image ([generators.md](./generators.md#subscription-cli-providers)).
 - **A public HTTPS URL.** GitHub delivers webhooks only to a public URL, and sign-in cookies need `https://` on any host but `localhost`. On a server that is your domain behind a reverse proxy; on your own machine it is a tunnel such as ngrok.
 - **`openssl`**, to generate secrets, and optionally the **`gh`** CLI, to look up GitHub ids.
 
@@ -38,23 +38,32 @@ You're done when the App's comment on that pull request reads **Read the brief f
 ## Sizing
 
 - **Generations decide the worker's size.** Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`, two by default. An API provider holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
-- **Postgres grows with every push.** Each push to a pull request stores a new brief beside the old ones. Check the database's size after a week of use and plan the disk from that; on the bundled Postgres, `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_size_pretty(pg_database_size(current_database()));"'` prints it. What prunes itself and what does not: [operations.md](./operations.md#retention-what-grows-and-what-does-not-prune-itself).
+- **Postgres grows with every push.** Each push to a pull request stores a new brief beside the old ones. Check the database's size after a week of use and plan the disk from that; on the bundled Postgres, `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_size_pretty(pg_database_size(current_database()));"'` prints it. What prunes itself and what does not: [data-and-scaling.md](./data-and-scaling.md#prune-closed-pull-requests).
 - **Memory and CPU per service are not measured yet.** Read your own with `docker compose stats --no-stream`, once idle and once while a brief generates, and size the host from the peak. The cloud guide starts at 2 vCPU and 4 GB.
 
 ## Reading order
 
 After the quick start, read these in order the first time; each stands on its own afterwards.
 
-1. [generators.md](./generators.md): the provider and model, the daily generation cap, the `operators` list, and what force pushes and rebases do to a brief.
-2. [security-model.md](./security-model.md): who can sign in, what each user can see, the trust boundaries, and every outbound destination with its off switch.
-3. [configuration.md](./configuration.md): every variable and config key, its default, and what an empty or bad value does.
-4. [operations.md](./operations.md): upgrades, migrations, backup and restore, retention, tokens at rest, rotating secrets, the audit log and uninstalling.
-5. [observability.md](./observability.md): the log line, the `evt` names to alert on, health endpoints and tracing.
-6. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
+1. [generators.md](./generators.md): choose the model provider and model, and check which one wrote a brief.
+2. [spend-cap.md](./spend-cap.md): cap how many briefs generate a day.
+3. [security-model.md](./security-model.md): who can sign in and how to list them, what each user can see, the trust boundaries, and every outbound destination with its off switch.
+4. [configuration.md](./configuration.md): every variable and config key, its default, and what an empty or bad value does.
+5. [backup-restore.md](./backup-restore.md): schedule backups before you need one, and restore in place or onto a new host.
+6. [observability.md](./observability.md): the log line, the `evt` names to alert on, health endpoints and tracing.
+7. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
+
+Read these when the task comes up:
+
+- [upgrade.md](./upgrade.md): upgrade to a new release, check the version you run, and roll back.
+- [secrets.md](./secrets.md): rotate the session key, the App's key and secrets, and the Postgres password.
+- [data-and-scaling.md](./data-and-scaling.md): retention, the audit log, and adding worker or api capacity.
+- [uninstall.md](./uninstall.md): remove an instance from GitHub and the host.
 
 Read these when a repository or a reviewer needs them:
 
 - [Configure your repository](../repo-config/README.md): what a repository's own `.mergebrief/` files can change about its briefs, and [repo-config.md](./repo-config.md) for the operator's side.
 - [trackers.md](./trackers.md): where the primary ticket is read from, and what the worker fetches from links in a pull request description.
 - [attachments.md](./attachments.md): the one push the App makes, for images in review comments.
-- [cli.md](./cli.md): connecting the `mergebrief` CLI, and the `/api/*` exemption an identity-aware proxy needs.
+- [cli.md](./cli.md): reviewing from a terminal, a script, CI or a coding agent with the `mergebrief` CLI.
+- [How MergeBrief works](../architecture.md) and the [glossary](../glossary.md): what happens between a push and a brief, and what each term means.

@@ -87,9 +87,11 @@ The [CLI guide](./docs/self-host/cli.md) covers tokens and setup.
 - [Configuration](./docs/self-host/configuration.md)
 - [Model backends](./docs/self-host/generators.md)
 - [Per-repo config](./docs/repo-config/README.md)
-- [Upgrades, backup and retention](./docs/self-host/operations.md)
+- [Upgrades](./docs/self-host/upgrade.md)
+- [Backup and restore](./docs/self-host/backup-restore.md)
 - [Security model](./docs/self-host/security-model.md)
-- [Architecture](./docs/architecture.md)
+- [How MergeBrief works](./docs/architecture.md)
+- [Glossary](./docs/glossary.md)
 
 [docs.mergebrief.com](https://docs.mergebrief.com) has the full list.
 

@@ -35,6 +35,7 @@ export function readSiteLabels(t: Translate): SiteLabels {
     sidebar: {
       selfHosting: t("docsSite.sidebar.selfHosting"),
       repoConfig: t("docsSite.sidebar.repoConfig"),
+      use: t("docsSite.sidebar.use"),
       reference: t("docsSite.sidebar.reference"),
       releases: t("docsSite.sidebar.releases"),
     },

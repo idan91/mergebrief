@@ -24,7 +24,7 @@
 # The GitHub users who run this instance, by numeric id, never by login.
 # Find yours with `gh api users/<login> --jq .id`. Boot refuses until you
 # replace the placeholder. Without the key nobody is an Operator.
-# docs/self-host/generators.md#operators
+# docs/self-host/security-model.md#who-can-sign-in
 operators: # example; no default
   - <your-github-user-id>
 
@@ -32,7 +32,7 @@ operators: # example; no default
 # `accounts` lets in the people of an org or personal account the App is
 # installed on. `users` adds single people. Ids, never logins: find an org's
 # with `gh api orgs/<org> --jq .id`. No block lets in Operators alone.
-# docs/self-host/generators.md#who-may-start-a-brief
+# docs/self-host/security-model.md#who-can-sign-in
 # allowed:
 #   users: # example; no default
 #     - <github-user-id>
@@ -112,7 +112,7 @@ operators: # example; no default
 
 # --- Daily generation cap ----------------------------------------------------
 # The most runs per UTC day across every repo. `unlimited` lifts the cap.
-# docs/self-host/generators.md#daily-generation-cap
+# docs/self-host/spend-cap.md
 # spend:
 #   maxGenerationsPerDay: 300 # default
 
@@ -157,7 +157,7 @@ operators: # example; no default
 # --- Retention and audit ----------------------------------------------------
 # Days the daily sweeps keep audit rows (at least 30) and closed pull requests
 # (at least 1). Unset, rows are kept forever.
-# docs/self-host/operations.md
+# docs/self-host/data-and-scaling.md
 # retention:
 #   auditDays: 365 # example; no default
 #   pullRequestDays: 90 # example; no default
@@ -170,7 +170,7 @@ operators: # example; no default
 # --- Update check -----------------------------------------------------------
 # false stops the hourly fetch of version.json and the version notice. `url`
 # names a mirror, for a network that blocks github.com.
-# docs/self-host/operations.md#the-update-check
+# docs/self-host/upgrade.md#turn-off-or-mirror-the-update-check
 # updateCheck:
 #   enabled: true # default
 #   # The default is the project's own release file on GitHub.

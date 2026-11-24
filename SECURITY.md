@@ -33,7 +33,7 @@ After that you'll hear whether the report is confirmed, and you'll get a
 fix plan when there is one. The fix ships as a new release whose notes are
 marked as a security release. Running instances show it in an update band
 that can't be dismissed and log it at `warn`.
-[Upgrading to a new version](docs/self-host/operations.md#upgrading-to-a-new-version)
+[Upgrade and roll back](docs/self-host/upgrade.md)
 describes both.
 
 There is no bug bounty.

@@ -179,7 +179,7 @@ open an issue before starting one.
 ## Code contributions
 
 Bug fixes and features are welcome as pull requests. Run
-[the gates](#gates-a-pull-request-must-pass) before opening one. For anything architectural, open an issue to discuss first; several tempting features
+[the gates](#gates-a-pull-request-must-pass) before opening one. [`docs/dev/architecture.md`](docs/dev/architecture.md) maps the code: package layers and import edges, the job queue, the GitHub integration, read-path scopes and stored documents. For anything architectural, open an issue to discuss first; several tempting features
 are [non-goals](#what-mergebrief-will-not-do), and a PR won't change that.
 
 A vulnerability never goes in a public issue or pull request. Report it privately as
@@ -225,6 +225,26 @@ id under `operators` (`gh api user --jq .id`); nobody can sign in until it is li
 - `pnpm dev` runs only the api and the web app. Nothing generates under it.
 - [Local webhook loop](#local-webhook-loop) adds a tunnel so real GitHub
   webhooks reach your machine.
+
+### Environment in a source checkout
+
+The image reads only what compose passes it ([configuration reference](./docs/self-host/configuration.md)). From a checkout (`pnpm dev`, `pnpm app:host`, `pnpm app:host:prod`), the processes read files instead:
+
+- `api` and `worker` load `.env` in their working directory, then the workspace root's `.env` (the nearest directory above holding `pnpm-workspace.yaml`), each if present. A file never overwrites a variable already set, so the shell wins, then the nearer file, then the root's; the files merge variable by variable. `migrate` loads `apps/api/.env`, then the root's.
+- `web` reads only `.env` in its own working directory, never the root's, and `vite dev` reads `PUBLIC_BASE_URL` from the shell.
+- Copy `.env.example` to the repo root `.env`, and also set the host `DATABASE_URL` the example shows, since nothing derives it there. `pnpm app:host` sources that file into the shell for all three processes.
+- `api` and `worker` read `mergebrief.config.yaml` at the workspace root, with nothing to set. `MERGEBRIEF_CONFIG` names a file kept elsewhere: a relative path resolves against the workspace root, never the process's working directory (the worker runs from `apps/worker`, the api from `apps/api`), and an absolute one passes through. Set but empty, or unreadable, refuses boot. The categorizer CLIs never read `MERGEBRIEF_CONFIG`; they take `--config <path>`.
+
+Two variables only matter in a checkout:
+
+| Variable | Read by | What it does |
+| --- | --- | --- |
+| `MERGEBRIEF_OUT_DIR` | api | A directory of locally generated briefs the API serves to a signed-in session: absolute, or relative to the checkout root. Ignored under `MERGEBRIEF_RUNTIME=compose-worker` or `NODE_ENV=production`; blank reads as unset. |
+| `ENABLE_LANGUAGE_SELECTION` | `vite build` of `web` | `true` or `1` shows the language picker. Read when the web bundle is built, so it has no effect on a pulled image. Every `ENABLE_*` variable is inlined into the client bundle, so it holds a toggle and never a secret. |
+
+To trace a local run, start Jaeger alone with `docker compose -f docker-compose.tracing.yml up -d`, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` in the root `.env`, and run `pnpm app:host:prod`. `pnpm app:host` serves the web tier through `vite dev`, which loads no tracing; the web tier traces only from `src/serve.ts`. Traces show at `http://127.0.0.1:16686`.
+
+The subscription CLI providers (`claude-code`, `codex`, `cursor`) run only as host processes: [their notes](./docs/dev/harness-cli-providers.md) cover isolation, billing and the live adapter smoke.
 
 ### Local webhook loop
 

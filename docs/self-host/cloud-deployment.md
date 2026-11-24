@@ -14,7 +14,7 @@ The Hetzner deployments have been run end to end, the external-database one on N
 | AWS EC2 | Private RDS PostgreSQL | You want AWS private networking and a managed database |
 | AWS EC2 | Neon or Supabase | You want a managed database outside AWS |
 
-Give each instance its own database, hostname and GitHub App. Two instances on one database would consume the same jobs. Changing `DATABASE_URL` copies no data; moving a deployment is a backup and restore ([operations.md](operations.md#restore)).
+Give each instance its own database, hostname and GitHub App. Two instances on one database would consume the same jobs. Changing `DATABASE_URL` copies no data; moving a deployment is a backup and restore ([Restore to a new host](backup-restore.md#restore-to-a-new-host)).
 
 Start the VM at 2 vCPU, 4 GB RAM and 40 GB SSD, with one api and one worker. That is a starting point, not a measured minimum.
 
@@ -257,7 +257,7 @@ Then delete the `GITHUB_APP_PRIVATE_KEY=` line from `.env`, and add the `docker-
 
 ### List who may sign in
 
-An instance starts closed: nobody can sign in until its config names them. Print your GitHub user id, on any machine with the `gh` CLI ([who may start a brief](generators.md#who-may-start-a-brief)):
+An instance starts closed: nobody can sign in until its config names them. Print your GitHub user id, on any machine with the `gh` CLI ([who may start a brief](security-model.md#who-can-sign-in)):
 
 ```sh
 gh api users/<your-login> --jq .id
@@ -651,7 +651,7 @@ Optionally, test recovery: run `sudo docker compose restart worker` while a brie
 
 ## 7. Start on boot
 
-A reboot leaves the stack down: `restart: on-failure` does not bring services back when Docker starts, and `postgres` has no restart policy. A systemd unit runs `docker compose up` once at boot ([what the unit does](operations.md#starting-on-boot)).
+A reboot leaves the stack down: `restart: on-failure` does not bring services back when Docker starts, and `postgres` has no restart policy. A systemd unit runs `docker compose up` once at boot ([what the unit does](compose.md#start-on-boot)).
 
 Write the unit from `~/deploy/mergebrief`, so `WorkingDirectory` gets this folder's path:
 
@@ -703,16 +703,16 @@ Back up the database and the files that unlock it, and keep both off the VM.
   scp root@<server-public-ipv4>:~/deploy/mergebrief/mergebrief-*.dump .
   ```
 
-  On EC2 the login is `ubuntu@<elastic-ip>`. Scheduling and restore are in [operations.md](operations.md#backup). A VM disk snapshot alone is not a consistent Postgres backup.
+  On EC2 the login is `ubuntu@<elastic-ip>`. Scheduling and restore are in [backup-restore.md](backup-restore.md#schedule-backups). A VM disk snapshot alone is not a consistent Postgres backup.
 
 - **An external database (RDS, Neon or Supabase).** The provider's snapshots or point-in-time recovery are the backup. Turn them on for your plan and test a restore.
 - **Every deployment: the instance's own files.** Copy `.env`, `mergebrief.config.yaml`, and `docker-compose.override.yml` and `secrets/` if you have them, into your password manager or an encrypted store. A restored database needs the same `SESSION_KEY_V1` to read the reviewer tokens it holds.
 
-Prove a backup by restoring it into an isolated fresh database and pointing an isolated instance at it ([Restore](operations.md#restore)). Do not run that instance's worker against production data or send it production webhooks.
+Prove a backup by restoring it into an isolated fresh database and pointing an isolated instance at it ([Restore](backup-restore.md#restore-in-place)). Do not run that instance's worker against production data or send it production webhooks.
 
 ## 9. Upgrade to a new release
 
-Follow [upgrading to a new version](operations.md#upgrading-to-a-new-version). It covers the backup, the replacement Compose file, the external-database variant and rollback. Repeat checks 1 to 3 of [section 6](#6-check-the-stack-end-to-end) afterwards.
+Follow [upgrade.md](upgrade.md). It covers the backup, the replacement Compose file, the external-database variant and rollback. Repeat checks 1 to 3 of [section 6](#6-check-the-stack-end-to-end) afterwards.
 
 Its commands run bare `docker`. On a VM set up by this guide, run them as written from a root shell, in the folder section 3 created. That folder sits under the home of the account that ran section 3: `/root` on Hetzner, `/home/ubuntu` on EC2.
 
@@ -725,23 +725,9 @@ Do not put `sudo` in front of each line instead. `sudo` drops variables set befo
 
 ## Troubleshooting and cleanup
 
-| Symptom | First check |
-| --- | --- |
-| HTTPS 502 | Caddy upstream and web container startup |
-| Readiness fails | API logs, DB DNS/routing/firewall, TLS CA and credentials |
-| DB rejects SSL mode | Replace require with verify-full; mount correct CA |
-| Permission denied reading secret | Mounted file exists and UID 1000 can read it |
-| API or worker exits 0, log says `config file: not readable (EACCES)` | `chmod 644 mergebrief.config.yaml`, then restart both |
-| Brief generates but no Entry comment on the PR | Worker log 403: [Pull requests write missing or not accepted](troubleshooting.md#no-entry-comment-appears) |
-| Login does not persist | HTTPS, exact PUBLIC_BASE_URL and GitHub callback |
-| Worker exited but Compose command succeeded | Worker configuration error in logs |
-| Webhook succeeds but no brief | Installation, author trigger policy, model key, worker logs |
-| External DB times out | IP allowlist, IPv6 availability, private endpoint routing; on RDS, that **Connected compute resources** lists the instance |
-| `CREATE DATABASE` answers `must be able to SET ROLE` | Run the `GRANT` in [Private RDS from EC2](#private-rds-from-ec2) first |
-| API or worker logs `unable to verify the first certificate` | The DSN's `sslrootcert`, and that the bundle is for the database's region |
-| Too many DB connections | All pools and replicas, provider reservations and pool limits |
+When a check fails, find what you see in [troubleshooting.md](troubleshooting.md#find-your-symptom). It covers this guide's cases too: a 502 from Caddy, a refused `sslmode`, a CA or secret file the container cannot read, an external database that times out, `must be able to SET ROLE`, and too many connections.
 
-To retire an instance, disable its GitHub webhook or App installation, save any data and secrets you need, stop Compose, and delete the cloud resources you created. Check VM disks, snapshots, Elastic and public IPs, managed databases, backup retention and DNS. Delete volumes only once the data is no longer needed. Rotate or revoke the credentials only that instance used. Deleting the EC2 instance does not delete its RDS database. Deleting the database does not remove its DB subnet group, private subnets or its `rds-ec2-n` and `ec2-rds-n` security groups. An Elastic IP keeps billing until released.
+To retire an instance, follow [uninstall.md](uninstall.md) for GitHub and the host, then delete the cloud resources you created. Check VM disks, snapshots, Elastic and public IPs, managed databases, backup retention and DNS. Delete volumes only once the data is no longer needed. Rotate or revoke the credentials only that instance used. Deleting the EC2 instance does not delete its RDS database. Deleting the database does not remove its DB subnet group, private subnets or its `rds-ec2-n` and `ec2-rds-n` security groups. An Elastic IP keeps billing until released.
 
 ## Appendix: source builds for contributors
 
@@ -778,7 +764,7 @@ The build uses the selected checkout, and `--pull never` stops Compose from repl
 
 ### Move a source build to a newer commit
 
-Back up first if the instance holds data you want to keep ([backup](operations.md#backup)). `api` and `worker` apply new migrations when they start. From the checkout:
+Back up first if the instance holds data you want to keep ([backup](backup-restore.md#back-up-the-bundled-database)). `api` and `worker` apply new migrations when they start. From the checkout:
 
 ```sh
 git fetch origin main
@@ -788,4 +774,4 @@ sudo docker compose build
 sudo docker compose up -d --wait --pull never
 ```
 
-Record the new SHA with your results, then repeat the section 6 checks. A release installation upgrades through [operations](operations.md#upgrading-to-a-new-version) instead.
+Record the new SHA with your results, then repeat the section 6 checks. A release installation upgrades through [upgrade.md](upgrade.md) instead.

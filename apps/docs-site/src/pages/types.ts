@@ -10,6 +10,7 @@ export interface SitePage {
 export interface SidebarLabels {
   selfHosting: string;
   repoConfig: string;
+  use: string;
   reference: string;
   releases: string;
 }
