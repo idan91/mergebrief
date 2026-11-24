@@ -1,0 +1,75 @@
+{
+  "data": {
+    "repository": {
+      "pr58": {
+        "number": 58,
+        "state": "OPEN",
+        "isDraft": true,
+        "headRefName": "chore/BRIEF-476/1-pr-stack-status",
+        "baseRefName": "main",
+        "headRefOid": "1a2b3c4d5e6f7a8b9c0d",
+        "commits": {
+          "nodes": [{ "commit": { "committedDate": "2026-11-24T10:00:00Z" } }]
+        },
+        "reviews": {
+          "nodes": [
+            {
+              "databaseId": 4648695178,
+              "author": { "login": "idan91", "__typename": "User" },
+              "state": "COMMENTED",
+              "submittedAt": "2026-11-24T10:31:14Z",
+              "comments": { "nodes": [{ "databaseId": 3539470933 }] }
+            }
+          ]
+        },
+        "comments": {
+          "nodes": [
+            {
+              "databaseId": 77,
+              "author": { "login": "mergebrief", "__typename": "Bot" },
+              "createdAt": "2026-11-24T10:40:00Z"
+            },
+            {
+              "databaseId": 78,
+              "author": null,
+              "createdAt": "2026-11-24T10:41:00Z"
+            }
+          ]
+        },
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 3539470933,
+                    "author": { "login": "idan91", "__typename": "User" },
+                    "createdAt": "2026-11-24T10:31:14Z",
+                    "path": "tools/pr/src/main.ts",
+                    "line": null
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "pr59": {
+        "number": 59,
+        "state": "MERGED",
+        "isDraft": false,
+        "headRefName": "chore/BRIEF-476/2-pr-assets",
+        "baseRefName": "chore/BRIEF-476/1-pr-stack-status",
+        "headRefOid": "aaaaaaaaaaaaaaaaaaaa",
+        "commits": {
+          "nodes": [{ "commit": { "committedDate": "2026-11-24T11:00:00Z" } }]
+        },
+        "reviews": { "nodes": [] },
+        "comments": { "nodes": [] },
+        "reviewThreads": { "nodes": [] }
+      }
+    }
+  }
+}

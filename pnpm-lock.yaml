@@ -854,6 +854,31 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.1.7(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
 
+  tools/pr:
+    dependencies:
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
+      zod:
+        specifier: ^4.6.6
+        version: 4.6.6
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.1.7(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
+
   tools/release:
     dependencies:
       types:
