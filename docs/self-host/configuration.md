@@ -12,10 +12,7 @@ Every setting MergeBrief reads, in one place. There are four surfaces:
 - **The CLI's own environment and `config.json`** on the machine that runs
   `mergebrief`.
 
-Each table below was written from the code that parses the setting. The
-how-to pages ([compose.md](./compose.md), [generators.md](./generators.md),
-[operations.md](./operations.md), [observability.md](./observability.md))
-explain when to change one; this page says what each one accepts.
+This page says what each setting accepts. The how-to pages ([compose.md](./compose.md), [generators.md](./generators.md), [operations.md](./operations.md), [observability.md](./observability.md)) say when to change one.
 
 ## How values are read
 
@@ -39,34 +36,32 @@ explain when to change one; this page says what each one accepts.
   `generator.apiKeyEnv` and `contextSources[].tokenEnv` hold the NAME of an
   environment variable (uppercase letters, digits and underscores). The
   value stays in the environment.
+- **A multi-line value goes in single quotes.** Compose reads a single-quoted
+  value in `.env` as written, line breaks included, and expands no `$` inside
+  it. The App's private key is the usual case: paste the whole `.pem` file.
+
+  ```dotenv
+  GITHUB_APP_PRIVATE_KEY='-----BEGIN RSA PRIVATE KEY-----
+  MIIEpAIBAAKCAQEA...
+  -----END RSA PRIVATE KEY-----'
+  ```
 
 ### Where each process gets its environment
 
-| Process | Started by | Env files it loads | In compose |
-| --- | --- | --- | --- |
-| `api` | `docker-entrypoint.sh api` | `.env` in its working directory, then the workspace root `.env`, each if present | `env_file: .env`, plus the service's `environment:` block, which wins |
-| `worker` | `docker-entrypoint.sh worker` | `.env` in its working directory, then the workspace root `.env`, each if present | `env_file: .env`, plus `environment:` |
-| `web` | `docker-entrypoint.sh web` | `.env` in its working directory, if present | no `env_file`: only what the service's `environment:` block sets |
-| `migrate` | `docker compose run --rm api migrate` | `apps/api/.env`, then the workspace root `.env` | the `api` service's environment |
-
-A file never overwrites a variable already set in the process environment,
-so the shell wins, then the working directory's file, then the workspace
-root's. The files merge variable by variable, so the nearer file overrides a
-variable but cannot hide one the root file sets. The workspace root is the
-nearest directory above the working directory that holds
-`pnpm-workspace.yaml`; a process started outside a
-checkout reads only its own directory. `web` never reads the root file: it
-holds no credentials, on a checkout as in compose. In the image no directory
-holds a `.env`, so compose's `env_file` and `environment:` are the whole
-input.
-
-### Which file to fill in
-
-| How you run it | File | Notes |
+| Process | Started by | In compose |
 | --- | --- | --- |
-| `docker compose` | `.env` beside the compose file, from `.env.example` | [What compose passes to each service](#what-compose-passes-to-each-service). |
-| `pnpm app:host`, `pnpm app:host:prod` | the repo root `.env`, from `.env.example` | Sourced into the shell for all three processes. Also set the host `DATABASE_URL` the example shows, since nothing derives it here. |
-| `pnpm dev` | the repo root `.env`, from `.env.example` | Runs `api` and `web` only. `api` reads the root file, and a value in `apps/api/.env` wins over it. `web` needs no file: set one of its variables in the shell or in `apps/web/.env`. Also set the host `DATABASE_URL` the example shows. `vite dev` reads `PUBLIC_BASE_URL` from the shell ([webhook loop](../../CONTRIBUTING.md#local-webhook-loop)). |
+| `api` | `docker-entrypoint.sh api` | `env_file: .env`, plus the service's `environment:` block, which wins |
+| `worker` | `docker-entrypoint.sh worker` | `env_file: .env`, plus `environment:` |
+| `web` | `docker-entrypoint.sh web` | no `env_file`: only what the service's `environment:` block sets |
+| `migrate` | `docker compose run --rm api migrate` | the `api` service's environment |
+
+The image holds no `.env` file, so compose's `env_file` and `environment:` are the whole input. Fill in the `.env` beside the compose file, from `.env.example` ([What compose passes to each service](#what-compose-passes-to-each-service)).
+
+From a source checkout (`pnpm dev`, `pnpm app:host`, `pnpm app:host:prod`), the processes read files instead ([CONTRIBUTING.md](../../CONTRIBUTING.md#local-webhook-loop)):
+
+- `api` and `worker` load `.env` in their working directory, then the workspace root's `.env` (the nearest directory above holding `pnpm-workspace.yaml`), each if present. A file never overwrites a variable already set, so the shell wins, then the nearer file, then the root's; the files merge variable by variable. `migrate` loads `apps/api/.env`, then the root's.
+- `web` reads only `.env` in its own working directory, never the root's, and `vite dev` reads `PUBLIC_BASE_URL` from the shell.
+- Copy `.env.example` to the repo root `.env`, and also set the host `DATABASE_URL` the example shows, since nothing derives it there. `pnpm app:host` sources that file into the shell for all three processes.
 
 ## Environment variables
 

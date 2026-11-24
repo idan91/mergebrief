@@ -1,87 +1,60 @@
 # Self-hosting MergeBrief
 
-These pages cover running your own MergeBrief Instance: an api, a web tier and
-a worker over one Postgres database, started from the shipped compose file.
-Read them in the order below the first time; after that, each page stands on
-its own.
+MergeBrief writes a brief for every pull request: what changed, grouped by intent, with the risks a reviewer should look at first. You run it yourself, next to your own GitHub App and your own model key.
+
+Once it runs:
+
+- Every push to an open pull request on a repository you install it on gets a brief in the background.
+- The pull request gets one comment from your App, the Entry comment, linking to that brief.
+- Reviewers sign in with GitHub, read the brief, and submit their review to GitHub from it.
+
+## Choose a path
+
+| You want to | Follow |
+| --- | --- |
+| Try it on your own machine | [compose.md](./compose.md), with a tunnel so GitHub can reach you ([Try it locally through a tunnel](./compose.md#try-it-locally-through-a-tunnel)) |
+| Run it for a team on a VM with a domain | [cloud-deployment.md](./cloud-deployment.md): a Hetzner or EC2 VM, HTTPS, and the database on the VM or a managed one |
+
+Both run the same compose release, so you can move from the first to the second.
 
 ## Prerequisites
 
-- **Docker Engine with Docker Compose v2.24.4 or newer.** The shipped compose
-  files load `.env` with the long `env_file` form, a `path` plus
-  `required: false`, which needs 2.24.0, and moving a host port uses the
-  `!override` tag, which needs 2.24.4
-  ([compose.md](./compose.md#moving-a-host-port)). Older Compose releases
-  reject both. Run `docker compose version` to check. The image is built for
-  `linux/amd64` and `linux/arm64`.
-- **A GitHub App you register yourself.** There is no shared hosted App. Its
-  App id, private key, webhook secret and OAuth client id and secret go in
-  `.env` ([github-app.md](./github-app.md)).
-- **A model provider API key.** The zero-config default reads
-  `ANTHROPIC_API_KEY`; `openai` and `openrouter` read their own keys
-  ([generators.md](./generators.md)). The subscription-billed CLI providers
-  (`claude-code`, `codex`, `cursor`) run only as a process on your own machine
-  outside the image, and the compose worker refuses them at boot
-  ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)).
-- **A public HTTPS URL in production.** GitHub delivers webhooks only to a
-  publicly reachable URL ([github-app.md](./github-app.md#webhook)). The
-  sign-in cookies are `__Host-` cookies, which a browser keeps over `https://`
-  or on `http://localhost`, never over plain `http://` on another hostname.
-  Nothing in the stack speaks TLS, so a reverse proxy in front terminates it
-  ([compose.md](./compose.md#2-terminate-tls-at-a-reverse-proxy)).
+- **Docker Engine with Docker Compose 2.24.4 or newer.** The compose files use features older releases reject. Check with `docker compose version`. The image runs on `linux/amd64` and `linux/arm64`.
+- **A GitHub account that can register an App.** For an organization's App, you need to be an owner or a GitHub App manager there. There is no shared hosted App ([github-app.md](./github-app.md)).
+- **A model provider API key.** The default provider reads `ANTHROPIC_API_KEY`; `openai` and `openrouter` read their own ([generators.md](./generators.md)). The subscription CLI providers (`claude-code`, `codex`, `cursor`) do not run in the image ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)).
+- **A public HTTPS URL.** GitHub delivers webhooks only to a public URL, and sign-in cookies need `https://` on any host but `localhost`. On a server that is your domain behind a reverse proxy; on your own machine it is a tunnel such as ngrok.
+- **`openssl`**, to generate secrets, and optionally the **`gh`** CLI, to look up GitHub ids.
+
+## Quick start
+
+1. **Get the release files** into an empty folder ([Get the release files](./compose.md#get-the-release-files)).
+2. **Register and install the GitHub App** with your public URL ([github-app.md](./github-app.md)).
+3. **Fill in `.env`** with the App's credentials, a session key and your model key ([Fill in `.env`](./compose.md#fill-in-env)). Then **list yourself** under `operators` in `mergebrief.config.yaml`, and, if you installed the App on an organization, list the organization's id under `allowed.accounts` too, or its pushes start nothing. `gh api orgs/<org> --jq .id` prints that id ([List who may sign in](./compose.md#list-who-may-sign-in)).
+4. **Start the stack:** `docker compose up -d --wait` ([Start the stack](./compose.md#start-the-stack)).
+5. **Push to a pull request** on a repository the App is installed on ([Check it end to end](./compose.md#check-it-end-to-end)).
+
+You're done when the App's comment on that pull request reads **Read the brief for this push** and its link opens the brief in MergeBrief.
 
 ## Sizing
 
-- **Generations decide the worker's size.** Concurrent generations are
-  `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and
-  `WORKER_LARGE_CONCURRENCY`, two by default. An API provider
-  holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
-- **Postgres grows with briefs.** Each revision of a pull request stores its
-  brief body as text, plus its revision summary and delta beside it. In the
-  test fixtures a four-chunk brief body is about 6 KB and a synthetic
-  300-chunk one about 84 KB. What prunes itself and what does not is in
-  [operations.md](./operations.md#retention-what-grows-and-what-does-not-prune-itself).
-- **Memory and CPU per service are not yet measured on a release image.**
-  Read your own with `docker compose stats --no-stream`, once idle and once
-  while a brief generates, and size the host from the peak.
-
-## Cloud deployment
-
-- [Hetzner and EC2 deployment guide](cloud-deployment.md): a pinned release
-  image on a VM, with the database on the VM, private RDS, or external
-  Neon/Supabase, plus HTTPS and validation.
-- [Provider notes](cloud-provider-notes.md): official sources and
-  connection details behind that guide.
+- **Generations decide the worker's size.** Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`, two by default. An API provider holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
+- **Postgres grows with every push.** Each push to a pull request stores a new brief beside the old ones. Check the database's size after a week of use and plan the disk from that; on the bundled Postgres, `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_size_pretty(pg_database_size(current_database()));"'` prints it. What prunes itself and what does not: [operations.md](./operations.md#retention-what-grows-and-what-does-not-prune-itself).
+- **Memory and CPU per service are not measured yet.** Read your own with `docker compose stats --no-stream`, once idle and once while a brief generates, and size the host from the peak. The cloud guide starts at 2 vCPU and 4 GB.
 
 ## Reading order
 
-1. [github-app.md](./github-app.md): which permissions and events to give the
-   App, how reviewer sign-in works, and who triggers a brief.
-2. [compose.md](./compose.md): the services, the `.env` values a first boot
-   needs, an external database, and the hardening steps before real exposure.
-3. [generators.md](./generators.md): the provider and model, the daily
-   generation cap, the `operators` list, and what force pushes and rebases do
-   to a brief.
-4. [security-model.md](./security-model.md): who can sign in, what each user
-   can see, the trust boundaries, and every outbound destination with its off
-   switch.
-5. [configuration.md](./configuration.md): every variable and config key, its
-   default, and what an empty or bad value does.
-6. [operations.md](./operations.md): upgrades, migrations, backup and restore,
-   retention, tokens at rest, rotating secrets, the audit log and uninstalling.
-7. [observability.md](./observability.md): the log line, the `evt` names to
-   alert on, health endpoints and tracing.
-8. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the
-   fix, with the log line or status you will see.
+After the quick start, read these in order the first time; each stands on its own afterwards.
+
+1. [generators.md](./generators.md): the provider and model, the daily generation cap, the `operators` list, and what force pushes and rebases do to a brief.
+2. [security-model.md](./security-model.md): who can sign in, what each user can see, the trust boundaries, and every outbound destination with its off switch.
+3. [configuration.md](./configuration.md): every variable and config key, its default, and what an empty or bad value does.
+4. [operations.md](./operations.md): upgrades, migrations, backup and restore, retention, tokens at rest, rotating secrets, the audit log and uninstalling.
+5. [observability.md](./observability.md): the log line, the `evt` names to alert on, health endpoints and tracing.
+6. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the fix, with the log line or status you will see.
 
 Read these when a repository or a reviewer needs them:
 
-- [Configure your repository](../repo-config/README.md): what a repository's
-  own `.mergebrief/` files can change about its briefs, for its maintainers.
-  [repo-config.md](./repo-config.md) is the operator's side.
-- [trackers.md](./trackers.md): where the primary ticket is read from, and
-  what the worker fetches from links in a pull request description.
-- [attachments.md](./attachments.md): the one push the App makes, for images
-  in review comments.
-- [cli.md](./cli.md): connecting the `mergebrief` CLI, and the `/api/*`
-  exemption an identity-aware proxy needs.
+- [Configure your repository](../repo-config/README.md): what a repository's own `.mergebrief/` files can change about its briefs, and [repo-config.md](./repo-config.md) for the operator's side.
+- [trackers.md](./trackers.md): where the primary ticket is read from, and what the worker fetches from links in a pull request description.
+- [attachments.md](./attachments.md): the one push the App makes, for images in review comments.
+- [cli.md](./cli.md): connecting the `mergebrief` CLI, and the `/api/*` exemption an identity-aware proxy needs.

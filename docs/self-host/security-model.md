@@ -137,7 +137,7 @@ bursts.
   secret MergeBrief stores, encrypted under the session key
   ([operations.md](./operations.md#tokens-at-rest)). A user who revokes the
   App on github.com loses every session, API token and stored GitHub token
-  here ([github-app.md](./github-app.md#events-to-subscribe-to)).
+  here ([github-app.md](./github-app.md#reviewer-sign-in)).
 
 ### If an account or token leaks
 

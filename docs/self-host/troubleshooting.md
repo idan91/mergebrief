@@ -44,14 +44,14 @@ Three habits apply to every fix below:
 
 | You see | Cause | Fix |
 | --- | --- | --- |
-| `up` fails with a Dockerfile-not-found error | The image pull was denied or the registry was unreachable, and Compose fell back to building from source. | Run `docker compose pull` and read its error ([compose.md](./compose.md#verifying--troubleshooting)). |
+| `up` fails with a Dockerfile-not-found error | The image pull was denied or the registry was unreachable, and Compose fell back to building from source. | Run `docker compose pull` and read its error ([compose.md](./compose.md#check-what-the-worker-is-doing)). |
 | Compose rejects the `env_file` entries before anything starts | Docker Compose is older than v2.24.0, which added the `path` and `required` form the shipped files use. | Upgrade Docker Compose to v2.24.4 or newer ([README.md](./README.md#prerequisites)). |
 | Every compose command fails before anything starts, after you set `COMPOSE_FILE` | A file `COMPOSE_FILE` lists does not exist. | Fetch the file, or remove it from the list ([compose.md](./compose.md#external-postgres-managed-database)). |
 | `api` and `worker` cannot connect to Postgres after you changed `POSTGRES_PASSWORD` | Postgres writes the role on its first start only. | Set the old value back, or change the role inside the container ([compose.md](./compose.md#1-postgres-credentials)). |
 | Boot is refused naming `sslmode` | A non-loopback `DATABASE_URL` carries neither `sslmode=verify-full` nor `sslmode=disable`. | Change the DSN ([compose.md](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). |
 | `api` or `worker` exits 1 with `migration lock: still held` | Another process held the migration lock for the whole 5 minutes: a long migration, or a `DATABASE_URL` that reaches a transaction pooler. | A long migration finishes and the restart finds it done, so run `docker compose up -d --wait` again. If it repeats, use a direct or session-mode connection ([compose.md](./compose.md#external-postgres-managed-database)). |
 | `api` or `worker` exits 1 naming a pending migration count | `MERGEBRIEF_AUTO_MIGRATE=false` and the database is behind the release. | Run the migrate step ([operations.md](./operations.md#external-database-auto-migratefalse)). |
-| `api` answers nothing and `web` answers 503 on `/api/*` | `web` cannot reach `api`. | `curl -i localhost:3000/api/version`: a 401 means both are up; a 503 means read `docker compose logs api` ([compose.md](./compose.md#verifying--troubleshooting)). |
+| `api` answers nothing and `web` answers 503 on `/api/*` | `web` cannot reach `api`. | `curl -i localhost:3000/api/version`: a 401 means both are up; a 503 means read `docker compose logs api` ([compose.md](./compose.md#check-what-the-worker-is-doing)). |
 
 ## A service exits with code 0
 
@@ -106,7 +106,7 @@ Home again, usually with "Signing in didn't complete. Try again." and
 | One user only: GitHub refused that user's code, for example because their primary email is unverified. | `debug`: the same line | The user fixes it on GitHub and signs in again. |
 | GitHub refused the App's OAuth client id or secret. | `error`: `sign-in refused: GitHub refused the App's OAuth credentials`, with `kind` set to GitHub's error token | Fix `GITHUB_OAUTH_CLIENT_ID` or `GITHUB_OAUTH_CLIENT_SECRET`, then `docker compose up -d`. |
 | GitHub did not answer the user read after the code exchange. Home says "GitHub couldn't be reached. Try signing in again in a moment." | `warn`: `sign-in failed: GitHub did not answer the user read` | Try again; check GitHub's status if it persists. |
-| GitHub reports a `redirect_uri` mismatch. | | The App's callback URL must be `<PUBLIC_BASE_URL>/api/auth/github/callback` ([github-app.md](./github-app.md#webhook)). |
+| GitHub reports a `redirect_uri` mismatch. | | The App's callback URL must be `<PUBLIC_BASE_URL>/api/auth/github/callback` ([github-app.md](./github-app.md#set-the-callback-url-and-sign-in-options)). |
 
 A user who cancels on GitHub's consent page lands on Home with no message;
 the api logs `sign-in cancelled on GitHub` at `debug`.
@@ -213,7 +213,7 @@ attempt and stopping after five. A 400 or 413 is never resent, nor is a revoked
 authorization, and a push or review stays back once its installation had a later
 uninstall or removed repositories. You can also redeliver from the App's **Advanced**
 tab. GitHub also refuses a `localhost` or private webhook URL at
-registration ([github-app.md](./github-app.md#webhook)).
+registration ([github-app.md](./github-app.md#set-the-webhook)).
 
 ## The worker cannot list webhook deliveries
 
@@ -249,10 +249,10 @@ catches up. If it repeats, check the host's route to `api.github.com`.
 | The pull request shows it is awaiting a trigger | Its author is not on the repository's team. | Someone with push access starts the first brief ([github-app.md](./github-app.md#who-triggers-a-brief)). |
 | A push answers 200, no job, and `ignored a delivery from an account this instance does not list` in the api log | The repository's account is not listed. | Add the logged id under [`allowed.accounts`](./generators.md#who-may-start-a-brief) and restart the api. Redeliver it from the App's **Advanced** tab, or push again. |
 | A draft gets no brief | A `readyForReview` trigger condition holds it. | Mark it ready, press Generate, or drop the condition ([Hold drafts until they are ready for review](../repo-config/trigger-conditions.md#hold-drafts-until-they-are-ready-for-review)). |
-| A held push says "Can't check" a bot or CI "until this installation accepts MergeBrief's Checks and Commit statuses permissions" | A `bots` or `ci` condition needs a permission the installation has not accepted. | Set the permissions and accept them on each installation ([github-app.md](./github-app.md#accept-the-checks-and-commit-statuses-permissions)), then push or press Generate. |
+| A held push says "Can't check" a bot or CI "until this installation accepts MergeBrief's Checks and Commit statuses permissions" | A `bots` or `ci` condition needs a permission the installation has not accepted. | Set the permissions and accept them on each installation ([github-app.md](./github-app.md#update-an-app-you-registered-earlier)), then push or press Generate. |
 | The brief view says the daily generation cap was reached; the worker logs `spend.cap.trip` | The instance hit `spend.maxGenerationsPerDay`. | Raise the cap, or wait for 00:00 UTC and the next push ([generators.md](./generators.md#daily-generation-cap)). |
 | The generation row is `failed` with `error_code` `diff-too-large` | The pull request changes more than 3,000 files, MergeBrief's limit, or GitHub served its diff short. Past GitHub's pull request diff limit the worker reads the same span from the compare API and accepts it only when it holds every changed file. | Split the pull request. |
-| The generation row is `failed`; the worker logs `job.fail` or `job.retries.exhausted` | A permanent failure, such as GitHub's "diff too large", or retries ran out. | Read the row's `error_code` with the query in [compose.md](./compose.md#verifying--troubleshooting). |
+| The generation row is `failed`; the worker logs `job.fail` or `job.retries.exhausted` | A permanent failure, such as GitHub's "diff too large", or retries ran out. | Read the row's `error_code` with the query in [compose.md](./compose.md#check-what-the-worker-is-doing). |
 | The worker logs `provider.error` with `status` 401 or 403 | The provider refused the key. | Fix the key the `generator:` block names ([observability.md](./observability.md#event-vocabulary)). |
 
 ## No Entry comment appears
