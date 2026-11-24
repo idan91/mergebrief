@@ -4,6 +4,7 @@ import {
   RELEASES_FOLDER,
   REPO_CONFIG_PAGE_ORDER,
   SELF_HOST_PAGE_ORDER,
+  USE_PAGE_ORDER,
 } from "./consts";
 import { readReleaseVersion } from "./index";
 import type { SidebarLabels, SitePage } from "./types";
@@ -24,13 +25,19 @@ const PRERELEASE_SEPARATOR = "-";
 const GROUP_RULES: readonly GroupRule[] = [
   {
     label: "selfHosting",
-    holds: (source) => source.startsWith("self-host/"),
+    holds: (source) =>
+      source.startsWith("self-host/") && !USE_PAGE_ORDER.includes(source),
     order: (left, right) => compareByOrder(SELF_HOST_PAGE_ORDER, left, right),
   },
   {
     label: "repoConfig",
     holds: (source) => source.startsWith("repo-config/"),
     order: (left, right) => compareByOrder(REPO_CONFIG_PAGE_ORDER, left, right),
+  },
+  {
+    label: "use",
+    holds: (source) => USE_PAGE_ORDER.includes(source),
+    order: (left, right) => compareByOrder(USE_PAGE_ORDER, left, right),
   },
   {
     label: "reference",

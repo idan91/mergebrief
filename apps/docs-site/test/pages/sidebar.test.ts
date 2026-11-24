@@ -32,17 +32,23 @@ const PAGES: SitePage[] = [
     link: "/self-host/attachments",
     title: "Attachments",
   },
+  {
+    source: "self-host/cli.md",
+    link: "/self-host/cli",
+    title: "The mergebrief CLI",
+  },
 ];
 
 const LABELS: SidebarLabels = {
   selfHosting: "label:selfHosting",
   repoConfig: "label:repoConfig",
+  use: "label:use",
   reference: "label:reference",
   releases: "label:releases",
 };
 
 describe("buildSidebar", () => {
-  it("groups pages by folder, home first and releases newest first", () => {
+  it("groups pages by folder, the CLI under use, releases newest first", () => {
     expect(buildSidebar(PAGES, LABELS)).toEqual([
       {
         text: "label:selfHosting",
@@ -54,6 +60,10 @@ describe("buildSidebar", () => {
       {
         text: "label:repoConfig",
         items: [{ text: "Risk policy", link: "/repo-config/policy" }],
+      },
+      {
+        text: "label:use",
+        items: [{ text: "The mergebrief CLI", link: "/self-host/cli" }],
       },
       {
         text: "label:reference",

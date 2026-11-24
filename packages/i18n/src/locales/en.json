@@ -2119,6 +2119,7 @@
     "sidebar": {
       "selfHosting": "Self-hosting",
       "repoConfig": "Repo config",
+      "use": "Use MergeBrief",
       "reference": "Reference",
       "releases": "Releases"
     },
