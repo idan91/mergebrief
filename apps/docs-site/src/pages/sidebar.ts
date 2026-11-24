@@ -1,13 +1,20 @@
 import type { DefaultTheme } from "vitepress";
 
 import {
+  HOME_PAGE_SOURCE,
+  REFERENCE_PAGE_ORDER,
   RELEASES_FOLDER,
   REPO_CONFIG_PAGE_ORDER,
-  SELF_HOST_PAGE_ORDER,
+  SELF_HOST_SECTIONS,
   USE_PAGE_ORDER,
 } from "./consts";
 import { readReleaseVersion } from "./index";
-import type { SidebarLabels, SitePage } from "./types";
+import type {
+  SelfHostSection,
+  SidebarGroupLabels,
+  SidebarLabels,
+  SitePage,
+} from "./types";
 
 type SidebarGroup = DefaultTheme.SidebarItem & {
   text: string;
@@ -15,19 +22,30 @@ type SidebarGroup = DefaultTheme.SidebarItem & {
 };
 
 interface GroupRule {
-  label: keyof SidebarLabels;
+  label: keyof SidebarGroupLabels;
   holds: (source: string) => boolean;
   order: (left: SitePage, right: SitePage) => number;
+  /** Splits the group into collapsible sub-groups; a page in none follows them. */
+  sections?: readonly SelfHostSection[];
 }
 
 const PRERELEASE_SEPARATOR = "-";
 
+const SELF_HOST_PAGE_ORDER = SELF_HOST_SECTIONS.flatMap(
+  (section) => section.pages,
+);
+
 const GROUP_RULES: readonly GroupRule[] = [
   {
+    label: "use",
+    holds: (source) => source.startsWith("use/"),
+    order: (left, right) => compareByOrder(USE_PAGE_ORDER, left, right),
+  },
+  {
     label: "selfHosting",
-    holds: (source) =>
-      source.startsWith("self-host/") && !USE_PAGE_ORDER.includes(source),
+    holds: (source) => source.startsWith("self-host/"),
     order: (left, right) => compareByOrder(SELF_HOST_PAGE_ORDER, left, right),
+    sections: SELF_HOST_SECTIONS,
   },
   {
     label: "repoConfig",
@@ -35,14 +53,9 @@ const GROUP_RULES: readonly GroupRule[] = [
     order: (left, right) => compareByOrder(REPO_CONFIG_PAGE_ORDER, left, right),
   },
   {
-    label: "use",
-    holds: (source) => USE_PAGE_ORDER.includes(source),
-    order: (left, right) => compareByOrder(USE_PAGE_ORDER, left, right),
-  },
-  {
     label: "reference",
     holds: (source) => !source.includes("/"),
-    order: compareSource,
+    order: (left, right) => compareByOrder(REFERENCE_PAGE_ORDER, left, right),
   },
   {
     label: "releases",
@@ -51,26 +64,63 @@ const GROUP_RULES: readonly GroupRule[] = [
   },
 ];
 
-/** One sidebar group per docs folder, in reading order; a group with no page is left out. */
+/** One sidebar group per docs folder, in reading order; a group with no page is left out, and so is the home page. */
 export function buildSidebar(
   pages: readonly SitePage[],
   labels: SidebarLabels,
 ): SidebarGroup[] {
   const groups: SidebarGroup[] = [];
+  const listed = pages.filter((page) => page.source !== HOME_PAGE_SOURCE);
 
   for (const rule of GROUP_RULES) {
-    const members = pages
+    const members = listed
       .filter((page) => rule.holds(page.source))
       .toSorted(rule.order);
-    if (members.length > 0) {
-      groups.push({
-        text: labels[rule.label],
-        items: members.map((page) => ({ text: page.title, link: page.link })),
-      });
+    if (members.length === 0) {
+      continue;
     }
+
+    const items = rule.sections
+      ? buildSectionItems(members, rule.sections, labels.selfHostPhases)
+      : members.map(toSidebarLink);
+    groups.push({ text: labels[rule.label], items });
   }
 
   return groups;
+}
+
+function toSidebarLink(page: SitePage): DefaultTheme.SidebarItem {
+  return { text: page.title, link: page.link };
+}
+
+/** One collapsible sub-group per section that holds a page, then the group's unsectioned pages. */
+function buildSectionItems(
+  members: readonly SitePage[],
+  sections: readonly SelfHostSection[],
+  phaseLabels: SidebarLabels["selfHostPhases"],
+): DefaultTheme.SidebarItem[] {
+  const sectioned = new Set(sections.flatMap((section) => section.pages));
+  const subGroups = sections
+    .map((section) => buildSubGroup(section, members, phaseLabels))
+    .filter((subGroup) => subGroup.items.length > 0);
+  const unsectioned = members
+    .filter((page) => !sectioned.has(page.source))
+    .map(toSidebarLink);
+
+  return [...subGroups, ...unsectioned];
+}
+
+function buildSubGroup(
+  section: SelfHostSection,
+  members: readonly SitePage[],
+  phaseLabels: SidebarLabels["selfHostPhases"],
+): SidebarGroup {
+  const pages = members.filter((page) => section.pages.includes(page.source));
+  return {
+    text: phaseLabels[section.phase],
+    collapsed: section.collapsed,
+    items: pages.map(toSidebarLink),
+  };
 }
 
 /** Semver precedence over `major.minor.patch[-prerelease]`; a release sorts after its prereleases. */

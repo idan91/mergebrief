@@ -14,6 +14,8 @@ import {
 import { makeTree } from "../helpers";
 
 const DOCS = {
+  "README.md": "# MergeBrief documentation\n",
+  "use/cli.md": "# The mergebrief CLI\n",
   "self-host/README.md": "# Self-hosting MergeBrief\n",
   "self-host/compose.md": "# Self-hosting with docker compose\n",
   "self-host/nested/deep.md": "# Nested\n",
@@ -31,12 +33,14 @@ const DOCS = {
 describe("listSitePages", () => {
   it("lists only allow-listed markdown, sorted", () => {
     expect(listSitePages(makeTree(DOCS))).toEqual([
+      "README.md",
       "api-changelog.md",
       "architecture.md",
       "releases/0.1.0.md",
       "repo-config/authoring.md",
       "self-host/README.md",
       "self-host/compose.md",
+      "use/cli.md",
     ]);
   });
 });
@@ -101,10 +105,15 @@ describe("readSitePages", () => {
   it("maps each page to its site link and title", () => {
     const pages = readSitePages(makeTree(DOCS));
 
+    expect(pages.find((page) => page.source === "README.md")).toEqual({
+      source: "README.md",
+      link: "/",
+      title: "MergeBrief documentation",
+    });
     expect(pages.find((page) => page.source === "self-host/README.md")).toEqual(
       {
         source: "self-host/README.md",
-        link: "/",
+        link: "/self-host/README",
         title: "Self-hosting MergeBrief",
       },
     );
