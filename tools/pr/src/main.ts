@@ -9,6 +9,10 @@ import { runReply } from "./logic/reply";
 import { runStackStatus, type StackStatusDeps } from "./logic/stack-status";
 import type { CommandOutcome, CommandRunner } from "./types";
 
+/** 0: clean, 1: the tool failed, 2: the stack needs action (open thread, new activity, stale base, checkout off top). */
+const NEEDS_ATTENTION_EXIT = 2;
+let needsAttention = false;
+
 const USAGE = `usage:
   stack-status <pr> [<pr> ...]        PRs bottom first
   reply <pr> <comment-id> <body-file>  reply on a review thread and remember it`;
@@ -66,7 +70,11 @@ function runCommand(argv: readonly string[]): Result<string, Error> {
       return { ok: false, error: new Error(USAGE) };
     }
     const report = runStackStatus(deps.value, numbers);
-    return report.ok ? { ok: true, value: report.value.text } : report;
+    if (!report.ok) {
+      return report;
+    }
+    needsAttention = report.value.needsAttention;
+    return { ok: true, value: report.value.text };
   }
   if (command === "reply" && rest.length === 3) {
     const ids = parsePositiveInts(rest.slice(0, 2));
@@ -86,6 +94,9 @@ function runCommand(argv: readonly string[]): Result<string, Error> {
 const result = runCommand(process.argv.slice(2));
 if (result.ok) {
   process.stdout.write(`${result.value}\n`);
+  if (needsAttention) {
+    process.exitCode = NEEDS_ATTENTION_EXIT;
+  }
 } else {
   process.stderr.write(`pr: ${result.error.message}\n`);
   process.exitCode = 1;

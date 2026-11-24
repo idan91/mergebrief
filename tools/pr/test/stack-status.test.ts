@@ -11,7 +11,17 @@ const OK = (stdout = ""): CommandOutcome => ({ status: 0, stdout, stderr: "" });
 
 const OPEN_HEAD = "1a2b3c4d5e6f7a8b9c0d";
 
-function makeGh(): CommandRunner {
+function threadComment(number: number) {
+  return {
+    databaseId: 100 + number,
+    author: { login: "idan91", __typename: "User" },
+    createdAt: "2026-11-24T11:00:00Z",
+    path: "src/a.ts",
+    line: 3,
+  };
+}
+
+function makeGh(truncated = false): CommandRunner {
   const pull = (number: number, head: string, base: string, sha: string) => ({
     number,
     state: "OPEN",
@@ -19,7 +29,17 @@ function makeGh(): CommandRunner {
     headRefName: head,
     baseRefName: base,
     headRefOid: sha,
-    commits: { nodes: [{ commit: { committedDate: "2026-11-24T10:00:00Z" } }] },
+    commits: {
+      nodes: [
+        {
+          commit: {
+            oid: sha,
+            committedDate: "2026-11-24T10:00:00Z",
+            checkSuites: { nodes: [] },
+          },
+        },
+      ],
+    },
     reviews: { nodes: [] },
     comments: {
       nodes: [
@@ -31,21 +51,13 @@ function makeGh(): CommandRunner {
       ],
     },
     reviewThreads: {
+      pageInfo: { hasNextPage: number === 2 && truncated },
       nodes: [
         {
           isResolved: false,
           isOutdated: false,
-          comments: {
-            nodes: [
-              {
-                databaseId: 100 + number,
-                author: { login: "idan91", __typename: "User" },
-                createdAt: "2026-11-24T11:00:00Z",
-                path: "src/a.ts",
-                line: 3,
-              },
-            ],
-          },
+          root: { nodes: [threadComment(number)] },
+          latest: { nodes: [threadComment(number)] },
         },
       ],
     },
@@ -189,6 +201,28 @@ describe("runStackStatus", () => {
     );
 
     expect(result.ok && result.value.text).toContain("threads  none open");
+  });
+
+  it("warns and asks for attention when the thread list was cut off", () => {
+    const store = makeStore();
+    recordReply(store, 101);
+    recordReply(store, 102);
+    const git = makeGit({
+      branch: "chore/T-1/2-b",
+      head: OPEN_HEAD,
+      dirty: false,
+      misaligned: [],
+    });
+
+    const result = runStackStatus(
+      { git: git.run, gh: makeGh(true), replyStorePath: store },
+      [1, 2],
+    );
+
+    expect(result.ok && result.value.text).toContain(
+      "threads  none open in the first 100; more threads exist, check the PR",
+    );
+    expect(result.ok && result.value.needsAttention).toBe(true);
   });
 
   it("fails when origin is not a GitHub remote", () => {

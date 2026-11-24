@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -28,6 +28,19 @@ describe("reply store", () => {
     recordReply(store, 13);
 
     expect(readReplyIds(store)).toEqual({ ok: true, value: new Set([12, 13]) });
+  });
+
+  it("takes over a lock a crashed writer left behind", () => {
+    const store = makeStorePath();
+    recordReply(store, 1);
+    const lock = `${store}.lock`;
+    writeFileSync(lock, "");
+    const longAgo = new Date(Date.now() - 60_000);
+    utimesSync(lock, longAgo, longAgo);
+
+    expect(recordReply(store, 2)).toEqual({ ok: true, value: undefined });
+    expect(readReplyIds(store)).toEqual({ ok: true, value: new Set([1, 2]) });
+    expect(existsSync(lock)).toBe(false);
   });
 
   it("refuses a corrupted store instead of reading it as empty", () => {

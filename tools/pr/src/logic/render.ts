@@ -16,16 +16,22 @@ function renderBase(status: PullStatus): string {
   return "unknown (fetch or merge-base failed)";
 }
 
+const THREAD_PAGE_NOTE = "more threads exist, check the PR";
+
 function renderThreads(status: PullStatus): string {
+  const truncated = status.pull.threadsTruncated;
   if (status.openThreads.length === 0) {
-    return "none open";
+    return truncated
+      ? `none open in the first 100; ${THREAD_PAGE_NOTE}`
+      : "none open";
   }
   const items = status.openThreads.map((thread) => {
     const line = thread.line === undefined ? "" : `:${thread.line}`;
     const outdated = thread.isOutdated ? " outdated" : "";
     return `${thread.rootId} ${thread.path}${line} (${thread.lastAuthor} ${thread.lastAt}${outdated})`;
   });
-  return `${items.length} open: ${items.join("; ")}`;
+  const note = truncated ? `; ${THREAD_PAGE_NOTE}` : "";
+  return `${items.length} open: ${items.join("; ")}${note}`;
 }
 
 function renderActivity(activity: readonly Activity[]): string {

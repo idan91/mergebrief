@@ -42,7 +42,10 @@ export interface PullSnapshot {
   readonly head: string;
   readonly base: string;
   readonly headSha: string;
-  readonly headCommittedAt: string;
+  /** When the head reached GitHub: its first check suite, else its commit time. */
+  readonly headPushedAt: string;
+  /** More review threads exist than one page returned. */
+  readonly threadsTruncated: boolean;
   readonly reviews: readonly Review[];
   readonly issueComments: readonly IssueComment[];
   readonly threads: readonly ReviewThread[];

@@ -31,7 +31,8 @@ function needsAttention(stack: StackStatus): boolean {
     (status) =>
       status.openThreads.length > 0 ||
       status.activityAfterHead.length > 0 ||
-      status.baseAligned === false,
+      status.baseAligned === false ||
+      (status.isOpen && status.pull.threadsTruncated),
   );
   const { top, checkout } = stack;
   const offTop =

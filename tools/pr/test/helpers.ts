@@ -8,7 +8,7 @@ import type {
 export const IDAN: Author = { login: "idan91", isBot: false };
 export const BOT: Author = { login: "mergebrief", isBot: true };
 
-export const HEAD_COMMITTED_AT = "2026-11-24T10:00:00Z";
+export const HEAD_PUSHED_AT = "2026-11-24T10:00:00Z";
 
 export function makeComment(
   id: number,
@@ -33,7 +33,8 @@ export function makePull(overrides: Partial<PullSnapshot> = {}): PullSnapshot {
     head: "chore/BRIEF-476/1-pr-stack-status",
     base: "main",
     headSha: "1a2b3c4d5e6f7a8b9c0d",
-    headCommittedAt: HEAD_COMMITTED_AT,
+    headPushedAt: HEAD_PUSHED_AT,
+    threadsTruncated: false,
     reviews: [],
     issueComments: [],
     threads: [],

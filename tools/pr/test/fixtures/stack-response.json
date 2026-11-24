@@ -9,16 +9,39 @@
         "baseRefName": "main",
         "headRefOid": "1a2b3c4d5e6f7a8b9c0d",
         "commits": {
-          "nodes": [{ "commit": { "committedDate": "2026-11-24T10:00:00Z" } }]
+          "nodes": [
+            {
+              "commit": {
+                "committedDate": "2026-11-24T10:00:00Z",
+                "oid": "1a2b3c4d5e6f7a8b9c0d",
+                "checkSuites": {
+                  "nodes": [
+                    {
+                      "createdAt": "2026-11-24T10:20:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         },
         "reviews": {
           "nodes": [
             {
               "databaseId": 4648695178,
-              "author": { "login": "idan91", "__typename": "User" },
+              "author": {
+                "login": "idan91",
+                "__typename": "User"
+              },
               "state": "COMMENTED",
               "submittedAt": "2026-11-24T10:31:14Z",
-              "comments": { "nodes": [{ "databaseId": 3539470933 }] }
+              "comments": {
+                "nodes": [
+                  {
+                    "databaseId": 3539470933
+                  }
+                ]
+              }
             }
           ]
         },
@@ -26,7 +49,10 @@
           "nodes": [
             {
               "databaseId": 77,
-              "author": { "login": "mergebrief", "__typename": "Bot" },
+              "author": {
+                "login": "mergebrief",
+                "__typename": "Bot"
+              },
               "createdAt": "2026-11-24T10:40:00Z"
             },
             {
@@ -37,15 +63,35 @@
           ]
         },
         "reviewThreads": {
+          "pageInfo": {
+            "hasNextPage": true
+          },
           "nodes": [
             {
               "isResolved": false,
               "isOutdated": true,
-              "comments": {
+              "root": {
                 "nodes": [
                   {
                     "databaseId": 3539470933,
-                    "author": { "login": "idan91", "__typename": "User" },
+                    "author": {
+                      "login": "idan91",
+                      "__typename": "User"
+                    },
+                    "createdAt": "2026-11-24T10:31:14Z",
+                    "path": "tools/pr/src/main.ts",
+                    "line": null
+                  }
+                ]
+              },
+              "latest": {
+                "nodes": [
+                  {
+                    "databaseId": 3539470933,
+                    "author": {
+                      "login": "idan91",
+                      "__typename": "User"
+                    },
                     "createdAt": "2026-11-24T10:31:14Z",
                     "path": "tools/pr/src/main.ts",
                     "line": null
@@ -64,11 +110,30 @@
         "baseRefName": "chore/BRIEF-476/1-pr-stack-status",
         "headRefOid": "aaaaaaaaaaaaaaaaaaaa",
         "commits": {
-          "nodes": [{ "commit": { "committedDate": "2026-11-24T11:00:00Z" } }]
+          "nodes": [
+            {
+              "commit": {
+                "committedDate": "2026-11-24T11:00:00Z",
+                "oid": "aaaaaaaaaaaaaaaaaaaa",
+                "checkSuites": {
+                  "nodes": []
+                }
+              }
+            }
+          ]
         },
-        "reviews": { "nodes": [] },
-        "comments": { "nodes": [] },
-        "reviewThreads": { "nodes": [] }
+        "reviews": {
+          "nodes": []
+        },
+        "comments": {
+          "nodes": []
+        },
+        "reviewThreads": {
+          "pageInfo": {
+            "hasNextPage": false
+          },
+          "nodes": []
+        }
       }
     }
   }

@@ -63,6 +63,48 @@ const issueCommentSchema = z
     createdAt: comment.createdAt,
   }));
 
+/**
+ * A thread's open state needs only its root and its last message; fetching
+ * those two directly means a long thread can never hide its latest reply.
+ */
+const threadSchema = z
+  .object({
+    isResolved: z.boolean(),
+    isOutdated: z.boolean(),
+    root: connection(threadCommentSchema),
+    latest: connection(threadCommentSchema),
+  })
+  .transform((thread) => {
+    const [root] = thread.root;
+    const [latest] = thread.latest;
+    const comments = [root, latest].filter(
+      (comment, index, all) =>
+        comment !== undefined &&
+        all.findIndex((other) => other?.id === comment.id) === index,
+    );
+    return {
+      isResolved: thread.isResolved,
+      isOutdated: thread.isOutdated,
+      comments: comments.filter((comment) => comment !== undefined),
+    };
+  });
+
+/**
+ * GraphQL has no push time for a commit; the first check suite is created on
+ * push, so it stands in, and the commit time is the fallback without CI.
+ */
+function readHeadPushedAt(
+  commit:
+    | { committedDate: string; checkSuites: readonly { createdAt: string }[] }
+    | undefined,
+): string {
+  if (commit === undefined) {
+    return "";
+  }
+  const pushes = commit.checkSuites.map((suite) => suite.createdAt);
+  return pushes.toSorted()[0] ?? commit.committedDate;
+}
+
 const pullSchema = z
   .object({
     number: z.number(),
@@ -72,17 +114,19 @@ const pullSchema = z
     baseRefName: z.string(),
     headRefOid: z.string(),
     commits: connection(
-      z.object({ commit: z.object({ committedDate: z.string() }) }),
+      z.object({
+        commit: z.object({
+          committedDate: z.string(),
+          checkSuites: connection(z.object({ createdAt: z.string() })),
+        }),
+      }),
     ),
     reviews: connection(reviewSchema),
     comments: connection(issueCommentSchema),
-    reviewThreads: connection(
-      z.object({
-        isResolved: z.boolean(),
-        isOutdated: z.boolean(),
-        comments: connection(threadCommentSchema),
-      }),
-    ),
+    reviewThreads: z.object({
+      pageInfo: z.object({ hasNextPage: z.boolean() }),
+      nodes: z.array(threadSchema),
+    }),
   })
   .transform((pull) => ({
     number: pull.number,
@@ -91,10 +135,11 @@ const pullSchema = z
     head: pull.headRefName,
     base: pull.baseRefName,
     headSha: pull.headRefOid,
-    headCommittedAt: pull.commits[0]?.commit.committedDate ?? "",
+    headPushedAt: readHeadPushedAt(pull.commits[0]?.commit),
+    threadsTruncated: pull.reviewThreads.pageInfo.hasNextPage,
     reviews: pull.reviews,
     issueComments: pull.comments,
-    threads: pull.reviewThreads,
+    threads: pull.reviewThreads.nodes,
   }));
 
 export const stackResponseSchema = z.object({

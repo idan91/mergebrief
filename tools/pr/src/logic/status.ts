@@ -58,7 +58,7 @@ export function deriveActivityAfterHead(
       review.commentIds.length > 0 &&
       review.commentIds.every((id) => replyIds.has(id));
     const counts =
-      isAfter(review.submittedAt, pull.headCommittedAt) &&
+      isAfter(review.submittedAt, pull.headPushedAt) &&
       review.author?.isBot !== true &&
       !onlyOurReplies;
     if (counts && review.submittedAt !== undefined) {
@@ -72,7 +72,7 @@ export function deriveActivityAfterHead(
   }
   for (const comment of pull.issueComments) {
     const counts =
-      isAfter(comment.createdAt, pull.headCommittedAt) &&
+      isAfter(comment.createdAt, pull.headPushedAt) &&
       comment.author?.isBot !== true;
     if (counts) {
       activity.push({

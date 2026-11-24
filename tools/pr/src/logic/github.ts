@@ -20,7 +20,9 @@ export interface PostedReply {
 const GITHUB_REMOTE = /github\.com[:/]([^/]+)\/([^/\s]+?)(?:\.git)?\s*$/;
 
 /** Page sizes for one GraphQL call; a stack PR past these is beyond what the tool reports. */
-const PAGE = { threads: 100, threadComments: 50, reviews: 100, comments: 100 };
+const PAGE = { threads: 100, reviews: 100, comments: 100 };
+const THREAD_COMMENT =
+  "databaseId author { login __typename } createdAt path line";
 
 export function parseRepoSlug(remoteUrl: string): Result<RepoSlug, Error> {
   const match = GITHUB_REMOTE.exec(remoteUrl.trim());
@@ -41,10 +43,10 @@ export function buildStackQuery(numbers: readonly number[]): string {
   const pulls = numbers.map(
     (number) => `pr${number}: pullRequest(number: ${number}) {
       number state isDraft headRefName baseRefName headRefOid
-      commits(last: 1) { nodes { commit { committedDate } } }
+      commits(last: 1) { nodes { commit { committedDate checkSuites(first: 10) { nodes { createdAt } } } } }
       reviews(last: ${PAGE.reviews}) { nodes { databaseId author { login __typename } state submittedAt comments(first: 20) { nodes { databaseId } } } }
       comments(last: ${PAGE.comments}) { nodes { databaseId author { login __typename } createdAt } }
-      reviewThreads(first: ${PAGE.threads}) { nodes { isResolved isOutdated comments(first: ${PAGE.threadComments}) { nodes { databaseId author { login __typename } createdAt path line } } } }
+      reviewThreads(first: ${PAGE.threads}) { pageInfo { hasNextPage } nodes { isResolved isOutdated root: comments(first: 1) { nodes { ${THREAD_COMMENT} } } latest: comments(last: 1) { nodes { ${THREAD_COMMENT} } } } }
     }`,
   );
   return `query($owner: String!, $name: String!) {

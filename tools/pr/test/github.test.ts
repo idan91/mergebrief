@@ -68,7 +68,8 @@ describe("parseStackResponse", () => {
       number: 58,
       head: "chore/BRIEF-476/1-pr-stack-status",
       base: "main",
-      headCommittedAt: "2026-11-24T10:00:00Z",
+      headPushedAt: "2026-11-24T10:20:00Z",
+      threadsTruncated: true,
       reviews: [{ id: 4648695178, commentIds: [3539470933] }],
       issueComments: [
         { id: 77, author: { login: "mergebrief", isBot: true } },
@@ -83,6 +84,31 @@ describe("parseStackResponse", () => {
         },
       ],
     });
+  });
+
+  it("falls back to the commit time when no check suite records the push", () => {
+    const result = parseStackResponse(RESPONSE, [59]);
+
+    expect(result.ok && result.value[0]?.headPushedAt).toBe(
+      "2026-11-24T11:00:00Z",
+    );
+  });
+
+  it("keeps a thread's root and its latest message, not its first page", () => {
+    const response = JSON.parse(RESPONSE);
+    const thread = response.data.repository.pr58.reviewThreads.nodes[0];
+    thread.latest.nodes = [
+      {
+        ...thread.root.nodes[0],
+        databaseId: 999,
+        createdAt: "2026-11-24T12:00:00Z",
+      },
+    ];
+
+    const result = parseStackResponse(JSON.stringify(response), [58]);
+
+    const comments = result.ok ? result.value[0]?.threads[0]?.comments : [];
+    expect(comments?.map((comment) => comment.id)).toEqual([3539470933, 999]);
   });
 
   it("names a PR number the repository does not have", () => {
