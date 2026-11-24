@@ -6,7 +6,7 @@ This guide runs a pinned MergeBrief release on a fresh Ubuntu 24.04 LTS server w
 
 Answer two questions. Every other step is the same whatever you pick.
 
-**1. What runs MergeBrief?**
+**1. What can run MergeBrief?**
 
 | Server | What it is | Pick it when |
 | --- | --- | --- |
