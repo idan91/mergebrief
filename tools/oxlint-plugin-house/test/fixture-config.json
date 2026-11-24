@@ -17,6 +17,7 @@
     "house/no-hand-built-plural": "error",
     "house/types-const-maps": "error",
     "house/no-re-export": "error",
+    "house/no-file-named-after-folder": "error",
     "house/no-shout-case-copy": [
       "error",
       {
