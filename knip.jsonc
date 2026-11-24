@@ -25,8 +25,15 @@
       // playwright ...`. knip attributes a workflow's binaries to the root
       // workspace, which does not (and should not) depend on Playwright —
       // apps/web owns it. `check` is likewise not a binary: the lint script
-      // invokes `pnpm -C tools/baselines check`, a package script.
-      "ignoreBinaries": ["playwright", "check"],
+      // invokes `pnpm -C tools/baselines check`, a package script, and so are
+      // the tools/pr and tools/local commands the root scripts name.
+      "ignoreBinaries": [
+        "playwright",
+        "check",
+        "stack-status",
+        "handoff",
+        "e2e-stop",
+      ],
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
@@ -142,6 +149,7 @@
     "tools/ingest-briefs": {
       "entry": ["src/index.ts", "src/main.ts", "src/testing/index.ts"],
     },
+    "tools/local": { "entry": ["src/main.ts"] },
     "tools/pr": { "entry": ["src/main.ts"] },
     "tools/release": { "entry": ["src/main.ts"] },
     "tools/oxlint-plugin-house": {

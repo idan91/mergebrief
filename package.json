@@ -24,6 +24,9 @@
     "check:baselines": "pnpm -C tools/baselines check",
     "check:migrations": "pnpm -C packages/persistence check:migrations",
     "check:releases": "pnpm -C tools/release check",
+    "pr:status": "pnpm -s -C tools/pr stack-status",
+    "checkout:handoff": "pnpm -s -C tools/local handoff",
+    "e2e:stop": "pnpm -s -C tools/local e2e-stop",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
