@@ -35,43 +35,75 @@ export const ENV_PARSER_PATHS: readonly string[] = [
  * cannot land outside this check.
  */
 export const ENV_READER_SKIPS: ReadonlyMap<string, string> = new Map([
-  ["apps/api/src/app.ts", "hands process.env to the config parsers"],
+  [
+    "apps/api/src/app.ts",
+    "names process.env only in a comment saying it never reads it",
+  ],
   ["apps/api/src/instrument.ts", "hands process.env to the tracing parser"],
-  ["apps/api/src/main.ts", "composition root; hands process.env on whole"],
+  [
+    "apps/api/src/main.ts",
+    "composition root; its one key read, MERGEBRIEF_RUNTIME, is exempt",
+  ],
   ["apps/api/src/migrate.ts", "composition root; hands process.env on whole"],
-  ["apps/api/src/routes/auth/session/types.ts", "types the env map only"],
+  [
+    "apps/api/src/routes/auth/session/types.ts",
+    "names process.env only in a doc comment",
+  ],
   [
     "apps/web/src/server/env.ts",
     "the web server's root; hands process.env on whole",
   ],
-  ["apps/worker/src/index.ts", "hands process.env to main"],
-  ["apps/worker/src/instrument.ts", "hands process.env to the tracing parser"],
-  ["apps/worker/src/main.ts", "composition root; hands process.env on whole"],
   [
-    "apps/cli/src/bin.ts",
-    "the CLI runs on a user's machine, not a server; reads PAGER",
+    "apps/worker/src/index.ts",
+    "names process.env only in a comment saying it never reads it",
+  ],
+  ["apps/worker/src/instrument.ts", "hands process.env to the tracing parser"],
+  [
+    "apps/worker/src/main.ts",
+    "composition root; its one key read, MERGEBRIEF_RUNTIME, is exempt",
+  ],
+  [
+    "packages/brief-core/src/context/trackers/tokens.ts",
+    "reads a tracker token by the variable name the config names",
+  ],
+  [
+    "packages/generators/src/config/moved-variables.ts",
+    "reads keys moved to mergebrief.config.yaml only to warn",
   ],
   [
     "packages/generators/src/harness/run.ts",
     "forwards the passVars list it is given",
   ],
-  ["packages/github/src/index.ts", "names process.env in a doc comment"],
-  ["packages/persistence/src/index.ts", "names process.env in a doc comment"],
+  ["packages/github/src/index.ts", "names process.env only in a doc comment"],
+  [
+    "packages/persistence/src/auth/crypto.ts",
+    "reads a key by the ref name the config names",
+  ],
+  [
+    "packages/persistence/src/index.ts",
+    "names process.env only in a doc comment",
+  ],
 ]);
 
-/** Where a server reads its environment; source only, so no env file is ever matched. */
+/**
+ * The server processes' source: the api, the worker, the web server, and the
+ * packages they load. The CLI runs on a user's machine and the web client
+ * reads only Vite's build-time `import.meta.env`, so neither is in scope.
+ * Source pathspecs only, so no env file is ever matched.
+ */
 export const ENV_READER_PATHSPECS: readonly string[] = [
-  ":(glob)apps/*/src/**/*.ts",
-  ":(glob)apps/*/src/**/*.tsx",
+  ":(glob)apps/api/src/**/*.ts",
+  ":(glob)apps/worker/src/**/*.ts",
+  ":(glob)apps/web/src/server/**/*.ts",
   ":(glob)packages/*/src/**/*.ts",
   ":(glob)packages/*/src/**/*.tsx",
   ":(exclude,glob)**/testing/**",
   ":(exclude,glob)**/*.test.ts",
   ":(exclude,glob)**/*.test.tsx",
-  ":(exclude,glob)**/src/test/**",
 ];
 
-export const ENV_READER_PATTERN = String.raw`process\.env|\benv\[|\benv\.[A-Z]|passVars`;
+/** POSIX ERE without `\b`, which macOS git's regex engine silently ignores. */
+export const ENV_READER_PATTERN = String.raw`process\.env|(^|[^A-Za-z0-9_])env(\[|\.[A-Z])|passVars`;
 
 /** A harness's `passVars: ["KEY", ...]` list; each quoted key in group 1 is a read. */
 export const PASS_VARS_LIST = /passVars:\s*\[([^\]]*)\]/g;
