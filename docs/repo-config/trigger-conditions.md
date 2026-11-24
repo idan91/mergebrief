@@ -244,7 +244,7 @@ This push generates only when the pull request is out of draft, and changes at m
 
 Anyone with push access can generate a held push from the pull request's page in MergeBrief or its row menu in the Inbox:
 
-- **Generate brief** generates this push now. `mergebrief generate <number>` does the same from the [CLI](../self-host/cli.md).
+- **Generate brief** generates this push now. `mergebrief generate <number>` does the same from the [CLI](../use/cli.md).
 - **Generate on every push** generates this push now and skips the conditions for every later push of the pull request. On the page it sits in the menu beside Generate brief. The Inbox row menu shows it as a checked item while it is on, and that is where you turn it off. A pull request whose author needs a Trigger approval still waits for one.
 
 ## Reference

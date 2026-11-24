@@ -10,7 +10,7 @@ The commands below move an instance from 1.4.0 to 1.6.0. Replace `v1.6.0` with t
 - **Dismissing it is per user, per release.** The band goes away for you; a dot on your avatar and a "MergeBrief 1.6.0 is available" row in the account menu, above Settings, stay until the instance runs that release. The dot clears the first time you open the menu. A newer release brings the band back.
 - **A security release cannot be dismissed.** The band turns amber with a warning icon, leads with "MergeBrief 1.6.0 fixes a security issue.", and stays until the instance runs the fixing release or newer.
 - **The api log.** One `update.available` line when a newer release first appears, and once after each boot while the instance is behind: `info`, or `warn` when a release in the gap fixes a vulnerability. Alert on the `warn` ([observability.md](./observability.md#event-vocabulary)).
-- **`mergebrief auth status`** shows the server's version beside the newest release it knows of ([cli.md](./cli.md#versions)).
+- **`mergebrief auth status`** shows the server's version beside the newest release it knows of ([cli.md](../use/cli.md#versions)).
 - **GitHub.** On the repository page, **Watch**, then **Custom**, then **Releases** emails you on every release. A feed reader can follow `https://github.com/idan91/mergebrief/releases.atom`.
 
 All but the last come from [the update check](#turn-off-or-mirror-the-update-check). With it off, only GitHub tells you.

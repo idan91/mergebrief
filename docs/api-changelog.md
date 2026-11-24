@@ -1,5 +1,7 @@
 # API changelog
 
+The `mergebrief` CLI is the supported integration surface; the `/api` routes are not documented for direct use. This page exists because the CLI passes their responses through as the server sent them ([Output contract](./use/cli.md#output-contract)).
+
 Consumer-visible changes to the public HTTP surfaces, `/api/*` including
 the browser-managed `/api/auth/*` management routes, keyed to the
 **server version** (`GET /api/version`; surfaced by

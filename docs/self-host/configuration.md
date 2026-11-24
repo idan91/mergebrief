@@ -400,7 +400,7 @@ The `mergebrief` CLI reads its own environment on the machine that runs it. It n
 | --- | --- | --- |
 | `MERGEBRIEF_PROFILE` | unset | Picks the profile, like `--profile`; the flag wins. A name with no configured profile is a usage error. When it is unset, `auth login` writes to the default profile, and refuses if the current repo's owner routes to a different one. |
 | `MERGEBRIEF_TOKEN` | unset | Replaces the resolved profile's stored token; it never changes which profile resolves. A command that sends a request refuses it when the current repo's owner routes away from the default profile, until `--profile` or `MERGEBRIEF_PROFILE` names the instance. |
-| `MERGEBRIEF_NO_VERSION_WARNING` | unset | Set to any value, even empty, it silences the update line and the major-version warning, and the CLI stops asking npm ([Versions](./cli.md#versions)). |
+| `MERGEBRIEF_NO_VERSION_WARNING` | unset | Set to any value, even empty, it silences the update line and the major-version warning, and the CLI stops asking npm ([Versions](../use/cli.md#versions)). |
 | `XDG_CONFIG_HOME` | `~/.config` | The CLI keeps `mergebrief/config.json` under it. |
 | `XDG_CACHE_HOME` | `~/.cache` | The CLI keeps `mergebrief/update-check.json`, and per profile its repo list and the highest revision read on each pull request, under it. |
 | `PAGER` | unset | `diff` on a terminal pipes through it, with control and invisible characters escaped and no color. |
@@ -418,6 +418,6 @@ The `mergebrief` CLI reads its own environment on the machine that runs it. It n
 | `profiles.<name>.baseUrl` | | The deployment's URL. Required. When the profile holds a token, a plain `http://` URL to any host but this machine prints a warning after each successful command, because the token then travels unencrypted. |
 | `profiles.<name>.token` | | The API token, stored in plain text. `MERGEBRIEF_TOKEN` overrides it. |
 | `profiles.<name>.owners` | | GitHub owners whose clones pick this profile, matched on the `origin` remote. |
-| `profiles.<name>.headers` | | Extra headers sent on every request, for a proxy in front of the API ([cli.md](./cli.md#behind-an-identity-aware-proxy)). |
+| `profiles.<name>.headers` | | Extra headers sent on every request, for a proxy in front of the API ([cli.md](../use/cli.md#behind-an-identity-aware-proxy)). |
 
-Profile resolution runs `--profile` or `MERGEBRIEF_PROFILE`, then an `owners` match, then the default profile ([Profiles](./cli.md#several-instances-profiles)).
+Profile resolution runs `--profile` or `MERGEBRIEF_PROFILE`, then an `owners` match, then the default profile ([Profiles](../use/cli.md#several-instances-profiles)).

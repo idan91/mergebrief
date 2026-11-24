@@ -80,5 +80,5 @@ The full table of who reads and writes what, the trust boundaries and every outb
 ## Where to go next
 
 - Running it: [compose.md](./self-host/compose.md), [generators.md](./self-host/generators.md), [observability.md](./self-host/observability.md).
-- Reviewing from a terminal or an agent: [cli.md](./self-host/cli.md).
+- Reviewing from a terminal or an agent: [cli.md](./use/cli.md).
 - What a repository can change about its briefs: [Configure your repository](./repo-config/README.md).

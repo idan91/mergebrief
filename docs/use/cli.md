@@ -2,7 +2,9 @@
 
 `mergebrief` reads and reviews briefs from a terminal, a script, a CI job or a coding agent. It talks to your instance's API with a token you create in the web app, so it can do what you can do in the browser, up to the token's scope. Each section below is a task; the [reference](#reference) at the end lists every command, the output contract and the exit codes. Product terms such as revision, held push and chunk are defined in the [glossary](../glossary.md).
 
-You need a running instance ([compose.md](./compose.md)) that you can sign in to.
+You need a running instance ([compose.md](../self-host/compose.md)) that you can sign in to.
+
+The CLI is the supported integration surface. The `/api` routes it calls are not documented for direct use, so build a script or an agent on the CLI and its [output contract](#output-contract).
 
 ## Install
 
@@ -199,7 +201,7 @@ The whole walkthrough, posting the review to GitHub included, needs an `external
 
 `delta-not-generated` and `span-too-large` still leave the brief for the new head: read it with `mergebrief groups 7`.
 
-To put an image in a comment, `mergebrief draft attach 7 screenshot.png` uploads a PNG, JPEG, GIF or WebP file to the repository's `mergebrief/attachments` branch and prints its URL; `--draft <id>` also appends it to that draft. It needs an `external-write` token ([attachments.md](./attachments.md)).
+To put an image in a comment, `mergebrief draft attach 7 screenshot.png` uploads a PNG, JPEG, GIF or WebP file to the repository's `mergebrief/attachments` branch and prints its URL; `--draft <id>` also appends it to that draft. It needs an `external-write` token ([attachments.md](../self-host/attachments.md)).
 
 ### Which revision a command reads
 
@@ -248,7 +250,7 @@ held: Waiting for CI: build, test still running (this repository's setting); Nee
 | `generates on every push` | Someone turned on generating on every push for this pull request, so its trigger conditions are skipped. |
 | No `held:` line, brief not ready | It is generating. Poll `mergebrief pr 7 --json` until `generation.status` leaves `pending` and `running`. |
 | `generation.status` is `awaiting-trigger` | The author is not on the team. Someone with push access starts it from the pull request's page in MergeBrief; a token cannot. |
-| `generation.status` is `failed` | `mergebrief generation 7` shows the stored `errorCode`. `mergebrief generate 7` reruns it when a rerun can help ([troubleshooting.md](./troubleshooting.md)). |
+| `generation.status` is `failed` | `mergebrief generation 7` shows the stored `errorCode`. `mergebrief generate 7` reruns it when a rerun can help ([troubleshooting.md](../self-host/troubleshooting.md)). |
 
 In `--json`, the unmet conditions are `generation.unmetConditions`. `generation.unmetConditionsPartial: true` means the server could not read every stored condition, so the list is not the whole reason.
 
@@ -265,7 +267,7 @@ These refusals exit 5. The error line is the text below followed by the HTTP sta
 | `draft-publish-pending` | `this comment is being posted to github` | `submit` | An earlier attempt is still posting one of these drafts. Wait a moment, then submit again. |
 | `draft-publish-in-doubt` | `this comment may have reached github, which could not be confirmed` | `submit` | An earlier attempt never confirmed whether a draft reached GitHub. Look on the pull request on GitHub: if the comment is there, delete the draft in MergeBrief's browser view; if not, use **Post now** on it there, which checks GitHub before it posts. Then submit again. |
 | `draft-limit-reached` | `this review already holds as many unposted comments as it can carry` | `draft create` | One review holds at most 64 unposted drafts. Submit, or delete some in the browser, before adding another. |
-| `account-not-allowed` | `this github account is not allowed on this instance` | `generate` | Your GitHub account is not on the instance's list. Ask the operator ([Who can sign in](./security-model.md#who-can-sign-in)). |
+| `account-not-allowed` | `this github account is not allowed on this instance` | `generate` | Your GitHub account is not on the instance's list. Ask the operator ([Who can sign in](../self-host/security-model.md#who-can-sign-in)). |
 | `operator-only` | `only an operator of this instance can read this` | `spend` | Only an operator listed in the instance config can run it. |
 | `generation-running` | `a brief is already generating for this push` | `generate <number>` | Wait. `mergebrief pr 7 --json` shows `generation.status` leave `running`. |
 | `generation-not-regenerable` | `this push's brief cannot be regenerated` | `generate <number>` | Nothing on this head can be rerun: the pull request is closed or merged, a brief is already stored, or the failure is one a rerun repeats. `mergebrief generation 7` shows which. A new push gets its own run. |
@@ -390,7 +392,7 @@ A clone must not choose where your token goes. When the clone's owner routes to 
 
 ## Behind an identity-aware proxy
 
-If your instance sits behind an identity-aware proxy (Cloudflare Access, oauth2-proxy, Pomerium and the like), the proxy must let `/api/*` through to the API, apart from `/api/auth/*`. The operator sets that up ([security-model.md](./security-model.md#put-it-behind-an-identity-aware-proxy)). Until then, the CLI gets a login page instead of an answer and reports that the instance "answered like an identity-provider proxy".
+If your instance sits behind an identity-aware proxy (Cloudflare Access, oauth2-proxy, Pomerium and the like), the proxy must let `/api/*` through to the API, apart from `/api/auth/*`. The operator sets that up ([security-model.md](../self-host/security-model.md#put-it-behind-an-identity-aware-proxy)). Until then, the CLI gets a login page instead of an answer and reports that the instance "answered like an identity-provider proxy".
 
 If your proxy accepts static headers instead, such as a service token, add them to the profile in `~/.config/mergebrief/config.json`. The CLI sends them on every request:
 
@@ -438,7 +440,7 @@ The npm check asks `https://registry.npmjs.org/mergebrief/latest`, sends nothing
 | `-R, --repo <owner/name>` | Target that repository instead of the clone's `origin` |
 | `-h, --help` | Show a command's flags. `mergebrief <command> --help` is the full, version-exact flag list |
 
-The CLI's environment variables and its config file are in [configuration.md](./configuration.md#cli).
+The CLI's environment variables and its config file are in [configuration.md](../self-host/configuration.md#cli).
 
 ### Commands
 
