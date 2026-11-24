@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Result } from "types/utils";
@@ -9,8 +10,19 @@ import {
   ENV_KEY_SHAPE,
   ENV_PARSER_PATHS,
   ENV_READ_FORMS,
+  ENV_READER_PATHSPECS,
+  ENV_READER_PATTERN,
+  ENV_READER_SKIPS,
+  PASS_VARS_LIST,
+  QUOTED_KEY,
 } from "./consts";
-import type { EnvExampleGaps, EnvExampleInput, EnvKeyGap } from "./types";
+import type {
+  EnvExampleGaps,
+  EnvExampleInput,
+  EnvKeyGap,
+  EnvReaderGaps,
+  EnvReaderInput,
+} from "./types";
 
 /** The env keys one parser source reads, sorted. */
 export function extractEnvKeys(source: string): string[] {
@@ -23,7 +35,44 @@ export function extractEnvKeys(source: string): string[] {
       }
     }
   }
+  for (const list of source.matchAll(PASS_VARS_LIST)) {
+    for (const quoted of (list[1] ?? "").matchAll(QUOTED_KEY)) {
+      const key = quoted[1];
+      if (key !== undefined && ENV_KEY_SHAPE.test(key)) {
+        keys.add(key);
+      }
+    }
+  }
   return [...keys].toSorted();
+}
+
+export function findUnlistedEnvReaders(input: EnvReaderInput): EnvReaderGaps {
+  const parsers = new Set(input.parsers);
+  const readers = new Set(input.readers);
+  const unlisted = input.readers.filter(
+    (path) => !parsers.has(path) && !input.skips.has(path),
+  );
+  const staleSkips = [...input.skips.keys()].filter(
+    (path) => !readers.has(path),
+  );
+  return { unlisted: unlisted.toSorted(), staleSkips: staleSkips.toSorted() };
+}
+
+/** Tracked server sources that mention the environment; git grep reads source pathspecs only. */
+function listEnvReaders(root: string): Result<string[], string> {
+  const run = spawnSync(
+    "git",
+    ["grep", "-lE", ENV_READER_PATTERN, "--", ...ENV_READER_PATHSPECS],
+    { cwd: root, encoding: "utf8" },
+  );
+  // git grep exits 1 when nothing matches, which is a valid empty answer.
+  if (run.status !== 0 && run.status !== 1) {
+    return { ok: false, error: `git grep failed: ${run.stderr.trim()}` };
+  }
+  return {
+    ok: true,
+    value: run.stdout.split("\n").filter((line) => line !== ""),
+  };
 }
 
 function mentionsKey(example: string, key: string): boolean {
@@ -31,7 +80,9 @@ function mentionsKey(example: string, key: string): boolean {
   return mention.test(example);
 }
 
-export function findEnvExampleGaps(input: EnvExampleInput): EnvExampleGaps {
+export function findEnvExampleGaps(
+  input: EnvExampleInput,
+): Pick<EnvExampleGaps, "missing" | "staleExemptions"> {
   const readers = new Map<string, string[]>();
   for (const { path, text } of input.parsers) {
     for (const key of extractEnvKeys(text)) {
@@ -81,10 +132,26 @@ export function checkEnvExample(root: string): Result<EnvExampleGaps, string> {
     parsers.push({ path, text: text.value });
   }
 
-  const gaps = findEnvExampleGaps({
+  const readers = listEnvReaders(root);
+  if (!readers.ok) {
+    return readers;
+  }
+  const keyGaps = findEnvExampleGaps({
     parsers,
     example: example.value,
     exemptions: ENV_KEY_EXEMPTIONS,
   });
-  return { ok: true, value: gaps };
+  const readerGaps = findUnlistedEnvReaders({
+    readers: readers.value,
+    parsers: ENV_PARSER_PATHS,
+    skips: ENV_READER_SKIPS,
+  });
+  return {
+    ok: true,
+    value: {
+      ...keyGaps,
+      unlistedReaders: readerGaps.unlisted,
+      staleReaderSkips: readerGaps.staleSkips,
+    },
+  };
 }

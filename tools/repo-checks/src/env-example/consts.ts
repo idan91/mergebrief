@@ -23,7 +23,59 @@ export const ENV_PARSER_PATHS: readonly string[] = [
   "packages/generators/src/config/instancePolicy.ts",
   "packages/generators/src/config/registry.ts",
   "packages/generators/src/config/context-sources.ts",
+  "packages/generators/src/adapters/claudeCode.ts",
+  "packages/generators/src/adapters/codex.ts",
+  "packages/generators/src/adapters/cursor.ts",
 ];
+
+/**
+ * Server source files that mention the environment without reading a key:
+ * composition roots hand `process.env` on whole, and a type or a pass-through
+ * names it. Every other reader must be a listed parser, so a new env read
+ * cannot land outside this check.
+ */
+export const ENV_READER_SKIPS: ReadonlyMap<string, string> = new Map([
+  ["apps/api/src/app.ts", "hands process.env to the config parsers"],
+  ["apps/api/src/instrument.ts", "hands process.env to the tracing parser"],
+  ["apps/api/src/main.ts", "composition root; hands process.env on whole"],
+  ["apps/api/src/migrate.ts", "composition root; hands process.env on whole"],
+  ["apps/api/src/routes/auth/session/types.ts", "types the env map only"],
+  [
+    "apps/web/src/server/env.ts",
+    "the web server's root; hands process.env on whole",
+  ],
+  ["apps/worker/src/index.ts", "hands process.env to main"],
+  ["apps/worker/src/instrument.ts", "hands process.env to the tracing parser"],
+  ["apps/worker/src/main.ts", "composition root; hands process.env on whole"],
+  [
+    "apps/cli/src/bin.ts",
+    "the CLI runs on a user's machine, not a server; reads PAGER",
+  ],
+  [
+    "packages/generators/src/harness/run.ts",
+    "forwards the passVars list it is given",
+  ],
+  ["packages/github/src/index.ts", "names process.env in a doc comment"],
+  ["packages/persistence/src/index.ts", "names process.env in a doc comment"],
+]);
+
+/** Where a server reads its environment; source only, so no env file is ever matched. */
+export const ENV_READER_PATHSPECS: readonly string[] = [
+  ":(glob)apps/*/src/**/*.ts",
+  ":(glob)apps/*/src/**/*.tsx",
+  ":(glob)packages/*/src/**/*.ts",
+  ":(glob)packages/*/src/**/*.tsx",
+  ":(exclude,glob)**/testing/**",
+  ":(exclude,glob)**/*.test.ts",
+  ":(exclude,glob)**/*.test.tsx",
+  ":(exclude,glob)**/src/test/**",
+];
+
+export const ENV_READER_PATTERN = String.raw`process\.env|\benv\[|\benv\.[A-Z]|passVars`;
+
+/** A harness's `passVars: ["KEY", ...]` list; each quoted key in group 1 is a read. */
+export const PASS_VARS_LIST = /passVars:\s*\[([^\]]*)\]/g;
+export const QUOTED_KEY = /"([A-Z][A-Z0-9_]*)"/g;
 
 export const ENV_KEY_EXEMPTIONS: ReadonlyMap<string, string> = new Map([
   ["NODE_ENV", "the image sets it; a source checkout leaves it unset"],
@@ -31,6 +83,11 @@ export const ENV_KEY_EXEMPTIONS: ReadonlyMap<string, string> = new Map([
   ["MERGEBRIEF_RUNTIME", "the image's runtime marker, never set by hand"],
   ["MERGEBRIEF_OUT_DIR", "a source-checkout override, never set in production"],
   ["GENERATOR_API_KEY_ENV", "removed; read only to warn"],
+  ["XDG_CONFIG_HOME", "the operating system or the user's shell sets it"],
+  [
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+    "the adapter sets it on the child CLI; the operator never does",
+  ],
   ["MERGEBRIEF_URL_BOX_TOKEN", "renamed; read only to warn"],
   ["MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS", "removed; read only to warn"],
 ]);
@@ -43,5 +100,6 @@ export const ENV_READ_FORMS: readonly RegExp[] = [
   /\benv,\s*"([A-Z][A-Z0-9_]*)"/g,
   /^\s*([A-Z][A-Z0-9_]*)\??:\s*(?!["'`])\S/gm,
   /\bconst\s+[A-Z0-9_]*(?:_KEY|_VAR|_ENV|_REF)\s*=\s*"([A-Z][A-Z0-9_]*)"/g,
-  /[?:]\s*"([A-Z][A-Z0-9_]*)"/g,
+  /\?\s*"([A-Z][A-Z0-9_]*)"\s*:\s*"[A-Z][A-Z0-9_]*"/g,
+  /\?\s*"[A-Z][A-Z0-9_]*"\s*:\s*"([A-Z][A-Z0-9_]*)"/g,
 ];

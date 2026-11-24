@@ -36,7 +36,8 @@ function runEnv(): number {
     return 1;
   }
 
-  const { missing, staleExemptions } = result.value;
+  const { missing, staleExemptions, unlistedReaders, staleReaderSkips } =
+    result.value;
   for (const gap of missing) {
     process.stderr.write(
       `.env.example: ${gap.key} is read by ${gap.paths.join(", ")} but never named\n`,
@@ -47,7 +48,22 @@ function runEnv(): number {
       `env: exemption ${key} names a key no parser reads; drop it\n`,
     );
   }
-  if (missing.length + staleExemptions.length > 0) {
+  for (const path of unlistedReaders) {
+    process.stderr.write(
+      `env: ${path} reads the environment but is neither in ENV_PARSER_PATHS nor ENV_READER_SKIPS\n`,
+    );
+  }
+  for (const path of staleReaderSkips) {
+    process.stderr.write(
+      `env: ENV_READER_SKIPS names ${path}, which no longer reads the environment; drop it\n`,
+    );
+  }
+  const problems =
+    missing.length +
+    staleExemptions.length +
+    unlistedReaders.length +
+    staleReaderSkips.length;
+  if (problems > 0) {
     return 1;
   }
   process.stdout.write(

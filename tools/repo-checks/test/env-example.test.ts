@@ -8,6 +8,7 @@ import {
   checkEnvExample,
   extractEnvKeys,
   findEnvExampleGaps,
+  findUnlistedEnvReaders,
 } from "../src/env-example";
 import { writeTree } from "./helpers";
 
@@ -58,6 +59,23 @@ describe("extractEnvKeys", () => {
       "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL",
       "SESSION_KEY_V1",
     ]);
+  });
+
+  it("reads the keys a harness passes through", () => {
+    const source =
+      'harness({ passVars: ["CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"] });';
+
+    expect(extractEnvKeys(source)).toEqual([
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_CONFIG_DIR",
+    ]);
+  });
+
+  it("skips an upper-snake string field that is not a ternary", () => {
+    const source =
+      'const failure = { code: "MISSING_KEY", evt: "CONFIG_INVALID" };';
+
+    expect(extractEnvKeys(source)).toEqual([]);
   });
 
   it("skips other constants and message text", () => {
@@ -117,6 +135,38 @@ describe("findEnvExampleGaps", () => {
   });
 });
 
+describe("findUnlistedEnvReaders", () => {
+  it("names a reader that is neither a listed parser nor skipped", () => {
+    const result = findUnlistedEnvReaders({
+      readers: [
+        "apps/api/src/config.ts",
+        "apps/api/src/main.ts",
+        "apps/api/src/new.ts",
+      ],
+      parsers: ["apps/api/src/config.ts"],
+      skips: new Map([["apps/api/src/main.ts", "composition root"]]),
+    });
+
+    expect(result).toEqual({
+      unlisted: ["apps/api/src/new.ts"],
+      staleSkips: [],
+    });
+  });
+
+  it("names a skip whose file no longer reads env", () => {
+    const result = findUnlistedEnvReaders({
+      readers: [],
+      parsers: [],
+      skips: new Map([["apps/api/src/gone.ts", "composition root"]]),
+    });
+
+    expect(result).toEqual({
+      unlisted: [],
+      staleSkips: ["apps/api/src/gone.ts"],
+    });
+  });
+});
+
 describe("checkEnvExample", () => {
   let root = "";
 
@@ -127,7 +177,12 @@ describe("checkEnvExample", () => {
   it("holds the checked-in example complete", () => {
     expect(checkEnvExample(REPO_ROOT)).toEqual({
       ok: true,
-      value: { missing: [], staleExemptions: [] },
+      value: {
+        missing: [],
+        staleExemptions: [],
+        unlistedReaders: [],
+        staleReaderSkips: [],
+      },
     });
   });
 
