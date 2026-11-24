@@ -29,7 +29,7 @@ Both run the same compose release, so you can move from the first to the second.
 
 1. **Get the release files** into an empty folder ([Get the release files](./compose.md#get-the-release-files)).
 2. **Register and install the GitHub App** with your public URL ([github-app.md](./github-app.md)).
-3. **Fill in `.env`** with the App's credentials, a session key and your model key, and **list yourself** in `mergebrief.config.yaml` ([Fill in `.env`](./compose.md#fill-in-env), [List who may sign in](./compose.md#list-who-may-sign-in)).
+3. **Fill in `.env`** with the App's credentials, a session key and your model key ([Fill in `.env`](./compose.md#fill-in-env)). Then **list yourself** under `operators` in `mergebrief.config.yaml`, and, if you installed the App on an organization, list the organization's id under `allowed.accounts` too, or its pushes start nothing. `gh api orgs/<org> --jq .id` prints that id ([List who may sign in](./compose.md#list-who-may-sign-in)).
 4. **Start the stack:** `docker compose up -d --wait` ([Start the stack](./compose.md#start-the-stack)).
 5. **Push to a pull request** on a repository the App is installed on ([Check it end to end](./compose.md#check-it-end-to-end)).
 
@@ -38,7 +38,7 @@ You're done when the App's comment on that pull request reads **Read the brief f
 ## Sizing
 
 - **Generations decide the worker's size.** Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`, two by default. An API provider holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
-- **Postgres grows with briefs.** Each revision of a pull request stores its brief, its revision summary and its delta. In the test fixtures a small brief is about 6 KB and a synthetic very large one about 84 KB. What prunes itself and what does not: [operations.md](./operations.md#retention-what-grows-and-what-does-not-prune-itself).
+- **Postgres grows with every push.** Each push to a pull request stores a new brief beside the old ones. Check the database's size after a week of use and plan the disk from that; on the bundled Postgres, `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_size_pretty(pg_database_size(current_database()));"'` prints it. What prunes itself and what does not: [operations.md](./operations.md#retention-what-grows-and-what-does-not-prune-itself).
 - **Memory and CPU per service are not measured yet.** Read your own with `docker compose stats --no-stream`, once idle and once while a brief generates, and size the host from the peak. The cloud guide starts at 2 vCPU and 4 GB.
 
 ## Reading order
