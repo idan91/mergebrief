@@ -18,7 +18,8 @@ Copy this into `.mergebrief/instructions.md` on your default branch and replace 
 
 - `generated/**` and `*.snap` churn is low-signal; de-emphasize it in
   summaries.
-- Lockfile-only chunks need no text.
+- Lockfile churn (`pnpm-lock.yaml`) is low-signal unless a dependency
+  changes version.
 
 ## Reading conventions
 

@@ -39,7 +39,7 @@ When something needs your attention, the brief's header also shows a warning chi
 | You see | Cause | Fix |
 | --- | --- | --- |
 | Not applied, `not valid YAML` | The file does not parse as YAML. | Fix the syntax. A YAML linter finds the line. |
-| Not applied, `schema validation failed (...)` | A key or value the file does not accept. The parentheses name where, such as `triggerConditions.labels: custom` or `<root>: unrecognized_keys` for an unknown top-level key. The reason never quotes your file. | Compare that key with the page's rules. |
+| Not applied, `schema validation failed (...)` | A key or value the file does not accept. The parentheses name where, such as `triggerConditions.labels: custom` or `<root>: unrecognized_keys` for an unknown top-level key. `custom` means the value broke one of that key's rules, such as a list entry repeated or `tracker` and `trackers` set together; each page lists its rules. The reason never quotes your file. | Compare that key with the page's rules. |
 | Not applied, `over budget: N of M bytes` | The file is over its size limit. | Shorten it. Nothing is cut: the file is used whole or not at all. |
 | Not applied, with a GitHub error | GitHub failed to serve the file. The brief generated without it. | Nothing: the next generation reads it again. |
 | Applied, with a warning | The file is at 80% of its limit or more, or `policy.yaml` named an attribute that does not exist under `deEmphasize`. | Trim the file, or fix the attribute name. |

@@ -15,6 +15,19 @@ Every recipe below is a whole `settings.yaml`. To try one:
 
 If the push generates at once instead, the file was probably rejected: open the last brief's details (the `i` button in its header) and look at the Repo config section ([Check that your config applied](./README.md#check-that-your-config-applied)).
 
+## Wait until the pull request is ready and CI passed
+
+The setup most teams want: no brief for drafts, and none until the checks your base branch requires have passed.
+
+```yaml
+version: 1
+triggerConditions:
+  readyForReview: on
+  ci: required
+```
+
+Both must pass, so a push waits for whichever comes last. The two recipes below explain each condition on its own.
+
 ## Hold drafts until they are ready for review
 
 Draft pull requests wait. Marking one ready for review generates its latest push.
