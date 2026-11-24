@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSidebar, compareReleaseVersions } from "../../src/pages/sidebar";
+import {
+  buildSidebar,
+  compareReleaseVersions,
+  readPageTrail,
+} from "../../src/pages/sidebar";
 import {
   type SidebarLabels,
   type SitePage,
@@ -221,5 +225,18 @@ describe("compareReleaseVersions", () => {
     ["1.0.0", "1.0.0", 0],
   ])("orders %s against %s as %i", (left, right, order) => {
     expect(Math.sign(compareReleaseVersions(left, right))).toBe(order);
+  });
+});
+
+describe("readPageTrail", () => {
+  it.each([
+    ["self-host/secrets.md", ["label:selfHosting", "label:secure"]],
+    ["self-host/unlisted.md", ["label:selfHosting"]],
+    ["repo-config/trigger-conditions.md", ["label:repoConfig"]],
+    ["releases/0.3.0.md", ["label:releases"]],
+    ["glossary.md", ["label:reference"]],
+    ["README.md", []],
+  ])("places %s under %j", (source, trail) => {
+    expect(readPageTrail(source, LABELS)).toEqual(trail);
   });
 });
