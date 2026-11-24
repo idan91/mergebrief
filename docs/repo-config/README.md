@@ -1,18 +1,6 @@
 # Configure your repository
 
-These pages are for the people who maintain a repository that a MergeBrief instance reads. A `.mergebrief/` directory on your default branch changes how that repository's briefs are made: which pushes get one, which risks they flag, and how they group and word your code. You need write access to the repository, nothing on the MergeBrief server.
-
-The instance's operator keeps the model, the spend cap, who may sign in, and instance-wide defaults for trigger conditions and trackers in `mergebrief.config.yaml` ([configuration.md](../self-host/configuration.md)). Your files override those defaults for your repository where the pages below say so.
-
-## The three files
-
-| File | What it changes | Size limit | Guide |
-| --- | --- | --- | --- |
-| `.mergebrief/settings.yaml` | Which pushes get a brief, the Entry comment on drafts, your ticket tracker, and which bots' pull requests generate without a click | 4 KB | [Settings](./settings.md), [Trigger conditions](./trigger-conditions.md) |
-| `.mergebrief/policy.yaml` | Risk attributes your repository adds, and built-in ones it quiets | 32 KB | [Risk policy](./policy.md) |
-| `.mergebrief/instructions.md` | Free text on grouping, glossary, noise paths, reading order and phrasing | 16 KB | [Instructions](./instructions.md), [template](./instructions-template.md) |
-
-Every file is optional. MergeBrief reads these three paths and nothing else in the directory. `.mergebrief/rules/` is reserved for a later version; leave it empty.
+A `.mergebrief/` directory on your default branch changes how your repository's briefs are made: which pushes get one, which risks they flag, and how they group and word your code. You need write access to the repository, nothing on the MergeBrief server.
 
 ## Add your first file
 
@@ -28,7 +16,17 @@ Every file is optional. MergeBrief reads these three paths and nothing else in t
 
 2. Open a pull request and merge it to the default branch. MergeBrief reads the file from the default branch only, so it applies from the next generation after the merge.
 3. Push to a draft pull request. It shows **No brief for this push yet** in MergeBrief instead of generating.
-4. Mark it ready for review. The brief generates, and its details show the file as Applied (next section).
+4. Mark it ready for review. The brief generates, and its details show the file as **Applied** ([Check that your config applied](#check-that-your-config-applied)).
+
+## The three files
+
+| File | What it changes | Size limit | Guide |
+| --- | --- | --- | --- |
+| `.mergebrief/settings.yaml` | Which pushes get a brief, the Entry comment on drafts, your ticket tracker, and which bots' pull requests generate without a click | 4 KB | [Settings](./settings.md), [Trigger conditions](./trigger-conditions.md) |
+| `.mergebrief/policy.yaml` | Risk attributes your repository adds, and built-in ones it quiets | 32 KB | [Risk policy](./policy.md) |
+| `.mergebrief/instructions.md` | Free text on grouping, glossary, noise paths, reading order and phrasing | 16 KB | [Instructions](./instructions.md), [template](./instructions-template.md) |
+
+Every file is optional. MergeBrief reads these three paths and nothing else in the directory. `.mergebrief/rules/` is reserved for a later version; leave it empty.
 
 ## Check that your config applied
 
@@ -53,3 +51,5 @@ A rejected `settings.yaml` also drops your trigger conditions, so the instance's
 - **Whole or nothing.** Invalid YAML, an unknown key, a missing `version` or one other than `1`, a bad value, or a file over its limit rejects that file whole. A typo such as `atributes:` is rejected, never silently ignored. The other two files still apply.
 - **Never blocking.** A rejected or unreadable file never stops a brief, the instance, or another repository. The brief generates without it and says so.
 - **On the record.** Every brief stores which files shaped it, with each file's path, blob SHA and outcome, and the Receipt keeps a permanent copy.
+
+The instance's operator keeps the model, the spend cap, who may sign in, and instance-wide defaults for trigger conditions and trackers in `mergebrief.config.yaml` ([configuration.md](../self-host/configuration.md)). Your files override those defaults for your repository where each page says so.

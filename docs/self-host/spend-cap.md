@@ -1,8 +1,6 @@
 # Cap daily generation spend
 
-The daily cap limits how many generation runs the instance starts in one UTC day, across every repository it serves. It is on by default ([the default](./configuration.md#drafts-spend-operators-allowed)). It is what stands between a burst of webhooks and your model provider bill, since the webhook route has no rate limit of its own. Only the operator sets it: no repository file can raise or lower it.
-
-The cap counts runs, not money. It is a ceiling on what you are willing to spend in a day, not an invoice; set a spend limit at your provider too.
+The daily cap limits how many generation runs the instance starts in one UTC day, across every repository it serves. It is on by default ([the default](./configuration.md#drafts-spend-operators-allowed)), and only the operator sets it: no repository file can raise or lower it.
 
 ## Set the cap
 
@@ -25,6 +23,8 @@ A bad value refuses boot; `docker compose logs worker` and `docker compose logs 
 **Check:** [see today's count](#see-todays-count): the line now ends "of its 50 runs today" (Settings) or "of 50 runs started today" (CLI).
 
 There is no per-repository share: one busy repository can use the day's runs for the others. If that bites, raise the number.
+
+The cap counts runs, not money. It is a ceiling on what you are willing to spend in a day, not an invoice; set a spend limit at your provider too. It is what stands between a burst of webhooks and your model provider bill, since the webhook route has no rate limit of its own.
 
 ## See today's count
 

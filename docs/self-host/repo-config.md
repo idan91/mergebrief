@@ -1,6 +1,6 @@
 # Repository config for operators
 
-The people who maintain each repository can commit a `.mergebrief/` directory to shape that repository's briefs: which pushes generate, its ticket trackers, its trusted bots, its risk policy and its instructions to the model. Their guide is [Configure your repository](../repo-config/README.md). This page covers what that means for you as the operator.
+The people who maintain each repository can commit a `.mergebrief/` directory to shape that repository's briefs: which pushes generate, its ticket trackers, its trusted bots, its risk policy and its instructions to the model. Their guide is [Configure your repository](../repo-config/README.md).
 
 ## What a repository controls, and what you keep
 

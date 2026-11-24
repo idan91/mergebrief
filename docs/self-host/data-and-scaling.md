@@ -1,10 +1,20 @@
 # Data, retention and scaling
 
-What the database keeps and how to prune it, how to read the audit log, and how to add worker and api capacity without running Postgres out of connections. Run every command in the folder that holds `docker-compose.yml` and `.env`. The `psql` commands use the bundled database; on an external one, run the same SQL the [external way](./backup-restore.md#run-sql-on-an-external-database).
+Pull requests and audit rows stay until you set a retention window, and capacity is a dial in `.env`. Run every command in the folder that holds `docker-compose.yml` and `.env`. The `psql` commands use the bundled database; on an external one, run the same SQL the [external way](./backup-restore.md#run-sql-on-an-external-database).
+
+| To | Set or run | Section |
+| --- | --- | --- |
+| Erase closed pull requests after a window | `retention.pullRequestDays` | [Prune closed pull requests](#prune-closed-pull-requests) |
+| Erase old audit rows | `retention.auditDays` | [Prune the audit log](#prune-the-audit-log) |
+| Read the audit log | `psql` on `audit_log` | [Query the audit log](#query-the-audit-log) |
+| Find the largest tables | `psql` on `pg_class` | [See what uses disk](#see-what-uses-disk) |
+| Run more generations at once | `WORKER_CONCURRENCY`, `WORKER_COUNT` | [Add worker capacity](#add-worker-capacity) |
+| Run more than one api | `API_COUNT` | [Run more than one api](#run-more-than-one-api) |
+| Stay under Postgres's connection limit | `DATABASE_POOL_MAX` | [Size the connection budget](#size-the-connection-budget) |
 
 ## Prune closed pull requests
 
-Briefs and their sidecars accumulate per pull request revision, and by default nothing prunes them: closing or merging a pull request records the close time and nothing else. `retention.pullRequestDays` makes the worker's daily sweep erase every pull request closed or merged longer ago than that many days, with its briefs and every reviewer's session, drafts and decisions on it.
+`retention.pullRequestDays` makes the worker's daily sweep erase every pull request closed or merged longer ago than that many days, with its briefs and every reviewer's session, drafts and decisions on it. Without it nothing prunes them: closing or merging a pull request records the close time and nothing else, and briefs and their sidecars accumulate per pull request revision.
 
 > [!WARNING]
 > The first sweep after you set it erases every pull request already past the window, however long ago it closed, across every installation and every pasted pull request. Only a backup brings them back. Take one first ([Back up and restore](./backup-restore.md)).
@@ -34,7 +44,7 @@ The window counts from the close on GitHub, not from the brief. A reopened pull 
 
 ## Prune the audit log
 
-The audit log is append-only, and the daily sweep keeps every row unless you set `retention.auditDays`, at least 30. Set it longer than your longest-open pull request: audit has to outlive a review session.
+Set `retention.auditDays` in `mergebrief.config.yaml`, at least 30 and longer than your longest-open pull request, since audit has to outlive a review session:
 
 ```yaml
 retention:
@@ -43,13 +53,11 @@ retention:
 
 Then `docker compose restart worker`. **Check:** the worker's start line reads `audit retention 365d`. The sweep runs daily at 03:17 UTC and logs `sweep-audit: erased N audit rows past retention` when it deletes something.
 
-Nothing on the web tier can trigger the sweep; it runs only inside the worker.
+Unset, the audit log is append-only and the daily sweep keeps every row. Nothing on the web tier can trigger the sweep; it runs only inside the worker.
 
 ## Query the audit log
 
-Every action a credential takes is recorded, and so is every refusal of one. Reads are not: they already produce an `api.access` line, so the log answers what was done, never what was seen. A row holds ids, tokens and numbers, never a request body or free text. Its `operation` is the same id the API's operation manifest lists, and a row joins its request's log line on `request_id`.
-
-There is no in-app reader. The last 50 writes that reached GitHub:
+There is no in-app reader: query the `audit_log` table. The last 50 writes that reached GitHub:
 
 ```sh
 docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
@@ -58,6 +66,8 @@ docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
   where classification = '\''external-write'\''
   order by occurred_at desc limit 50;"'
 ```
+
+Every action a credential takes is recorded, and so is every refusal of one. Reads are not: they already produce an `api.access` line, so the log answers what was done, never what was seen. A row holds ids, tokens and numbers, never a request body or free text. Its `operation` is the same id the API's operation manifest lists, and a row joins its request's log line on `request_id`.
 
 Before you write your own query:
 
@@ -86,35 +96,6 @@ docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = '\''public'\'' and c.relkind = '\''r'\''
   order by pg_total_relation_size(c.oid) desc limit 10;"'
-```
-
-## What else is deleted, and when
-
-- **Uninstalling the App or removing a repository from an installation** purges that installation's or repository's pull requests and briefs at once.
-- **A repository admin can delete one pull request's briefs** from Home, and **a reviewer can delete a pull request they pasted**. Either takes the same set as the retention sweep, and the purge's audit row names who asked.
-- **Reviewer text** sits unencrypted in the database, so a database copy can read it. A draft comment's body is stored from the moment it is drafted and kept after it is posted. A reviewer can delete a comment they have not posted, but a push copies unposted comments into the new head's session, and deleting the copy leaves the earlier session's row. A risk's dismissal reason or note goes with its brief or pull request, and reopening the risk deletes it from that session. Without `retention.pullRequestDays`, all of it stays.
-- **Sign-in credentials prune themselves.** Every hour the worker deletes expired sessions, then each stored GitHub token no session and no live API token still uses, and asks GitHub to revoke it. Those revokes are best-effort and stop after 30 seconds per sweep; a token the sweep does not reach stays valid at GitHub until it expires, and the worker logs how many it skipped. A revoked or expired API token stays listed in settings as revoked for 30 days, then the same sweep deletes it. Signing out and revoking the App on github.com delete at once.
-- **Saved parts of large briefs.** A pull request briefed in parts stores each finished part, so a retry resumes instead of paying again. The brief's write deletes them. Parts no run came back for, such as a superseded, capped or failed run's, go once the newest part is over a week old, unless a run still holds that head.
-- **Webhook signatures.** The api records the signature of each processed pull request, review, check run and status delivery, to skip a repeat within 72 hours. Older records are deleted every hour.
-- **Raw output of failed generations.** Each worker deletes its own saved files once they are seven days old ([Read a failed generation's raw output](./observability.md#read-a-failed-generations-raw-output)).
-
-## When each sweep runs
-
-The worker runs every sweep itself, on a fixed schedule in UTC. With several workers, each scheduled sweep still runs once per tick. No setting moves the schedule. A sweep logs at `info` only when it deleted something, so no line means nothing was due:
-
-| Sweep | Runs (UTC) | Deletes | Its line |
-| --- | --- | --- | --- |
-| `sweep-sessions` | Hourly at :41 | Expired sessions, unused GitHub tokens, API tokens 30 days past revoke or expiry | `sweep-sessions: N expired sessions and N tokens deleted, N grants orphaned` |
-| `sweep-webhook-deliveries` | Hourly at :23 | Delivery signatures older than 72 hours | `sweep-webhook-deliveries: deleted N webhook deliveries past the dedup window` |
-| `sweep-audit` | Daily at 03:17 | Audit rows past `retention.auditDays`; nothing when unset | `sweep-audit: erased N audit rows past retention` |
-| `sweep-pull-requests` | Daily at 03:47 | Pull requests closed past `retention.pullRequestDays`; nothing when unset | `sweep-pull-requests: deleted N pull requests past retention` |
-| `sweep-generation-parts` | Daily at 04:29 | Saved parts of large briefs whose newest part is over a week old | `sweep-generation-parts: deleted N stored parts of idle spans` |
-| Failure dumps | At each worker's start, then every 24 hours | That worker's raw-output files older than seven days | `failure dump sweep: deleted N failure dumps older than 7 days` |
-
-**Check** that a sweep ran, for example the pull request one:
-
-```sh
-docker compose logs worker | grep sweep-pull-requests
 ```
 
 ## Add worker capacity
@@ -197,3 +178,32 @@ services:
 ```
 
 Then run `docker compose up -d --wait`. On a managed database, the provider sets the limit. A pool that cannot get a connection waits up to 10 seconds, then the request or job fails ([Postgres refuses connections](./troubleshooting.md#postgres-refuses-connections)).
+
+## What else is deleted, and when
+
+- **Uninstalling the App or removing a repository from an installation** purges that installation's or repository's pull requests and briefs at once.
+- **A repository admin can delete one pull request's briefs** from Home, and **a reviewer can delete a pull request they pasted**. Either takes the same set as the retention sweep, and the purge's audit row names who asked.
+- **Reviewer text** sits unencrypted in the database, so a database copy can read it. A draft comment's body is stored from the moment it is drafted and kept after it is posted. A reviewer can delete a comment they have not posted, but a push copies unposted comments into the new head's session, and deleting the copy leaves the earlier session's row. A risk's dismissal reason or note goes with its brief or pull request, and reopening the risk deletes it from that session. Without `retention.pullRequestDays`, all of it stays.
+- **Sign-in credentials prune themselves.** Every hour the worker deletes expired sessions, then each stored GitHub token no session and no live API token still uses, and asks GitHub to revoke it. Those revokes are best-effort and stop after 30 seconds per sweep; a token the sweep does not reach stays valid at GitHub until it expires, and the worker logs how many it skipped. A revoked or expired API token stays listed in settings as revoked for 30 days, then the same sweep deletes it. Signing out and revoking the App on github.com delete at once.
+- **Saved parts of large briefs.** A pull request briefed in parts stores each finished part, so a retry resumes instead of paying again. The brief's write deletes them. Parts no run came back for, such as a superseded, capped or failed run's, go once the newest part is over a week old, unless a run still holds that head.
+- **Webhook signatures.** The api records the signature of each processed pull request, review, check run and status delivery, to skip a repeat within 72 hours. Older records are deleted every hour.
+- **Raw output of failed generations.** Each worker deletes its own saved files once they are seven days old ([Read a failed generation's raw output](./observability.md#read-a-failed-generations-raw-output)).
+
+## When each sweep runs
+
+The worker runs every sweep itself, on a fixed schedule in UTC. With several workers, each scheduled sweep still runs once per tick. No setting moves the schedule. A sweep logs at `info` only when it deleted something, so no line means nothing was due:
+
+| Sweep | Runs (UTC) | Deletes | Its line |
+| --- | --- | --- | --- |
+| `sweep-sessions` | Hourly at :41 | Expired sessions, unused GitHub tokens, API tokens 30 days past revoke or expiry | `sweep-sessions: N expired sessions and N tokens deleted, N grants orphaned` |
+| `sweep-webhook-deliveries` | Hourly at :23 | Delivery signatures older than 72 hours | `sweep-webhook-deliveries: deleted N webhook deliveries past the dedup window` |
+| `sweep-audit` | Daily at 03:17 | Audit rows past `retention.auditDays`; nothing when unset | `sweep-audit: erased N audit rows past retention` |
+| `sweep-pull-requests` | Daily at 03:47 | Pull requests closed past `retention.pullRequestDays`; nothing when unset | `sweep-pull-requests: deleted N pull requests past retention` |
+| `sweep-generation-parts` | Daily at 04:29 | Saved parts of large briefs whose newest part is over a week old | `sweep-generation-parts: deleted N stored parts of idle spans` |
+| Failure dumps | At each worker's start, then every 24 hours | That worker's raw-output files older than seven days | `failure dump sweep: deleted N failure dumps older than 7 days` |
+
+**Check** that a sweep ran, for example the pull request one:
+
+```sh
+docker compose logs worker | grep sweep-pull-requests
+```

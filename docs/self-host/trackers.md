@@ -77,7 +77,7 @@ Then [add it to the instance](#add-the-credentials-and-boards-to-the-instance).
    JIRA_API_TOKEN=your-jira-api-token
    ```
 
-2. **List the trackers in `mergebrief.config.yaml`.** `contextSources:` is one list with at most one entry per tracker: with both Notion and Jira, put both entries under the one key. Writing `contextSources:` twice is a duplicate YAML key, and the worker and the api refuse to boot. `trackers:` names the boards and projects every repository reads unless it lists its own:
+2. **List the trackers in `mergebrief.config.yaml`.** `contextSources:` lists the trackers that need a credential, and `trackers:` names the boards and projects every repository reads unless it lists its own:
 
    ```yaml
    # mergebrief.config.yaml
@@ -93,7 +93,7 @@ Then [add it to the instance](#add-the-credentials-and-boards-to-the-instance).
        projectKeys: [WEB, OPS]
    ```
 
-   Leave out the entries you do not use. A `notion` or `jira` entry under `trackers:` refuses boot unless `contextSources:` has an entry of the same type.
+   Leave out the entries you do not use. `contextSources:` is one list with at most one entry per tracker: with both Notion and Jira, put both entries under the one key. Writing `contextSources:` twice is a duplicate YAML key, and the worker and the api refuse to boot. A `notion` or `jira` entry under `trackers:` refuses boot unless `contextSources:` has an entry of the same type.
 
 3. **Apply both files:**
 

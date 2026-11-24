@@ -99,7 +99,9 @@ sudo lsof -iTCP:5432 -sTCP:LISTEN
 
 ## A service exits with code 0
 
-`api` and `worker` exit 0 on a configuration error, so compose's `restart: on-failure` leaves them down instead of restarting into the same error. A transient fault, such as a Postgres boot race or a provider that did not answer the boot check, exits 1 and restarts ([A service keeps restarting](#a-service-keeps-restarting)). The `worker` has no HTTP surface, so `docker compose ps -a` showing `Exited (0)` is the only sign, and webhooks keep answering 200 while no brief appears.
+**You see:** `docker compose ps -a` shows `api` or `worker` at `Exited (0)`. The `worker` has no HTTP surface, so that is the only sign, and webhooks keep answering 200 while no brief appears.
+
+**Cause:** usually a configuration error. `api` and `worker` exit 0 on one, so compose's `restart: on-failure` leaves them down instead of restarting into the same error. A transient fault, such as a Postgres boot race or a provider that did not answer the boot check, exits 1 and restarts ([A service keeps restarting](#a-service-keeps-restarting)).
 
 Read the last line of `docker compose logs worker`:
 
@@ -179,7 +181,11 @@ A line `api composition: the instance config names nobody` does not stop the api
 
 ## A person is refused a brief or sign-in
 
-"This GitHub account isn't allowed on this instance" means the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([Who can sign in](./security-model.md#who-can-sign-in)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts. Find the id in the api log's refusal line, or look it up ([Who can sign in](./security-model.md#who-can-sign-in)), and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then run `docker compose restart api worker`. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
+**You see:** "This GitHub account isn't allowed on this instance".
+
+**Cause:** the account is not an Operator, is not in `allowed.users`, and is in no installation on a listed account ([Who can sign in](./security-model.md#who-can-sign-in)). An instance with no config file refuses everyone, you included, and the api logs `the instance config names nobody` when it starts.
+
+**Fix:** find the id in the api log's refusal line, or look it up ([Who can sign in](./security-model.md#who-can-sign-in)), and add it under `operators` or `allowed.users`, or list its organization under `allowed.accounts`, then run `docker compose restart api worker`. Never take an id from someone else's link or message without checking whose it is. Under compose the file is the `mergebrief.config.yaml` beside `docker-compose.yml`; on the host it is the one at the repo root, unless `MERGEBRIEF_CONFIG` names another.
 
 ## Sign-in does not stick
 
@@ -231,7 +237,7 @@ A user who cancels on GitHub's consent page lands on Home with no message; the a
 
 ## GitHub token refresh fails
 
-**You see:** one user's requests that need GitHub answer 500 or 502, or one user lands signed out, and the api logs `token.refresh.fail` or `token.refresh.unavailable` with that user's `reviewerId`. A user's GitHub token expires after eight hours, and the api rotates it with the stored refresh token on the first request that needs GitHub after that.
+**You see:** one user's requests that need GitHub answer 500 or 502, or one user lands signed out, and the api logs `token.refresh.fail` or `token.refresh.unavailable` with that user's `reviewerId`.
 
 | Line | Cause | Fix |
 | --- | --- | --- |
@@ -242,7 +248,7 @@ A user who cancels on GitHub's consent page lands on Home with no message; the a
 | `token.refresh.fail` without `kind`: `api token died during refresh` | An API token expired or was revoked while its request was refreshing. | Nothing; the caller needs a live token. |
 | `token.refresh.unavailable` | GitHub did not answer the rotation within 10 seconds or answered with an outage, or another request held the same rotation for over 2 seconds. Sessions and tokens are kept and the request answers 502. | Try again. If it repeats, check GitHub's status and the host's route to `github.com`. |
 
-A `token.refresh.unavailable` with `refreshTokenPossiblyConsumed: true` can be followed by a `token.refresh.fail` without `kind` for the same user: GitHub rotated before the answer was lost, so that user signs in again.
+A user's GitHub token expires after eight hours, and the api rotates it with the stored refresh token on the first request that needs GitHub after that. A `token.refresh.unavailable` with `refreshTokenPossiblyConsumed: true` can be followed by a `token.refresh.fail` without `kind` for the same user: GitHub rotated before the answer was lost, so that user signs in again.
 
 ## Webhook deliveries answer 401
 
