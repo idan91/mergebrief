@@ -17,11 +17,38 @@ These fetch the newest release. For another one, replace `latest/download` with 
 
 **Check:** `ls` shows the three files. `grep 'image:' docker-compose.yml` shows the release's exact tag, such as `ghcr.io/idan91/mergebrief:1.4.0`.
 
+## Put HTTPS in front on a server
+
+Skip this step on your own machine: start the tunnel instead ([Try it locally through a tunnel](#try-it-locally-through-a-tunnel)). On a cloud VM, the [cloud deployment guide](./cloud-deployment.md#2-install-docker-and-https) covers this step.
+
+On a server, GitHub's webhooks and sign-in need an `https://` domain before you register the App. Nothing in the stack speaks TLS, so put a reverse proxy in front of `web`, which listens on `127.0.0.1:3000`. Caddy gets and renews a Let's Encrypt certificate on its own:
+
+1. Point your domain's DNS A record at the server, and open ports 80 and 443 in its firewall.
+2. Install Caddy as a system service from its [install instructions](https://caddyserver.com/docs/install).
+3. Replace `/etc/caddy/Caddyfile` with:
+
+   ```caddyfile
+   brief.example.com {
+       reverse_proxy 127.0.0.1:3000
+   }
+   ```
+
+4. Reload Caddy:
+
+   ```sh
+   sudo caddy validate --config /etc/caddy/Caddyfile
+   sudo systemctl reload caddy
+   ```
+
+**Check:** `curl -sI https://brief.example.com` prints a status line with `502` and no certificate error. The `502` is Caddy with no `web` behind it yet; it goes away once the stack runs. Your origin is `https://brief.example.com`.
+
+Before anyone else uses the instance, also read [Terminate TLS at a reverse proxy](#2-terminate-tls-at-a-reverse-proxy) for the headers and settings a proxy needs.
+
 ## Register the GitHub App
 
 Decide the origin reviewers will browse first:
 
-- On a server, your `https://` domain behind a reverse proxy ([Terminate TLS](#2-terminate-tls-at-a-reverse-proxy)).
+- On a server, your `https://` domain from [Put HTTPS in front on a server](#put-https-in-front-on-a-server).
 - On your own machine, a tunnel's URL. Start it now: [Try it locally through a tunnel](#try-it-locally-through-a-tunnel).
 
 Then follow [github-app.md](./github-app.md) through [Install the App](./github-app.md#install-the-app). Come back with the App ID, Client ID, client secret, private key file and webhook secret.
@@ -69,34 +96,45 @@ POSTGRES_PASSWORD=<openssl rand -hex 24 output>
 To keep the private key out of `.env`, mount the `.pem` file into `api` and `worker`:
 
 1. Delete the `GITHUB_APP_PRIVATE_KEY=` line from `.env`. Boot refuses while both forms are set, and the copied `.env` has the inline placeholder.
-2. Put the key beside the compose file, readable by the containers' user, UID 1000:
+2. Put the key in a `secrets` folder beside the compose file:
 
    ```sh
    mkdir -p secrets && chmod 700 secrets
    cp ~/Downloads/<app-name>.<date>.private-key.pem secrets/github-app.pem
+   ```
+
+   On a server, the key downloaded to your own computer. Copy it over from there instead of the `cp` line, using your server's login and folder:
+
+   ```sh
+   scp ~/Downloads/<app-name>.<date>.private-key.pem <user>@<server>:~/mergebrief/secrets/github-app.pem
+   ```
+
+3. Make it readable by the containers' user, UID 1000:
+
+   ```sh
    sudo chown 1000:1000 secrets/github-app.pem
    sudo chmod 400 secrets/github-app.pem
    ```
 
-3. Create `docker-compose.override.yml` beside `docker-compose.yml`. If you have one, merge these entries into it:
+4. Create `docker-compose.override.yml` beside `docker-compose.yml`. If you have one, merge these entries into it:
 
    ```yaml
    services:
      api:
        secrets:
-         - github-app-key
+         - github-app.pem
      worker:
        secrets:
-         - github-app-key
+         - github-app.pem
    secrets:
-     github-app-key:
+     github-app.pem:
        file: ./secrets/github-app.pem
    ```
 
-4. Add the path to `.env`:
+5. Add the path to `.env`:
 
    ```dotenv
-   GITHUB_APP_PRIVATE_KEY_PATH=/run/secrets/github-app-key
+   GITHUB_APP_PRIVATE_KEY_PATH=/run/secrets/github-app.pem
    ```
 
 ## List who may sign in
@@ -186,15 +224,23 @@ Before anyone else uses the instance, work through [Hardening before real exposu
 
 GitHub delivers webhooks only to a public URL. On your own machine, a tunnel gives `localhost:3000` one. These steps use [ngrok](https://ngrok.com); any tunnel that forwards HTTPS to a local port works.
 
-1. Start the tunnel before you register the App, and keep it running:
+1. Sign up at ngrok, install it, and connect it to your account once, with the authtoken from ngrok's dashboard:
+
+   ```sh
+   ngrok config add-authtoken <your-authtoken>
+   ```
+
+2. Start the tunnel before you register the App, and keep it running:
 
    ```sh
    ngrok http 3000
    ```
 
-2. Copy the `https://` forwarding URL it prints, such as `https://abc123.ngrok-free.app`.
-3. Use it as the origin when you [register the App](./github-app.md#before-you-start), and as `PUBLIC_BASE_URL` in `.env`.
-4. Start the stack and run [Check it end to end](#check-it-end-to-end) against that URL.
+3. Copy the `https://` forwarding URL it prints, such as `https://abc123.ngrok-free.app`.
+4. Use it as the origin when you [register the App](./github-app.md#before-you-start), and as `PUBLIC_BASE_URL` in `.env`.
+5. Start the stack and run [Check it end to end](#check-it-end-to-end) against that URL.
+
+On ngrok's free plan, a browser opening the URL first sees ngrok's warning page: click **Visit Site** to continue. GitHub's webhook deliveries do not get that page.
 
 A free ngrok URL changes each time ngrok restarts. When it does, put the new URL in `PUBLIC_BASE_URL`, in the App's **Homepage URL**, **Callback URL** and **Webhook URL**, then run `docker compose up -d` to recreate the services with it. ngrok's inspector at `http://127.0.0.1:4040` lists every delivery and can replay one.
 
@@ -211,6 +257,7 @@ While the tunnel is up, the instance is on the internet: stop it when you are no
 
 - **Ports bind to loopback only.** Put a reverse proxy, or a tunnel for a trial, in front of `web` for anything reachable from outside. `web` reaches `api` at `http://api:3001`, a name that covers every api replica ([Running more than one api](./operations.md#running-more-than-one-api)).
 - **Restarts.** `api`, `web` and `worker` restart after a nonzero exit (`restart: on-failure`). A configuration error in `api` or `worker` exits 0 and stays down, so it does not restart-loop; `web` exits 1 on a bad value and restarts until it is fixed. `postgres` has no restart policy. None of them start again after a reboot by themselves ([Starting on boot](./operations.md#starting-on-boot)).
+- **How a push becomes a brief:** [How MergeBrief works](../architecture.md).
 - **Migrations run at boot** in `api` and `worker`, under one Postgres advisory lock: one process applies them and the others wait. A process waiting past 5 minutes exits 1, logging a `migration lock:` warning every 30 seconds until then. A restricted database role can turn this off ([below](#restricted-database-roles-mergebrief_auto_migratefalse)).
 
 ### Moving a host port
@@ -251,24 +298,19 @@ One folder, with no checkout of the repository and no build:
 
 Tracing is off until `.env` names an OTLP endpoint ([observability.md](./observability.md#tracing)).
 
-## Who owns which setting
+## Where a setting goes
 
-Capacity and secrets live in `.env`; policy and provider live in `mergebrief.config.yaml`; nothing lives in both.
+| Put it in | What goes there |
+| --- | --- |
+| `.env` | Secrets and credentials, the database connection, `PUBLIC_BASE_URL`, and capacity: `WORKER_COUNT`, `WORKER_CONCURRENCY`, `WORKER_LARGE_CONCURRENCY`, `API_COUNT` |
+| `mergebrief.config.yaml` | Who may sign in (`operators`, `allowed`), the provider and model (`generator`), and the daily generation cap (`spend.maxGenerationsPerDay`) |
+| A repository's `.mergebrief/` folder | That repository's own settings, set by its code owners ([Configure your repository](../repo-config/README.md)) |
 
-| Setting | Owner | Precedence |
-| --- | --- | --- |
-| Slots per worker (`WORKER_CONCURRENCY`) | `.env` | env only |
-| Large-pool slots per worker (`WORKER_LARGE_CONCURRENCY`) | `.env` | env only |
-| Worker count (`WORKER_COUNT`) | `.env` | `docker compose up --scale worker=N` wins for that run |
-| Api count (`API_COUNT`) | `.env` | `docker compose up --scale api=N` wins for that run |
-| Daily generation cap (`spend.maxGenerationsPerDay`) | `mergebrief.config.yaml` | yaml only; no env and no `.mergebrief/` override |
-| Provider, model, effort (`generator.*`) | `mergebrief.config.yaml` | yaml only; the key's value comes from the variable the yaml names |
-| Credentials, DSN, public origin | `.env` | `DATABASE_URL_FILE` wins over `DATABASE_URL` |
-| `MERGEBRIEF_CONFIG` | `docker-compose.yml` | set to the mounted file |
+A value lives in one place only: the config file never holds a key, and `.env` never holds policy. `docker compose up --scale worker=N` overrides `WORKER_COUNT` for that run, and `DATABASE_URL_FILE` wins over `DATABASE_URL`.
 
 ## External Postgres (managed database)
 
-`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-h2-e2-or-e3).
+`api`, `web` and `worker` from compose, the database from a managed provider (Neon, Supabase, RDS) or any Postgres 16 or newer that you run. Step-by-step setups for RDS, Neon and Supabase are in the [cloud deployment guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase).
 
 The release ships an overlay, `docker-compose.external-db.yml`, that removes the bundled `postgres` service and hands `api` and `worker` your `DATABASE_URL`. It is not a compose file by itself. Fetch it beside the default file and name both in `.env`, in this order, so every plain `docker compose` command reads them:
 
@@ -345,15 +387,7 @@ Migrating at boot needs DDL. If your runtime role is read and write only, set `M
 
 Compose, with the bundled or an external Postgres, is the one supported way to run MergeBrief. The image runs under another orchestrator in principle, but that is untested. If you do, start `ghcr.io/idan91/mergebrief:X.Y.Z` as the three services `docker-compose.yml` defines, with its commands and environment, pin the exact tag, and roll out [one release at a time](./operations.md#what-happens-to-the-schema).
 
-## The lifecycle of a push
-
-1. GitHub delivers `pull_request`. `web` proxies it to `api`, which verifies the signature over the exact bytes GitHub signed, records the pull request and queues one debounced `generate` job. The first push fixes when the job runs, about 60 seconds later; a push inside that window moves the job to the newer head, so rapid pushes coalesce into one run.
-2. `worker` takes the job, fetches the pull request through the App's installation, generates the brief (with what changed since the previous brief, and each reviewer's re-review view), and stores it in Postgres.
-3. A reviewer opens the pull request in MergeBrief; the brief is already there.
-
-A push during a generation aborts the model stream within about 20 seconds, records the run as `superseded`, and the newer push's job generates the new head. A brief generated in parts (a pull request past the single-call size) stops aborting once its detail calls start: it finishes on its own head, and the newer push's job runs after it.
-
-## Verifying / troubleshooting
+## Check what the worker is doing
 
 `api` and `web` each answer `GET /healthz` (static liveness, which the compose health checks use) and `GET /readyz`. `api`'s `/readyz` runs one `SELECT 1`; `web`'s answers with `api`'s, so from outside an unreachable api and an unreachable database look the same. Logs are JSON on stdout, rotated at `10m` times 3 per service; events, correlation and alerting are in [observability.md](./observability.md).
 
@@ -375,7 +409,7 @@ docker compose exec postgres \
 
 The defaults suit a loopback-only, single-operator machine. Before you point a domain at an instance, or leave a tunnel up, work through this section.
 
-If `MERGEBRIEF_URL_FALLBACK_TOKEN` is set, it serves only the GitHub account that owns it, so make it on your own account, never a bot's. GitHub refusing it logs `url-fallback-token.owner.fail` with the fix. Once a brief is open on the token, diff and file reads are limited to the commits MergeBrief recorded for that pull request, but any file at one of those commits is readable.
+`MERGEBRIEF_URL_FALLBACK_TOKEN` is optional, and most instances leave it unset. It is a GitHub token MergeBrief tries when a reviewer pastes a private pull request from a repository the App is not installed on ([configuration.md](./configuration.md#github-app-and-sign-in)). If you set it, it serves only the GitHub account that owns it, so make it on your own account, never a bot's. GitHub refusing it logs `url-fallback-token.owner.fail` with the fix. Once a brief is open on the token, diff and file reads are limited to the commits MergeBrief recorded for that pull request, but any file at one of those commits is readable.
 
 ### 1. Postgres credentials
 
@@ -392,19 +426,7 @@ Use hex as it is: the value is also put into a connection string that is percent
 
 ### 2. Terminate TLS at a reverse proxy
 
-Nothing in the stack speaks TLS. Put a proxy in front; `web` keeps listening on `127.0.0.1:3000`. Caddy gets and renews a Let's Encrypt certificate from two lines:
-
-```caddyfile
-brief.example.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-```sh
-sudo caddy run --config ./Caddyfile     # or: caddy start, or a systemd unit
-```
-
-Then set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and run `docker compose up -d` to recreate the services that read it. It must match the App's callback and webhook origin. It is also the one origin a signed-in browser may send writes from: a POST with another `Origin` answers 403, so the value must be the origin reviewers browse, scheme and port included.
+Nothing in the stack speaks TLS: a proxy in front of `web` does ([Put HTTPS in front on a server](#put-https-in-front-on-a-server)). Set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and run `docker compose up -d` to recreate the services that read it. It must match the App's callback and webhook origin. It is also the one origin a signed-in browser may send writes from: a POST with another `Origin` answers 403, so the value must be the origin reviewers browse, scheme and port included.
 
 - **Sign-in cookies are `__Host-` cookies with `Secure`.** A browser keeps them over `https://`, or `http://localhost`, and drops them over plain `http://` on any other hostname, so sign-in does not stick there.
 - **`web` serves only `PUBLIC_BASE_URL`'s hostname,** `localhost`, `*.localhost` and bare IP addresses, and answers any other `Host` with 403. Forward the original `Host`, and keep `X-Request-Id` if you correlate logs.

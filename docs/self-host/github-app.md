@@ -10,7 +10,7 @@ You need the origin reviewers will browse, with no trailing slash. It becomes `P
 
 | Where you run it | `PUBLIC_BASE_URL` |
 | --- | --- |
-| A server with a domain | `https://brief.example.com`, served through a reverse proxy ([compose.md](./compose.md#2-terminate-tls-at-a-reverse-proxy)) |
+| A server with a domain | `https://brief.example.com`, served through a reverse proxy ([compose.md](./compose.md#put-https-in-front-on-a-server)) |
 | Your own machine, for a trial | The tunnel's public URL, such as `https://abc123.ngrok-free.app` ([compose.md](./compose.md#try-it-locally-through-a-tunnel)) |
 
 GitHub delivers webhooks only to a public URL, so a local trial needs the tunnel running before you register.
@@ -86,7 +86,7 @@ Under **Subscribe to events**, check these four and nothing else:
 - **Check run**, which appears once **Checks** is set
 - **Status**, which appears once **Commit statuses** is set
 
-GitHub sends install, uninstall, repository and authorization-revoked events to every App without a checkbox, so these four are the complete set.
+GitHub sends every App its installation events (installed, uninstalled, repositories added or removed) and the authorization-revoked event without a checkbox, so these four are the complete set.
 
 ### Choose where it can be installed
 
@@ -100,14 +100,14 @@ Click **Create GitHub App**. GitHub opens the App's settings on the **General** 
 
 ## Collect the credentials
 
-Everything below is on the App's **General** tab. Each value goes in `.env` beside `docker-compose.yml`, never in the config file or a repository ([Fill in `.env`](./compose.md#fill-in-env)).
+The App ID, Client ID and client secret are on the App's **General** tab; the private key is under **Credentials** in the left sidebar. Each value goes in `.env` beside `docker-compose.yml`, never in the config file or a repository ([Fill in `.env`](./compose.md#fill-in-env)).
 
 | Value | Where to find it | `.env` key |
 | --- | --- | --- |
 | App ID | **About**, a number | `GITHUB_APP_ID` |
 | Client ID | **About**, a string, not the App ID | `GITHUB_OAUTH_CLIENT_ID` |
 | Client secret | **Client secrets**, **Generate a new client secret**. GitHub shows it once: copy it now | `GITHUB_OAUTH_CLIENT_SECRET` |
-| Private key | **Credentials** in the left sidebar, then **Key pairs**, **New key**. Your browser downloads the key as a PEM file | `GITHUB_APP_PRIVATE_KEY` (the contents) or `GITHUB_APP_PRIVATE_KEY_PATH` (a mounted file) |
+| Private key | **Credentials** in the left sidebar (not the **General** tab), then **Key pairs**, **New key**. Your browser downloads the key as a PEM file | `GITHUB_APP_PRIVATE_KEY` (the contents) or `GITHUB_APP_PRIVATE_KEY_PATH` (a mounted file) |
 | Webhook secret | The value you generated in [Before you start](#before-you-start) | `GITHUB_WEBHOOK_SECRET` |
 | Slug, optional | The App's public page, `https://github.com/apps/<slug>` | `GITHUB_APP_SLUG`, so Home can link a viewer with no installation to the install page |
 
@@ -190,35 +190,22 @@ A bot author is decided by the repository's `trustedBots` list in `.mergebrief/s
 
 GitHub's **Where can this GitHub App be installed?** setting decides more than the install page:
 
-| Registered as | Who can install it | Who can authorize it |
-| --- | --- | --- |
-| Only on this account, owned by an organization | That organization | Its members |
-| Only on this account, owned by a person | That person's account | GitHub's docs do not say |
-| Any account | Anyone | Anyone |
+- **Only on this account, owned by an organization:** only that organization can install it, and only its members can sign in through it.
+- **Only on this account, owned by a person:** only that person's account can install it.
+- **Any account:** anyone can install it and sign in through it.
 
 The instance answers to its own list either way ([Who may start a brief](./generators.md#who-may-start-a-brief)): an install lets nobody in and starts no brief until the account is listed, so a stranger's install on an **Any account** App spends nothing.
 
 ### Update an App you registered earlier
 
-A release that reads something new from GitHub needs a permission or event your App lacks; its release notes say which. Changing the App's settings does not reach an existing installation: GitHub asks each installation to accept the new permissions, and until it does, the installation keeps working on its old ones. An organization owner accepts on the installation's settings page.
+A release that reads something new from GitHub needs a permission or event your App lacks; its release notes say which. For example, the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md) need **Checks** and **Commit statuses**.
 
-Until an installation accepts:
+1. In the App's settings, open **Permissions & events**.
+2. Set each new permission, such as **Checks** and **Commit statuses** to **Read-only**.
+3. Under **Subscribe to events**, check each new event, such as **Check run** and **Status**.
+4. Click **Save changes**.
+5. Accept the change on every installation: open the account's **Settings**, then **GitHub Apps** for an organization or **Applications** for a personal account, click **Configure** beside the App, and accept the updated permissions. On an organization, an owner accepts.
 
-- **Members**: team suggestions stay empty there.
-- **Issues**: a GitHub ticket reads as refused on the brief.
-- **Pull requests: write**: no Entry comment posts. A comment is not posted retroactively; the next push gets one.
-- **Checks** and **Commit statuses**: see below.
+**Check:** the installation's page no longer asks you to review a permission request.
 
-### Accept the Checks and Commit statuses permissions
-
-On an App registered before the `bots` and `ci` [trigger conditions](../repo-config/trigger-conditions.md) existed:
-
-1. In the App's settings, open **Permissions & events**, and set **Checks** and **Commit statuses** to **Read-only**.
-2. Under **Subscribe to events**, check **Check run** and **Status**.
-3. Click **Save changes**, then accept the updated permissions on each installation's settings page.
-
-Until an installation accepts, a `ci` condition holds a push as missing the permission whenever it has a check to read; a `ci: required` on a base with no required check still passes. A `bots` condition holds Unblocked, CodeRabbit, Claude or Greptile as missing the permission while they have not reported. Only a pull request review from the bot lifts that hold, and only for `finished` and `approved`. The brief view names the bot or CI it cannot check. `copilot` reports through reviews and is unaffected, and so is a repository with neither condition. Anyone with push access can still generate a held push from MergeBrief.
-
-`claude: clean` reads check runs only, so it needs Checks alone, and holds as missing the permission until Checks is accepted, even after Claude reviews. Every other verdict on those four bots, and every `ci` check, needs both. With only one of the two granted, a run or status through the readable source also settles a bot, and a run from the App a ruleset pins a check to decides that check without the status read. Any other `ci` check that passes, or reports nothing, on the readable source holds as missing while the other source is unreadable, and the held push shows the line asking for the permission in place of those checks. A check that failed or is still running on the readable source shows as failed or running beside that line.
-
-Accepting wakes nothing by itself: a push already held is checked again on the next commit status or finished check run GitHub reports on it, or the next review submitted on its pull request. A Generate click generates that push without checking it.
+Until an installation accepts, it keeps working on its old permissions, and whatever needs the new one does not work there: a push held by a `bots` or `ci` condition shows that it cannot check that bot or CI until the permission is accepted ([What a `bots` condition waits on](../repo-config/trigger-conditions.md#what-a-bots-condition-waits-on)). Accepting wakes nothing by itself: a held push is checked again on its next check run, status or review, or when someone presses Generate.
