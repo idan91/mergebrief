@@ -121,10 +121,13 @@ per-profile `headers` in the CLI config are the escape hatch:
 3. Copy the token: it is shown **once**. Revoke and create another freely from
    the same page; `last_used_at` in the list tells you which tokens are
    live.
-4. On the machine that runs the CLI:
+4. On the machine that runs the CLI, run `auth login` and paste the token
+   when it asks. Pasting keeps the token out of your shell history; the
+   prompt shows what you paste, so clear the terminal's scrollback after.
 
    ```sh
-   echo "mergebrief_…" | mergebrief auth login --base-url https://mergebrief.your-org.example
+   mergebrief auth login --base-url https://mergebrief.your-org.example
+   mergebrief auth status
    ```
 
 `mergebrief auth status --json` is the end-to-end probe: it reports

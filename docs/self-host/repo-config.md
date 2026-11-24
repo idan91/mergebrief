@@ -10,7 +10,7 @@ repo's** briefs loudly when invalid, never the instance.
 ```
 .mergebrief/
   instructions.md    # text guidance to generation (semi-trusted, bounded)
-  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, trackers, trustedBots)
+  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, tracker or trackers, trustedBots, triggerConditions)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
   rules/             # RESERVED for future generated output; leave empty
 ```
@@ -49,8 +49,9 @@ entryCommentOnDrafts: true   # default
 default, the same as on ready ones. A repo that keeps drafts private opts
 out with `false`; the comment then posts when the PR flips to
 ready-for-review, and an existing draft Entry is removed on the next run.
-Generation itself always runs for drafts (subject to the instance `drafts:`
-knob below); this gates the comment only. When the settings file cannot be
+Generation runs for drafts unless a trigger condition holds them
+([`readyForReview: on`](#triggerconditions-what-a-push-must-meet-before-it-generates),
+here or in the instance config); this key gates the comment only. When the settings file cannot be
 fetched the comment stays off drafts for that run and nothing is removed.
 
 ### `trackers:`, where this repo's tickets live

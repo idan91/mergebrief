@@ -343,8 +343,9 @@ the worker resends what failed, up to 20 every 15 minutes, starting within about
 30 minutes of coming back. To do it sooner, redeliver one from the App's
 **Advanced** tab, within 3 days.
 
-A systemd unit runs `docker compose up` once at boot. Set `WorkingDirectory`
-to the folder that holds `docker-compose.yml` and `.env`
+A systemd unit runs `docker compose up` once at boot. `/opt/mergebrief` below
+is a placeholder: set `WorkingDirectory` to the folder that holds
+`docker-compose.yml` and `.env`
 ([compose.md](./compose.md#what-the-host-holds)). Compose names the project
 after that folder, so any other folder starts a second, empty stack.
 `COMPOSE_FILE` in `.env` still applies, so an external database needs no
@@ -519,12 +520,21 @@ worker process.
 
 Failed generations leave one more thing behind, outside the database. When
 a model's answer fails the brief's schema, the worker saves that answer to
-`apps/worker/out/<label>-<time>-<n>.failed.json`, readable by the worker's user
+`<label>-<time>-<n>.failed.json` in `/app/apps/worker/out` inside the worker
+container (`apps/worker/out` in a checkout), readable by the worker's user
 only, so the failure can be debugged. It is text about the pull request's
 code, with credential-shaped strings redacted. The folder is not a volume, so
 recreating the container empties it, and each worker process sweeps its own
 folder when it starts and once a day, deleting each file once it is seven
 days old. No setting changes that window.
+
+To read the dumps, copy the folder out of the container. With more than one
+worker, add `--index 2` and so on for each:
+
+```sh
+docker compose cp worker:/app/apps/worker/out ./worker-failures
+ls ./worker-failures
+```
 
 Sign-in credentials prune themselves, always on. Every hour the worker
 deletes expired sessions. It then deletes each GitHub authorization that no
@@ -838,7 +848,9 @@ poll that aborts the run on a newer head, stands the older run down. Up to
 one poll of overlap in the normal case (longer while head reads are
 failing) costs spend, never correctness, and the daily cap stays exact
 because every start takes the same instance-wide advisory lock. Each
-scheduled sweep (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`, `sweep-webhook-deliveries`, `sweep-generation-parts`) still runs once per tick:
+scheduled task (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`,
+`sweep-webhook-deliveries`, `sweep-generation-parts`,
+`reconcile-webhook-deliveries`) still runs once per tick:
 each runner tries to record the tick in graphile's `_private_known_crontabs`
 table, and only the runner that advances `last_execution` enqueues the job. Each worker opens its own
 connection pool, so count that against Postgres's `max_connections`.

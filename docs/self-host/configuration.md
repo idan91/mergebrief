@@ -30,8 +30,11 @@ explain when to change one; this page says what each one accepts.
   named in the tables and listed in [Empty values](#empty-values). The safe
   habit is the one [compose.md](./compose.md) gives: leave a variable out
   entirely when it does not apply.
-- **Booleans** accept `true`, `1`, `yes`, `on` and `false`, `0`, `no`,
-  `off`, in any case. Any other token refuses boot.
+- **Booleans** differ by variable. `MERGEBRIEF_AUTO_MIGRATE` accepts `true`,
+  `1`, `yes`, `on` and `false`, `0`, `no`, `off`, in any case; any other
+  token refuses boot. `OTEL_SDK_DISABLED` is on only for `true`, in any
+  case; any other value leaves tracing on. The build-time `ENABLE_*`
+  variables are on for `true` or `1`.
 - **Credentials are named, not inlined, in the config file.** Keys such as
   `generator.apiKeyEnv` and `contextSources[].tokenEnv` hold the NAME of an
   environment variable (uppercase letters, digits and underscores). The

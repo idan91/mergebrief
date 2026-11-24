@@ -24,8 +24,10 @@ before you switch.
 
 One YAML file selects the backend for the **worker and the
 categorizer CLIs** alike; the api reads its `drafts`, `spend`,
-`operators`, `allowed` and `attachments` blocks from the same file. The `generator` block
-is optional, the file is not. Nobody can sign in until `operators` or
+`operators`, `allowed`, `attachments`, `audit` and `updateCheck` blocks from
+the same file. The `generator` block is optional, the file is not. Every root
+key, who reads it and its default are in the
+[root keys reference](./configuration.md#root-keys). Nobody can sign in until `operators` or
 `allowed` names them ([Who may start a brief](#who-may-start-a-brief)). A ready-to-copy annotated template ships
 at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
 (copy to `mergebrief.config.yaml`, which is gitignored, the same convention as
@@ -54,59 +56,10 @@ generator:
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
-# drafts: the OTHER root block: the draft regeneration debounceSeconds.
-# Enforced by the api process and validated by the worker too; see
-# self-host/repo-config.md's instance-block section for semantics.
-# drafts:
-#   debounceSeconds: 900
-
-# spend: the THIRD root block: the daily generation cap, at most N
-# generations per UTC calendar day across every repo this instance serves.
-# Omitting the block means 300; `unlimited` lifts the cap. See "Daily
-# generation cap" below.
-# spend:
-#   maxGenerationsPerDay: 50
-
-# contextSources: the FOURTH root block: ticket trackers that need a
-# deployment credential, by env-var NAME. URLs and GitHub issues are built
-# in and need no entry. See self-host/trackers.md.
-# contextSources:
-#   - type: notion
-#     tokenEnv: NOTION_TOKEN
-#   - type: jira
-#     site: acme.atlassian.net
-#     emailEnv: JIRA_EMAIL
-#     tokenEnv: JIRA_API_TOKEN
-
-# trackers: the FIFTH root block: the boards every repo on this instance
-# reads tickets from, one entry per board. A repo whose own
-# .mergebrief/settings.yaml names trackers replaces this list. Same entry
-# shape as the repo file, plus the github entry's instance-only
-# siblingRepos; see self-host/repo-config.md and self-host/trackers.md.
-# trackers:
-#   - kind: notion
-#     keyPrefix: ACME
-#     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
-#   - kind: jira
-#     projectKeys: [WEB, OPS]
-#   - kind: github
-
-# operators: the SIXTH root block: the GitHub user ids of the people who
-# run this instance. See "Operators" below.
-# operators:
-#   - 583231
-
-# allowed: the SEVENTH root block: who besides Operators may use this instance.
-# With neither block nobody can. See "Who may start a brief" below.
-# allowed:
-#   users:
-#     - 9919
-#   accounts:
-#     - 12345678
-
-# x-*: root keys starting with "x-" are ignored (compose-style extension
-# slot); ANY other unknown key, root or inside generator:/drafts:/spend:/
-# contextSources:/trackers:, refuses boot.
+# Every other root block (drafts, spend, operators, allowed, trackers,
+# triggerConditions, ...) is in configuration.md's root keys table.
+# Keys starting with "x-" are ignored; any other unknown root key refuses
+# boot in the worker.
 x-notes: anything here is yours
 ```
 
@@ -260,8 +213,9 @@ whoever registers it next would inherit the role; an id never changes. To
 find yours, run `gh api users/<login> --jq .id`, or read the number in your
 GitHub avatar URL (`avatars.githubusercontent.com/u/<id>`).
 
-The api reads this block, together with `drafts`, `spend` and `allowed`, from the same
-`MERGEBRIEF_CONFIG` file as the worker. A change takes effect when the api
+The api reads this block from the same `MERGEBRIEF_CONFIG` file as the
+worker, together with the other blocks the
+[root keys reference](./configuration.md#root-keys) lists for it. A change takes effect when the api
 restarts.
 
 ## Who may start a brief
@@ -958,7 +912,7 @@ violation, auth, a timeout, a refusal):
 ```sh
 # API adapters (need the key env var set):
 pnpm -C packages/generators smoke -- --adapter anthropic
-pnpm -C packages/generators smoke -- --adapter openai --model gpt-5.2
+pnpm -C packages/generators smoke -- --adapter openai --model gpt-6.1-sol
 pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/claude-sonnet-5.5
 
 # Harness-CLI adapters (need the CLI logged in on THIS machine):

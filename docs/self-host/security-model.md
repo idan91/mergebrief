@@ -112,13 +112,17 @@ bursts.
 
 ### Sessions and tokens
 
-- **Sign-in.** The OAuth start sets a random state nonce in a `__Host-`
-  cookie that lives ten minutes. The callback refuses a state that does not
-  match it.
+- **Sign-in.** The OAuth start sets two `__Host-` cookies that live ten
+  minutes: `__Host-mergebrief_oauth_state` holds a random state nonce, and
+  `__Host-mergebrief_oauth_return` holds the page to return to after sign-in.
+  The callback refuses a state that does not match the cookie.
 - **Session cookie.** `__Host-mergebrief_session` is `HttpOnly`, `Secure`,
   `SameSite=Lax` and `Path=/`. It carries a random value, and the database
   keeps only its SHA-256 hash. A session expires when its GitHub refresh token
   does, and each token refresh moves that date forward.
+- **Sign out everywhere** deletes every browser session you hold. It does not
+  touch your API tokens: each keeps working until you revoke it or it
+  expires.
 - **Same-origin writes.** A cookie request that changes state must prove it
   came from this instance: it carries `Sec-Fetch-Site: same-origin`, or an
   `Origin` equal to `PUBLIC_BASE_URL`'s origin. Anything else answers 403.
@@ -126,11 +130,39 @@ bursts.
   SHA-256 hash, and carries the access level chosen when it was created. The
   `/api/auth/*` routes ignore it, so a stolen token cannot create another token
   or sign its owner out ([cli.md](./cli.md#creating-a-token-operator-walkthrough)).
+  The CLI stores its token in plain text in
+  `~/.config/mergebrief/config.json` (under `$XDG_CONFIG_HOME` when set), a
+  file only its owner can read (mode `0600`).
 - **GitHub tokens.** Each user's access and refresh token pair is the one
   secret MergeBrief stores, encrypted under the session key
   ([operations.md](./operations.md#tokens-at-rest)). A user who revokes the
   App on github.com loses every session, API token and stored GitHub token
   here ([github-app.md](./github-app.md#events-to-subscribe-to)).
+
+### If an account or token leaks
+
+Do all three steps. Each one closes a different door.
+
+1. **Sign out everywhere.** In MergeBrief, open the account menu, choose
+   **Sign out**, then **Everywhere**. This ends every browser session.
+2. **Revoke every API token.** Open `/settings` on your instance and choose
+   **Revoke** on each token under **API tokens**. Sign-out does not reach
+   them.
+3. **Revoke the App's authorization on github.com.** Go to GitHub's
+   **Settings → Applications → Authorized GitHub Apps** and revoke your
+   MergeBrief App. GitHub tells MergeBrief, which then deletes every session,
+   API token and stored GitHub token you held.
+
+To check a leaked token is dead, paste it at the prompt and call the API with
+it. A revoked token answers `401`; a live one answers `200`:
+
+```sh
+read -rs LEAKED_TOKEN
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $LEAKED_TOKEN" \
+  https://mergebrief.your-org.example/api/version
+unset LEAKED_TOKEN
+```
 
 ### The worker
 

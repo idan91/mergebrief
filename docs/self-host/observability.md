@@ -142,10 +142,12 @@ What a trace holds:
   `traceparent` your reverse proxy sends, and follows the proxied call and
   every page render's reads into the api, down to each Postgres query.
 - **One trace per job.** A worker job opens its own trace (`process
-  generate`, `process recover-generation`, `process sync-entry`, the scheduled sweeps) and carries the
+  generate`, `process recover-generation`, `process generate-large`,
+  `process recover-generation-large`, `process sync-entry`, and the scheduled
+  sweeps and `process reconcile-webhook-deliveries`) and carries the
   job's queries and its calls to GitHub and the model provider. It links to
   the trace that queued it: a delivery, a request such as a regenerate, or
-  the job that re-queued it. The scheduled sweeps start unlinked. It is a link
+  the job that re-queued it. The scheduled tasks start unlinked. It is a link
   and not a parent: a later push replaces a queued job, so the link points
   at the latest enqueue, and one job may serve several deliveries.
 - **Not traced:** `/healthz`, `/readyz` and the web tier's static assets,
@@ -234,7 +236,8 @@ in `.env` and merge the file in:
 docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --wait
 ```
 
-With the processes on the host (`pnpm app:host`), set
+With the processes on the host (`pnpm app:host:prod`; `pnpm app:host` serves
+the web tier through `vite dev`, which loads no tracing), set
 `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` and run it alone:
 
 ```sh
@@ -307,8 +310,10 @@ Useful LogQL over the `evt` contract:
 # the access log, slow requests only
 {service="api"} | json | evt = `api.access` | durationMs > 1000
 
-# one PR's whole worker-leg story (prId = the INTERNAL row id; see
-# "Correlation" above for the one-line lookup; it is not the PR number)
+# a PR's internal row id (prId): read it off its generation.enqueue line
+{service="api"} | json | evt = `generation.enqueue` | prNumber = `<pr-number>`
+
+# one PR's whole worker-leg story, by that prId (not the PR number)
 {service="worker"} | json | prId = `<internal-pr-row-id>`
 ```
 
