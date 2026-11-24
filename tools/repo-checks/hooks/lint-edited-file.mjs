@@ -68,7 +68,16 @@ function lintEditedFile() {
     { cwd: REPO_ROOT, encoding: "utf8", timeout: LINT_TIMEOUT_MS },
   );
   if (run.status !== 0) {
-    process.stderr.write(`${run.stdout ?? ""}${run.stderr ?? ""}`);
+    // PostToolUse passes `additionalContext` to the agent on exit 0; stderr
+    // alone would reach only the transcript.
+    const findings = `${run.stdout ?? ""}${run.stderr ?? ""}`.trim();
+    const output = {
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: `oxlint on the file just edited:\n${findings}`,
+      },
+    };
+    process.stdout.write(JSON.stringify(output));
   }
 }
 

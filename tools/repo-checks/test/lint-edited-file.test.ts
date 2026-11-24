@@ -34,6 +34,7 @@ exit 1
 
 interface HookRun {
   readonly status: number;
+  readonly stdout: string;
   readonly stderr: string;
 }
 
@@ -63,7 +64,7 @@ function runLintHook(input: string): HookRun {
     input,
     encoding: "utf8",
   });
-  return { status: run.status ?? -1, stderr: run.stderr };
+  return { status: run.status ?? -1, stdout: run.stdout, stderr: run.stderr };
 }
 
 function makeEditInput(filePath: string): string {
@@ -87,8 +88,16 @@ describe("edited-file lint hook", () => {
 
     const result = runLintHook(makeEditInput(join(root, "src/a.ts")));
 
+    // PostToolUse hands the agent stdout JSON's additionalContext on exit 0;
+    // plain stderr would reach only the transcript.
+    const output: unknown = JSON.parse(result.stdout);
     expect(result.status).toBe(0);
-    expect(result.stderr).toContain("stub finding");
+    expect(output).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: expect.stringContaining("stub finding"),
+      },
+    });
     expect(readLintedFiles()).toEqual(["src/a.ts"]);
   });
 
@@ -126,6 +135,6 @@ describe("edited-file lint hook", () => {
 
     const result = runLintHook(makeEditInput(join(root, "src/a.ts")));
 
-    expect(result).toEqual({ status: 0, stderr: "" });
+    expect(result).toEqual({ status: 0, stdout: "", stderr: "" });
   });
 });
