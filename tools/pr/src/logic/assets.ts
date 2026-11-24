@@ -46,10 +46,11 @@ function runGit(
   return { ok: true, value: run.stdout.trim() };
 }
 
+/** Parses `ls-tree -z`: NUL-separated records, names byte for byte, never quoted. */
 function parseTree(listing: string): Map<string, TreeEntry> {
   const entries = new Map<string, TreeEntry>();
-  for (const line of listing.split("\n")) {
-    const match = /^(\d+) (\w+) ([0-9a-f]+)\t(.+)$/.exec(line);
+  for (const record of listing.split("\0")) {
+    const match = /^(\d+) (\w+) ([0-9a-f]+)\t([\s\S]+)$/.exec(record);
     const [, mode, type, sha, name] = match ?? [];
     if (
       mode !== undefined &&
@@ -68,9 +69,9 @@ function writeTree(
   entries: Map<string, TreeEntry>,
 ): Result<string, Error> {
   const listing = [...entries.values()]
-    .map((entry) => `${entry.mode} ${entry.type} ${entry.sha}\t${entry.name}`)
-    .join("\n");
-  return runGit(git, ["mktree"], `${listing}\n`);
+    .map((entry) => `${entry.mode} ${entry.type} ${entry.sha}\t${entry.name}\0`)
+    .join("");
+  return runGit(git, ["mktree", "-z"], listing);
 }
 
 function validate(
@@ -86,14 +87,16 @@ function validate(
   if (files.length === 0) {
     return { ok: false, error: new Error("no files given") };
   }
+  const names = new Set(files.map((file) => basename(file)));
+  if (names.size !== files.length) {
+    return {
+      ok: false,
+      error: new Error(
+        "two files share a name; the second would replace the first",
+      ),
+    };
+  }
   for (const file of files) {
-    // mktree reads one entry per line, and ls-tree quotes a name starting with `"`.
-    if (/[\n"]/.test(basename(file))) {
-      return {
-        ok: false,
-        error: new Error(`${file} has a newline or quote in its name`),
-      };
-    }
     if (!MEDIA_EXTENSIONS.has(extname(file).toLowerCase())) {
       return {
         ok: false,
@@ -165,7 +168,9 @@ export function runAssets(
     return tip;
   }
   const rootListing =
-    tip.value === undefined ? undefined : runGit(git, ["ls-tree", tip.value]);
+    tip.value === undefined
+      ? undefined
+      : runGit(git, ["ls-tree", "-z", tip.value]);
   if (rootListing !== undefined && !rootListing.ok) {
     return rootListing;
   }
@@ -174,7 +179,7 @@ export function runAssets(
   const folderListing =
     existingFolder === undefined
       ? undefined
-      : runGit(git, ["ls-tree", existingFolder.sha]);
+      : runGit(git, ["ls-tree", "-z", existingFolder.sha]);
   if (folderListing !== undefined && !folderListing.ok) {
     return folderListing;
   }
@@ -240,8 +245,11 @@ export function runAssets(
   const isPrivate = visibility.stdout.trim() !== "false";
   const links = files.map((file) => {
     const name = basename(file);
-    const label = name.slice(0, name.length - extname(name).length);
-    return `![${label}](${buildLink(deps.slug, isPrivate, commit.value, `${folder}/${name}`)})`;
+    const label = name
+      .slice(0, name.length - extname(name).length)
+      .replaceAll(/[\\[\]]/g, (character) => `\\${character}`);
+    const path = `${folder}/${encodeURIComponent(name)}`;
+    return `![${label}](${buildLink(deps.slug, isPrivate, commit.value, path)})`;
   });
   return { ok: true, value: links.join("\n") };
 }

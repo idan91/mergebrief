@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -114,13 +114,59 @@ describe("runAssets", () => {
     expect(readRemote(box.remote, ["branch", "--list", "assets/*"])).toBe("");
   });
 
-  it("refuses a file name that would break the tree listing", () => {
+  it("replaces a non-ASCII name in place on a second upload", () => {
+    const box = makeSandbox();
+    const deps = { git: box.git, gh: makeGh(false), slug: SLUG };
+    const name = "Shot 10.00\u202fAM.png";
+    runAssets(deps, "BRIEF-476", [writeImage(box.work, name, "v1")]);
+
+    const result = runAssets(deps, "BRIEF-476", [
+      writeImage(box.work, name, "v2"),
+    ]);
+
+    expect(result.ok).toBe(true);
+    const commit = readRemote(box.remote, ["rev-parse", "assets/brief-476"]);
+    const names = readRemote(box.remote, [
+      "ls-tree",
+      "-z",
+      "--name-only",
+      `${commit}:brief-476`,
+    ]);
+    expect(names.split("\0").filter((entry) => entry !== "")).toEqual([name]);
+    const fsck = spawnSync("git", [
+      "--git-dir",
+      box.remote,
+      "fsck",
+      "--strict",
+    ]);
+    expect(fsck.status).toBe(0);
+  });
+
+  it("encodes link paths and escapes the label", () => {
     const box = makeSandbox();
 
     const result = runAssets(
       { git: box.git, gh: makeGh(false), slug: SLUG },
       "BRIEF-476",
-      [writeImage(box.work, "a\nb.png", "png")],
+      [writeImage(box.work, "a [b] #1.png", "png")],
+    );
+
+    const commit = readRemote(box.remote, ["rev-parse", "assets/brief-476"]);
+    expect(result.ok && result.value).toBe(
+      `![a \\[b\\] #1](https://raw.githubusercontent.com/idan91/mergebrief/${commit}/brief-476/a%20%5Bb%5D%20%231.png)`,
+    );
+  });
+
+  it("refuses two files with the same name in one run", () => {
+    const box = makeSandbox();
+    const first = writeImage(box.work, "shot.png", "a");
+    mkdirSync(join(box.work, "other"));
+    const second = writeImage(join(box.work, "other"), "shot.png", "b");
+
+    const result = runAssets(
+      { git: box.git, gh: makeGh(false), slug: SLUG },
+      "BRIEF-476",
+      [first, second],
     );
 
     expect(result.ok).toBe(false);
