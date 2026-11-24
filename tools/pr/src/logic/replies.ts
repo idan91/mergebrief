@@ -48,6 +48,20 @@ const LOCK_WAIT_MS = 25;
 const LOCK_ATTEMPTS = 80;
 const STALE_LOCK_MS = 10_000;
 
+/**
+ * Rename, not delete: exactly one waiter wins the rename, so two waiters can
+ * never both clear a stale lock and then both write.
+ */
+function takeOverStaleLock(lockPath: string): void {
+  const claimed = `${lockPath}.stale.${process.pid}`;
+  try {
+    renameSync(lockPath, claimed);
+    rmSync(claimed, { force: true });
+  } catch {
+    // Another waiter took it over first.
+  }
+}
+
 /** An exclusive lock file beside the store; one left by a crashed writer expires. */
 function withStoreLock<Value>(
   storePath: string,
@@ -63,7 +77,7 @@ function withStoreLock<Value>(
         Date.now() -
         (statSync(lockPath, { throwIfNoEntry: false })?.mtimeMs ?? Date.now());
       if (age > STALE_LOCK_MS) {
-        rmSync(lockPath, { force: true });
+        takeOverStaleLock(lockPath);
       } else {
         Atomics.wait(
           new Int32Array(new SharedArrayBuffer(4)),
