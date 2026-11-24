@@ -14,7 +14,7 @@ The words MergeBrief uses on screen, in its comments and in these docs. Each ent
 
 **Chunk.** A run of changed lines that belong to one change group and one kind of content (`implementation`, `test`, `config` and so on). A chunk can be smaller than a git hunk, and one file's chunks can sit in different groups. It is the unit you mark as read.
 
-**Risk surface.** Factual attributes MergeBrief attaches to a chunk, such as `touches-auth`, `no-tests` or `adds-secret`. They describe the change, never judge it. The full list is [risk-surface.md](./vocabulary/risk-surface.md); a repository can add its own ([policy.md](./repo-config/policy.md)).
+**Risk surface.** Factual attributes MergeBrief attaches to a chunk, such as `touches-auth`, `no-tests` or `adds-secret`. They describe the change, never judge it. The full list is [Risk flags](./use/risk-flags.md); a repository can add its own ([policy.md](./repo-config/policy.md)).
 
 **Flag.** One risk surface attribute firing on one chunk: an item that asks for a reviewer's attention.
 

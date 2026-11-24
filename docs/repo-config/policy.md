@@ -100,7 +100,7 @@ deEmphasize:
 
 ## Built-in attributes
 
-These are the names you can quiet (except the floor) and cannot reuse. What each one means is in [risk-surface.md](../vocabulary/risk-surface.md).
+These are the names you can quiet (except the floor) and cannot reuse. What each one means, and how a reviewer checks it, is in [Risk flags](../use/risk-flags.md).
 
 | About | Attributes |
 | --- | --- |
