@@ -4,19 +4,26 @@ This guide runs a pinned MergeBrief release on a fresh Ubuntu 24.04 LTS server w
 
 ## Choose the deployment
 
-Make two choices. The steps are the same for every combination except where a section names one.
+Answer two questions. Every other step is the same whatever you pick.
 
-| Choice | Option | Pick it when |
+**1. What runs MergeBrief?**
+
+| Server | What it is | Pick it when |
 | --- | --- | --- |
-| Server | **VPS**: one rented server with a public IP and the provider's firewall | You want the cheapest complete self-host |
-| Server | **Cloud VM**: an instance in a cloud account's virtual network, behind a security group | You want the database on a private network in the same account |
-| Database | **On the server**: the Compose file's own Postgres, on the server's disk | You want nothing else to run or pay for |
-| Database | **Managed, over the internet**: a hosted Postgres such as Neon or Supabase | You want a managed database with its own backups, from any server |
-| Database | **Managed, private**: the cloud's own Postgres, such as Amazon RDS, in the cloud VM's network | You want the database unreachable from the internet |
+| VPS | A rented server with a public IP, such as Hetzner, DigitalOcean or Linode | You want the simplest and cheapest setup |
+| Cloud VM | An instance in a cloud account, such as AWS EC2, Google Compute Engine or an Azure VM | You want the database on a private network next to it |
 
-A private managed database is reachable only from inside its network: from a VPS or another cloud, use one reachable over the internet.
+**2. Where does Postgres run?**
 
-A VPS with the database on the server, and a VPS with Neon, have been run end to end. Supabase and the cloud VM with a private database follow the providers' documentation and have not been run end to end yet.
+| Database | What it is | Works with | Steps |
+| --- | --- | --- | --- |
+| On the server | The Postgres container the Compose file ships | Any server | [5A](#5a-database-on-the-server) |
+| Managed, over the internet | A hosted Postgres you reach with verified TLS, such as Neon or Supabase | Any server | [5B](#database-over-the-internet) |
+| Managed, private | The cloud's own Postgres on the VM's private network, such as Amazon RDS | A cloud VM in the same account | [5B](#private-database-in-the-same-cloud) |
+
+Start with a VPS and the database on the server unless you need a managed database's backups.
+
+A VPS with the database on the server, and a VPS with Neon, have been run end to end. Supabase and the private managed database follow the providers' documentation and have not been run end to end yet.
 
 Give each instance its own database, hostname and GitHub App. Two instances on one database would consume the same jobs. Changing `DATABASE_URL` copies no data; moving a deployment is a backup and restore ([Restore to a new host](backup-restore.md#restore-to-a-new-host)).
 
