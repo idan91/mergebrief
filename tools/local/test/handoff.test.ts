@@ -5,6 +5,10 @@ import type { CommandOutcome, CommandRunner, HandoffDeps } from "../src/types";
 
 const OK = (stdout = ""): CommandOutcome => ({ status: 0, stdout, stderr: "" });
 
+const OLD = "a".repeat(40);
+const NEW = "b".repeat(40);
+const BUILT = "c".repeat(40);
+
 interface Script {
   readonly dirty?: boolean;
   readonly sameHead?: boolean;
@@ -23,7 +27,7 @@ function makeGit(script: Script) {
       return OK(script.dirty === true ? " M a.ts\n" : "");
     }
     if (line === "rev-parse HEAD") {
-      return OK(switched && script.sameHead !== true ? "new\n" : "old\n");
+      return OK(switched && script.sameHead !== true ? `${NEW}\n` : `${OLD}\n`);
     }
     if (line.startsWith("switch")) {
       if (script.switchFails === true) {
@@ -37,7 +41,7 @@ function makeGit(script: Script) {
       return OK();
     }
     if (line.startsWith("diff --name-only")) {
-      const key = `${args[2] ?? ""}..${args[3] ?? ""}`;
+      const key = `${args[3] ?? ""}..${args[4] ?? ""}`;
       return OK(`${(script.diffs?.[key] ?? []).join("\n")}\n`);
     }
     return { status: 1, stdout: "", stderr: `unexpected git ${line}` };
@@ -73,7 +77,7 @@ function makeFiles(initial: Record<string, string>) {
 const IN_SYNC = {
   "pnpm-lock.yaml": "lock",
   "node_modules/.pnpm/lock.yaml": "lock",
-  [WEB_BUILD_STAMP]: "new\n",
+  [WEB_BUILD_STAMP]: `${NEW}\n`,
 };
 
 function makeDeps(
@@ -107,15 +111,15 @@ describe("runHandoff", () => {
   it("installs, rebuilds web and asks for a restart when those are stale", () => {
     const { git } = makeGit({
       diffs: {
-        "old..new": ["apps/api/src/a.ts"],
-        "built..new": ["apps/web/src/a.tsx"],
+        [`${OLD}..${NEW}`]: ["apps/api/src/a.ts"],
+        [`${BUILT}..${NEW}`]: ["apps/web/src/a.tsx"],
       },
     });
     const pnpm = makePnpm();
     const { files, store } = makeFiles({
       "pnpm-lock.yaml": "lock-2",
       "node_modules/.pnpm/lock.yaml": "lock-1",
-      [WEB_BUILD_STAMP]: "built\n",
+      [WEB_BUILD_STAMP]: `${BUILT}\n`,
     });
 
     const result = runHandoff(makeDeps(git, pnpm.pnpm, store), "feat/x");
@@ -124,7 +128,7 @@ describe("runHandoff", () => {
       "install --frozen-lockfile",
       "-C apps/web build",
     ]);
-    expect(files.get(WEB_BUILD_STAMP)).toBe("new\n");
+    expect(files.get(WEB_BUILD_STAMP)).toBe(`${NEW}\n`);
     expect(result).toEqual({
       ok: true,
       value: [
@@ -138,7 +142,9 @@ describe("runHandoff", () => {
   });
 
   it("only switches when installs and the web build are current", () => {
-    const { git } = makeGit({ diffs: { "old..new": ["docs/readme.md"] } });
+    const { git } = makeGit({
+      diffs: { [`${OLD}..${NEW}`]: ["docs/readme.md"] },
+    });
     const pnpm = makePnpm();
 
     const result = runHandoff(
@@ -163,6 +169,20 @@ describe("runHandoff", () => {
     runHandoff(makeDeps(git, pnpm.pnpm, store), "feat/x");
 
     expect(pnpm.calls).toContain("install --frozen-lockfile");
+  });
+
+  it("treats a stamp that is not a commit id as no stamp", () => {
+    const { git, calls } = makeGit({});
+    const pnpm = makePnpm();
+    const { store } = makeFiles({
+      ...IN_SYNC,
+      [WEB_BUILD_STAMP]: "--output=/tmp/x\n",
+    });
+
+    runHandoff(makeDeps(git, pnpm.pnpm, store), "feat/x");
+
+    expect(pnpm.calls).toEqual(["-C apps/web build"]);
+    expect(calls.some((call) => call.includes("--output"))).toBe(false);
   });
 
   it("rebuilds web when no build stamp exists", () => {

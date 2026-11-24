@@ -5,6 +5,7 @@ import type { CommandRunner, HandoffDeps } from "../types";
 const WEB_INPUTS = ["apps/web/", "packages/"];
 const API_INPUTS = ["apps/api/", "packages/"];
 const LOCKFILE = "pnpm-lock.yaml";
+const COMMIT_SHA = /^[0-9a-f]{40,64}$/;
 /** pnpm's copy of the lockfile it last installed from. */
 const INSTALLED_LOCKFILE = "node_modules/.pnpm/lock.yaml";
 /** The commit the web dist was last built from; gitignored with node_modules. */
@@ -32,7 +33,11 @@ function listChanged(
   from: string,
   to: string,
 ): string[] | undefined {
-  const diff = runOrFail(git, ["diff", "--name-only", from, to], "git diff");
+  const diff = runOrFail(
+    git,
+    ["diff", "--name-only", "--end-of-options", from, to],
+    "git diff",
+  );
   return diff.ok
     ? diff.value.split("\n").filter((path) => path !== "")
     : undefined;
@@ -57,7 +62,7 @@ function describeNode(nodeVersion: string, pinned: string): string {
 
 function isWebStale(deps: HandoffDeps, head: string): boolean {
   const builtFrom = deps.files.read(WEB_BUILD_STAMP)?.trim();
-  if (builtFrom === undefined || builtFrom === "") {
+  if (builtFrom === undefined || !COMMIT_SHA.test(builtFrom)) {
     return true;
   }
   const changed = listChanged(deps.git, builtFrom, head);
