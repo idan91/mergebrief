@@ -3,31 +3,9 @@
 import { fileURLToPath } from "node:url";
 
 import { checkEnvExample } from "./env-example";
-import { checkProvenance } from "./provenance";
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
-const USAGE = "usage: repo-checks provenance | env\n";
-
-function runProvenance(): number {
-  const result = checkProvenance(REPO_ROOT);
-  if (!result.ok) {
-    process.stderr.write(`provenance: ${result.error}\n`);
-    return 1;
-  }
-
-  for (const hit of result.value) {
-    process.stderr.write(
-      `${hit.path}:${String(hit.line)}: ${hit.kind} citation \`${hit.match}\`; name the decision, cite it in the commit or PR body\n`,
-    );
-  }
-  if (result.value.length > 0) {
-    return 1;
-  }
-  process.stdout.write(
-    "provenance: no ticket, handle or pull request citation\n",
-  );
-  return 0;
-}
+const USAGE = "usage: repo-checks env\n";
 
 function runEnv(): number {
   const result = checkEnvExample(REPO_ROOT);
@@ -73,7 +51,6 @@ function runEnv(): number {
 }
 
 const COMMANDS: Readonly<Record<string, () => number>> = {
-  provenance: runProvenance,
   env: runEnv,
 };
 

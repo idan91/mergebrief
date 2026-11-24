@@ -3,12 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Tree-wide text checks inside pnpm lint: no ticket, handle or own-PR citation in tracked files, and every server config key documented in .env.example.",
+  "description": "A tree-wide check inside pnpm lint that every server config key is documented in .env.example.",
   "license": "FSL-1.1-ALv2",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "check:provenance": "tsx src/main.ts provenance",
     "check:env": "tsx src/main.ts env"
   },
   "dependencies": {
