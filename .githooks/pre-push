@@ -1,0 +1,81 @@
+#!/bin/sh
+# Branches pushed to this repository follow the ticket shape (a fork names
+# its own), and oxlint passes on the files the push changes since its merge
+# base with origin/main. `git push --no-verify` skips this hook.
+set -u
+
+BRANCH_SHAPE='^(feature|fix|chore|docs|refactor|test)/BRIEF-[0-9]+/[0-9]+[a-z]?-[a-z0-9-]+$'
+THIS_REPOSITORY='idan91/(mergebrief|code-review)(\.git)?/?$'
+remote_url=${2:-}
+
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+# core.hooksPath replaces the git directory's hooks; a local one still runs.
+local_hook="$(git rev-parse --git-common-dir)/hooks/pre-push"
+if [ -x "$local_hook" ]; then
+  refs=$(cat)
+  printf '%s\n' "$refs" | "$local_hook" "$@" || exit 1
+else
+  refs=$(cat)
+fi
+
+oxlint="$root/node_modules/.bin/oxlint"
+head_sha=$(git rev-parse -q --verify HEAD || true)
+failed=0
+
+check_branch() {
+  if ! printf '%s\n' "$remote_url" | grep -Eiq "$THIS_REPOSITORY"; then
+    return 0
+  fi
+  case "$1" in
+    main | assets/*) return 0 ;;
+  esac
+  if printf '%s\n' "$1" | grep -Eq "$BRANCH_SHAPE"; then
+    return 0
+  fi
+  echo "pre-push: branch '$1' does not match <type>/BRIEF-<n>/<n>-<slug>" >&2
+  echo "  (type: feature, fix, chore, docs, refactor or test; main and assets/* are allowed)" >&2
+  return 1
+}
+
+lint_changed_files() {
+  if [ "$1" != "$head_sha" ]; then
+    echo "pre-push: $2 is not checked out; lint skipped" >&2
+    return 0
+  fi
+  if [ ! -x "$oxlint" ]; then
+    echo "pre-push: oxlint is not installed; run pnpm install. Lint skipped" >&2
+    return 0
+  fi
+  base=$(git merge-base origin/main "$1" 2>/dev/null) || {
+    echo "pre-push: no merge base with origin/main; fetch it. Lint skipped" >&2
+    return 0
+  }
+  set -- "$base" "$1" -- '*.ts' '*.tsx' '*.mts' '*.cts' '*.js' '*.jsx' '*.mjs' '*.cjs'
+  count=$(git diff -z --name-only --diff-filter=ACMR "$@" | tr -cd '\000' | wc -c)
+  if [ "$count" -eq 0 ]; then
+    return 0
+  fi
+  git diff -z --name-only --diff-filter=ACMR "$@" |
+    xargs -0 "$oxlint" --quiet --no-error-on-unmatched-pattern --
+}
+
+while read -r local_ref local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/*) ;;
+    *) continue ;;
+  esac
+  # An all-zero local sha is a deletion: nothing lands, nothing to check.
+  case "$local_sha" in
+    *[!0]*) ;;
+    *) continue ;;
+  esac
+  branch=${remote_ref#refs/heads/}
+  check_branch "$branch" || failed=1
+  lint_changed_files "$local_sha" "$local_ref" || failed=1
+done <<REFS
+$refs
+REFS
+
+exit "$failed"
