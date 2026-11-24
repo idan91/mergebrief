@@ -1,0 +1,118 @@
+/* The page body. :root lifts each rule past the default theme's vp-doc rules. */
+:root .vp-doc :is(h1, h2, h3, h4) {
+  text-wrap: balance;
+}
+
+:root .vp-doc li {
+  line-height: 28px;
+}
+
+:root .vp-doc :not(pre, h1, h2, h3, h4, h5, h6) > code {
+  padding: 0.15em 0.45em;
+  font-size: 0.85em;
+}
+
+/* A callout is a Brief card: neutral, since a note carries no state. */
+:root .vp-doc :is(blockquote, .custom-block) {
+  border: 1px solid var(--mb-line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  background-color: var(--mb-card);
+  color: inherit;
+}
+
+:root .vp-doc :is(blockquote, .custom-block) > p + p {
+  margin-top: 12px;
+}
+
+/* GitHub's alerts: the same card, at body size, titled in sentence case. */
+:root .vp-doc .custom-block {
+  font-size: inherit;
+  line-height: 28px;
+}
+
+:root .vp-doc .custom-block p {
+  margin: 0;
+  line-height: 28px;
+}
+
+:root .vp-doc .custom-block .custom-block-title + p {
+  margin-top: 0;
+}
+
+:root .vp-doc .custom-block .custom-block-title {
+  margin-bottom: 4px;
+  color: var(--mb-text-1);
+  font-weight: 600;
+}
+
+/* Code inside an alert reads as code anywhere else, never in the alert's tint. */
+:root .vp-doc .custom-block :not(pre) > code {
+  background-color: var(--vp-code-bg);
+  color: var(--vp-code-color);
+}
+
+/* Only a warning or a caution carries a state; the tint marks it, the words stay readable. */
+:root .vp-doc .custom-block.warning {
+  border-color: color-mix(in srgb, var(--mb-warning) 40%, var(--mb-line));
+  background-color: color-mix(in srgb, var(--mb-warning) 8%, var(--mb-card));
+}
+
+:root .vp-doc .custom-block.caution {
+  border-color: color-mix(in srgb, var(--mb-negative) 40%, var(--mb-line));
+  background-color: color-mix(in srgb, var(--mb-negative) 8%, var(--mb-card));
+}
+
+:root .vp-doc .custom-block.warning .custom-block-title {
+  color: var(--mb-warning);
+}
+
+:root .vp-doc .custom-block.caution .custom-block-title {
+  color: var(--mb-negative);
+}
+
+/* A code block is the app's markdown code block: Surface 1 in a hairline. */
+@media (min-width: 640px) {
+  :root .vp-doc div[class*="language-"] {
+    border: 1px solid var(--mb-line);
+  }
+}
+
+/* A table is one Brief list: a framed container with row dividers only. */
+:root .vp-doc table {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--mb-line);
+  border-radius: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Rows read top down; a centred short cell floats beside a tall one. */
+:root .vp-doc :is(th, td) {
+  border: 0;
+  vertical-align: top;
+}
+
+:root .vp-doc tr + tr > td,
+:root .vp-doc thead + tbody > tr:first-child > td {
+  border-top: 1px solid var(--mb-line);
+}
+
+:root .vp-doc tr {
+  border: 0;
+  background-color: transparent;
+}
+
+:root .vp-doc th {
+  background-color: var(--mb-card);
+  color: var(--mb-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* A wide table scrolls; a command in a cell never breaks at its hyphen. */
+:root .vp-doc td code {
+  white-space: nowrap;
+}

@@ -29,6 +29,9 @@
   --mb-ring-width: 2px;
   --mb-ring-offset: 2px;
   --mb-ring-reach: calc(var(--mb-ring-width) + var(--mb-ring-offset));
+
+  /* The Brief's reading card, by the web token's own mix. */
+  --mb-card: color-mix(in oklch, var(--mb-surface-1) 80%, var(--mb-ground));
 }
 
 .dark {
@@ -129,6 +132,7 @@
   --vp-code-copy-code-bg: var(--mb-surface-2);
   --vp-code-copy-code-hover-bg: var(--mb-surface-elevated);
 
+  --vp-local-search-bg: var(--mb-surface-elevated);
   --vp-local-search-result-bg: var(--vp-local-search-bg);
   --vp-local-search-result-border: transparent;
   --vp-local-search-result-selected-bg: var(--mb-surface-2);

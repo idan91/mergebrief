@@ -3,12 +3,13 @@ import { fileURLToPath } from "node:url";
 import { createI18n } from "i18n";
 import { defineConfig, type DefaultTheme, type UserConfig } from "vitepress";
 
+import { ALERT_TITLE_RULE_NAME, createAlertTitleRule } from "../src/alerts";
 import { findDeadAnchors, formatDeadAnchors } from "../src/anchors/check";
 import { slugifyHeading } from "../src/anchors/slug";
 import { buildFontPreloads, buildIconLinks } from "../src/head";
 import { readSiteLabels } from "../src/labels";
 import { createLinkRule, readGitHubRef } from "../src/links";
-import { LINK_RULE_NAME } from "../src/links/consts";
+import { LINK_RULE_NAME, PUBLIC_REPO_URL } from "../src/links/consts";
 import {
   deriveSrcExclude,
   listSitePages,
@@ -59,10 +60,18 @@ const config: UserConfig<DefaultTheme.Config> = {
     codeCopyButtonTitle: labels.copyCode,
     config(md) {
       md.core.ruler.push(LINK_RULE_NAME, createLinkRule(linkContext));
+      md.core.ruler.push(
+        ALERT_TITLE_RULE_NAME,
+        createAlertTitleRule(labels.alerts),
+      );
     },
   },
   themeConfig: {
     ...labels.chrome,
+    logo: { src: "/favicon.svg", alt: "" },
+    socialLinks: [
+      { icon: "github", link: PUBLIC_REPO_URL, ariaLabel: "GitHub" },
+    ],
     sidebar: buildSidebar(readSitePages(srcDir), labels.sidebar),
     search: { provider: "local", options: { translations: labels.search } },
   },

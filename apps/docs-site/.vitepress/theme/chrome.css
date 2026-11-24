@@ -1,0 +1,142 @@
+/*
+ * The site chrome around a page: the nav lockup, the sidebar and the outline.
+ * :root lifts each rule past the default theme's scoped selectors.
+ */
+:root {
+  --mb-lockup-size: 20px;
+  --vp-nav-logo-height: calc(var(--mb-lockup-size) * 1.3);
+}
+
+/* The Header lockup from DESIGN.md: the mark beside the wordmark, 0.4em apart. */
+:root .VPNavBarTitle .logo {
+  margin-right: calc(var(--mb-lockup-size) * 0.4);
+}
+
+/* The site title stays the link's accessible name; the wordmark paints over it. */
+:root .VPNavBarTitle .title > span {
+  overflow: hidden;
+  inline-size: calc(var(--mb-lockup-size) * 5.749);
+  block-size: calc(var(--mb-lockup-size) * 1.074);
+  color: transparent;
+  background-color: var(--mb-text-1);
+  mask: url("./mergebrief-wordmark.svg") center / contain no-repeat;
+  forced-color-adjust: none;
+  user-select: none;
+}
+
+@media (forced-colors: active) {
+  :root .VPNavBarTitle .title > span {
+    background-color: CanvasText;
+  }
+}
+
+:root .VPSidebarItem .text {
+  padding-block: 6px;
+  line-height: 20px;
+  text-wrap: pretty;
+}
+
+:root .VPSidebarItem.level-0 > .item .text {
+  font-weight: 600;
+}
+
+:root .VPSidebarItem:not(.level-0) .text {
+  font-weight: 400;
+}
+
+:root .VPSidebarItem.is-active > .item .link > .text {
+  font-weight: 500;
+}
+
+/* The bar keeps the current page apart from a group heading of the same tone. */
+:root .VPSidebarItem.is-active > .item > .indicator {
+  background-color: var(--vp-c-brand-1);
+}
+
+/* The outline's title is a Brief section label. */
+:root .VPDocAsideOutline .outline-title {
+  color: var(--mb-text-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* A single line stays 32px tall: the active marker is placed for that height. */
+:root .VPDocAsideOutline .outline-link {
+  padding-block: 6px;
+  line-height: 20px;
+  white-space: normal;
+  text-wrap: pretty;
+}
+
+/* Search is the app's dialog: Surface 3, a strong edge, 12px corners, the float shadow. */
+:root .VPLocalSearchBox .shell {
+  border: 1px solid var(--mb-line-strong);
+  border-radius: 12px;
+  box-shadow: var(--mb-shadow-float);
+}
+
+/* The box draws its own clear button beside the input. */
+:root .VPLocalSearchBox .search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+:root .NotFound .title {
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+:root .NotFound .quote {
+  max-width: 32ch;
+  text-wrap: balance;
+}
+
+/* The app's secondary button, with its press. */
+:root .NotFound .link {
+  border-color: var(--mb-line-strong);
+  border-radius: 8px;
+  padding: 6px 16px;
+  color: var(--mb-text-1);
+  transition:
+    background-color 120ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .NotFound .link:hover {
+    border-color: var(--mb-line-strong);
+    background-color: var(--mb-surface-2);
+    color: var(--mb-text-1);
+  }
+}
+
+:root .NotFound .link:active {
+  transform: scale(0.97);
+}
+
+/* The app's hover pace: a colour change lands in 120ms, not VitePress's 250-500ms. */
+:root
+  :is(
+    .VPSidebarItem .text,
+    .VPDocAsideOutline .outline-link,
+    .VPNavBarMenuLink,
+    .VPSocialLink,
+    .vp-doc a
+  ) {
+  transition-duration: 120ms;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--mb-text-1) 18%, transparent);
+}
+
+/* The app's thin scrollbar on everything that scrolls inside the page. */
+:root
+  :is(
+    .vp-doc div[class*="language-"] pre,
+    .vp-doc table,
+    .VPSidebar,
+    .VPLocalSearchBox .results
+  ) {
+  scrollbar-color: var(--mb-line-strong) transparent;
+  scrollbar-width: thin;
+}
