@@ -209,7 +209,7 @@ const CASES: readonly FixtureCase[] = [
     name: "no-file-named-after-folder on a test outside a component",
     bad: "bad-test/tenant/tenant.test.ts",
     good: "good-test/tenant/index.test.ts",
-    alsoGood: ["good-task-tests/test/tracing/tracing.test.ts"],
+    alsoGood: ["good-task-tests/test/tracing/sampler.test.ts"],
     lines: [1],
   },
   {

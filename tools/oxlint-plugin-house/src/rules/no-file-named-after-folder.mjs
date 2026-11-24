@@ -1,7 +1,6 @@
 import { posix } from "node:path";
 
 const TEST_MARKERS = new Set(["test", "spec"]);
-const TEST_ROOTS = new Set(["test", "tests", "__tests__"]);
 const COMPONENT_FOLDER = /^[A-Z][A-Za-z0-9]*$/;
 const HOOK_FOLDER = /^use[A-Z][A-Za-z0-9]*$/;
 
@@ -11,14 +10,13 @@ function normalizeName(name) {
 }
 
 /**
- * A component's or hook folder's test takes the unit's name, and a task's
- * per-concern test folder sits directly under a test root.
+ * A component's or hook folder's test takes the unit's name. A task's
+ * per-concern test folder names each file for its concern, so it never
+ * needs an exception here.
  * @param {string} folder
- * @param {string} folderParent
  */
-function isMirroredTest(folder, folderParent) {
-  const unitFolder = COMPONENT_FOLDER.test(folder) || HOOK_FOLDER.test(folder);
-  return unitFolder || TEST_ROOTS.has(folderParent);
+function isMirroredTest(folder) {
+  return COMPONENT_FOLDER.test(folder) || HOOK_FOLDER.test(folder);
 }
 
 /** @type {import("../types").RuleDefinition} */
@@ -41,7 +39,6 @@ export const noFileNamedAfterFolder = {
         const file = posix.basename(normalized);
         const folderPath = posix.dirname(normalized);
         const folder = posix.basename(folderPath);
-        const folderParent = posix.basename(posix.dirname(folderPath));
         const [stem = "", ...suffixes] = file.split(".");
 
         const sameName = normalizeName(stem) === normalizeName(folder);
@@ -49,7 +46,7 @@ export const noFileNamedAfterFolder = {
           return;
         }
         const isTest = suffixes.some((suffix) => TEST_MARKERS.has(suffix));
-        if (isTest && isMirroredTest(folder, folderParent)) {
+        if (isTest && isMirroredTest(folder)) {
           return;
         }
 
