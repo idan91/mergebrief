@@ -1,0 +1,5 @@
+# Testing
+
+`test/sweep-audit.test.ts`, `test/sweep-sessions.test.ts`, `test/sweep-pull-requests.test.ts`, `test/sweep-webhook-deliveries.test.ts` and `test/sweep-generation-parts.test.ts` drive the scheduled sweeps over the same PGlite harness.
+
+`test/generate/` = integration, one file per behaviour, via `persistence/testing`'s PGlite harness (real migrations + the graphile_worker stub), a stub `Generator` (canned outputs parsed through the request's own schema, no model calls), and `github/testing`'s fake GitHub behind the real port (no network; url-box jobs seed a real grant). The shared `helpers.ts` holds the stubs, the fake's PR #7 arrangement, `setUpHarness` (one harness per file, reset before each test; a test that alters the schema, or leaves work running past its end, calls `openPerTestHarness`) and `makeTask` (the task over the test's harness with stub defaults; a test passes only what it varies). An interleaving the fake cannot arrange wraps the binding a job reads through (`interceptInstallationRepo`). `trigger` drives the real `createIngestRoutines` enqueue and feeds the task the payload read back from the stubbed jobs table.
