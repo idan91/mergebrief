@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "stack-status": "tsx src/main.ts stack-status",
-    "reply": "tsx src/main.ts reply"
+    "reply": "tsx src/main.ts reply",
+    "assets": "tsx src/main.ts assets"
   },
   "dependencies": {
     "types": "workspace:*",

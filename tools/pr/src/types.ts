@@ -97,7 +97,10 @@ export interface StackStatus {
 }
 
 /** Runs one CLI process and reports its outcome without throwing. */
-export type CommandRunner = (args: readonly string[]) => CommandOutcome;
+export type CommandRunner = (
+  args: readonly string[],
+  input?: string,
+) => CommandOutcome;
 
 export interface CommandOutcome {
   readonly status: number;

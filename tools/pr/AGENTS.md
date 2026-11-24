@@ -9,6 +9,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 ```sh
 pnpm -s -C tools/pr stack-status 61 62 63          # PRs bottom first
 pnpm -s -C tools/pr reply 62 3539470933 body.md    # reply on a review thread
+pnpm -s -C tools/pr assets BRIEF-476 before.png after.png
 ```
 
 `stack-status` prints, per open PR, whether its base is an ancestor of its head, every unresolved review thread whose last message is not a recorded reply, and the reviews and PR comments newer than the head commit (bots excluded). The last line compares the current checkout with the top open PR.
@@ -22,6 +23,7 @@ pnpm -s -C tools/pr reply 62 3539470933 body.md    # reply on a review thread
 - **"Since head" counts from the earlier of the head's commit time and its first check suite** (created on push), so a comment posted between a commit and its push still shows, and a local clock ahead of GitHub cannot hide one. Each thread is read as its root plus its latest message, so a long thread cannot hide its last reply; a stack with more than 100 threads on one PR says so.
 - **`reply` resolves a reply id to its thread root**; GitHub's replies endpoint accepts roots only.
 - **One GraphQL call per run** for every PR, because review threads' resolved state is GraphQL-only and the watcher's REST quota is spent elsewhere.
+- **`assets` never touches the working tree or index.** It builds the commit with `hash-object`, `mktree` and `commit-tree` on top of the remote tip it read, pushes with a lease on that tip, and links each file at the new commit SHA so a later push never repoints an earlier link. Unknown repo visibility falls back to the `blob/...?raw=true` form, which works for private and public repos alike.
 - **Alignment is never guessed.** A failed fetch or `merge-base` prints `unknown`.
 
 ## Verification

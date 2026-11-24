@@ -5,6 +5,9 @@ import { spawnSync } from "node:child_process";
 import { isAbsolute, join, resolve } from "node:path";
 import type { Result } from "types/utils";
 
+import { runAssets } from "./logic/assets";
+import { readOriginUrl } from "./logic/git";
+import { parseRepoSlug } from "./logic/github";
 import { runReply } from "./logic/reply";
 import { runStackStatus, type StackStatusDeps } from "./logic/stack-status";
 import type { CommandOutcome, CommandRunner } from "./types";
@@ -15,14 +18,19 @@ let needsAttention = false;
 
 const USAGE = `usage:
   stack-status <pr> [<pr> ...]        PRs bottom first
-  reply <pr> <comment-id> <body-file>  reply on a review thread and remember it`;
+  reply <pr> <comment-id> <body-file>  reply on a review thread and remember it
+  assets <ticket> <file> [<file> ...]  push images to assets/<ticket>, print markdown links`;
 
 // pnpm -C moves the working directory; INIT_CWD is where the caller stood.
 const CALLER_CWD = process.env["INIT_CWD"] ?? process.cwd();
 
 function makeRunner(command: string): CommandRunner {
-  return (args) => {
-    const run = spawnSync(command, args, { cwd: CALLER_CWD, encoding: "utf8" });
+  return (args, input) => {
+    const run = spawnSync(command, args, {
+      cwd: CALLER_CWD,
+      encoding: "utf8",
+      input,
+    });
     const outcome: CommandOutcome = {
       status: run.status ?? 1,
       stdout: run.stdout ?? "",
@@ -87,6 +95,16 @@ function runCommand(argv: readonly string[]): Result<string, Error> {
       ? bodyFile
       : resolve(CALLER_CWD, bodyFile);
     return runReply(deps.value, pullNumber, commentId, bodyPath);
+  }
+  if (command === "assets" && rest.length >= 2) {
+    const [ticket = "", ...files] = rest;
+    const origin = readOriginUrl(deps.value.git);
+    const slug = origin.ok ? parseRepoSlug(origin.value) : origin;
+    if (!slug.ok) {
+      return slug;
+    }
+    const paths = files.map((file) => resolve(CALLER_CWD, file));
+    return runAssets({ ...deps.value, slug: slug.value }, ticket, paths);
   }
   return { ok: false, error: new Error(USAGE) };
 }
