@@ -51,7 +51,7 @@ Until a domain converts, and wherever it still earns the pair, the handler and c
 - `schemas.ts` / `utils.ts` (generic only) / `consts.ts` / `types.ts` (incl. the domain's `XxxControllerDeps`: narrow slices, never `AppDeps`; `log: Logger` rides deps).
 - `logic/`: domain business logic; never at root, never in `utils.ts`.
 
-A handler or controller body is orchestration only (~40 lines); computed logic extracts to a named, unit-testable function in `logic/`. Hono's context parameter is `c` in every handler and middleware, the framework's idiom and the one exception to the root rule against one-letter locals. Sibling routes sharing a path segment mount under one prefix in one routes file.
+A handler or controller body is orchestration only (~40 lines); computed logic extracts to a named, unit-testable function in `logic/`. Hono's context parameter is `c` in every handler and middleware, the framework's idiom and the one exception to the rule against one-letter locals (`docs/dev/coding-standards.md`, Types and values). Sibling routes sharing a path segment mount under one prefix in one routes file.
 
 `routes/local-briefs` is dev-only: it serves `MERGEBRIEF_OUT_DIR`, which `loadConfig` drops in the shipped image (`MERGEBRIEF_RUNTIME`) or under `NODE_ENV=production`; with no dir its paths answer as unmounted, while its queries stay in the catalog.
 
