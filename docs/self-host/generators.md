@@ -182,14 +182,6 @@ With codex or cursor, the worker logs `generator.tool-access` at startup, and ev
 
 On Windows, run a host worker under WSL2, the tested path.
 
-## Who may start a brief
-
-Every brief spends your provider key, so only the people `mergebrief.config.yaml` lists can sign in, paste a pull request or regenerate a brief ([Who can sign in](./security-model.md#who-can-sign-in)).
-
-## Daily generation cap
-
-Every run counts against a daily cap, 300 runs across every repository unless you set another number ([Cap daily generation spend](./spend-cap.md)).
-
 ## Reference
 
 ### The config file

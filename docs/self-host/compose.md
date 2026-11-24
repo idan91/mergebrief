@@ -166,7 +166,7 @@ allowed:
     - 12345678
 ```
 
-Ids, never logins. `allowed.users` adds single people, such as an outside reviewer ([Who may start a brief](./generators.md#who-may-start-a-brief)).
+Ids, never logins. `allowed.users` adds single people, such as an outside reviewer ([Who can sign in](./security-model.md#who-can-sign-in)).
 
 The file must exist and stay readable by UID 1000, which is what the `chmod 644` is for. It holds variable names, never keys. Edits apply when `api` and `worker` restart.
 
@@ -206,7 +206,7 @@ docker compose ps -a
 
    About a minute after the push, the App comments on the pull request: **Brief is generating for this push…**. When the brief is ready, the comment changes to **Read the brief for this push**. Follow that link: the brief opens in MergeBrief.
 
-You're done when that link opens the brief. From now on every push to an open pull request gets its brief in the background, debounced and under the instance's [daily generation cap](./generators.md#daily-generation-cap).
+You're done when that link opens the brief. From now on every push to an open pull request gets its brief in the background, debounced and under the instance's [daily generation cap](./spend-cap.md).
 
 If something stops short:
 
@@ -246,6 +246,43 @@ A free ngrok URL changes each time ngrok restarts. When it does, put the new URL
 
 While the tunnel is up, the instance is on the internet: stop it when you are not testing ([A tunnel is production exposure](#4-a-tunnel-is-production-exposure)).
 
+
+## Start on boot
+
+A reboot leaves the stack down: `restart: on-failure` brings `api`, `web` and `worker` back after a nonzero exit, not when Docker starts, and `postgres` has no restart policy. Do not switch to `unless-stopped`: a configuration error exits 0 so the service stays down, and that policy would restart it into the same error forever.
+
+A systemd unit runs `docker compose up` once at boot. Write it from the instance folder, so `WorkingDirectory` gets that folder's path: compose names the project after the folder, and any other folder would start a second, empty stack. `COMPOSE_FILE` in `.env` still applies, so an external database needs no change.
+
+```sh
+sudo tee /etc/systemd/system/mergebrief.service > /dev/null <<EOF
+[Unit]
+Description=MergeBrief
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$PWD
+ExecStart=/usr/bin/docker compose up -d --wait
+ExecStop=/usr/bin/docker compose stop
+TimeoutStopSec=240
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable docker mergebrief
+```
+
+**Check:** `systemctl cat mergebrief | grep WorkingDirectory` shows the instance folder. Then `sudo reboot`, reconnect, and run `docker compose ps -a` in that folder: `api` and `web` read `healthy`, `worker` reads `Up`, and so does `postgres` on the bundled database.
+
+- **`worker` has no health check**, so a `worker` that exits a moment after it starts leaves the unit active, with webhooks answering and no brief appearing. `docker compose ps -a` catches it ([A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0)). An error in `api` or `web` shows as failed in `systemctl status mergebrief`. The unit has no `Restart=`.
+- **`TimeoutStopSec`** covers the stop grace periods in `docker-compose.yml`, so systemd does not cut a drain at shutdown.
+- **To keep an instance down across reboots**, run `sudo systemctl disable mergebrief`. A plain `docker compose stop` lasts only until the next boot.
+- **Deliveries GitHub sent while the stack was down** are resent by the worker, up to 20 every 15 minutes, starting within about 30 minutes. To do it sooner, redeliver them from the App's **Advanced** tab, within 3 days.
+
 ## What runs
 
 | Service | What it does | Port |
@@ -255,8 +292,8 @@ While the tunnel is up, the instance is on the internet: stop it when you are no
 | `web` | The web app; proxies `/api/*` to `api` and holds no credentials | `127.0.0.1:3000` |
 | `worker` | Generates briefs from the job queue | none |
 
-- **Ports bind to loopback only.** Put a reverse proxy, or a tunnel for a trial, in front of `web` for anything reachable from outside. `web` reaches `api` at `http://api:3001`, a name that covers every api replica ([Running more than one api](./operations.md#running-more-than-one-api)).
-- **Restarts.** `api`, `web` and `worker` restart after a nonzero exit (`restart: on-failure`). A configuration error in `api` or `worker` exits 0 and stays down, so it does not restart-loop; `web` exits 1 on a bad value and restarts until it is fixed. `postgres` has no restart policy. None of them start again after a reboot by themselves ([Starting on boot](./operations.md#starting-on-boot)).
+- **Ports bind to loopback only.** Put a reverse proxy, or a tunnel for a trial, in front of `web` for anything reachable from outside. `web` reaches `api` at `http://api:3001`, a name that covers every api replica ([Run more than one api](./data-and-scaling.md#run-more-than-one-api)).
+- **Restarts.** `api`, `web` and `worker` restart after a nonzero exit (`restart: on-failure`). A configuration error in `api` or `worker` exits 0 and stays down, so it does not restart-loop; `web` exits 1 on a bad value and restarts until it is fixed. `postgres` has no restart policy. None of them start again after a reboot by themselves ([Start on boot](#start-on-boot)).
 - **How a push becomes a brief:** [How MergeBrief works](../architecture.md).
 - **Migrations run at boot** in `api` and `worker`, under one Postgres advisory lock: one process applies them and the others wait. A process waiting past 5 minutes exits 1, logging a `migration lock:` warning every 30 seconds until then. A restricted database role can turn this off ([below](#restricted-database-roles-mergebrief_auto_migratefalse)).
 
@@ -289,7 +326,7 @@ With no proxy in front, moving `web` moves the origin reviewers browse: set `PUB
 
 One folder, with no checkout of the repository and no build:
 
-- **`docker-compose.yml`**, a release asset. It pins that release's exact image, such as `ghcr.io/idan91/mergebrief:1.4.0`, and an upgrade replaces it, so never edit it. Never point it at the moving `latest` tag either: the next pull would upgrade the instance without the [upgrade steps](./operations.md#the-upgrade-step).
+- **`docker-compose.yml`**, a release asset. It pins that release's exact image, such as `ghcr.io/idan91/mergebrief:1.4.0`, and an upgrade replaces it, so never edit it. Never point it at the moving `latest` tag either: the next pull would upgrade the instance without the [upgrade steps](./upgrade.md#upgrade-on-the-bundled-database).
 - **`.env`**, your settings and secrets, started from the release's `env.example`.
 - **`mergebrief.config.yaml`**, the instance config, started from the release's `mergebrief.config.example.yaml`. Compose mounts it read-only into `api` and `worker` and sets `MERGEBRIEF_CONFIG` for both.
 - **`docker-compose.override.yml`**, optional, for your own edits: [ports](#moving-a-host-port), volumes, secrets, resource limits. Compose merges it in on its own (through `COMPOSE_FILE` on an external database), and an upgrade never touches it.
@@ -327,7 +364,7 @@ Then `docker compose up -d --wait`.
 
 - **`COMPOSE_FILE` turns off the automatic override file.** Once you have `docker-compose.override.yml`, append it: `COMPOSE_FILE=docker-compose.yml:docker-compose.external-db.yml:docker-compose.override.yml`. Every file listed must exist, or each compose command fails.
 - **Use a direct or session-mode connection, never a transaction pooler.** The worker's `LISTEN`/`NOTIFY` and the migrations' advisory lock need one database session. On Neon, take the host without `-pooler`; on Supabase, the direct host or the Session pooler on port 5432, not port 6543. A lock on the wrong session shows as a `migration lock:` warning, then an exit 1, naming the pooler.
-- **Backups are the provider's.** The `docker compose exec postgres` backup in [operations.md](./operations.md#backup) has nothing to run in; use the provider's snapshots.
+- **Backups are the provider's.** The `docker compose exec postgres` backup in [backup-restore.md](./backup-restore.md#back-up-the-bundled-database) has nothing to run in; use the provider's snapshots.
 
 ### TLS: verify-full or disable (`sslmode` in the DSN)
 
@@ -381,11 +418,11 @@ Surrounding whitespace in the file is trimmed. If both variables are set, the fi
 
 ### Restricted database roles (`MERGEBRIEF_AUTO_MIGRATE=false`)
 
-Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([operations.md](./operations.md#external-database-auto-migratefalse)).
+Migrating at boot needs DDL. If your runtime role is read and write only, set `MERGEBRIEF_AUTO_MIGRATE=false`: boot then only checks that the database matches the release's migrations, and exits 1 naming the pending count when it is behind. You apply them yourself with `docker compose run --rm api migrate` and a DDL-capable DSN ([upgrade.md](./upgrade.md#upgrade-with-a-restricted-database-role)).
 
 ## Other platforms
 
-Compose, with the bundled or an external Postgres, is the one supported way to run MergeBrief. The image runs under another orchestrator in principle, but that is untested. If you do, start `ghcr.io/idan91/mergebrief:X.Y.Z` as the three services `docker-compose.yml` defines, with its commands and environment, pin the exact tag, and roll out [one release at a time](./operations.md#what-happens-to-the-schema).
+Compose, with the bundled or an external Postgres, is the one supported way to run MergeBrief. The image runs under another orchestrator in principle, but that is untested. If you do, start `ghcr.io/idan91/mergebrief:X.Y.Z` as the three services `docker-compose.yml` defines, with its commands and environment, pin the exact tag, and roll out [one release at a time](./upgrade.md#how-migrations-run).
 
 ## Check what the worker is doing
 
@@ -399,7 +436,7 @@ docker compose exec postgres \
   -c "select kind, status, phase, error_code from generation order by updated_at desc limit 5;"'
 ```
 
-- **`generation.status`** walks `pending`, `running`, `succeeded`. `superseded` means a newer push replaced the run. `failed` carries a sanitized reason in `error_code`. `capped` means the instance hit its [daily generation cap](./generators.md#daily-generation-cap). `held` means a [trigger condition](../repo-config/trigger-conditions.md) is unmet; the head generates once every condition passes, or on a Generate click. `awaiting-trigger` means the run waits until someone with push access approves the pull request's runs.
+- **`generation.status`** walks `pending`, `running`, `succeeded`. `superseded` means a newer push replaced the run. `failed` carries a sanitized reason in `error_code`. `capped` means the instance hit its [daily generation cap](./spend-cap.md). `held` means a [trigger condition](../repo-config/trigger-conditions.md) is unmet; the head generates once every condition passes, or on a Generate click. `awaiting-trigger` means the run waits until someone with push access approves the pull request's runs.
 - **A configuration error** stops `api` or `worker` at boot, and `docker compose logs api` or `logs worker` names the rejected variable. `curl -i localhost:3000/api/version` answering `401` means both tiers are up and the api parsed its environment; `503` means the api is down.
 - **Two Postgres lines are expected once on a first boot:** `ERROR:  relation "graphile_worker.migrations" does not exist` (the job queue probing an empty database) and `FATAL:  the database system is shutting down` (the image restarting after it initializes). Either one repeating is not normal: read `docker compose logs api worker`.
 - **Retries.** The worker retries transient failures with backoff. A permanent condition, such as GitHub's "diff too large", is recorded as `failed` without a retry.
@@ -420,7 +457,7 @@ openssl rand -hex 24        # use the output as it is
 ```
 
 > [!WARNING]
-> Postgres writes the role only when it first initializes the `postgres_data` volume. Changing `.env` afterwards leaves the old password in place and the services fail to connect. Fixing that means an `ALTER ROLE` inside the container, or deleting the volume and every brief in it ([operations.md](./operations.md#the-postgres-password)).
+> Postgres writes the role only when it first initializes the `postgres_data` volume. Changing `.env` afterwards leaves the old password in place and the services fail to connect. Fixing that means an `ALTER ROLE` inside the container, or deleting the volume and every brief in it ([secrets.md](./secrets.md#change-the-postgres-password)).
 
 Use hex as it is: the value is also put into a connection string that is percent-decoded, so a password with `@ : / ? #` or a `%` authenticates as a different string than the role was created with. The `mergebrief` default exists only for a loopback-only machine. Leave port 5432 on loopback; nothing outside the compose network needs it.
 
@@ -438,7 +475,7 @@ Nothing in the stack speaks TLS: a proxy in front of `web` does ([Put HTTPS in f
 `POST /api/webhooks/github` takes no session or token: each delivery is accepted or refused on its HMAC-SHA256 signature over `GITHUB_WEBHOOK_SECRET` alone, and a refusal logs `webhook.verify.fail`. A guessable secret lets anyone queue generations on your provider key.
 
 - Generate it (`openssl rand -hex 32`), never invent it. Boot refuses one under 32 characters after trimming.
-- Use a different secret per instance. To rotate, change it in the App's settings and in `.env` together, then run `docker compose up -d`; `docker compose restart` keeps the old value. A sustained `webhook.verify.fail` rate after a rotation means one side did not move ([operations.md](./operations.md#the-webhook-secret)).
+- Use a different secret per instance. To rotate, change it in the App's settings and in `.env` together, then run `docker compose up -d`; `docker compose restart` keeps the old value. A sustained `webhook.verify.fail` rate after a rotation means one side did not move ([secrets.md](./secrets.md#rotate-the-webhook-secret)).
 - Keep it in `.env` or your secret store, never in the config file or on a command line.
 - The app has a 1 MB body cap and no rate limit: add one at your proxy.
 
@@ -494,4 +531,4 @@ A refused request gets 429 with `Retry-After`. Behind another load balancer, key
 
 While a tunnel is up, the instance is on the internet with whatever secrets it has. Stop tunnels when you are not testing, and use a domain and the proxy above for anything long-lived.
 
-Upgrades, backups and restores are in [operations.md](./operations.md).
+Upgrades are in [upgrade.md](./upgrade.md), backups and restores in [backup-restore.md](./backup-restore.md).

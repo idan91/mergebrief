@@ -194,7 +194,7 @@ GitHub's **Where can this GitHub App be installed?** setting decides more than t
 - **Only on this account, owned by a person:** only that person's account can install it.
 - **Any account:** anyone can install it and sign in through it.
 
-The instance answers to its own list either way ([Who may start a brief](./generators.md#who-may-start-a-brief)): an install lets nobody in and starts no brief until the account is listed, so a stranger's install on an **Any account** App spends nothing.
+The instance answers to its own list either way ([Who can sign in](./security-model.md#who-can-sign-in)): an install lets nobody in and starts no brief until the account is listed, so a stranger's install on an **Any account** App spends nothing.
 
 ### Update an App you registered earlier
 

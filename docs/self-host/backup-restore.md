@@ -262,7 +262,7 @@ If the old host still exists, keep it stopped. Once the new host passes its chec
 
 ## Move to an external database
 
-This moves a running instance's data from the bundled Postgres to a managed one. To start over on an empty database instead, the [cloud guide](./cloud-deployment.md#moving-an-existing-h1-server-to-an-external-database) has the shorter path.
+This moves a running instance's data from the bundled Postgres to a managed one. To start over on an empty database instead, the [cloud guide](./cloud-deployment.md#move-an-existing-server-to-an-external-database) has the shorter path.
 
 1. **Fetch the overlay for the release you run.** `grep` prints the pinned version; `1.4.0` is `v1.4.0` in the URL:
 
@@ -290,7 +290,7 @@ This moves a running instance's data from the bundled Postgres to a managed one.
    docker compose down
    ```
 
-4. **Create the external database and store its connection string.** Follow your provider's steps in the [cloud guide](./cloud-deployment.md#5b-external-database-h2-e2-or-e3), then steps 1 to 4 of [Store the connection string](./cloud-deployment.md#store-the-connection-string). Do not start the stack yet: the restore needs an empty database.
+4. **Create the external database and store its connection string.** Follow your provider's steps in the [cloud guide](./cloud-deployment.md#5b-external-database-rds-neon-or-supabase), then steps 1 to 4 of [Store the connection string](./cloud-deployment.md#store-the-connection-string). Do not start the stack yet: the restore needs an empty database.
 5. **Restore into it.** `--no-owner --no-privileges` gives every object to the role in the connection string, since the bundled database's `mergebrief` role does not exist there. With a provider CA, add the `-v` mount from [Back up an external database](#back-up-an-external-database) and drop `-e PGSSLROOTCERT=system`:
 
    ```sh
