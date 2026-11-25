@@ -1,0 +1,23 @@
+# Generation claims and the spend ledger (`stores/generation.ts`)
+
+## Generation claim
+
+- A `generation` row is claimed while `run_id` is set and `lease_expires_at > now()`. `claims` counts the claims since a trigger last projected the row.
+- `claimRun` refuses a fourth claim as `exhausted` (`MAX_GENERATION_ATTEMPTS`, also every job's graphile `max_attempts`), and an `awaiting-trigger` row outright, so no run spends on a head waiting for its trigger approval.
+- A `failed` row whose code is Cannot-help (`isHopelessFailure`) is refused as `hopeless`, writing nothing: a stray job such as a fact event's recheck never pays for a rerun that fails the same way, and only a trigger's fresh projection runs that head again.
+- A `held` row (trigger conditions unmet, `unmet_conditions` set) is claimable: the worker checks its conditions before the claim, and the claim clears them, as does every writer that moves a row out of `held` (`CLAIM_CLEARED`). The CHECK binds one way only (a `held` row has conditions), so a rolled-back release that moves a held row without clearing them still writes. A trigger on a held head's key keeps the row as stored.
+- `markHeld` writes only a `pending`, `held` or `failed` row (a retry starts from `failed`, but never a failure a rerun cannot help) no live lease holds and no Generate click stamped, of a PR whose every-push switch is off, with a fresh claim budget, under the pull request's row lock a click and the switch also take.
+- An `exhausted` or `capped` claim writes the row's end in its own transaction, under the row lock a trigger also takes, and names it (`ClaimEnds`): `settled` over the run's stored brief, `left` for a row written past its pickup or kept running by the previous release's run, `kept-failed`, or `marked` `failed` as `attempts-exhausted` or `capped`. With `entrySync` it queues the head's `sync-entry` in that transaction, except for a left row or a capped claim's kept failure (the sync would replace the run's capped body with the failed one).
+- CHECKs hold the shape: a `failed` row has a code, and `run_id` and `lease_expires_at` are set together, only on a `running` row (a `running` row with no claim is the previous release's).
+- Fenced transitions name the holder's run id; unclaimed ones write only a row no live lease holds, and the terminal marks (`markFailed`, `markSuperseded`, `markCapped`) never an `awaiting-trigger` or `succeeded` one, answering `status-kept`.
+- `markAwaitingTrigger` and ingest's `releaseApprovedHold` take the pull request's row lock before the head, as every trigger and approval does, and read the approval under it, so the hold answers `trigger-approved` on an approved PR and the release moves only an approved PR's held head.
+- `endLapsedClaim` writes only a row a lapsed claim still names, and `endReleasedClaim` only a `pending` row no claim names that a recovery takeover handed back (`awaits_recovery`, set by a takeover's release or retried failure and cleared by every later claim, trigger and row write; a failed row an end leaves unwritten keeps it, read by no job, since only a claim queues a recovery job and a claim clears it); each returns `claim-lost` otherwise, and so do `claimRun` and `chargeRun` on a row that is gone, since nobody holds a claim on a missing row.
+- Every lease comparison uses the database clock, as freshness does (`../AGENTS.md`), and a `pickedUpAt` fence is a `DatabaseTimestamp` from `readClock`, compared as `::timestamptz`.
+
+## Spend ledger (`schema/generation-attempt.ts`)
+
+- `generation_attempt` holds one row per claimed or paid run (`claimRun`, or `chargeRun` for a paid run over a stored brief) and is the daily cap's only counter (`countStartedRuns`, instance-wide, the sum of `units`).
+- A row starts at 1 unit. `refundRun` sets it to 0 for a claimed run that finished without a model call, keeping the row (only lowering the count, so no lock).
+- `claimUnits` adds more under the same instance lock and refuses past the cap with the units needed, the units left and the cap, which the run's `finishRun` stores as a `capped` row's `error_params`. A run started before the claim's UTC day moves onto it with every unit it holds, so a claim after midnight counts against that day's cap (conservatively: that day also pays for the units the run carries).
+- `recordPartsPlanned` stores the grouping's plan (`parts_total`, and `parts_done` starting at the parts an earlier attempt stored), `recordPartDone` counts each further part, and `readRunAttempt` reads a run's row for the PR meta's progress, its start from `recorded_at`, which nothing moves (`started_at` is the cap's day key).
+- Rows hold ids, counts and timestamps only. No FK to `generation`: a purge never erases the day's spend.
