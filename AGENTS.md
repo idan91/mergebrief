@@ -30,6 +30,8 @@ Every rule in both binds as written, casing, schema placement, package edges and
 
 `docs/dev/coding-standards.md` holds the code-level rules: file shape, types and values, functions and naming, copy, logging and comments, and review conduct. Read it whole before the first code edit of a task and before any review. Most of its rules have no gate (one-letter locals, magic numbers, named return types, absence and failure, call nesting), so review is the only check.
 
+**Domain terms** live in `CONTEXT.md`, which is too long to read whole. Before naming a domain concept, list every term and retired name with its line (`grep -nE '^(- )?\*\*' CONTEXT.md`), then read only the entry you need.
+
 ## Gates
 
 - oxlint is the only linter. A convention oxlint has no native rule for lives in the house JS plugin as a selector rule; user-facing copy is gated by eslint-plugin-i18next loaded through oxlint. Every deterministic rule runs at error.
