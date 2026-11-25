@@ -3,7 +3,7 @@
 The rules a frontend change in `apps/web` must follow. Each rule names the token or value to use.
 
 - The values live in `apps/web/src/styles/tokens.scss`. Where this file and the tokens disagree, the tokens win and this file is corrected.
-- `apps/web/AGENTS.md` holds the stylelint mechanics: units, which properties must read a token, and how a disable is written.
+- `apps/web/docs/styling.md` holds the stylelint mechanics: units, which properties must read a token, and how a disable is written.
 - The tests in `apps/web/src/styles` hold the contrast lines, lane separation, breakpoints and stacking order. A red test there blocks the change.
 
 ## Principles
