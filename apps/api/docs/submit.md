@@ -1,0 +1,6 @@
+# Review submit and post-now (enforced, don't weaken)
+
+- **A submit is pending review, threads, submit; a pending review never outlives a failed request.** A thread GitHub rejects folds into the body, and the response names `commentsFolded` of `commentsTotal`. Any failure after the pending review exists deletes it before the route answers. A stale pending review is deleted and the create retried once only when it holds no comments; otherwise the route answers 409 `pending-review-held`, because a pending review with comments is the viewer's own unsent work.
+- **Creates never replay.** Every create rides the binding's retry-off creates, and every pending-review read and write runs on the viewer's token alone: a replayed thread mutation or comment POST is a duplicate comment.
+- **Drafts are claimed before GitHub.** Post-now and submit claim their drafts in the session before calling GitHub; a failure that may have reached GitHub keeps the claim until its lease runs out, and an in-doubt draft is looked for on GitHub before it posts again (`routes/repos/pr/publish/`).
+- **A submit holds the write limiter.** While a submit runs, octokit's per-token write limiter, which GraphQL reads share, is occupied about one second per draft, so a viewer-token GraphQL read issued mid-submit queues behind it.
